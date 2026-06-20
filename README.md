@@ -1,6 +1,6 @@
 ---
 title: Aadhi Video Generator
-emoji: ??
+emoji: 🎥
 colorFrom: gray
 colorTo: purple
 sdk: docker
@@ -88,4 +88,3 @@ Open your browser and navigate to:
 ## 📝 License
 
 Distributed under the MIT License.
-
