@@ -11,7 +11,7 @@ short_description: AI Academic Video Generator
 ---
 # 🎬 Cinematic AI Presentation Generator
 
-A revolutionary, fully automated presentation and lecture generator powered by Gemini 2.5 Pro and Google's Veo Video Model. This tool dynamically converts boring PDF documents and textbook chapters into stunning, cinematic, interactive web presentations with perfectly paced voiceovers, live Manim mathematics simulations, and hyper-realistic AI B-roll video..
+A revolutionary, fully automated presentation and lecture generator powered by Gemini 2.5 Pro and Google's Veo Video Model. This tool dynamically converts boring PDF documents and textbook chapters into stunning, cinematic, interactive web presentations with perfectly paced voiceovers, live Manim mathematics simulations, and hyper-realistic AI B-roll video....
 
 ## ✨ Core Features
 
