@@ -1,0 +1,47 @@
+# Environment and configuration
+.env
+.DS_Store
+Thumbs.db
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+*.sqlite3
+projects.db
+
+# Node / JS
+node_modules/
+package-lock.json
+
+# Project specific media and build folders
+media/
+static_videos/
+final_videos/
+images/
+
+# Temporary and Test files
+temp_*.py
+temp.html
+temp.js
+temp_log.txt
+test*.js
+test*.mp3
+test*.wav
+error_script*.js
+diff.txt
+out.txt
+extracted.txt
+debug_failed_json.txt
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp

@@ -1,0 +1,2278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Academic Lecture Overlay</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['\\(', '\\)'], ['$', '$']],
+                displayMath: [['\\[', '\\]'], ['$$', '$$']]
+            },
+            startup: {
+                typeset: false 
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+    <style>
+        :root {
+            --bg-purple: rgba(58, 22, 102, 0.92);
+            --border-gold: #FFD700;
+            --text-white: #F0F0F0;
+            --text-gold: #FFD700;
+            --font-sans: 'Inter', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #E8E8E8;
+            font-family: var(--font-sans);
+            color: var(--text-white);
+        }
+
+        /* 1. Video Background */
+        .video-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* 2. Layout & Zones */
+        .mascot-zone {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 38%;
+            height: 100%;
+            background: transparent;
+            z-index: 6;
+            pointer-events: none;
+        }
+
+        .lecture-overlay-zone {
+            position: fixed;
+            top: 0;
+            left: 38%;
+            width: 62%;
+            height: 100%;
+            z-index: 10;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2vw;
+        }
+#transition-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 50;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+}
+
+#transition-canvas.visible {
+    opacity: 1;
+    pointer-events: all;
+}
+
+#subtitle-bar {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.72);
+    color: #FFFFFF;
+    font-size: 1.15rem;
+    font-weight: 600;
+    padding: 0.6rem 1.6rem;
+    border-radius: 8px;
+    max-width: 70%;
+    text-align: center;
+    z-index: 15;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+    font-family: var(--font-sans);
+    letter-spacing: 0.01em;
+}
+
+#subtitle-bar.visible {
+    opacity: 1;
+}
+
+
+        /* 3. Lecture Board Styling */
+        .lecture-board {
+            position: relative;
+            background: var(--bg-purple);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 6px solid var(--border-gold);
+            border-radius: 18px;
+            box-shadow: 0 8px 48px rgba(0,0,0,0.6);
+            padding: clamp(24px, 4vw, 40px) clamp(28px, 4.8vw, 48px);
+            width: 90%;
+            max-width: 1000px;
+            max-height: 88vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .progress-bar-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--border-gold);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .slide-container {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 10px;
+        }
+
+        .slide-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        .slide-container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        .slide-container::-webkit-scrollbar-thumb {
+            background: rgba(255, 215, 0, 0.5);
+            border-radius: 4px;
+        }
+        .slide-container::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 215, 0, 0.8);
+        }
+
+        h1.slide-title {
+            color: var(--text-gold);
+            font-size: clamp(1.8rem, 2.2vw, 2.4rem);
+            font-weight: 700;
+            border-bottom: 3px solid var(--border-gold);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+            line-height: 1.2;
+        }
+
+        h2.section-heading {
+            color: var(--text-gold);
+            font-size: clamp(1.3rem, 1.5vw, 1.6rem);
+            font-weight: 700;
+            margin-bottom: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .slide-content {
+            font-size: clamp(1.05rem, 1.2vw, 1.3rem);
+            line-height: 1.6;
+        }
+
+        .keyword {
+            color: var(--text-gold);
+            font-weight: 700;
+            text-decoration: underline;
+            text-underline-offset: 4px;
+            animation: pulse-gold 2s infinite alternate;
+        }
+
+        @keyframes pulse-gold {
+            0% { text-shadow: 0 0 2px rgba(255, 215, 0, 0.2); }
+            100% { text-shadow: 0 0 8px rgba(255, 215, 0, 0.8); }
+        }
+
+        .definition {
+            font-style: italic;
+            border-left: 4px solid var(--border-gold);
+            background: rgba(255, 215, 0, 0.1);
+            padding: 0.8rem 1.2rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        ul, ol {
+            margin-left: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        li, tbody tr {
+            opacity: 0; 
+            margin-bottom: 0.6rem;
+        }
+
+        .slide-entry {
+            animation: slideUpFade 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+
+        @keyframes slideUpFade {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-item {
+            animation: fadeRight 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+
+        @keyframes fadeRight {
+            from {
+                opacity: 0;
+                transform: translateX(-15px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .formula-block {
+            background: rgba(255, 215, 0, 0.08);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            text-align: center;
+            font-family: var(--font-mono);
+            overflow-x: auto;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+        }
+
+        .inline-code {
+            font-family: var(--font-mono);
+            background: rgba(255, 215, 0, 0.15);
+            padding: 0.1rem 0.3rem;
+            border-radius: 4px;
+            color: #FFF;
+        }
+
+        img.slide-image {
+            max-width: 85%;
+            max-height: 38vh;
+            width: auto;
+            height: auto;
+            display: block;
+            margin: 12px auto;
+            border: 2px solid rgba(255, 215, 0, 0.5);
+            border-radius: 8px;
+        }
+
+        .image-caption {
+            text-align: center;
+            font-style: italic;
+            color: rgba(255, 215, 0, 0.8);
+            font-size: 0.9em;
+            margin-top: 8px;
+        }
+
+        .slide-type-title {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            height: 100%;
+        }
+        .slide-type-title h1 {
+            border-bottom: none;
+            font-size: clamp(2.2rem, 3vw, 3.5rem);
+            margin-bottom: 0.5rem;
+            color: var(--text-gold);
+        }
+        .slide-type-title .subtitle {
+            color: var(--text-white);
+            font-size: clamp(1.2rem, 1.5vw, 1.8rem);
+            opacity: 0.9;
+        }
+
+        .slide-type-example {
+            border-left: 6px solid var(--border-gold);
+            padding-left: 1.5rem;
+        }
+
+        .takeaway-list {
+            list-style: none;
+            margin-left: 0;
+        }
+        .takeaway-list li {
+            position: relative;
+            padding-left: 2rem;
+            margin-bottom: 1rem;
+        }
+        .takeaway-list li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: var(--border-gold);
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid var(--border-gold);
+        }
+        th, td {
+            border: 1px solid rgba(255, 215, 0, 0.4);
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background: rgba(255, 215, 0, 0.15);
+            color: var(--text-gold);
+            font-weight: 700;
+        }
+
+        @media (max-width: 1024px) {
+            .lecture-board {
+                width: 95%;
+                padding: 20px;
+            }
+            img.slide-image {
+                max-height: 30vh;
+            }
+        }
+
+        /* Utility */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Upload Screen Styling */
+        .upload-board {
+            position: relative;
+            background: var(--bg-purple);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 6px solid var(--border-gold);
+            border-radius: 18px;
+            box-shadow: 0 8px 48px rgba(0,0,0,0.6);
+            padding: clamp(24px, 4vw, 40px) clamp(28px, 4.8vw, 48px);
+            width: 90%;
+            max-width: 1000px;
+            max-height: 88vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            gap: 1.5rem;
+        }
+
+        .upload-title {
+            color: var(--text-gold);
+            font-size: clamp(1.6rem, 2vw, 2.2rem);
+            font-weight: 700;
+            border-bottom: 3px solid var(--border-gold);
+            padding-bottom: 0.5rem;
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+
+        .config-section {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 215, 0, 0.2);
+        }
+
+        .config-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .config-group {
+            flex: 1;
+            min-width: 200px;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .config-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-gold);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .config-input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 215, 0, 0.4);
+            color: var(--text-white);
+            padding: 0.6rem 0.8rem;
+            border-radius: 6px;
+            font-family: var(--font-sans);
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+        }
+
+        .config-input:focus {
+            outline: none;
+            border-color: var(--border-gold);
+            box-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
+        }
+
+        .btn-toggle-key {
+            position: absolute;
+            right: 0.5rem;
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            cursor: pointer;
+            font-size: 0.8rem;
+            padding: 0.2rem 0.4rem;
+            transition: color 0.2s;
+        }
+
+        .btn-toggle-key:hover {
+            color: var(--text-gold);
+        }
+
+        /* Drag & Drop Zone */
+        .drop-zone {
+            flex: 1;
+            min-height: 180px;
+            border: 2px dashed rgba(255, 215, 0, 0.5);
+            background: rgba(255, 215, 0, 0.03);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: background 0.3s, border-color 0.3s, transform 0.2s;
+        }
+
+        .drop-zone.dragover {
+            background: rgba(255, 215, 0, 0.1);
+            border-color: var(--border-gold);
+            transform: scale(1.01);
+        }
+
+        .drop-zone-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.8rem;
+            color: var(--text-gold);
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .drop-zone-text {
+            font-size: 1rem;
+            margin-bottom: 0.8rem;
+            color: var(--text-white);
+        }
+
+        .drop-zone-subtext {
+            font-size: 0.8rem;
+            color: rgba(240, 240, 240, 0.6);
+        }
+
+        /* Action Buttons */
+        .action-row {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            align-items: center;
+            margin-top: 0.5rem;
+        }
+
+        .btn-gold {
+            background: var(--border-gold);
+            color: #3a1666;
+            border: 2px solid var(--border-gold);
+            font-weight: 700;
+            padding: 0.8rem 1.6rem;
+            font-size: 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-family: var(--font-sans);
+        }
+
+        .btn-gold:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+            background: #fff;
+            border-color: #fff;
+        }
+
+        .btn-gold:active {
+            transform: translateY(0);
+        }
+
+        .btn-gold:disabled {
+            background: #cccccc;
+            border-color: #cccccc;
+            color: #666666;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--text-gold);
+            border: 2px solid var(--border-gold);
+            font-weight: 700;
+            padding: 0.8rem 1.6rem;
+            font-size: 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s, color 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-family: var(--font-sans);
+        }
+
+        .btn-outline:hover {
+            background: rgba(255, 215, 0, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .btn-outline:active {
+            transform: translateY(0);
+        }
+
+        /* Loading / Processing Overlay */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(58, 22, 102, 0.96);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            box-sizing: border-box;
+            border-radius: 12px;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 215, 0, 0.2);
+            border-top: 5px solid var(--border-gold);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1.5rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-title {
+            color: var(--text-gold);
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 0.8rem;
+            text-align: center;
+        }
+
+        .loading-log {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: rgba(240, 240, 240, 0.8);
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            padding: 0.8rem 1.2rem;
+            border-radius: 6px;
+            max-width: 90%;
+            width: 400px;
+            text-align: left;
+            white-space: pre-wrap;
+            word-break: break-all;
+            height: 100px;
+            overflow-y: auto;
+            margin-top: 0.5rem;
+        }
+
+        .error-message {
+            color: #ff4d4d;
+            background: rgba(255, 77, 77, 0.1);
+            border: 1px solid rgba(255, 77, 77, 0.3);
+            padding: 0.8rem 1.2rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+            text-align: center;
+            max-width: 90%;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .error-message .retry-btn {
+            background: var(--border-gold);
+            border: none;
+            color: #3a1666;
+            font-weight: 700;
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            align-self: center;
+        }
+
+        /* Voice Control Bar Styling */
+        .voice-control-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 2px solid rgba(255, 215, 0, 0.4);
+            padding-top: 1rem;
+            margin-top: 1rem;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .control-left, .control-right {
+            display: flex;
+            gap: 0.6rem;
+            align-items: center;
+        }
+
+        .control-center {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 215, 0, 0.2);
+        }
+
+        .control-btn {
+            background: transparent;
+            color: var(--text-gold);
+            border: 1px solid var(--border-gold);
+            padding: 0.4rem 0.8rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-family: var(--font-sans);
+        }
+
+        .control-btn:hover {
+            background: var(--border-gold);
+            color: #3a1666;
+            transform: translateY(-1px);
+        }
+
+        .control-btn:active {
+            transform: translateY(0);
+        }
+
+        .control-btn.active {
+            background: var(--border-gold);
+            color: #3a1666;
+        }
+
+        .slider-label {
+            font-size: 0.85rem;
+            color: var(--text-gold);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .slider-value {
+            font-size: 0.85rem;
+            color: var(--text-white);
+            font-family: var(--font-mono);
+            min-width: 35px;
+        }
+
+        #tts-rate-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100px;
+            height: 6px;
+            background: rgba(255, 215, 0, 0.2);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        #tts-rate-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--border-gold);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        #tts-rate-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+    </style>
+</head>
+<body>
+
+    <video class="video-background" autoplay muted loop playsinline>
+        <source src="video_template/video_template.mp4" type="video/mp4">
+        <source src="video_template/provided-video.mp4" type="video/mp4">
+    </video>
+
+    <canvas id="transition-canvas"></canvas>
+
+    <div class="mascot-zone"></div>
+    <div id="subtitle-bar"></div>
+
+    <div class="lecture-overlay-zone">
+        <!-- Upload Screen -->
+        <div class="upload-board slide-entry" id="upload-screen">
+            <h1 class="upload-title">AI Lecture Slide Generator</h1>
+            
+            <div class="config-section">
+                <div class="config-row">
+                    <div class="config-group">
+                        <label class="config-label" for="api-key-input">Gemini API Key</label>
+                        <div class="input-wrapper">
+                            <input type="password" id="api-key-input" class="config-input" placeholder="AIzaSy...">
+                            <button type="button" id="toggle-key-btn" class="btn-toggle-key">Show</button>
+                        </div>
+                    </div>
+                    <div class="config-group">
+                        <label class="config-label" for="model-select">Gemini Model</label>
+                        <input type="text" id="model-select" class="config-input" value="gemini-2.5-flash">
+                    </div>
+                </div>
+            </div>
+
+            <div class="drop-zone" id="drop-zone">
+                <div class="drop-zone-icon">📄</div>
+                <div class="drop-zone-text" id="drop-zone-text">Drag & drop your lecture PDF here or click to browse</div>
+                <div class="drop-zone-subtext">Supports PDF files up to 20MB</div>
+                <input type="file" id="file-input" accept="application/pdf" style="display: none;">
+            </div>
+
+            <div class="action-row">
+                <button type="button" id="browse-btn" class="btn-outline">Choose File</button>
+                <button type="button" id="generate-btn" class="btn-gold" disabled>Generate Slides</button>
+            </div>
+            
+            <!-- Loading Overlay (hidden initially) -->
+            <div class="loading-overlay hidden" id="loading-overlay">
+                <div class="spinner"></div>
+                <div class="loading-title" id="loading-title">Processing PDF...</div>
+                <div class="loading-log" id="loading-log">Initializing...</div>
+            </div>
+        </div>
+
+        <!-- Presentation Slides (original board, hidden initially) -->
+        <div class="lecture-board slide-entry hidden" id="presentation-board">
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progress-bar"></div>
+            </div>
+            <div id="slide-title-container"></div>
+            <div id="slide-content-container" class="slide-container slide-content">
+            </div>
+            <!-- Voice Control Bar -->
+            <div class="voice-control-bar" id="voice-control-bar">
+                <div class="control-left">
+                    <button type="button" id="tts-play-btn" class="control-btn" title="Play/Pause">
+                        <span class="btn-icon">⏸</span> Pause
+                    </button>
+                    <button type="button" id="tts-stop-btn" class="control-btn" title="Stop">
+                        <span class="btn-icon">■</span> Stop
+                    </button>
+                </div>
+                <div class="control-center">
+                    <span class="slider-label">Speed:</span>
+                    <input type="range" id="tts-rate-slider" min="0.5" max="1.5" step="0.1" value="0.9">
+                    <span id="tts-rate-value" class="slider-value">0.9x</span>
+                </div>
+                <div class="control-right">
+                    <button type="button" id="tts-mute-btn" class="control-btn" title="Mute/Unmute">
+                        <span class="btn-icon">🔊</span> Mute
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // CINEMATIC TRANSITION ENGINE
+        // ============================================
+
+        const transitionCanvas = document.getElementById('transition-canvas');
+        const transitionCtx = transitionCanvas.getContext('2d');
+        const subtitleBar = document.getElementById('subtitle-bar');
+
+        // Resize canvas to full screen
+        function resizeTransitionCanvas() {
+            transitionCanvas.width = window.innerWidth;
+            transitionCanvas.height = window.innerHeight;
+        }
+        resizeTransitionCanvas();
+        window.addEventListener('resize', resizeTransitionCanvas);
+
+        // Detect animation scene from slide content based on type or keywords
+        function detectScene(slide) {
+            if (!slide) return 'default';
+            if (slide.type === 'title') return 'title';
+            if (slide.type === 'example') return 'example';
+            if (slide.type === 'key-takeaway' || slide.type === 'takeaway') return 'takeaway';
+            if (slide.type === 'summary') return 'summary';
+            
+            // For general content slides, detect based on keywords
+            const text = ((slide.title || '') + ' ' + (slide.narration || '') + ' ' + (slide.html || '')).toLowerCase();
+           
+            if (text.match(/formula|equation|calculate|sigma|tau|pi|area|\\frac/))
+                return 'formula';
+            if (text.match(/stress|strain|force|tension|compression|shear|beam|rod|steel|concrete/))
+                return 'mechanics';
+                
+            return 'default';
+        }
+
+        // Animation state
+        let transitionAnimFrame = null;
+        let transitionStartTime = null;
+        const TRANSITION_DURATION = 2500; // 2.5 seconds
+        let isTransitioning = false;
+
+        // SCENE ANIMATIONS
+        const sceneAnimations = {
+
+            title: (ctx, w, h, progress) => {
+                // Dark purple space with gold explosion
+                ctx.fillStyle = '#0A0520';
+                ctx.fillRect(0, 0, w, h);
+               
+                // Gold particles exploding from center
+                const particleCount = 80;
+                for (let i = 0; i < particleCount; i++) {
+                    const angle = (i / particleCount) * Math.PI * 2;
+                    const speed = 200 + (i % 5) * 80;
+                    const x = w/2 + Math.cos(angle) * speed * progress;
+                    const y = h/2 + Math.sin(angle) * speed * progress;
+                    const size = (1 - progress) * 6 + 2;
+                    const alpha = 1 - progress * 0.5;
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(255, 215, 0, ${alpha})`;
+                    ctx.fill();
+                }
+               
+                // Purple rings expanding
+                for (let r = 0; r < 3; r++) {
+                    const radius = progress * (300 + r * 150);
+                    const alpha = (1 - progress) * 0.4;
+                    ctx.beginPath();
+                    ctx.arc(w/2, h/2, radius, 0, Math.PI * 2);
+                    ctx.strokeStyle = `rgba(150, 50, 255, ${alpha})`;
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+               
+                // Center gold glow
+                const glowAlpha = Math.sin(progress * Math.PI) * 0.8;
+                const grd = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, 200);
+                grd.addColorStop(0, `rgba(255, 215, 0, ${glowAlpha})`);
+                grd.addColorStop(1, 'rgba(255, 215, 0, 0)');
+                ctx.fillStyle = grd;
+                ctx.fillRect(0, 0, w, h);
+               
+                // Flying stars
+                for (let s = 0; s < 50; s++) {
+                    const sx = (s * 137.5 % w);
+                    const sy = (s * 97.3 % h);
+                    const starAlpha = Math.sin(progress * Math.PI * 2 + s) * 0.5 + 0.5;
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, 2, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(255, 255, 255, ${starAlpha * 0.8})`;
+                    ctx.fill();
+                }
+            },
+
+            mechanics: (ctx, w, h, progress) => {
+                // Steel/engineering dark background
+                ctx.fillStyle = '#0D1B2A';
+                ctx.fillRect(0, 0, w, h);
+               
+                // Animated steel rod being stretched
+                const rodY = h / 2;
+                const rodLength = w * 0.6;
+                const rodStart = w * 0.2;
+                const stretch = progress * 80;
+               
+                // Rod body
+                ctx.fillStyle = '#4A90D9';
+                ctx.fillRect(rodStart - stretch, rodY - 20, rodLength + stretch * 2, 40);
+               
+                // Force arrows pointing outward
+                const arrowAlpha = Math.sin(progress * Math.PI * 3) * 0.3 + 0.7;
+                ctx.strokeStyle = `rgba(255, 215, 0, ${arrowAlpha})`;
+                ctx.lineWidth = 5;
+               
+                // Left arrow
+                ctx.beginPath();
+                ctx.moveTo(rodStart - stretch - 20, rodY);
+                ctx.lineTo(rodStart - stretch - 100 - progress * 60, rodY);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(rodStart - stretch - 100 - progress * 60, rodY);
+                ctx.lineTo(rodStart - stretch - 80 - progress * 60, rodY - 15);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(rodStart - stretch - 100 - progress * 60, rodY);
+                ctx.lineTo(rodStart - stretch - 80 - progress * 60, rodY + 15);
+                ctx.stroke();
+               
+                // Right arrow
+                ctx.beginPath();
+                ctx.moveTo(rodStart + rodLength + stretch + 20, rodY);
+                ctx.lineTo(rodStart + rodLength + stretch + 100 + progress * 60, rodY);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(rodStart + rodLength + stretch + 100 + progress * 60, rodY);
+                ctx.lineTo(rodStart + rodLength + stretch + 80 + progress * 60, rodY - 15);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(rodStart + rodLength + stretch + 100 + progress * 60, rodY);
+                ctx.lineTo(rodStart + rodLength + stretch + 80 + progress * 60, rodY + 15);
+                ctx.stroke();
+               
+                // Force labels
+                ctx.fillStyle = '#FFD700';
+                ctx.font = 'bold 28px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText('F', rodStart - stretch - 140 - progress * 60, rodY - 25);
+                ctx.fillText('F', rodStart + rodLength + stretch + 140 + progress * 60, rodY - 25);
+               
+                // Stress formula appearing
+                const formulaAlpha = Math.min(progress * 3, 1);
+                ctx.fillStyle = `rgba(255, 215, 0, ${formulaAlpha})`;
+                ctx.font = 'bold 48px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText('σ = F / A', w/2, h * 0.2);
+               
+                // Grid lines background
+                ctx.strokeStyle = 'rgba(255, 215, 0, 0.06)';
+                ctx.lineWidth = 1;
+                for (let x = 0; x < w; x += 60) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, h);
+                    ctx.stroke();
+                }
+                for (let y = 0; y < h; y += 60) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(w, y);
+                    ctx.stroke();
+                }
+               
+                // Floating stress type labels
+                const labels = ['TENSILE', 'COMPRESSIVE', 'SHEAR', 'TORSIONAL'];
+                labels.forEach((label, i) => {
+                    const lx = w * (0.15 + i * 0.23);
+                    const ly = h * 0.8 + Math.sin(progress * Math.PI * 2 + i) * 15;
+                    const la = Math.min(progress * 2 - i * 0.3, 1);
+                    if (la > 0) {
+                        ctx.fillStyle = `rgba(255, 215, 0, ${la})`;
+                        ctx.font = 'bold 18px Inter';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(label, lx, ly);
+                    }
+                });
+            },
+
+            formula: (ctx, w, h, progress) => {
+                // Dark background
+                ctx.fillStyle = '#060B14';
+                ctx.fillRect(0, 0, w, h);
+               
+                // Formula writing itself across screen
+                const formulas = ['σ = F/A', 'τ = V/A', 'E = σ/ε', 'ν = -εy/εx'];
+                formulas.forEach((formula, i) => {
+                    const fy = h * (0.2 + i * 0.18);
+                    const charProgress = Math.max(0, Math.min(1, progress * 4 - i * 0.8));
+                    const charsToShow = Math.floor(charProgress * formula.length);
+                    const displayText = formula.substring(0, charsToShow);
+                   
+                    // Glow effect
+                    ctx.shadowColor = '#FFD700';
+                    ctx.shadowBlur = 20;
+                    ctx.fillStyle = '#FFD700';
+                    ctx.font = `bold ${48 - i * 4}px JetBrains Mono`;
+                    ctx.textAlign = 'center';
+                    ctx.fillText(displayText, w/2, fy);
+                    ctx.shadowBlur = 0;
+                });
+               
+                // Gold particles around formulas
+                for (let p = 0; p < 40; p++) {
+                    const px = w/2 + Math.sin(p * 0.8 + progress * 5) * (200 + p * 5);
+                    const py = h * 0.2 + Math.cos(p * 0.6 + progress * 4) * 150;
+                    const pa = (1 - progress * 0.3) * 0.6;
+                    ctx.beginPath();
+                    ctx.arc(px, py, 3, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(255, 215, 0, ${pa})`;
+                    ctx.fill();
+                }
+            },
+
+            example: (ctx, w, h, progress) => {
+                // Dark engineering background
+                ctx.fillStyle = '#0A1628';
+                ctx.fillRect(0, 0, w, h);
+               
+                // Step boxes appearing one by one
+                const steps = ['STEP 1: Find Area', 'STEP 2: Apply Formula', 'STEP 3: Calculate', 'ANSWER: Result'];
+                steps.forEach((step, i) => {
+                    const stepProgress = Math.max(0, Math.min(1, progress * 4 - i * 0.8));
+                    if (stepProgress > 0) {
+                        const sy = h * (0.2 + i * 0.18);
+                        const sx = w * 0.15;
+                        const sw = w * 0.7 * stepProgress;
+                       
+                        // Box
+                        ctx.fillStyle = i === 3
+                            ? `rgba(255, 215, 0, ${stepProgress * 0.3})`
+                            : `rgba(58, 22, 102, ${stepProgress * 0.8})`;
+                        ctx.strokeStyle = '#FFD700';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.roundRect(sx, sy - 20, sw, 44, 8);
+                        ctx.fill();
+                        if (stepProgress > 0.5) ctx.stroke();
+                       
+                        // Text
+                        const textAlpha = Math.max(0, (stepProgress - 0.3) / 0.7);
+                        ctx.fillStyle = i === 3 ? '#FFD700' : `rgba(255, 255, 255, ${textAlpha})`;
+                        ctx.font = i === 3 ? 'bold 22px Inter' : '18px Inter';
+                        ctx.textAlign = 'left';
+                        ctx.fillText(step, sx + 15, sy + 8);
+                    }
+                });
+               
+                // Final answer gold explosion
+                if (progress > 0.8) {
+                    const explodeProgress = (progress - 0.8) / 0.2;
+                    for (let e = 0; e < 30; e++) {
+                        const angle = (e / 30) * Math.PI * 2;
+                        const ex = w/2 + Math.cos(angle) * explodeProgress * 150;
+                        const ey = h * 0.75 + Math.sin(angle) * explodeProgress * 80;
+                        ctx.beginPath();
+                        ctx.arc(ex, ey, 4 * (1 - explodeProgress), 0, Math.PI * 2);
+                        ctx.fillStyle = `rgba(255, 215, 0, ${1 - explodeProgress})`;
+                        ctx.fill();
+                    }
+                }
+            },
+
+            takeaway: (ctx, w, h, progress) => {
+                // Deep purple background
+                ctx.fillStyle = '#1A0A30';
+                ctx.fillRect(0, 0, w, h);
+               
+                // Gold burst from center
+                for (let r = 0; r < 12; r++) {
+                    const angle = (r / 12) * Math.PI * 2;
+                    const length = progress * (200 + r * 20);
+                    const alpha = (1 - progress * 0.6) * 0.7;
+                    ctx.beginPath();
+                    ctx.moveTo(w/2, h/2);
+                    ctx.lineTo(w/2 + Math.cos(angle) * length, h/2 + Math.sin(angle) * length);
+                    ctx.strokeStyle = `rgba(255, 215, 0, ${alpha})`;
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+               
+                // Checkmarks appearing
+                const checks = ['✓ Core Concept', '✓ Key Formula', '✓ Application', '✓ Remember This'];
+                checks.forEach((check, i) => {
+                    const checkProgress = Math.max(0, Math.min(1, progress * 3 - i * 0.6));
+                    if (checkProgress > 0) {
+                        const cy = h * (0.25 + i * 0.15);
+                        const cx = w/2 - 200 + checkProgress * 0;
+                        ctx.fillStyle = `rgba(255, 215, 0, ${checkProgress})`;
+                        ctx.font = 'bold 26px Inter';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(check, w/2, cy);
+                    }
+                });
+               
+                // Floating gold particles
+                for (let p = 0; p < 60; p++) {
+                    const px = (p * 137 % w);
+                    const py = (p * 97 % h) - progress * 100;
+                    const pa = Math.sin(progress * Math.PI * 2 + p * 0.5) * 0.4 + 0.3;
+                    ctx.beginPath();
+                    ctx.arc(px, (py + h) % h, 3, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(255, 215, 0, ${pa})`;
+                    ctx.fill();
+                }
+            },
+
+            summary: (ctx, w, h, progress) => {
+                // Dark blue background
+                ctx.fillStyle = '#050E1A';
+                ctx.fillRect(0, 0, w, h);
+               
+                // Bar chart rising from bottom
+                const bars = [
+                    { label: 'Tensile', value: 0.85, color: '#4A90D9' },
+                    { label: 'Compressive', value: 0.70, color: '#E74C3C' },
+                    { label: 'Shear', value: 0.55, color: '#2ECC71' },
+                    { label: 'Torsional', value: 0.65, color: '#FFD700' },
+                    { label: 'Combined', value: 0.90, color: '#9B59B6' }
+                ];
+               
+                const barWidth = w * 0.1;
+                const barSpacing = w * 0.15;
+                const startX = w * 0.15;
+                const baseY = h * 0.8;
+                const maxBarH = h * 0.5;
+               
+                bars.forEach((bar, i) => {
+                    const barProgress = Math.max(0, Math.min(1, progress * 3 - i * 0.3));
+                    const barH = bar.value * maxBarH * barProgress;
+                    const bx = startX + i * barSpacing;
+                   
+                    ctx.fillStyle = bar.color;
+                    ctx.fillRect(bx, baseY - barH, barWidth, barH);
+                   
+                    // Label
+                    const la = Math.min(barProgress * 2, 1);
+                    ctx.fillStyle = `rgba(255, 255, 255, ${la})`;
+                    ctx.font = '14px Inter';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(bar.label, bx + barWidth/2, baseY + 20);
+                });
+               
+                // Baseline
+                ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(w * 0.1, h * 0.8);
+                ctx.lineTo(w * 0.9, h * 0.8);
+                ctx.stroke();
+               
+                // Title
+                const titleAlpha = Math.min(progress * 2, 1);
+                ctx.fillStyle = `rgba(255, 215, 0, ${titleAlpha})`;
+                ctx.font = 'bold 36px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText('STRESS COMPARISON', w/2, h * 0.12);
+            },
+
+            default: (ctx, w, h, progress) => {
+                // Purple gold particles default
+                ctx.fillStyle = '#0A0520';
+                ctx.fillRect(0, 0, w, h);
+               
+                for (let p = 0; p < 100; p++) {
+                    const px = (p * 137.5 % w);
+                    const py = ((p * 97.3 + progress * 200) % h);
+                    const pa = Math.sin(progress * Math.PI * 2 + p * 0.3) * 0.4 + 0.4;
+                    const isGold = p % 3 === 0;
+                    ctx.beginPath();
+                    ctx.arc(px, py, isGold ? 4 : 3, 0, Math.PI * 2);
+                    ctx.fillStyle = isGold
+                        ? `rgba(255, 215, 0, ${pa})`
+                        : `rgba(150, 50, 255, ${pa * 0.7})`;
+                    ctx.fill();
+                }
+               
+                // Geometric shapes
+                for (let s = 0; s < 5; s++) {
+                    const sx = w * (0.15 + s * 0.18);
+                    const sy = h/2 + Math.sin(progress * Math.PI * 2 + s) * 50;
+                    const size = 30 + s * 10;
+                    const rotation = progress * Math.PI * 2 + s;
+                   
+                    ctx.save();
+                    ctx.translate(sx, sy);
+                    ctx.rotate(rotation);
+                    ctx.strokeStyle = `rgba(255, 215, 0, 0.5)`;
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(-size/2, -size/2, size, size);
+                    ctx.restore();
+                }
+            }
+        };
+
+        // MAIN TRANSITION FUNCTION
+        function playTransition(nextSlideIndex, callback) {
+            if (isTransitioning) return;
+            isTransitioning = true;
+           
+            const nextSlide = slides[nextSlideIndex];
+            const scene = detectScene(nextSlide);
+           
+            // Show canvas
+            transitionCanvas.classList.add('visible');
+           
+            // Hide board and mascot
+            const board = document.getElementById('presentation-board');
+            const mascot = document.querySelector('.mascot-zone');
+            board.style.transition = 'opacity 0.4s ease';
+            mascot.style.transition = 'opacity 0.4s ease';
+            board.style.opacity = '0';
+            mascot.style.opacity = '0';
+            subtitleBar.classList.remove('visible');
+           
+            transitionStartTime = null;
+           
+            // Cancel previous animation
+            if (transitionAnimFrame) {
+                cancelAnimationFrame(transitionAnimFrame);
+            }
+            
+            // Update the slide in the background once the canvas is opaque (at 1000ms)
+            let callbackCalled = false;
+            const callbackTimeout = setTimeout(() => {
+                if (callback) callback();
+                callbackCalled = true;
+            }, 1000);
+           
+            function animate(timestamp) {
+                if (!transitionStartTime) transitionStartTime = timestamp;
+                const elapsed = timestamp - transitionStartTime;
+                const progress = Math.min(elapsed / TRANSITION_DURATION, 1);
+               
+                const ctx = transitionCtx;
+                const w = transitionCanvas.width;
+                const h = transitionCanvas.height;
+               
+                ctx.clearRect(0, 0, w, h);
+               
+                // Run scene animation
+                if (sceneAnimations[scene]) {
+                    sceneAnimations[scene](ctx, w, h, progress);
+                } else {
+                    sceneAnimations.default(ctx, w, h, progress);
+                }
+               
+                if (progress < 1) {
+                    transitionAnimFrame = requestAnimationFrame(animate);
+                } else {
+                    // Transition complete - fade out canvas
+                    transitionCanvas.classList.remove('visible');
+                    
+                    // Clear canvas content after the fade-out completes (400ms)
+                    setTimeout(() => {
+                        ctx.clearRect(0, 0, w, h);
+                    }, 400);
+                   
+                    // Ensure callback has been executed
+                    if (!callbackCalled) {
+                        clearTimeout(callbackTimeout);
+                        if (callback) callback();
+                    }
+                    
+                    // Show board and mascot
+                    board.style.opacity = '1';
+                    mascot.style.opacity = '1';
+                    subtitleBar.classList.add('visible');
+                    
+                    setTimeout(() => {
+                        isTransitioning = false;
+                    }, 400);
+                }
+            }
+           
+            transitionAnimFrame = requestAnimationFrame(animate);
+        }
+
+        // SUBTITLE SYSTEM
+        function updateSubtitle(text) {
+            if (!text) {
+                subtitleBar.classList.remove('visible');
+                return;
+            }
+            const shortText = text.length > 120 ? text.substring(0, 117) + '...' : text;
+            subtitleBar.textContent = shortText;
+            subtitleBar.classList.add('visible');
+        }
+
+        const slides = [
+            {
+                type: "title",
+                title: "SOLID MECHANICS — AE23331",
+                subtitle: "UNIT I: SIMPLE STRESSES AND STRAINS<br>SESSION 1 — STRESS AND TYPES OF STRESS",
+                narration: "Welcome to Solid Mechanics, Course Code AE two three three three one. Today we begin Unit One, Simple Stresses and Strains. In this first session, we will cover the core concept of Stress and examine the different types of stress."
+            },
+            {
+                type: "content",
+                title: "WHAT IS STRESS?",
+                html: `
+                    <div class='definition'><strong>Definition:</strong> The internal force of resistance offered by a body per unit area against external deformation is called <span class="keyword">stress</span>. It is denoted by \\(\\sigma\\) (sigma).</div>
+                    <div class='formula-block'>\\[\\sigma = \\frac{F}{A}\\]</div>
+                    <p><strong>Where:</strong></p>
+                    <ul>
+                        <li>\\(F\\) = Applied Force (N)</li>
+                        <li>\\(A\\) = Cross-sectional Area (mm² or m²)</li>
+                    </ul>
+                    <ul>
+                        <li><strong>SI Unit:</strong> Pascal (Pa) or N/m²</li>
+                        <li><strong>Commonly expressed as:</strong> MPa or N/mm²</li>
+                    </ul>
+                    <p><em>Note: 1 MPa = 1 N/mm²</em></p>
+                `,
+                narration: "Let us define stress. Stress, denoted by the Greek letter sigma, is the internal force of resistance offered by a body per unit area against external deformation. Mathematically, it is calculated as Force divided by Area. The SI unit of stress is Pascal, which is Newton per square meter. In engineering applications, we commonly express stress in Megapascals or Newtons per square millimeter. Note that one Megapascal is exactly equal to one Newton per square millimeter."
+            },
+            {
+                type: "content",
+                title: "WHAT IS STRESS? (continued)",
+                html: `
+                    <h2 class='section-heading'>Key Points:</h2>
+                    <ul>
+                        <li>Stress is an internal response to external loading</li>
+                        <li>It depends on the magnitude of the load and the cross-sectional area</li>
+                    </ul>
+                `,
+                narration: "Continuing with stress, there are two key points to keep in mind. First, stress is not the external load itself, but rather the internal response of the body to that external loading. Second, the magnitude of stress depends directly on the applied load and inversely on the cross-sectional area of the member."
+            },
+            {
+                type: "content",
+                title: "TYPES OF STRESS",
+                subtitle: "OVERVIEW DIAGRAM",
+                html: `
+                    <img src="images/stress_types.webp" alt="Classification of Stresses" class="slide-image">
+                    <p class="image-caption">General classification of stresses in solid mechanics</p>
+                `,
+                narration: "Moving on, let's look at the general classification of stresses in solid mechanics. As shown in the classification diagram, stresses are broadly categorized into direct stresses and indirect stresses. We will explore each of these branches in the upcoming slides."
+            },
+            {
+                type: "content",
+                title: "TYPES OF STRESS (continued)",
+                subtitle: "COMPLETE CLASSIFICATION",
+                html: `
+                    <ul>
+                        <li><strong>DIRECT</strong>
+                            <ul>
+                                <li><strong>NORMAL</strong> (Perpendicular to surface)
+                                    <ul>
+                                        <li>Tensile (+ve) \\(\\rightarrow \\sigma_t = \\frac{F_t}{A}\\)</li>
+                                        <li>Compressive (−ve) \\(\\rightarrow \\sigma_c = \\frac{F_c}{A}\\)</li>
+                                    </ul>
+                                </li>
+                                <li><strong>SHEAR</strong> (Parallel to surface) \\(\\rightarrow \\tau = \\frac{V}{A}\\)</li>
+                            </ul>
+                        </li>
+                        <li><strong>INDIRECT</strong>
+                            <ul>
+                                <li>Bending Stress \\(\\rightarrow\\) transverse loads</li>
+                                <li>Torsional Stress \\(\\rightarrow\\) twisting moments</li>
+                                <li>Combined Stresses \\(\\rightarrow\\) bending + torsion simultaneously</li>
+                            </ul>
+                        </li>
+                    </ul>
+                `,
+                narration: "Let's examine the complete classification of stresses. Direct stresses include normal stresses, which act perpendicular to the surface, and shear stresses, which act parallel to the surface. Normal stresses are further divided into tensile stresses, which are considered positive, and compressive stresses, which are considered negative. Shear stress is represented by the Greek letter tau. Indirect stresses include bending stress from transverse loads, torsional stress from twisting moments, and combined stresses where bending and torsion act simultaneously."
+            },
+            {
+                type: "content",
+                title: "DIRECT STRESSES",
+                subtitle: "TENSILE AND COMPRESSIVE",
+                html: `
+                    <div class='definition'><strong>Definition:</strong> Normal stresses that act perpendicular to the cross-sectional area are called <span class='keyword'>direct stresses</span>. Tensile stress tends to elongate the member; compressive stress tends to shorten it.</div>
+                    <h2 class='section-heading'>Tensile Stress</h2>
+                    <ul>
+                        <li>Occurs when the member is pulled at both ends</li>
+                        <li>The bar tends to elongate</li>
+                        <li>Stress acts outward, perpendicular to the cross-section</li>
+                        <li>Considered positive (+ve)</li>
+                    </ul>
+                    <div class='formula-block'>\\[\\sigma_t = \\frac{F_t}{A}\\]</div>
+                `,
+                narration: "Let's look at direct stresses, specifically tensile and compressive stress. Normal stresses that act perpendicular to the cross-sectional area are called direct stresses. Tensile stress occurs when a member is pulled at both ends, causing the bar to elongate. The stress acts outward, perpendicular to the cross-section, and is considered positive."
+            },
+            {
+                type: "content",
+                title: "DIRECT STRESSES (continued)",
+                subtitle: "COMPRESSIVE STRESS",
+                html: `
+                    <h2 class='section-heading'>Compressive Stress</h2>
+                    <ul>
+                        <li>Occurs when the member is pushed at both ends</li>
+                        <li>The bar tends to shorten</li>
+                        <li>Stress acts inward, perpendicular to the cross-section</li>
+                        <li>Considered negative (−ve)</li>
+                    </ul>
+                    <div class='formula-block'>\\[\\sigma_c = \\frac{F_c}{A}\\]</div>
+                `,
+                narration: "Conversely, compressive stress occurs when the member is pushed at both ends, causing the bar to shorten. In this case, the stress acts inward, perpendicular to the cross-section, and is considered negative."
+            },
+            {
+                type: "example",
+                title: "SOLVED EXAMPLE 1",
+                subtitle: "TENSILE STRESS",
+                html: `
+                    <p><strong>Problem:</strong> A steel rod of diameter 20 mm is subjected to a tensile load of 50 kN. Find the stress induced.</p>
+                    <p><strong>Step 1 — Cross-sectional Area:</strong></p>
+                    <div class='formula-block'>
+                        \\[A = \\frac{\\pi}{4} \\times d^2\\]
+                        \\[A = \\frac{\\pi}{4} \\times (20)^2 = \\frac{\\pi}{4} \\times 400 = 314.16 \\text{ mm}^2\\]
+                    </div>
+                    <p><strong>Step 2 — Stress:</strong></p>
+                    <div class='formula-block'>
+                        \\[\\sigma = \\frac{F}{A}\\]
+                        \\[\\sigma = \\frac{50,000}{314.16} \\approx 159.15 \\text{ N/mm}^2 = 159.15 \\text{ MPa (Tensile)}\\]
+                    </div>
+                    <p><em>Note: For mild steel, yield strength \\(\\approx 250 \\text{ MPa}\\) — this rod is within safe limits.</em></p>
+                `,
+                narration: "Let's work through a solved example. A steel rod of diameter twenty millimeters is subjected to a tensile load of fifty kilonewtons. First, we calculate the cross-sectional area, which is pi over four times diameter squared, giving three hundred fourteen point one six square millimeters. Next, we find the stress by dividing the load of fifty thousand Newtons by the area. This yields a tensile stress of approximately one hundred fifty-nine point one five Megapascals, which is well within the yield strength limit of mild steel."
+            },
+            {
+                type: "example",
+                title: "SOLVED EXAMPLE 2",
+                subtitle: "COMPRESSIVE STRESS",
+                html: `
+                    <p><strong>Problem:</strong> A short concrete column of 200 mm × 200 mm cross-section carries a compressive load of 400 kN. Find the compressive stress.</p>
+                    <p><strong>Step 1 — Cross-sectional Area:</strong></p>
+                    <div class='formula-block'>\\[A = 200 \\times 200 = 40,000 \\text{ mm}^2\\]</div>
+                    <p><strong>Step 2 — Compressive Stress:</strong></p>
+                    <div class='formula-block'>
+                        \\[\\sigma_c = \\frac{F}{A}\\]
+                        \\[\\sigma_c = \\frac{400,000}{40,000} = 10 \\text{ N/mm}^2 = 10 \\text{ MPa (Compressive)}\\]
+                    </div>
+                    <p><em>Note: Concrete is typically strong up to 20–30 MPa in compression — this column is within safe limits.</em></p>
+                `,
+                narration: "Now, let's solve an example for compressive stress. A short concrete column with a cross-section of two hundred millimeters by two hundred millimeters carries a compressive load of four hundred kilonewtons. First, the cross-sectional area is computed as two hundred times two hundred, which equals forty thousand square millimeters. The compressive stress is the force of four hundred thousand Newtons divided by forty thousand square millimeters, giving ten Megapascals. This column is safe as concrete typically supports twenty to thirty Megapascals in compression."
+            },
+            {
+                type: "content",
+                title: "SHEAR STRESS",
+                html: `
+                    <div class='definition'><strong>Definition:</strong> <span class='keyword'>Shear stress</span> acts parallel (tangential) to the cross-section.</div>
+                    <div class='formula-block'>\\[\\tau = \\frac{V}{A}\\]</div>
+                    <p>Where \\(V\\) = Shear force (parallel to the cross-section)</p>
+                    <h2 class='section-heading'>Key Points:</h2>
+                    <ul>
+                        <li>Denoted by \\(\\tau\\) (tau)</li>
+                        <li>Acts parallel to the cross-sectional face (unlike direct stresses which act perpendicular)</li>
+                        <li>Caused by forces acting parallel to a surface</li>
+                        <li>Example: Scissors cutting paper; a bolt connecting two steel plates experiencing sliding forces</li>
+                    </ul>
+                `,
+                narration: "Next, we study shear stress, denoted by the Greek letter tau. Shear stress acts parallel or tangential to the cross-section, unlike direct stresses which act perpendicular. It is calculated as the shear force V divided by the area A. Examples of shear stress include cutting paper with scissors or a bolt connecting two steel plates experiencing sliding forces."
+            },
+            {
+                type: "content",
+                title: "INDIRECT STRESSES",
+                html: `
+                    <h2 class='section-heading'>Bending Stress</h2>
+                    <img src="images/beding_stress_distribution.png" alt="Bending Stress Distribution" class="slide-image" style="max-height: 25vh;">
+                    <ul>
+                        <li>Arises in beams due to transverse loading</li>
+                        <li>Top fibres \\(\\rightarrow\\) Compressive stress</li>
+                        <li>Bottom fibres \\(\\rightarrow\\) Tensile stress</li>
+                        <li>Neutral axis (middle) \\(\\rightarrow\\) Zero stress</li>
+                        <li>Example: A simply supported beam with a central point load</li>
+                    </ul>
+                `,
+                narration: "Let's examine indirect stresses, starting with bending stress. Bending stress arises in beams due to transverse loading. It creates compressive stress in the top fibers, tensile stress in the bottom fibers, and zero stress at the neutral axis along the middle of the beam. A typical example is a simply supported beam carrying a central point load."
+            },
+            {
+                type: "content",
+                title: "INDIRECT STRESSES (continued)",
+                html: `
+                    <h2 class='section-heading'>Torsional Stress</h2>
+                    <ul>
+                        <li>Arises in shafts due to twisting moments</li>
+                        <li>Examples: Engine drive shafts, bolts being tightened with a spanner</li>
+                    </ul>
+                    <h2 class='section-heading'>Combined Stresses</h2>
+                    <ul>
+                        <li>Occur when bending and torsion act simultaneously on a member</li>
+                        <li>Examples: Car axles, aircraft wing spars, crane hooks</li>
+                    </ul>
+                `,
+                narration: "Continuing with indirect stresses, torsional stress arises in shafts due to twisting moments, such as in engine drive shafts or when tightening a bolt with a spanner. Combined stresses occur when bending and torsion act simultaneously on a member, which is common in car axles, aircraft wing spars, and crane hooks."
+            },
+            {
+                type: "content",
+                title: "COMMON DOUBTS — CLARIFICATIONS",
+                html: `
+                    <h2 class='section-heading'>Q1: Is stress a vector or a scalar quantity?</h2>
+                    <p>Stress is a <span class='keyword'>tensor quantity</span> (second-order). However, for simple uniaxial cases, it is treated as a scalar having magnitude and sign (+ve for tensile, −ve for compressive).</p>
+                    <p style="margin-top: 1rem;">The full stress state on a 3D body includes components: \\(\\sigma_x, \\sigma_y, \\sigma_z, \\tau_{xy}, \\tau_{yz}, \\tau_{zx}\\).</p>
+                `,
+                narration: "Let's clarify some common doubts. First, is stress a vector or a scalar quantity? Stress is actually a second-order tensor quantity. However, for simple uniaxial cases, we treat it as a scalar with a positive or negative sign. The full stress state on a three-dimensional body involves nine components."
+            },
+            {
+                type: "content",
+                title: "COMMON DOUBTS (continued)",
+                html: `
+                    <h2 class='section-heading'>Q2: What is the difference between stress and pressure?</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Property</th>
+                                <th>Pressure</th>
+                                <th>Stress</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Direction</strong></td>
+                                <td>Acts equally in all directions (isotropic)</td>
+                                <td>Acts on a specific plane</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Nature</strong></td>
+                                <td>Always compressive</td>
+                                <td>Can be tensile, compressive, or shear</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                `,
+                narration: "Second, what is the difference between stress and pressure? As shown in the comparison table, pressure acts equally in all directions and is isotropic, whereas stress acts on a specific plane. Furthermore, pressure is always compressive in nature, while stress can be tensile, compressive, or shear."
+            },
+            {
+                type: "content",
+                title: "COMMON DOUBTS (continued)",
+                html: `
+                    <h2 class='section-heading'>Q3: Can stress exist without strain?</h2>
+                    <p>No. According to Hooke's Law, stress and strain are proportional within the elastic limit. Where there is stress, there is always associated deformation (strain).</p>
+                `,
+                narration: "Third, can stress exist without strain? The answer is no. According to Hooke's Law, stress and strain are directly proportional within the elastic limit. Therefore, where there is stress, there is always an associated deformation or strain."
+            },
+            {
+                type: "content",
+                title: "EXAM QUESTIONS",
+                subtitle: "2-MARK QUESTIONS",
+                html: `
+                    <ul>
+                        <li>Define stress. State its SI unit.</li>
+                        <li>Differentiate between tensile and compressive stress.</li>
+                        <li>What is shear stress? Give an example.</li>
+                    </ul>
+                `,
+                narration: "Here are some typical two-mark exam questions for review. You should be able to define stress and state its SI unit, differentiate between tensile and compressive stress, and explain shear stress with a practical example."
+            },
+            {
+                type: "content",
+                title: "EXAM QUESTIONS",
+                subtitle: "5-MARK QUESTIONS",
+                html: `
+                    <ul>
+                        <li>Explain direct and indirect stresses with neat sketches.</li>
+                        <li>A steel bar of cross-section 400 mm² carries an axial load of 80 kN. Find the stress induced.</li>
+                    </ul>
+                `,
+                narration: "For five-mark questions, you may be asked to explain direct and indirect stresses with neat sketches, or solve numerical problems like calculating the stress induced in a steel bar of four hundred square millimeters area carrying an axial load of eighty kilonewtons."
+            },
+            {
+                type: "example",
+                title: "EXAM QUESTIONS (Solution)",
+                html: `
+                    <p><strong>Solution to Q2 (5-Mark):</strong></p>
+                    <p>Given: \\(A = 400 \\text{ mm}^2\\), \\(F = 80 \\text{ kN} = 80,000 \\text{ N}\\)</p>
+                    <div class='formula-block'>
+                        \\[\\sigma = \\frac{F}{A} = \\frac{80,000}{400} = 200 \\text{ N/mm}^2 = 200 \\text{ MPa (Tensile)}\\]
+                    </div>
+                    <h2 class='section-heading'>10-Mark Questions</h2>
+                    <ul>
+                        <li>Describe all types of stresses with diagrams and formulas. Solve a numerical example for each type.</li>
+                    </ul>
+                `,
+                narration: "Here is the solution to the five-mark numerical question. The load of eighty thousand Newtons divided by the area of four hundred square millimeters gives a tensile stress of two hundred Megapascals. For a ten-mark question, prepare to describe all types of stresses with diagrams, formulas, and solved numerical examples for each type."
+            },
+            {
+                type: "key-takeaway",
+                title: "KEY TAKEAWAYS — SESSION 1",
+                html: `
+                    <ul class='takeaway-list'>
+                        <li>Stress is the internal resistance per unit area: \\(\\sigma = F/A\\) — Measured in Pa (N/m²) or MPa.</li>
+                        <li>Direct stresses (tensile and compressive) act normal (perpendicular) to the cross-section. Shear stress acts parallel to the cross-section.</li>
+                        <li>Indirect stresses (bending and torsion) arise from moments and twisting — NOT from direct axial loads.</li>
+                        <li>Combined stresses occur when bending and torsion act simultaneously on a member.</li>
+                        <li>Correct identification of stress type is essential for structural design and failure analysis.</li>
+                    </ul>
+                `,
+                narration: "Let's summarize the key takeaways of Session One. Stress is the internal resistance per unit area. Direct stresses act perpendicular to the cross-section, while shear stress acts parallel. Indirect stresses like bending and torsion arise from moments. Understanding stress types is essential for structural design."
+            },
+            {
+                type: "summary",
+                title: "STRESS FORMULAE — QUICK REFERENCE",
+                html: `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Stress Type</th>
+                                <th>Formula</th>
+                                <th>Sign</th>
+                                <th>SI Unit</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Tensile Stress</strong></td>
+                                <td>\\(\\sigma_t = \\frac{F_t}{A}\\)</td>
+                                <td>+ve</td>
+                                <td>Pa = N/m² (or MPa = N/mm²)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Compressive Stress</strong></td>
+                                <td>\\(\\sigma_c = \\frac{F_c}{A}\\)</td>
+                                <td>−ve</td>
+                                <td>Pa = N/m² (or MPa = N/mm²)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Shear Stress</strong></td>
+                                <td>\\(\\tau = \\frac{V}{A}\\)</td>
+                                <td>—</td>
+                                <td>Pa = N/m² (or MPa = N/mm²)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                `,
+                narration: "This slide provides a quick reference table of stress formulae. Review the formulas for tensile stress, compressive stress, and shear stress, along with their signs and units, to consolidate your understanding."
+            },
+            {
+                type: "summary",
+                title: "REAL-LIFE APPLICATIONS",
+                html: `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Scenario</th>
+                                <th>Stress Type</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Heavy bag on a hook</td>
+                                <td>Tensile Stress</td>
+                            </tr>
+                            <tr>
+                                <td>Bridge cables under vehicle load</td>
+                                <td>Tensile Stress</td>
+                            </tr>
+                            <tr>
+                                <td>Column under a building</td>
+                                <td>Compressive Stress</td>
+                            </tr>
+                            <tr>
+                                <td>Drill bit in concrete wall</td>
+                                <td>Shear Stress</td>
+                            </tr>
+                            <tr>
+                                <td>Engine drive shaft</td>
+                                <td>Torsional Stress</td>
+                            </tr>
+                            <tr>
+                                <td>Car axle / Aircraft wing spar</td>
+                                <td>Combined Stress</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div style='margin-top: 2rem; text-align: center; color: var(--border-gold); font-weight: bold;'>
+                        Next Session: Strain, Types of Strain, and Poisson's Ratio
+                    </div>
+                `,
+                narration: "Finally, let's look at real-life applications. A heavy bag on a hook or bridge cables experience tensile stress. A column under a building is under compression. A drill bit in a concrete wall experiences shear. An engine drive shaft is under torsion. In our next session, we will cover strain, types of strain, and Poisson's ratio. Thank you for attending."
+            }
+        ];
+
+        let currentSlide = 0;
+
+        function renderSlide(index) {
+            const slide = slides[index];
+            const container = document.getElementById('slide-content-container');
+            const titleContainer = document.getElementById('slide-title-container');
+            const board = document.getElementById('presentation-board');
+
+            // Update Progress Bar
+            const progress = (index / (slides.length - 1)) * 100;
+            document.getElementById('progress-bar').style.width = `${progress}%`;
+
+            // Clear current content and re-trigger entry animation
+            board.classList.remove('slide-entry');
+            void board.offsetWidth; // Trigger reflow
+            board.classList.add('slide-entry');
+
+            // Remove old classes
+            container.className = 'slide-container slide-content';
+            titleContainer.innerHTML = '';
+
+            if (slide.type === 'title') {
+                container.classList.add('slide-type-title');
+                container.innerHTML = `
+                    <h1>${slide.title}</h1>
+                    <div class="subtitle">${slide.subtitle}</div>
+                `;
+            } else {
+                if (slide.type === 'example') {
+                    container.classList.add('slide-type-example');
+                }
+
+                let titleHTML = `<h1 class="slide-title">${slide.title}</h1>`;
+                if (slide.subtitle) {
+                    titleHTML += `<h2 class="section-heading" style="margin-top:-1rem; margin-bottom: 1.5rem;">${slide.subtitle}</h2>`;
+                }
+                titleContainer.innerHTML = titleHTML;
+
+                container.innerHTML = slide.html;
+            }
+
+            // Staggered reveal for list items and table rows
+            const animateItems = container.querySelectorAll('li, tbody tr');
+            animateItems.forEach((item, i) => {
+                item.classList.add('animate-item');
+                item.style.animationDelay = `${0.1 + i * 0.12}s`;
+            });
+
+            // Re-trigger MathJax
+            if (window.MathJax && MathJax.typesetPromise) {
+                MathJax.typesetPromise([container]).catch((err) => console.log('MathJax error:', err));
+            }
+
+            // Failsafe: Ensure board and mascot are fully visible when slide renders
+            board.style.opacity = '1';
+            document.querySelector('.mascot-zone').style.opacity = '1';
+            updateSubtitle(slide.narration || '');
+
+            // Speech narration trigger
+            if (slide.narration) {
+                speakNarration(slide.narration);
+            } else {
+                window.speechSynthesis.cancel();
+                ttsState.isPlaying = false;
+                updateTTSButtons();
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                if (currentSlide < slides.length - 1) {
+                    const nextIndex = currentSlide + 1;
+                    playTransition(nextIndex, () => {
+                        currentSlide = nextIndex;
+                        renderSlide(currentSlide);
+                    });
+                }
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                if (currentSlide > 0) {
+                    const nextIndex = currentSlide - 1;
+                    playTransition(nextIndex, () => {
+                        currentSlide = nextIndex;
+                        renderSlide(currentSlide);
+                    });
+                }
+            }
+        });
+
+        // Setup PDF.js worker
+        if (typeof pdfjsLib !== 'undefined') {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+
+        // State variables
+        let selectedFile = null;
+
+        // Elements
+        const apiKeyInput = document.getElementById('api-key-input');
+        const modelSelect = document.getElementById('model-select');
+        const toggleKeyBtn = document.getElementById('toggle-key-btn');
+        const dropZone = document.getElementById('drop-zone');
+        const dropZoneText = document.getElementById('drop-zone-text');
+        const fileInput = document.getElementById('file-input');
+        const browseBtn = document.getElementById('browse-btn');
+        const generateBtn = document.getElementById('generate-btn');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const loadingTitle = document.getElementById('loading-title');
+        const loadingLog = document.getElementById('loading-log');
+        const uploadScreen = document.getElementById('upload-screen');
+        const presentationBoard = document.getElementById('presentation-board');
+
+        // Restore saved API Key
+        const savedKey = localStorage.getItem('gemini_api_key');
+        if (savedKey) {
+            apiKeyInput.value = savedKey;
+        }
+
+        // Toggle Key Visibility
+        toggleKeyBtn.addEventListener('click', () => {
+            if (apiKeyInput.type === 'password') {
+                apiKeyInput.type = 'text';
+                toggleKeyBtn.textContent = 'Hide';
+            } else {
+                apiKeyInput.type = 'password';
+                toggleKeyBtn.textContent = 'Show';
+            }
+        });
+
+        // Prevent page slide key-triggers in configuration inputs
+        [apiKeyInput, modelSelect].forEach(input => {
+            if (input) {
+                input.addEventListener('keydown', (e) => {
+                    e.stopPropagation();
+                });
+            }
+        });
+
+        // Trigger file input click when clicking drop zone or browse button
+        dropZone.addEventListener('click', () => fileInput.click());
+        browseBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            fileInput.click();
+        });
+
+        // Handle File Selection
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        // Drag and Drop Events
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.add('dragover');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.remove('dragover');
+            }, false);
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        });
+
+        function handleFiles(files) {
+            if (files.length === 0) return;
+            const file = files[0];
+            if (file.type !== 'application/pdf' && !file.name.endsWith('.pdf')) {
+                alert('Please upload a PDF file.');
+                return;
+            }
+            selectedFile = file;
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            dropZoneText.innerHTML = `<strong>Selected:</strong> ${file.name} (${sizeMB} MB) <span style="color:var(--text-gold);">✓</span>`;
+            generateBtn.disabled = false;
+        }
+
+        // Log printing helper
+        function logStatus(title, message) {
+            loadingTitle.textContent = title;
+            loadingLog.textContent += `[${new Date().toLocaleTimeString()}] ${message}\n`;
+            loadingLog.scrollTop = loadingLog.scrollHeight;
+        }
+
+        // Robust JSON parse with backslash repair
+        function robustParseJSON(text) {
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                console.warn("Standard JSON.parse failed, attempting repair...", e);
+                // Replace single backslashes that are not followed by valid JSON escape character
+                const repaired = text.replace(/\\(?!["\\\/bfnrt]|u[0-9a-fA-F]{4})/g, '\\\\');
+                return JSON.parse(repaired);
+            }
+        }
+
+        // TTS Controller State
+        const ttsState = {
+            isPlaying: true, // Auto-play by default
+            isMuted: false,
+            rate: 0.9,
+            pitch: 1.0,
+            currentUtterance: null
+        };
+
+        // TTS Control Elements
+        const ttsPlayBtn = document.getElementById('tts-play-btn');
+        const ttsStopBtn = document.getElementById('tts-stop-btn');
+        const ttsMuteBtn = document.getElementById('tts-mute-btn');
+        const ttsRateSlider = document.getElementById('tts-rate-slider');
+        const ttsRateValue = document.getElementById('tts-rate-value');
+
+        // Prevent keyboard events inside controls from bubbling to slide navigation
+        [ttsPlayBtn, ttsStopBtn, ttsMuteBtn, ttsRateSlider].forEach(element => {
+            if (element) {
+                element.addEventListener('keydown', (e) => {
+                    e.stopPropagation();
+                });
+            }
+        });
+
+        // Initialize voices list
+        window.speechSynthesis.onvoiceschanged = () => {
+            // Triggered when voices are loaded by browser
+        };
+
+        function speakNarration(text) {
+            window.speechSynthesis.cancel(); // Terminate existing voices
+
+            if (ttsState.isMuted || !text) {
+                return;
+            }
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = ttsState.rate;
+            utterance.pitch = ttsState.pitch;
+            utterance.lang = 'en-US';
+
+            // Find best academic en-US voice
+            const voices = window.speechSynthesis.getVoices();
+            const preferredVoice = voices.find(v => v.lang === 'en-US' && v.name.includes('Google')) ||
+                                   voices.find(v => v.lang === 'en-US') ||
+                                   voices.find(v => v.lang.startsWith('en'));
+            if (preferredVoice) {
+                utterance.voice = preferredVoice;
+            }
+
+            utterance.onstart = () => {
+                ttsState.isPlaying = true;
+                updateTTSButtons();
+            };
+
+            utterance.onend = () => {
+                ttsState.isPlaying = false;
+                updateTTSButtons();
+            };
+
+            utterance.onerror = (e) => {
+                console.error("Speech Synthesis Error:", e);
+                ttsState.isPlaying = false;
+                updateTTSButtons();
+            };
+
+            ttsState.currentUtterance = utterance;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function updateTTSButtons() {
+            if (!ttsPlayBtn || !ttsMuteBtn) return;
+
+            if (ttsState.isPlaying) {
+                ttsPlayBtn.innerHTML = '<span class="btn-icon">⏸</span> Pause';
+                ttsPlayBtn.classList.add('active');
+            } else {
+                ttsPlayBtn.innerHTML = '<span class="btn-icon">▶</span> Play';
+                ttsPlayBtn.classList.remove('active');
+            }
+
+            if (ttsState.isMuted) {
+                ttsMuteBtn.innerHTML = '<span class="btn-icon">🔇</span> Unmute';
+                ttsMuteBtn.classList.add('active');
+            } else {
+                ttsMuteBtn.innerHTML = '<span class="btn-icon">🔊</span> Mute';
+                ttsMuteBtn.classList.remove('active');
+            }
+        }
+
+        // Button Event Bindings
+        ttsPlayBtn.addEventListener('click', () => {
+            if (ttsState.isPlaying) {
+                // Pause action: stop speech and update state
+                window.speechSynthesis.cancel();
+                ttsState.isPlaying = false;
+                updateTTSButtons();
+            } else {
+                // Play action: restart narration from beginning of slide
+                const slide = slides[currentSlide];
+                if (slide && slide.narration) {
+                    speakNarration(slide.narration);
+                }
+            }
+        });
+
+        ttsStopBtn.addEventListener('click', () => {
+            window.speechSynthesis.cancel();
+            ttsState.isPlaying = false;
+            updateTTSButtons();
+        });
+
+        ttsMuteBtn.addEventListener('click', () => {
+            ttsState.isMuted = !ttsState.isMuted;
+            if (ttsState.isMuted) {
+                window.speechSynthesis.cancel();
+                ttsState.isPlaying = false;
+            } else {
+                // Unmuting triggers speech from the start of the slide
+                const slide = slides[currentSlide];
+                if (slide && slide.narration) {
+                    speakNarration(slide.narration);
+                }
+            }
+            updateTTSButtons();
+        });
+
+        ttsRateSlider.addEventListener('input', (e) => {
+            const newRate = parseFloat(e.target.value);
+            ttsState.rate = newRate;
+            ttsRateValue.textContent = `${newRate.toFixed(1)}x`;
+            
+            // If playing, restart speaking with the new speed immediately
+            if (ttsState.isPlaying) {
+                const slide = slides[currentSlide];
+                if (slide && slide.narration) {
+                    speakNarration(slide.narration);
+                }
+            }
+        });
+
+        // Generate Slides Button Action
+        generateBtn.addEventListener('click', async () => {
+            const apiKey = apiKeyInput.value.trim();
+            const modelName = modelSelect.value.trim() || 'gemini-2.5-flash';
+            
+            if (!apiKey) {
+                alert('Please enter your Gemini API Key.');
+                return;
+            }
+            if (!selectedFile) {
+                alert('Please choose or drop a PDF file first.');
+                return;
+            }
+
+            // Save key
+            localStorage.setItem('gemini_api_key', apiKey);
+
+            // Show loading overlay
+            loadingOverlay.classList.remove('hidden');
+            loadingLog.textContent = '';
+            logStatus('Reading PDF...', `Loading file: ${selectedFile.name}`);
+
+            try {
+                // Read PDF file as array buffer
+                const arrayBuffer = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = (err) => reject(err);
+                    reader.readAsArrayBuffer(selectedFile);
+                });
+
+                logStatus('Extracting Text...', 'Starting PDF.js parser...');
+                const typedarray = new Uint8Array(arrayBuffer);
+                const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                const numPages = pdf.numPages;
+                logStatus('Extracting Text...', `PDF loaded successfully. Total pages: ${numPages}`);
+
+                let extractedText = '';
+                for (let i = 1; i <= numPages; i++) {
+                    logStatus('Extracting Text...', `Reading page ${i} of ${numPages}...`);
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map(item => item.str).join(' ');
+                    extractedText += `--- Page ${i} ---\n${pageText}\n\n`;
+                }
+
+                logStatus('Sending to Gemini...', `Extracted ${extractedText.length} characters of text. Communicating with Gemini API...`);
+
+                const systemPrompt = `You are an expert academic slide creator. Your task is to analyze the extracted text from a lecture PDF and generate a highly engaging, structured, and visually stunning slide presentation in JSON format.
+
+The slides must match the existing styling of the application. Here are the types of slides you can generate:
+
+1. Title Slide:
+   {"type": "title", "title": "MAIN TITLE", "subtitle": "Subtitle or Topic Info", "narration": "Detailed spoken slide narration text"}
+
+2. Content Slide:
+   {"type": "content", "title": "SLIDE TITLE", "subtitle": "Optional Subtitle", "html": "HTML content", "narration": "Detailed spoken slide narration text"}
+
+3. Example Slide (for solved problems, derivations, examples):
+   {"type": "example", "title": "EXAMPLE TITLE", "subtitle": "Optional Subtitle", "html": "HTML content", "narration": "Detailed spoken slide narration text explaining the derivation or problem"}
+
+4. Key Takeaway Slide (uses takeaway-list class):
+   {"type": "key-takeaway", "title": "TAKEAWAY TITLE", "html": "<ul class='takeaway-list'><li>Takeaway 1</li><li>Takeaway 2</li></ul>", "narration": "Detailed spoken slide narration text summarizing takeaways"}
+
+5. Summary Slide (uses styled tables for comparison/quick reference):
+   {"type": "summary", "title": "SUMMARY TITLE", "html": "<table><thead><tr><th>Header 1</th><th>Header 2</th></tr></thead><tbody><tr><td>Data 1</td><td>Data 2</td></tr></tbody></table>", "narration": "Detailed spoken slide narration text summarizing the comparison or data"}
+
+Styling guidelines for content within the 'html' field:
+- Definitions: Wrap definitions or core concepts in: <div class='definition'><strong>Definition:</strong> Detailed description.</div>
+- Keywords: Wrap key terms in <span class="keyword">key term</span> to apply the glowing effect.
+- Math/Equations: Wrap equations in MathJax format. Block equations must use \\\\[ ... \\\\] (double escaped backslash). Inline equations must use \\\\( ... \\\\) (double escaped backslash). For example: \\\\sigma = \\\\frac{F}{A}.
+- Lists: Use <ul> and <li> elements. Avoid plain text paragraphs; prefer structured lists.
+- Section Headings: Inside content slides, use <h2 class='section-heading'>Subheading</h2> to organize content.
+- Code snippets: Wrap inline code in <span class="inline-code">code</span>.
+
+Formatting and Narration constraints:
+- Do NOT generate images.
+- Ensure all MathJax equations are mathematically correct and properly escaped.
+- Every single slide object MUST contain a 'narration' field with a detailed, natural, spoken lecture narration text (1-3 sentences) summarizing and explaining the slide's content. Do not use mathematical formulas directly in the narration text; write them out in plain spoken English (e.g. write 'sigma equals force over area' instead of '\\sigma = F/A').
+- Return ONLY a valid JSON array of slide objects. Do not write any explanations, markdown code blocks, or conversational text. Start with '[' and end with ']'.`;
+
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'content-type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contents: [
+                            {
+                                parts: [
+                                    {
+                                        text: `${systemPrompt}\n\nHere is the extracted text from the PDF:\n${extractedText}`
+                                    }
+                                ]
+                            }
+                        ],
+                        generationConfig: {
+                            responseMimeType: "application/json"
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`API returned ${response.status}: ${errorText}`);
+                }
+
+                logStatus('Processing Response...', 'Received response from Gemini. Parsing slides...');
+                const data = await response.json();
+                
+                let responseText = '';
+                if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0] && data.candidates[0].content.parts[0].text) {
+                    responseText = data.candidates[0].content.parts[0].text.trim();
+                } else {
+                    throw new Error('Invalid response structure from Gemini API. Make sure your API Key and Model are correct.');
+                }
+
+                // Extract JSON array
+                const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+                const jsonText = jsonMatch ? jsonMatch[1].trim() : responseText;
+                
+                const newSlides = robustParseJSON(jsonText);
+
+                if (!Array.isArray(newSlides) || newSlides.length === 0) {
+                    throw new Error('Generated output is not a valid non-empty array of slides.');
+                }
+
+                logStatus('Rendering Presentation...', `Successfully parsed ${newSlides.length} slides. Transitioning UI...`);
+
+                // Update slides array in place
+                slides.length = 0;
+                slides.push(...newSlides);
+
+                // Reset and render first slide
+                currentSlide = 0;
+                renderSlide(0);
+
+                // Transition screen view
+                uploadScreen.classList.add('hidden');
+                presentationBoard.classList.remove('hidden');
+
+            } catch (err) {
+                console.error(err);
+                logStatus('Error Occurred', `Failed: ${err.message}`);
+                
+                // Add retry/dismiss action button
+                const errDiv = document.createElement('div');
+                errDiv.className = 'error-message';
+                errDiv.innerHTML = `
+                    <strong>Generation Failed</strong>
+                    <span>${err.message}</span>
+                    <button class="retry-btn" type="button">Dismiss</button>
+                `;
+                errDiv.querySelector('.retry-btn').addEventListener('click', () => {
+                    errDiv.remove();
+                });
+                loadingOverlay.appendChild(errDiv);
+            } finally {
+                // Reset file inputs if needed, but do not hide loading overlay automatically on success since it transitions away
+                const errDiv = loadingOverlay.querySelector('.error-message');
+                if (!errDiv) {
+                    loadingOverlay.classList.add('hidden');
+                }
+            }
+        });
+
+        // Initialize first slide when MathJax is ready or document is loaded
+        document.addEventListener("DOMContentLoaded", () => {
+            renderSlide(currentSlide);
+            subtitleBar.classList.add('visible');
+            updateSubtitle(slides[0].narration || '');
+        });
+    </script>
+</body>
+</html>

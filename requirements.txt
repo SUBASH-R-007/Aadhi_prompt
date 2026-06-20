@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+manim
+pydantic
+google-genai
+edge-tts
+python-dotenv
+python-multipart
