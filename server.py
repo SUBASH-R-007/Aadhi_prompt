@@ -641,8 +641,8 @@ async def generate_audio(request: AudioRequest, username: str = Depends(verify_c
             
     try:
         if tts_engine.startswith("gemini"):
-            # Use the dedicated TTS model for audio generation
-            actual_model = 'gemini-2.5-flash-tts'
+            # Use the dedicated TTS preview model for audio generation
+            actual_model = 'gemini-2.5-flash-preview-tts'
             print(f"\n[GEMINI TTS] Generating voice '{voice}' using model '{actual_model}'...")
             from google import genai
             from google.genai import types
