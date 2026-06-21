@@ -1573,6 +1573,91 @@
             transform: scale(1.01);
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
+        /* --- CINEMATIC OVERLAYS --- */
+        .letterbox-top, .letterbox-bottom {
+            position: fixed;
+            left: 0; right: 0;
+            height: 8vh;
+            background: #000;
+            z-index: 9999;
+            pointer-events: none;
+        }
+        .letterbox-top { top: 0; }
+        .letterbox-bottom { bottom: 0; }
+        
+        .cinematic-vignette {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 9998;
+            background: radial-gradient(circle, rgba(0,0,0,0) 60%, rgba(0,0,0,0.8) 100%);
+            mix-blend-mode: multiply;
+        }
+
+        .film-grain {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 9997;
+            opacity: 0.04;
+            background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><filter id="noiseFilter"><feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(#noiseFilter)"/></svg>');
+        }
+
+        @keyframes kenburns {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.05); }
+        }
+        .background-media,
+        .scene-content img,
+        .scene-content video {
+            animation: kenburns 30s linear infinite alternate;
+            transform-origin: center center;
+        }
+
+        .video-progress-container {
+            position: fixed;
+            bottom: 8vh; /* Rest exactly on top of the bottom letterbox */
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            z-index: 10000;
+            pointer-events: none;
+        }
+        .video-progress-fill {
+            height: 100%;
+            width: 0%;
+            background: #B026FF;
+            box-shadow: 0 0 10px #B026FF;
+            transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #subtitle-track {
+            position: fixed;
+            bottom: calc(8vh + 20px); /* Just above progress bar */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            text-align: center;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: #fff;
+            text-shadow: 0px 2px 8px rgba(0,0,0,0.9), 0px 0px 4px rgba(0,0,0,0.6);
+            z-index: 9996;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-out;
+        }
+        #subtitle-track.active {
+            opacity: 1;
+            transform: translateX(-50%) translateY(-5px);
+        }
+        /* Highlight specific words dynamically */
+        #subtitle-track .highlight {
+            color: #00F0FF;
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.6);
+        }
     </style>
 </head>
 <body>
@@ -2431,6 +2516,12 @@
             const slide = slides[index];
             const container = document.getElementById('slide-content-container');
             
+            // Global Video Progress Bar
+            const progFill = document.querySelector('.video-progress-fill');
+            if (progFill) {
+                progFill.style.width = ((index + 1) / slides.length) * 100 + '%';
+            }
+            
             // Slide Scrubber Logic
             const scrubber = document.getElementById('slide-scrubber-container');
             if (scrubber) {
@@ -3200,6 +3291,60 @@
             }
         }
 
+        // Ambient Cinematic Web Audio BGM
+        let bgmContext = null;
+        function startBGM() {
+            if (bgmContext) return; // Already running
+            bgmContext = new (window.AudioContext || window.webkitAudioContext)();
+            const masterGain = bgmContext.createGain();
+            masterGain.gain.value = 0.05; // 5% volume for subtle ambience
+            masterGain.connect(bgmContext.destination);
+
+            // Reverb effect (Convolver)
+            const convolver = bgmContext.createConvolver();
+            const rate = bgmContext.sampleRate;
+            const length = rate * 3; // 3 seconds reverb tail
+            const impulse = bgmContext.createBuffer(2, length, rate);
+            const left = impulse.getChannelData(0);
+            const right = impulse.getChannelData(1);
+            for (let i = 0; i < length; i++) {
+                left[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 3);
+                right[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 3);
+            }
+            convolver.buffer = impulse;
+            convolver.connect(masterGain);
+
+            // Deep Cinematic Drone Synths
+            const osc = bgmContext.createOscillator();
+            osc.type = 'triangle';
+            osc.frequency.value = 55; // Low A1 note
+            
+            const osc2 = bgmContext.createOscillator();
+            osc2.type = 'sine';
+            osc2.frequency.value = 55.5; // Slight detune for phasing movement
+
+            const filter = bgmContext.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 200;
+
+            // LFO for filter sweep (breathing effect)
+            const lfo = bgmContext.createOscillator();
+            lfo.type = 'sine';
+            lfo.frequency.value = 0.05; // Very slow 20 second sweep
+            const lfoGain = bgmContext.createGain();
+            lfoGain.gain.value = 150;
+            lfo.connect(lfoGain);
+            lfoGain.connect(filter.frequency);
+
+            osc.connect(filter);
+            osc2.connect(filter);
+            filter.connect(convolver);
+
+            osc.start();
+            osc2.start();
+            lfo.start();
+        }
+
         // TTS Controller State
         const ttsState = {
             isPlaying: true, // Auto-play by default
@@ -3324,6 +3469,13 @@
                     ttsState.isPlaying = true;
                     updateTTSButtons();
                     triggerFallbackReveal();
+                    const subTrack = document.getElementById('subtitle-track');
+                    if (subTrack) {
+                        subTrack.classList.remove('active');
+                        void subTrack.offsetWidth;
+                        subTrack.innerHTML = text;
+                        subTrack.classList.add('active');
+                    }
                 };
                 utterance.onend = () => {
                     if (ttsState.isPlaying) {
@@ -3383,6 +3535,14 @@
                     
                     window.currentAudio = audio;
                     audio.playbackRate = ttsState.rate;
+
+                    const subTrack = document.getElementById('subtitle-track');
+                    if (subTrack) {
+                        subTrack.classList.remove('active');
+                        void subTrack.offsetWidth;
+                        subTrack.innerHTML = chunks[i].text;
+                        subTrack.classList.add('active');
+                    }
 
                     if (chunks[i].elementsToReveal && chunks[i].elementsToReveal.length > 0) {
                         chunks[i].elementsToReveal.forEach(el => {
@@ -3467,6 +3627,7 @@
 
         // Button Event Bindings
         ttsPlayBtn.addEventListener('click', () => {
+            startBGM();
             if (ttsState.isPlaying) {
                 if (window.currentAudio) window.currentAudio.pause();
                 ttsState.isPlaying = false;
