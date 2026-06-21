@@ -669,6 +669,7 @@ async def generate_audio(request: AudioRequest, username: str = Depends(verify_c
                         model=actual_model,
                         contents=prompt_text,
                         config=types.GenerateContentConfig(
+                            system_instruction="You are a direct Text-to-Speech synthesizer. You MUST output ONLY raw audio. Do NOT output any conversational text like 'Sure' or 'Here is the audio'. Begin speaking the audio immediately.",
                             response_modalities=["AUDIO"],
                             safety_settings=[
                                 types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold=types.HarmBlockThreshold.BLOCK_NONE),
