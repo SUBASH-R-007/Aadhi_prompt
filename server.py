@@ -647,29 +647,50 @@ async def generate_audio(request: AudioRequest, username: str = Depends(verify_c
             from google import genai
             from google.genai import types
             
-            api_key = os.getenv("GEMINI_API_KEY")
-            if not api_key:
+            # Key rotation logic
+            keys = []
+            for i in ["", "_2", "_3", "_4", "_5"]:
+                k = os.getenv(f"GEMINI_API_KEY{i}")
+                if k: keys.append(k)
+                
+            if not keys:
                 raise Exception("GEMINI_API_KEY is not set in the .env file.")
                 
-            client = genai.Client(api_key=api_key)
-            
             # The preview TTS model requires explicit instructions to read text
             prompt_text = f"Please read the following text aloud with high energy, a natural conversational tone, and a fluent Indian English accent:\n{text}"
             
-            response = client.models.generate_content(
-                model=actual_model,
-                contents=prompt_text,
-                config=types.GenerateContentConfig(
-                    response_modalities=["AUDIO"],
-                    speech_config=types.SpeechConfig(
-                        voice_config=types.VoiceConfig(
-                            prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                                voice_name=voice
+            response = None
+            last_error = None
+            
+            for key in keys:
+                try:
+                    client = genai.Client(api_key=key)
+                    response = client.models.generate_content(
+                        model=actual_model,
+                        contents=prompt_text,
+                        config=types.GenerateContentConfig(
+                            response_modalities=["AUDIO"],
+                            speech_config=types.SpeechConfig(
+                                voice_config=types.VoiceConfig(
+                                    prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                                        voice_name=voice
+                                    )
+                                )
                             )
                         )
                     )
-                )
-            )
+                    break # Success!
+                except Exception as e:
+                    last_error = e
+                    err_str = str(e)
+                    if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "quota" in err_str.lower():
+                        print(f"\n[WARNING] API Key rate limited (429). Rotating to next key...")
+                        continue
+                    else:
+                        raise e # Other error
+            
+            if response is None:
+                raise last_error
             
             audio_data = None
             for candidate in response.candidates:
