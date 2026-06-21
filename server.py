@@ -656,8 +656,8 @@ async def generate_audio(request: AudioRequest, username: str = Depends(verify_c
             if not keys:
                 raise Exception("GEMINI_API_KEY is not set in the .env file.")
                 
-            # The preview TTS model requires explicit instructions to read text
-            prompt_text = f"Please read the following text aloud with high energy, a natural conversational tone, and a fluent Indian English accent:\n{text}"
+            # The preview TTS model can sometimes fail (FinishReason.OTHER) if given complex instructions.
+            prompt_text = text
             
             response = None
             last_error = None
@@ -670,6 +670,24 @@ async def generate_audio(request: AudioRequest, username: str = Depends(verify_c
                         contents=prompt_text,
                         config=types.GenerateContentConfig(
                             response_modalities=["AUDIO"],
+                            safety_settings=[
+                                types.SafetySetting(
+                                    category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
+                                    threshold=types.HarmBlockThreshold.BLOCK_NONE,
+                                ),
+                                types.SafetySetting(
+                                    category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+                                    threshold=types.HarmBlockThreshold.BLOCK_NONE,
+                                ),
+                                types.SafetySetting(
+                                    category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+                                    threshold=types.HarmBlockThreshold.BLOCK_NONE,
+                                ),
+                                types.SafetySetting(
+                                    category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                                    threshold=types.HarmBlockThreshold.BLOCK_NONE,
+                                ),
+                            ],
                             speech_config=types.SpeechConfig(
                                 voice_config=types.VoiceConfig(
                                     prebuilt_voice_config=types.PrebuiltVoiceConfig(
