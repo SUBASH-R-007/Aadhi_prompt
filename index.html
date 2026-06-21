@@ -3297,7 +3297,7 @@
             if (bgmAudio) return; // Already running
             bgmAudio = new Audio('/video_template/bgm.mp3');
             bgmAudio.loop = true;
-            bgmAudio.volume = 0.15; // 15% volume for ambient background
+            bgmAudio.volume = 0.04; // 4% volume for very subtle ambience
             bgmAudio.play().catch(e => console.log("BGM autoplay prevented:", e));
         }
 
