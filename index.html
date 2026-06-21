@@ -3380,7 +3380,13 @@
             if (syncElements && syncElements.length > 0) {
                 let activeElementIndex = 0;
                 
-                const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+                const rawSentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+                
+                // Group sentences into chunks of 3 to reduce API requests
+                const sentences = [];
+                for (let i = 0; i < rawSentences.length; i += 3) {
+                    sentences.push(rawSentences.slice(i, i + 3).join(' '));
+                }
                 
                 sentences.forEach((sen) => {
                     let senLower = sen.toLowerCase();
