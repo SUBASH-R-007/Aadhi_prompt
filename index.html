@@ -3291,58 +3291,14 @@
             }
         }
 
-        // Ambient Cinematic Web Audio BGM
-        let bgmContext = null;
+        // Cinematic MP3 BGM
+        let bgmAudio = null;
         function startBGM() {
-            if (bgmContext) return; // Already running
-            bgmContext = new (window.AudioContext || window.webkitAudioContext)();
-            const masterGain = bgmContext.createGain();
-            masterGain.gain.value = 0.05; // 5% volume for subtle ambience
-            masterGain.connect(bgmContext.destination);
-
-            // Reverb effect (Convolver)
-            const convolver = bgmContext.createConvolver();
-            const rate = bgmContext.sampleRate;
-            const length = rate * 3; // 3 seconds reverb tail
-            const impulse = bgmContext.createBuffer(2, length, rate);
-            const left = impulse.getChannelData(0);
-            const right = impulse.getChannelData(1);
-            for (let i = 0; i < length; i++) {
-                left[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 3);
-                right[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 3);
-            }
-            convolver.buffer = impulse;
-            convolver.connect(masterGain);
-
-            // Deep Cinematic Drone Synths
-            const osc = bgmContext.createOscillator();
-            osc.type = 'triangle';
-            osc.frequency.value = 55; // Low A1 note
-            
-            const osc2 = bgmContext.createOscillator();
-            osc2.type = 'sine';
-            osc2.frequency.value = 55.5; // Slight detune for phasing movement
-
-            const filter = bgmContext.createBiquadFilter();
-            filter.type = 'lowpass';
-            filter.frequency.value = 200;
-
-            // LFO for filter sweep (breathing effect)
-            const lfo = bgmContext.createOscillator();
-            lfo.type = 'sine';
-            lfo.frequency.value = 0.05; // Very slow 20 second sweep
-            const lfoGain = bgmContext.createGain();
-            lfoGain.gain.value = 150;
-            lfo.connect(lfoGain);
-            lfoGain.connect(filter.frequency);
-
-            osc.connect(filter);
-            osc2.connect(filter);
-            filter.connect(convolver);
-
-            osc.start();
-            osc2.start();
-            lfo.start();
+            if (bgmAudio) return; // Already running
+            bgmAudio = new Audio('/video_template/bgm.mp3');
+            bgmAudio.loop = true;
+            bgmAudio.volume = 0.15; // 15% volume for ambient background
+            bgmAudio.play().catch(e => console.log("BGM autoplay prevented:", e));
         }
 
         // TTS Controller State
