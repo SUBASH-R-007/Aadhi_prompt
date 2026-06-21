@@ -669,7 +669,6 @@ async def generate_audio(request: AudioRequest, username: str = Depends(verify_c
                         model=actual_model,
                         contents=prompt_text,
                         config=types.GenerateContentConfig(
-                            system_instruction="You are a direct Text-to-Speech synthesizer. You MUST output ONLY raw audio. Do NOT output any conversational text like 'Sure' or 'Here is the audio'. Begin speaking the audio immediately.",
                             response_modalities=["AUDIO"],
                             safety_settings=[
                                 types.SafetySetting(category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold=types.HarmBlockThreshold.BLOCK_NONE),
@@ -723,6 +722,25 @@ async def generate_audio(request: AudioRequest, username: str = Depends(verify_c
                 with open(filepath, "wb") as f:
                     f.write(audio_data)
                 
+            return {"status": "success", "audio_url": f"http://127.0.0.1:8000/static/{filename}?t={int(time.time())}"}
+            
+        elif tts_engine.startswith("openai"):
+            print(f"\n[OPENAI TTS] Generating voice '{voice}' using model '{tts_engine}'...")
+            import openai
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                raise Exception("OPENAI_API_KEY is not set in the .env file.")
+            
+            client = openai.AsyncOpenAI(api_key=api_key)
+            actual_model = "tts-1-hd" if "hd" in tts_engine else "tts-1"
+            
+            response = await client.audio.speech.create(
+                model=actual_model,
+                voice=voice,
+                input=text
+            )
+            
+            response.stream_to_file(filepath)
             return {"status": "success", "audio_url": f"http://127.0.0.1:8000/static/{filename}?t={int(time.time())}"}
             
         else:
@@ -845,102 +863,121 @@ async def get_history(username: str = Depends(verify_credentials)):
 class ScriptRequest(BaseModel):
     prompt_text: str
     model_name: str = "gemini-2.5-flash"
+    api_provider: str = "gemini"
 
 @app.post("/generate-script")
 async def generate_script(request: ScriptRequest, username: str = Depends(verify_credentials)):
-    from google import genai
-    from google.genai import types
     import json
     import re
     from fastapi.responses import StreamingResponse
     import traceback
     
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="GEMINI_API_KEY is not set in the .env file.")
-        
-    client = genai.Client(api_key=api_key)
-    # Ensure both sync and async underlying httpx clients have a large timeout
-    import httpx
-    if hasattr(client._api_client, '_async_httpx_client') and client._api_client._async_httpx_client:
-        client._api_client._async_httpx_client.timeout = httpx.Timeout(1200.0)
-    if hasattr(client._api_client, '_httpx_client') and client._api_client._httpx_client:
-        client._api_client._httpx_client.timeout = httpx.Timeout(1200.0)
-    
     async def stream_generator():
-        import queue
-        import threading
-        
-        q = queue.Queue()
-        
-        def sync_worker():
-            try:
-                # Use standard synchronous streaming, avoiding httpx async max_line_length bug!
-                response_stream = client.models.generate_content_stream(
-                    model=request.model_name,
-                    contents=request.prompt_text,
-                    config=types.GenerateContentConfig(
-                        response_mime_type="application/json",
-                        max_output_tokens=65536,
-                        temperature=0.2
-                    )
-                )
-                for chunk in response_stream:
-                    if chunk.text:
-                        q.put(("chunk", chunk.text))
-                q.put(("done", None))
-            except Exception as e:
-                q.put(("error", e))
-
-        thread = threading.Thread(target=sync_worker)
-        thread.start()
-        
         try:
-            # Yield headers immediately to prevent browser connection drops
             yield "STATUS:STARTED\n"
-            
             raw_text = ""
             total_chars = 0
             chunk_count = 0
             
-            while True:
-                # Slight yield to event loop
-                await asyncio.sleep(0.02)
-                try:
-                    msg_type, data = q.get_nowait()
-                except queue.Empty:
-                    continue
-                    
-                if msg_type == "chunk":
-                    raw_text += data
-                    total_chars += len(data)
-                    chunk_count += 1
-                    # Send a progress heartbeat via stream every chunk to keep connection alive
-                    yield f"PROGRESS:{total_chars}\n"
-                    # Also broadcast to websocket for external listeners
-                    if chunk_count % 5 == 0:
-                        await ws_manager.broadcast(f"GEMINI_PROGRESS:{total_chars}")
-                elif msg_type == "done":
-                    break
-                elif msg_type == "error":
-                    yield f"ERROR:{str(data)}\n"
+            if request.api_provider == "openai":
+                import openai
+                api_key = os.getenv("OPENAI_API_KEY")
+                if not api_key:
+                    yield "ERROR:OPENAI_API_KEY is not set in the .env file.\n"
                     return
-            
-            # Process the full JSON result
-            print(f"\n[GEMINI RESPONSE] Received {total_chars} chars total")
+                client = openai.AsyncOpenAI(api_key=api_key)
+                
+                # OpenAI handles structured output well via json_object format
+                response_stream = await client.chat.completions.create(
+                    model=request.model_name,
+                    messages=[{"role": "user", "content": request.prompt_text}],
+                    temperature=0.2,
+                    response_format={"type": "json_object"},
+                    stream=True
+                )
+                
+                async for chunk in response_stream:
+                    if chunk.choices and len(chunk.choices) > 0:
+                        content = chunk.choices[0].delta.content
+                        if content:
+                            raw_text += content
+                            total_chars += len(content)
+                            chunk_count += 1
+                            yield f"PROGRESS:{total_chars}\n"
+                            if chunk_count % 5 == 0:
+                                await ws_manager.broadcast(f"OPENAI_PROGRESS:{total_chars}")
+            else:
+                # Gemini logic with Queue
+                from google import genai
+                from google.genai import types
+                import httpx
+                import queue
+                import threading
+                
+                api_key = os.getenv("GEMINI_API_KEY")
+                if not api_key:
+                    yield "ERROR:GEMINI_API_KEY is not set in the .env file.\n"
+                    return
+                    
+                client = genai.Client(api_key=api_key)
+                if hasattr(client._api_client, '_async_httpx_client') and client._api_client._async_httpx_client:
+                    client._api_client._async_httpx_client.timeout = httpx.Timeout(1200.0)
+                if hasattr(client._api_client, '_httpx_client') and client._api_client._httpx_client:
+                    client._api_client._httpx_client.timeout = httpx.Timeout(1200.0)
+                    
+                q = queue.Queue()
+                def sync_worker():
+                    try:
+                        response_stream = client.models.generate_content_stream(
+                            model=request.model_name,
+                            contents=request.prompt_text,
+                            config=types.GenerateContentConfig(
+                                response_mime_type="application/json",
+                                max_output_tokens=65536,
+                                temperature=0.2
+                            )
+                        )
+                        for chunk in response_stream:
+                            if chunk.text: q.put(("chunk", chunk.text))
+                        q.put(("done", None))
+                    except Exception as e:
+                        q.put(("error", e))
+                
+                thread = threading.Thread(target=sync_worker)
+                thread.start()
+                
+                while True:
+                    await asyncio.sleep(0.02)
+                    try:
+                        msg_type, data = q.get_nowait()
+                    except queue.Empty:
+                        continue
+                        
+                    if msg_type == "chunk":
+                        raw_text += data
+                        total_chars += len(data)
+                        chunk_count += 1
+                        yield f"PROGRESS:{total_chars}\n"
+                        if chunk_count % 5 == 0:
+                            await ws_manager.broadcast(f"GEMINI_PROGRESS:{total_chars}")
+                    elif msg_type == "done":
+                        break
+                    elif msg_type == "error":
+                        yield f"ERROR:{str(data)}\n"
+                        return
+
+            # Both providers hit this common parsing logic
+            print(f"\n[{request.api_provider.upper()} RESPONSE] Received {total_chars} chars total")
             raw_text = raw_text.strip()
             match = re.search(r"```(?:json)?\s*(.*?)\s*```", raw_text, re.DOTALL)
             if match:
                 raw_text = match.group(1).strip()
             else:
-                # If no backticks, just strip leading/trailing whitespace
                 raw_text = raw_text.strip()
                 
             try:
-                # raw_decode parses the FIRST valid JSON object and ignores everything after it!
-                # It is mathematically immune to "Extra data" errors.
                 parsed, _ = json.JSONDecoder().raw_decode(raw_text.lstrip())
-                final_json_string = json.dumps(parsed) # Ensure it's a single line
+                final_json_string = json.dumps(parsed)
                 yield f"FINAL_JSON:{final_json_string}\n"
             except Exception as parse_err:
                 print(f"[PARSE ERROR] {parse_err}")
@@ -948,13 +985,13 @@ async def generate_script(request: ScriptRequest, username: str = Depends(verify
                     with open("debug_failed_json.txt", "w", encoding="utf-8") as f:
                         f.write(raw_text)
                     print("Dumped failed JSON to debug_failed_json.txt")
-                except:
-                    pass
+                except: pass
                 yield f"ERROR:Failed to parse JSON response: {str(parse_err)}\n"
+                
         except Exception as e:
             traceback.print_exc()
             yield f"ERROR:{str(e)}\n"
-            
+
     return StreamingResponse(stream_generator(), media_type="text/plain")
 
 

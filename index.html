@@ -1773,6 +1773,14 @@
                 <div class="config-section animate-entrance-4" style="flex: 1; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 12px; display: flex; flex-direction: column; gap: 1.2rem;">
                     
                     <div class="config-group">
+                        <label class="config-label" for="provider-select" style="color: var(--text-gold);">AI Provider</label>
+                        <select id="provider-select" class="neon-input" style="width: 100%; cursor: pointer; border-color: #00F3FF; margin-bottom: 1rem;">
+                            <option value="gemini" selected>Google Gemini</option>
+                            <option value="openai">OpenAI</option>
+                        </select>
+                    </div>
+                    
+                    <div class="config-group">
                         <label class="config-label" for="model-select" style="color: var(--text-gold);">Gemini Model</label>
                         <select id="model-select" class="neon-input" style="width: 100%; cursor: pointer;">
                             <option value="gemini-3.5-flash">gemini-3.5-flash</option>
@@ -3380,13 +3388,7 @@
             if (syncElements && syncElements.length > 0) {
                 let activeElementIndex = 0;
                 
-                const rawSentences = text.match(/[^.!?]+[.!?]+/g) || [text];
-                
-                // Group sentences into chunks of 3 to reduce API requests
-                const sentences = [];
-                for (let i = 0; i < rawSentences.length; i += 3) {
-                    sentences.push(rawSentences.slice(i, i + 3).join(' '));
-                }
+                const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
                 
                 sentences.forEach((sen) => {
                     let senLower = sen.toLowerCase();
@@ -3662,6 +3664,68 @@
             });
         }
         const hardwareSelect = document.getElementById('hardware-select');
+        const providerSelect = document.getElementById('provider-select');
+        
+        const geminiModels = `
+            <option value="gemini-3.5-flash">gemini-3.5-flash</option>
+            <option value="gemini-3.1-pro-preview">gemini-3.1-pro (Preview)</option>
+            <option value="gemini-3.1-flash-preview">gemini-3.1-flash (Preview)</option>
+            <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+            <option value="gemini-2.5-flash" selected>gemini-2.5-flash</option>
+            <option value="gemini-2.0-pro-exp-0205">gemini-2.0-pro-exp</option>
+            <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+            <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+            <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+        `;
+        const openaiModels = `
+            <option value="gpt-4o" selected>gpt-4o</option>
+            <option value="gpt-4o-mini">gpt-4o-mini</option>
+        `;
+        const geminiTTSEngines = `
+            <option value="default" selected>Default (Edge-TTS)</option>
+            <option value="gemini-2.5-flash-preview-tts">Gemini TTS Flash</option>
+            <option value="gemini-2.0-pro-exp-0205">Gemini TTS Pro</option>
+        `;
+        const openaiTTSEngines = `
+            <option value="default">Default (Edge-TTS)</option>
+            <option value="openai-tts-1" selected>OpenAI TTS-1</option>
+            <option value="openai-tts-1-hd">OpenAI TTS-1-HD</option>
+        `;
+        const geminiVoicesHtml = `
+            <option value="Puck">Puck</option>
+            <option value="Charon">Charon</option>
+            <option value="Fenrir">Fenrir</option>
+        `;
+        const openaiVoicesHtml = `
+            <option value="alloy">Alloy</option>
+            <option value="echo">Echo</option>
+            <option value="fable">Fable</option>
+            <option value="onyx">Onyx</option>
+            <option value="nova">Nova</option>
+            <option value="shimmer">Shimmer</option>
+        `;
+
+        if (providerSelect) {
+            providerSelect.addEventListener('change', (e) => {
+                const provider = e.target.value;
+                if (provider === 'openai') {
+                    document.getElementById('model-select').innerHTML = openaiModels;
+                    document.getElementById('tts-engine-select').innerHTML = openaiTTSEngines;
+                    document.getElementById('gemini-voice-select').innerHTML = openaiVoicesHtml;
+                    document.querySelector('label[for="gemini-voice-select"]').innerText = "Provider Voice";
+                    document.querySelector('label[for="model-select"]').innerText = "OpenAI Model";
+                } else {
+                    document.getElementById('model-select').innerHTML = geminiModels;
+                    document.getElementById('tts-engine-select').innerHTML = geminiTTSEngines;
+                    document.getElementById('gemini-voice-select').innerHTML = geminiVoicesHtml;
+                    document.querySelector('label[for="gemini-voice-select"]').innerText = "Gemini Voice";
+                    document.querySelector('label[for="model-select"]').innerText = "Gemini Model";
+                }
+                // Trigger change event to reset the disabled states
+                document.getElementById('tts-engine-select').dispatchEvent(new Event('change'));
+            });
+        }
+
         
         startServerBtn.addEventListener('click', async () => {
             const profile = hardwareSelect.value;
@@ -3914,7 +3978,8 @@ Formatting and Narration constraints:
                     },
                     body: JSON.stringify({
                         prompt_text: `${systemPrompt}\n\nHere is the extracted text from the PDF:\n${extractedText}`,
-                        model_name: modelName
+                        model_name: modelName,
+                        api_provider: document.getElementById('provider-select').value
                     })
                 });
 
