@@ -656,7 +656,7 @@ async def generate_audio(request: AudioRequest, username: str = Depends(verify_c
             if not keys:
                 raise Exception("GEMINI_API_KEY is not set in the .env file.")
                 
-            # The preview TTS model can sometimes fail (FinishReason.OTHER) if given complex instructions.
+            # The preview TTS model requires explicit instructions to read text
             prompt_text = text
             
             response = None
@@ -671,22 +671,10 @@ async def generate_audio(request: AudioRequest, username: str = Depends(verify_c
                         config=types.GenerateContentConfig(
                             response_modalities=["AUDIO"],
                             safety_settings=[
-                                types.SafetySetting(
-                                    category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
-                                    threshold=types.HarmBlockThreshold.BLOCK_NONE,
-                                ),
-                                types.SafetySetting(
-                                    category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-                                    threshold=types.HarmBlockThreshold.BLOCK_NONE,
-                                ),
-                                types.SafetySetting(
-                                    category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-                                    threshold=types.HarmBlockThreshold.BLOCK_NONE,
-                                ),
-                                types.SafetySetting(
-                                    category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-                                    threshold=types.HarmBlockThreshold.BLOCK_NONE,
-                                ),
+                                types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"),
+                                types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_NONE"),
+                                types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_NONE"),
+                                types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_NONE"),
                             ],
                             speech_config=types.SpeechConfig(
                                 voice_config=types.VoiceConfig(
