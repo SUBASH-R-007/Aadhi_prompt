@@ -10,7 +10,7 @@ import json
 import edge_tts
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 # --- Auto-Inject MiKTeX into PATH for Manim (Windows Fallback) ---
 import shutil
@@ -651,7 +651,7 @@ async def generate_audio(request: AudioRequest, username: str = Depends(verify_c
     text_hash = hashlib.sha256(hash_str.encode('utf-8')).hexdigest()[:16]
     
     # Gemini returns .wav implicitly, Edge-TTS returns .mp3
-    file_ext = "wav" if tts_engine.startswith("gemini") else "mp3"
+    file_ext = "wav" if (tts_engine.startswith("gemini") or "gpt-4o-mini" in tts_engine) else "mp3"
     filename = f"audio_{text_hash}.{file_ext}"
     filepath = os.path.join(STATIC_DIR, filename)
     
@@ -764,15 +764,63 @@ async def generate_audio(request: AudioRequest, username: str = Depends(verify_c
                 raise Exception("OPENAI_API_KEY is not set in the .env file.")
             
             client = openai.AsyncOpenAI(api_key=api_key)
-            actual_model = "tts-1-hd" if "hd" in tts_engine else "tts-1"
             
-            response = await client.audio.speech.create(
-                model=actual_model,
-                voice=voice,
-                input=text
-            )
+            if "gpt-4o-mini" in tts_engine:
+                response = await client.chat.completions.create(
+                    model="gpt-4o-audio-preview",
+                    modalities=["text", "audio"],
+                    audio={"voice": voice, "format": "wav"},
+                    messages=[
+                        {"role": "user", "content": f"Please read the following text aloud with high energy, a natural conversational tone, and a fluent Indian English accent:\n{text}"}
+                    ]
+                )
+                import base64
+                wav_bytes = base64.b64decode(response.choices[0].message.audio.data)
+                with open(filepath, "wb") as f:
+                    f.write(wav_bytes)
+            else:
+                actual_model = "tts-1-hd" if "hd" in tts_engine else "tts-1"
+                
+                response = await client.audio.speech.create(
+                    model=actual_model,
+                    voice=voice,
+                    input=text
+                )
+                
+                response.stream_to_file(filepath)
             
-            response.stream_to_file(filepath)
+            return {"status": "success", "audio_url": f"http://127.0.0.1:8000/static/{filename}?t={int(time.time())}"}
+            
+        elif tts_engine.startswith("elevenlabs"):
+            print(f"\n[ELEVENLABS TTS] Generating voice '{voice}'...")
+            import httpx
+            api_key = os.getenv("ELEVENLABS_API_KEY")
+            if not api_key:
+                raise Exception("ELEVENLABS_API_KEY is not set in the .env file.")
+            
+            url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice}"
+            headers = {
+                "Accept": "audio/mpeg",
+                "Content-Type": "application/json",
+                "xi-api-key": api_key
+            }
+            data = {
+                "text": text,
+                "model_id": "eleven_multilingual_v2",
+                "voice_settings": {
+                    "stability": 0.5,
+                    "similarity_boost": 0.75
+                }
+            }
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json=data, headers=headers, timeout=60.0)
+                if response.status_code != 200:
+                    raise Exception(f"ElevenLabs API Error {response.status_code}: {response.text}")
+                
+                with open(filepath, "wb") as f:
+                    f.write(response.content)
+                    
             return {"status": "success", "audio_url": f"http://127.0.0.1:8000/static/{filename}?t={int(time.time())}"}
             
         else:
@@ -781,9 +829,9 @@ async def generate_audio(request: AudioRequest, username: str = Depends(verify_c
             await communicate.save(filepath)
             return {"status": "success", "audio_url": f"http://127.0.0.1:8000/static/{filename}?t={int(time.time())}"}
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        print(f"\n[WARNING] Gemini TTS failed with error: {e}. Falling back to default Edge-TTS...")
+        engine_name = "OpenAI" if tts_engine.startswith("openai") else "ElevenLabs" if tts_engine.startswith("elevenlabs") else "Gemini" if tts_engine.startswith("gemini") else "TTS Engine"
+        print(f"\n[WARNING] {engine_name} failed with error: {e}")
+        print(f"[INFO] Falling back to default Edge-TTS for this sentence...")
         try:
             communicate = edge_tts.Communicate(text, "en-US-GuyNeural")
             await communicate.save(filepath)

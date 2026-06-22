@@ -87,6 +87,12 @@ cp .env.example .env
 # Gemini API Key for Veo Video Generation, Text Extraction, and TTS Scripting
 GEMINI_API_KEY=your_actual_api_key_here
 
+# OpenAI API Key (Optional, for GPT-4o Scripting and Voiceovers)
+OPENAI_API_KEY=your_openai_api_key_here
+
+# ElevenLabs API Key (Optional, for ultra-realistic Voiceovers)
+ELEVENLABS_API_KEY=your_elevenlabs_api_key_here
+
 # App Authentication (Optional, used for locking down the web interface)
 APP_USERNAME=your_username
 APP_PASSWORD=your_password
