@@ -16,7 +16,15 @@
                 displayMath: [['\\[', '\\]'], ['$$', '$$']]
             },
             startup: {
-                typeset: false 
+                typeset: false,
+                ready: () => {
+                    MathJax.startup.defaultReady();
+                    const container = document.getElementById('slide-content-container');
+                    if (container && container.innerHTML.trim() !== '') {
+                        MathJax.typesetClear();
+                        MathJax.typesetPromise([container]).catch((err) => console.log('MathJax initial error:', err));
+                    }
+                }
             }
         };
     </script>
@@ -339,11 +347,11 @@
         .slide-title {
             font-family: var(--font-title);
             font-size: clamp(2rem, 3vw, 3.5rem);
-            font-weight: 900;
-            letter-spacing: -0.03em;
-            line-height: 1.1;
-            color: var(--text-white);
-            text-shadow: 0 4px 24px rgba(0,0,0,0.8), 0 2px 8px rgba(0,0,0,0.5);
+            font-weight: 800;
+            letter-spacing: -0.01em;
+            line-height: 1.2;
+            color: var(--text-gold);
+            text-shadow: 0 2px 8px rgba(0,0,0,0.6);
             margin-bottom: 0.5rem;
             text-transform: uppercase;
         }
@@ -1734,8 +1742,13 @@
         </div>
 
         <div id="side-video-panel" class="side-panel-view" style="border-radius:20px; border:1px solid rgba(255, 215, 0, 0.3); background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-            <video id="side-video-player" style="width: 100%; height: 100%; object-fit: cover;" autoplay loop muted playsinline></video>
+            <video id="side-video-player" style="width: 100%; height: 100%; object-fit: contain;" autoplay loop muted playsinline></video>
             <div id="side-video-label" style="position: absolute; bottom: 10px; left: 0; width: 100%; text-align: center; color: rgba(255,255,255,0.7); font-size: 0.9rem; pointer-events: none; text-shadow: 0 1px 3px black;">Explanatory Video</div>
+        </div>
+
+        <div id="side-gif-panel" class="side-panel-view" style="border-radius:20px; border:1px solid rgba(255, 215, 0, 0.3); background: rgba(40, 15, 60, 0.85); backdrop-filter: blur(20px); padding: 2rem; display: flex; flex-direction: column;">
+            <img id="side-gif-player" style="flex-grow: 1; width: 100%; height: 100%; object-fit: cover; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);" />
+            <div id="side-gif-label" style="margin-top: 1rem; color: rgba(255,255,255,0.7); text-align: center; font-size: 0.9rem; font-style: italic; text-transform: uppercase;">Animated GIF</div>
         </div>
 
 
@@ -1757,9 +1770,9 @@
                 <div style="flex: 1.2; display: flex; flex-direction: column;" class="animate-entrance-3">
                     <div class="glass-drop-zone" id="drop-zone" style="flex-grow: 1; min-height: 250px; margin: 0 0 1.5rem 0;">
                         <div class="drop-zone-icon" style="font-size: 3rem; margin-bottom: 1rem;">📄</div>
-                        <div class="drop-zone-text" id="drop-zone-text" style="color: #fff; font-size: 1.2rem; font-weight: 600; text-align: center;">Drag & drop your lecture PDF or Word document here or click to browse</div>
-                        <div class="drop-zone-subtext" style="color: rgba(255,255,255,0.5); margin-top: 0.5rem;">Supports PDF and DOCX files up to 20MB</div>
-                        <input type="file" id="file-input" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display: none;">
+                        <div class="drop-zone-text" id="drop-zone-text" style="color: #fff; font-size: 1.2rem; font-weight: 600; text-align: center;">Drag & drop your lecture PDF, Word document, or JSON script here or click to browse</div>
+                        <div class="drop-zone-subtext" style="color: rgba(255,255,255,0.5); margin-top: 0.5rem;">Supports PDF, DOCX and JSON files up to 20MB</div>
+                        <input type="file" id="file-input" accept=".pdf,.docx,.json,application/pdf,application/json,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display: none;">
                     </div>
                     <div class="action-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                         <button type="button" id="browse-btn" class="neon-btn neon-btn-outline">Choose File</button>
@@ -1921,6 +1934,7 @@
                 <div style="display: flex; justify-content: flex-end; gap: 1rem; align-items: center; width: 100%;">
                     <input type="text" id="script-editor-regen-feedback" class="neon-input" placeholder="Optional: Tell AI what to change (e.g., 'Make the circle red', 'Align elements to the left')" style="flex-grow: 1; display: none;">
                     <button id="script-editor-regen-manim" class="neon-btn" style="display: none; white-space: nowrap;">Regenerate Manim</button>
+                    <button id="script-editor-regen-gif" class="neon-btn" style="display: none; white-space: nowrap;">Reload GIF</button>
                     <button id="script-editor-cancel" class="neon-btn neon-btn-outline" style="padding: 0.8rem 2rem;">Cancel</button>
                     <button id="script-editor-save" class="neon-btn neon-btn-gold" style="padding: 0.8rem 2rem; white-space: nowrap;">Save & Apply</button>
                 </div>
@@ -1956,7 +1970,7 @@
             <!-- Background for Subject Title -->
             <img id="intro-static-bg" src="video_template/static_background.png" style="position: absolute; width: 100%; height: 100%; object-fit: cover; display: none; z-index: 1;">
             <!-- Subject Title -->
-            <div id="intro-subject-title" style="display: none; color: #B026FF; font-family: 'League Gothic', 'Century Gothic', sans-serif; font-weight: normal; font-size: 7rem; text-align: center; text-transform: uppercase; letter-spacing: 12px; filter: drop-shadow(0 0 20px rgba(176, 38, 255, 0.5)) drop-shadow(0 10px 40px rgba(0,0,0,0.9)); opacity: 0; transition: opacity 2.5s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2;"></div>
+            <div id="intro-subject-title" style="display: none; color: #6c159e; font-family: var(--font-title), sans-serif; font-weight: 900; font-size: 5.5rem; text-align: center; text-transform: uppercase; letter-spacing: 4px; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.3)); text-shadow: 0 0 20px rgba(176, 38, 255, 0.4); opacity: 0; transition: opacity 2.5s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2; padding: 0 2rem; line-height: 1.2;"></div>
         </div>
 
     <script>
@@ -2025,6 +2039,9 @@
             try {
                 localStorage.setItem('saved_slides_backup', JSON.stringify({
                     subjectName: currentSubjectName,
+                    unitName: currentUnitName,
+                    sessionNumber: currentSessionNumber,
+                    sessionTitle: currentSessionTitle,
                     conceptMapData: conceptMapData,
                     slides: slides
                 }));
@@ -2063,6 +2080,19 @@
                 }
                 
                 canvas.appendChild(nodeDiv);
+            });
+
+            // Dynamically scale the skill tree to fit perfectly within the side panel
+            requestAnimationFrame(() => {
+                canvas.style.zoom = '1'; // Reset zoom to calculate true height
+                const panelHeight = conceptMapPanel.clientHeight;
+                const canvasHeight = canvas.scrollHeight;
+                const maxCanvasHeight = panelHeight - 140; // Account for padding, titles, and margins
+
+                if (canvasHeight > maxCanvasHeight && maxCanvasHeight > 0) {
+                    const scale = maxCanvasHeight / canvasHeight;
+                    canvas.style.zoom = scale;
+                }
             });
         }
         
@@ -2151,6 +2181,7 @@
             document.getElementById('side-terminal-panel').classList.remove('active');
             document.getElementById('side-graph-panel').classList.remove('active');
             document.getElementById('side-video-panel').classList.remove('active');
+            document.getElementById('side-gif-panel').classList.remove('active');
             
             // 1. Avatar (Mascot) Logic takes absolute priority
             let needsMascot = (slide.type === 'title' || slide.type === 'content');
@@ -2175,7 +2206,7 @@
                 window.sidePanelTimeout = setTimeout(() => {
                     document.getElementById('concept-map-panel').classList.remove('active');
                     document.getElementById(panelId).classList.add('active');
-                }, 1500);
+                }, 3000);
             };
 
             if (slide.side_panel) {
@@ -2234,6 +2265,10 @@
                 } else if (spType === 'manim') {
                     flipToPanel('side-video-panel', () => {
                         renderSideVideo(slide.side_panel);
+                    });
+                } else if (spType === 'gif') {
+                    flipToPanel('side-gif-panel', () => {
+                        renderSideGif(slide.side_panel);
                     });
                 } else {
                     document.getElementById('concept-map-panel').classList.add('active');
@@ -2480,14 +2515,96 @@
             const videoElement = document.getElementById('side-video-player');
             const labelElement = document.getElementById('side-video-label');
             
-            if (config.video_url) {
-                videoElement.src = config.video_url;
-                videoElement.play().catch(e => console.log("Auto-play prevented", e));
-            }
             if (config.title) {
                 labelElement.innerText = config.title;
             } else {
                 labelElement.innerText = "Explanatory Video";
+            }
+            
+            // Check if we already have the compiled video url
+            if (config.video_url) {
+                videoElement.src = config.video_url;
+                videoElement.load();
+                videoElement.play().catch(e => console.log("Auto-play prevented", e));
+            } else if (config.manim_code) {
+                // We need to compile it on the fly!
+                videoElement.src = '';
+                videoElement.poster = '';
+                
+                // Add spinner for side panel compiling
+                let spinner = document.getElementById('side-video-spinner');
+                if (!spinner) {
+                    spinner = document.createElement('div');
+                    spinner.id = 'side-video-spinner';
+                    spinner.innerHTML = `<div class="spinner" style="border-top-color: #FFD700; width:30px; height:30px;"></div><div style="margin-top:1rem; color:#FFD700; font-family:monospace; font-size: 0.8rem; text-align: center;">Compiling Manim...</div>`;
+                    spinner.style.position = 'absolute';
+                    spinner.style.top = '50%';
+                    spinner.style.left = '50%';
+                    spinner.style.transform = 'translate(-50%, -50%)';
+                    spinner.style.zIndex = '10';
+                    document.getElementById('side-video-panel').appendChild(spinner);
+                }
+                spinner.style.display = 'block';
+
+                fetch('/render', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({code: config.manim_code})
+                }).then(res => {
+                    if (!res.ok) return res.json().then(err => {throw new Error(err.detail)});
+                    return res.json();
+                }).then(data => {
+                    spinner.style.display = 'none';
+                    if(data.status === 'success') {
+                        config.video_url = data.video_url; // Cache it
+                        saveProjectBackup();
+                        videoElement.src = data.video_url;
+                        videoElement.load();
+                        videoElement.play().catch(e => console.log("Auto-play prevented", e));
+                    } else {
+                        throw new Error(data.detail || 'Unknown compilation error');
+                    }
+                }).catch(err => {
+                    spinner.style.display = 'none';
+                    console.error("Side Panel Manim Error:", err);
+                    const container = document.getElementById('side-video-panel');
+                    container.innerHTML = `<div style='color:#FF4444; padding:1rem; font-family:monospace; font-size:10px; overflow-y:auto; max-height:100%; width:100%; text-align:left; z-index: 20;'><b>Manim Compilation Error:</b><br>${err.message}</div>`;
+                });
+            }
+        }
+
+        function renderSideGif(config) {
+            const imgElement = document.getElementById('side-gif-player');
+            const labelElement = document.getElementById('side-gif-label');
+            
+            if (config.title) {
+                labelElement.innerText = config.title;
+            } else {
+                labelElement.innerText = "";
+            }
+            
+            if (config.gif_url) {
+                imgElement.src = config.gif_url;
+            } else if (config.query) {
+                imgElement.src = '';
+                labelElement.innerText = "Searching Giphy...";
+                
+                fetch(`/get-gif?query=${encodeURIComponent(config.query)}`)
+                .then(res => {
+                    if (!res.ok) return res.json().then(err => {throw new Error(err.detail)});
+                    return res.json();
+                }).then(data => {
+                    if(data.status === 'success') {
+                        config.gif_url = data.gif_url; // Cache it
+                        saveProjectBackup();
+                        imgElement.src = data.gif_url;
+                        if (config.title) labelElement.innerText = config.title;
+                        else labelElement.innerText = "";
+                    }
+                }).catch(err => {
+                    console.error("Giphy Error:", err);
+                    labelElement.innerText = "Failed to load GIF";
+                });
             }
         }
 
@@ -2648,12 +2765,12 @@
                                 if(data.status === 'success') {
                                     let videoAttrs = slide.ai_audio_source === 'video' 
                                         ? 'autoplay style="width:100%; height:100%; object-fit:cover;"' 
-                                        : 'autoplay loop muted style="width:100%; height:100%; object-fit:cover;"';
+                                        : 'autoplay muted style="width:100%; height:100%; object-fit:cover;"';
                                     
                                     document.getElementById('jxgbox').innerHTML = `<video id="active-ai-video" src="${data.video_url}" ${videoAttrs}></video>`;
 
+                                    const videoEl = document.getElementById('active-ai-video');
                                     if (slide.ai_audio_source === 'video') {
-                                        const videoEl = document.getElementById('active-ai-video');
                                         videoEl.onended = () => {
                                             if (ttsState.isPlaying) {
                                                 if (currentSlide < slides.length - 1) {
@@ -2668,6 +2785,13 @@
                                                         autoExportRecorder.stop();
                                                     }
                                                 }
+                                            }
+                                        };
+                                    } else {
+                                        videoEl.onended = () => {
+                                            if (ttsState.isPlaying) {
+                                                videoEl.currentTime = 0;
+                                                videoEl.play().catch(e => console.log("Loop prevented", e));
                                             }
                                         };
                                     }
@@ -2810,6 +2934,10 @@
                     titleContainer.innerHTML = titleHTML;
 
                     let finalHtml = slide.html || '';
+                    // Clean up double-escaped MathJax blocks from uploaded JSON scripts
+                    // This converts \\[ to \[ so MathJax can correctly identify the delimiters
+                    finalHtml = finalHtml.replace(/\\\\\[/g, '\\[').replace(/\\\\\]/g, '\\]')
+                                         .replace(/\\\\\(/g, '\\(').replace(/\\\\\)/g, '\\)');
                     if (finalHtml && slide.uploaded_images) {
                         const tempDiv = document.createElement('div');
                         tempDiv.innerHTML = finalHtml;
@@ -2898,6 +3026,7 @@
 
                 // Re-trigger MathJax
                 if (window.MathJax && MathJax.typesetPromise) {
+                    MathJax.typesetClear();
                     MathJax.typesetPromise([container]).catch((err) => console.log('MathJax error:', err));
                 }
                 
@@ -2978,8 +3107,62 @@
             } else if (e.key === ' ' || e.key === 'Spacebar') {
                 e.preventDefault();
                 nextSlide();
+            } else if (e.key.toLowerCase() === 'b' || e.key.toLowerCase() === 't') {
+                e.preventDefault();
+                toggleBackgroundFlawlessly();
             }
         });
+
+        function toggleBackgroundFlawlessly() {
+            if (!slides || slides.length === 0 || currentSlide < 0 || currentSlide >= slides.length) return;
+            const slide = slides[currentSlide];
+            const mascotBg = document.getElementById('mascot-bg');
+            const staticBg = document.getElementById('static-bg');
+            const isMascotVisible = !mascotBg.classList.contains('bg-hidden');
+            
+            if (isMascotVisible) {
+                // Switch from Mascot to Board/Tree
+                slide.force_background = 'tree';
+                mascotBg.classList.add('bg-hidden');
+                staticBg.classList.remove('bg-hidden');
+                
+                // Show appropriate side panel for this slide without re-rendering everything
+                document.querySelectorAll('.side-panel-content').forEach(p => p.classList.remove('active'));
+                if (slide.side_panel) {
+                    if (slide.side_panel.type === 'skill_tree') {
+                        document.getElementById('concept-map-panel').classList.add('active');
+                    } else if (slide.side_panel.type === 'image') {
+                        document.getElementById('side-image-panel').classList.add('active');
+                    } else if (slide.side_panel.type === 'chart') {
+                        document.getElementById('side-chart-panel').classList.add('active');
+                    } else if (slide.side_panel.type === '3d_model') {
+                        document.getElementById('side-3d-panel').classList.add('active');
+                    } else if (slide.side_panel.type === 'quiz') {
+                        document.getElementById('side-quiz-panel').classList.add('active');
+                    } else if (slide.side_panel.type === 'terminal') {
+                        document.getElementById('side-terminal-panel').classList.add('active');
+                    } else if (slide.side_panel.type === 'graph') {
+                        document.getElementById('side-graph-panel').classList.add('active');
+                    } else if (slide.side_panel.type === 'manim') {
+                        document.getElementById('side-video-panel').classList.add('active');
+                    }
+                } else {
+                    document.getElementById('concept-map-panel').classList.add('active');
+                }
+            } else {
+                // Switch from Board/Tree to Mascot
+                slide.force_background = 'mascot';
+                mascotBg.classList.remove('bg-hidden');
+                staticBg.classList.add('bg-hidden');
+            }
+            saveProjectBackup();
+            
+            // Also explicitly update the select dropdown in the voice control bar if it exists
+            const selectEl = document.querySelector('.voice-control-bar select');
+            if (selectEl) {
+                selectEl.value = slide.force_background;
+            }
+        }
 
         function nextSlide() {
             if (currentSlide < slides.length - 1) {
@@ -3020,7 +3203,7 @@
         }
 
         // --- Start Presentation Flow ---
-        let introTimeout1, introTimeout2, introTimeout3;
+        let introTimeout1, introTimeout2, introTimeout3, introTimeout4, introTimeout5;
         let isIntroRunning = false;
         let currentIsExporting = false;
 
@@ -3036,6 +3219,8 @@
             clearTimeout(introTimeout1);
             clearTimeout(introTimeout2);
             clearTimeout(introTimeout3);
+            clearTimeout(introTimeout4);
+            clearTimeout(introTimeout5);
             
             document.removeEventListener('keydown', introSkipListener);
             isIntroRunning = false;
@@ -3101,23 +3286,50 @@
                 
                 // Show static background and subject title
                 staticBg.style.display = 'block';
-                subjectTitle.innerText = currentSubjectName || "Subject Title";
+                
+                // --- Title Card 1: Subject Name + Unit Name ---
+                const card1_line1 = currentSubjectName || "Subject Title";
+                const card1_line2 = currentUnitName || "";
+                subjectTitle.innerHTML = `${card1_line1}${card1_line2 ? `<br><span style="font-size: 0.6em; opacity: 0.85;">${card1_line2}</span>` : ''}`;
+                
                 subjectTitle.style.display = 'block';
                 // Trigger fade in
                 setTimeout(() => { subjectTitle.style.opacity = '1'; }, 100);
                 
-                // Hold for 3 seconds, then fade out and start presentation
+                // Hold for 2.5 seconds, then fade out
                 introTimeout2 = setTimeout(() => {
                     if (!isIntroRunning) return;
                     subjectTitle.style.opacity = '0';
+                    
+                    // Wait for fade out, then show Title Card 2
                     introTimeout3 = setTimeout(() => {
                         if (!isIntroRunning) return;
-                        document.removeEventListener('keydown', introSkipListener);
-                        isIntroRunning = false;
-                        introContainer.style.display = 'none';
-                        startMainPresentation();
-                    }, 2000); // Wait for fade out
-                }, 3000); // Hold text for 3 seconds
+                        
+                        // --- Title Card 2: Session Number + Session Title ---
+                        const card2_line1 = currentSessionNumber || "Session 1";
+                        const card2_line2 = currentSessionTitle || "";
+                        subjectTitle.innerHTML = `${card2_line1}${card2_line2 ? `<br><span style="font-size: 0.6em; opacity: 0.85;">${card2_line2}</span>` : ''}`;
+                        
+                        // Trigger fade in
+                        subjectTitle.style.opacity = '1';
+                        
+                        // Hold for 2.5 seconds, then fade out
+                        introTimeout4 = setTimeout(() => {
+                            if (!isIntroRunning) return;
+                            subjectTitle.style.opacity = '0';
+                            
+                            // Wait for fade out, then end intro
+                            introTimeout5 = setTimeout(() => {
+                                if (!isIntroRunning) return;
+                                document.removeEventListener('keydown', introSkipListener);
+                                isIntroRunning = false;
+                                introContainer.style.display = 'none';
+                                startMainPresentation();
+                            }, 2000);
+                        }, 2500); // Hold Card 2 for 2.5 seconds
+                        
+                    }, 2000); // Wait for Card 1 fade out
+                }, 2500); // Hold Card 1 for 2.5 seconds
             }, 5500); // Wait exactly 5.5 seconds for logo video
         }
 
@@ -3198,6 +3410,9 @@
         // State variables
         let selectedFile = null;
         let currentSubjectName = "";
+        let currentUnitName = "";
+        let currentSessionNumber = "";
+        let currentSessionTitle = "";
 
         // Elements
         const modelSelect = document.getElementById('model-select');
@@ -3250,9 +3465,10 @@
             const file = files[0];
             const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
             const isDOCX = file.name.toLowerCase().endsWith('.docx') || file.type.includes('wordprocessingml');
+            const isJSON = file.name.toLowerCase().endsWith('.json') || file.type === 'application/json';
             
-            if (!isPDF && !isDOCX) {
-                alert('Please upload a PDF or DOCX file.');
+            if (!isPDF && !isDOCX && !isJSON) {
+                alert('Please upload a PDF, DOCX, or JSON script file.');
                 return;
             }
             selectedFile = file;
@@ -3305,7 +3521,7 @@
             if (bgmAudio) return; // Already running
             bgmAudio = new Audio('/video_template/bgm.mp3');
             bgmAudio.loop = true;
-            bgmAudio.volume = 0.04; // 4% volume for very subtle ambience
+            bgmAudio.volume = 0.01; // 1% volume for very subtle ambience
             bgmAudio.play().catch(e => console.log("BGM autoplay prevented:", e));
         }
 
@@ -3800,8 +4016,21 @@
                 });
 
                 let extractedText = '';
+                let finalJsonData = null;
+                let isDirectJsonUpload = false;
                 
-                if (selectedFile.name.toLowerCase().endsWith('.pdf')) {
+                if (selectedFile.name.toLowerCase().endsWith('.json') || selectedFile.type === 'application/json') {
+                    logStatus('Reading JSON...', 'Parsing the uploaded script...');
+                    const textDecoder = new TextDecoder('utf-8');
+                    const jsonText = textDecoder.decode(arrayBuffer);
+                    try {
+                        finalJsonData = robustParseJSON(jsonText);
+                        isDirectJsonUpload = true;
+                        logStatus('Reading JSON...', 'JSON Script successfully parsed! Bypassing AI generation.');
+                    } catch (e) {
+                        throw new Error("Failed to parse the uploaded JSON script. Please ensure it is valid JSON.");
+                    }
+                } else if (selectedFile.name.toLowerCase().endsWith('.pdf')) {
                     logStatus('Extracting Text...', 'Starting PDF.js parser...');
                     const typedarray = new Uint8Array(arrayBuffer);
                     const pdf = await pdfjsLib.getDocument(typedarray).promise;
@@ -3821,6 +4050,8 @@
                     extractedText = result.value;
                     logStatus('Extracting Text...', `DOCX loaded successfully.`);
                 }
+
+                if (!isDirectJsonUpload) {
 
                 // Cap the input to roughly 65,536 tokens (~262,144 characters) to save costs
                 const MAX_CHARS = 262144;
@@ -3860,17 +4091,20 @@ You must make the 'html' content engaging by injecting the following elements al
 4. HTML TABLES: If the source document contains tabular data, comparisons, or structured data, you MUST strictly output it as a proper HTML '<table>'. Do NOT convert table data into pointwise text or bullet points!
 
 CRITICAL SLIDE CHUNKING RULE (DO NOT IGNORE):
-The presentation board is EXTREMELY small. A slide can show only a very limited amount of content! You MUST adhere to these STRICT limits for the 'html' field of a "content" scene:
-- MAXIMUM 3 bullet points per slide.
-- MAXIMUM 40 words total per slide.
-If your content exceeds these limits, you MUST split it into multiple consecutive "content" scenes. Add "(Contd.)" to the title of the subsequent scenes. DO NOT try to cram 5 or 6 bullet points into one scene. If you go beyond these limits, the text will overflow beyond the board's frame, break the UI, and be completely unreadable to the user! Split, split, split!
+The presentation board is EXTREMELY small. A slide can show only a limited amount of content! You MUST adhere to these guidelines for the 'html' field of a "content" scene:
+- KEEP BOARDS CONCISE (FATAL WARNING): Strictly limit each slide to a MAXIMUM of 3 to 4 short bullet points. You MUST use short, concise bullet points. You MUST wrap EVERY SINGLE SENTENCE in its own isolated HTML tag (like <p> or <li>). Grouping multiple sentences inside a single tag will CRASH the frontend animation syncing engine!
+- SINGLE TOPIC RULE: Cover ONLY ONE single topic per slide. Do not mix multiple concepts on the same board.
+- SPLIT HEAVY CONTENT: If a topic requires more than 3 to 4 points, you MUST split it into 2 or more consecutive "content" scenes. Add "(Contd.)" to the title of the subsequent scenes. Never overflow a single slide!
 
 The output works like an immersive cinematic video. There are no "slides", only continuous "scenes".
-CRITICAL JSON STRUCTURE: You must return a JSON OBJECT containing exactly three keys: "subject_name", "concept_map" and "scenes".
+CRITICAL JSON STRUCTURE: You must return a JSON OBJECT containing exactly five keys: "subject_name", "unit_name", "session_number", "session_title", "concept_map", and "scenes".
 - "subject_name": The exact name of the subject/course extracted from the PDF. CRITICAL: You MUST explicitly REMOVE any subject code, course code, or alphanumeric IDs from this name (e.g., change "CS101 Intro to Physics" to just "Intro to Physics").
-- "concept_map": A JSON array of nodes representing the Skill Tree. CRITICAL REQUIREMENT: You MUST ALWAYS deduce and generate a detailed concept map based on the progression of topics in the document, EVEN IF the source document is a pre-written script that doesn't explicitly have a skill tree section. The frontend application WILL CRASH if this array is empty or missing. You MUST extract at least 3-10 logical concepts. Each node has: {"id": "unique_string", "title": "Short Title", "depends_on": ["parent_id" or empty array]}.
-- "scenes": An array of scene objects. Every scene MUST include a "concept_id" that strictly matches one of the IDs in your concept_map. Every scene MUST also include a "side_panel" object. The "side_panel" object must be ONE of these EIGHT formats:
-  1) {"type": "skill_tree"} -> Shows the concept map. Use this for the title slide or major topic transitions.
+- "unit_name": The name of the specific unit or module being covered (e.g., "Solids"). If not explicitly mentioned, infer a short 1-3 word topic name.
+- "session_number": The sequential session or lecture number (e.g., "Session 1"). If not provided, default to "Session 1".
+- "session_title": The specific title of this presentation/lecture (e.g., "Properties of Solids").
+- "concept_map": A JSON array of nodes representing the Skill Tree. CRITICAL REQUIREMENT: You MUST ALWAYS deduce and generate a detailed concept map based on the progression of topics in the document. The frontend application WILL CRASH if this array is empty. You MUST extract at least 3-10 logical concepts. Each node has: {"id": "unique_string", "title": "Short Title", "depends_on": ["parent_id" or empty array]}.
+- "scenes": An array of scene objects. CRITICAL: Every single scene MUST include a "concept_id" that STRICTLY matches one of the 'id' strings defined in your 'concept_map' array. Do not invent unmapped concept IDs! Every scene (except title, ai_video, or simulation) MUST ALWAYS include a "side_panel" object without fail! The side panel MUST be present for ALL content slides, as the user will manually decide when to show the mascot. The "side_panel" object must be ONE of these NINE formats:
+  1) {"type": "skill_tree"} -> Shows the concept map. Use this for major topic transitions.
   2) {"type": "image", "prompt": "hyper-realistic stock photo of [subject], photography, 8k resolution, highly detailed"} -> Shows a contextual AI-generated image. Use this frequently for content slides to keep the presentation visually engaging.
   3) {"type": "chart", "chart_type": "bar", "title": "Chart Title", "data": { "labels": ["A", "B"], "datasets": [{"label": "Value", "data": [10, 20], "backgroundColor": "rgba(176,38,255,0.5)", "borderColor": "rgba(255,215,0,1)"}] }} -> Renders a gorgeous animated Chart.js data visualization. Use this whenever the text discusses quantitative data, history timelines, or comparisons! Supported chart_types: bar, line, pie, doughnut.
   4) {"type": "3d_model", "model_name": "atom"} -> Renders an interactive 3D model that the user can drag. Supported model_names: atom, torus, box.
@@ -3878,7 +4112,7 @@ CRITICAL JSON STRUCTURE: You must return a JSON OBJECT containing exactly three 
   6) {"type": "terminal", "command": "./run_sim.sh", "output": "Simulation complete. Accuracy: 99.9%"} -> Renders a live hacker terminal typing out the output. Great for coding, tech, or logic explanations!
   7) {"type": "graph", "title": "Quadratic Curve", "function": "x*x + 2*x"} -> Renders a live, interactive JSXGraph Cartesian coordinate system plotting the math function. Use this for ANY math, physics, or geometry topic!
   8) {"type": "manim", "title": "Visual Proof", "manim_code": "..."} -> SMALL Python Manim animation for the side panel. ONLY use for simple, small animations! Scale all objects down heavily (e.g., .scale(0.4)) so they physically fit within the narrow tight width of the side panel! Use 'VGroup' and '.arrange(DOWN)' to ensure elements strictly align without overlapping! Do NOT use this for complex simulations.
-
+  9) {"type": "gif", "query": "search query", "title": "Optional Title"} -> Searches Giphy for an animated GIF and displays it. Use this for fun, engaging reactions, memes, or looping visual analogies (e.g. "mind blown", "gears turning", "confused math lady").
   ADVANCED MANIM ANIMATION RULES:
   If you generate Manim code, you MUST adhere to these cinematic rules:
   - PREFER 'MovingCameraScene': If the scene has multiple elements, use 'MovingCameraScene' and animate 'self.camera.frame.animate.move_to(obj)' to dynamically pan/zoom.
@@ -3892,11 +4126,11 @@ Here are the types of scenes you can generate:
 
 1. Title Scene:
    {"type": "title", "concept_id": "intro", "title": "Session [Number] - [Topic Name]", "subtitle": "Subtitle or Topic Info", "narration": "Highly conversational, passionate, and natural human narration. Sound like a documentary host, not a textbook."}
-   *CRITICAL TITLE RULE*: If the source document introduces a Session, Chapter, or major topic, you MUST create a "title" scene for it. NEVER put a Session title on a "content" scene (the board). The title MUST be strictly formatted as 'Session [Number] - [Topic Name]'. Do NOT output bland titles like '2 - Stress and Strain'. It must be 'Session 2 - Stress and Strain'.
+   *CRITICAL TITLE RULE*: The video player AUTOMATICALLY generates a cinematic intro using your global 'subject_name' and 'session_title' fields. Therefore, DO NOT generate a "title" scene as the very first scene of the presentation! That would be redundant. ONLY use a "title" scene later in the presentation if you are transitioning to an entirely new major chapter.
 
 2. Content Scene (Immersive Text Overlay):
-   {"type": "content", "concept_id": "concept1", "title": "CONCEPT", "subtitle": "Optional Subtitle", "html": "...", "narration": "Conversational, natural spoken explanation of the concept."}
-   *CRITICAL RULE*: Keep the 'html' content visually concise enough to fit on one screen without scrolling. You MUST write EVERY SINGLE SENTENCE as a separate <p> tag, <li> tag, or <div class='definition'> tag. Do NOT group multiple sentences into one paragraph! This ensures each sentence animates onto the screen one by one. All heavy conceptual explanations MUST go into the spoken 'narration'.
+   {"type": "content", "concept_id": "concept1", "title": "CONCEPT", "subtitle": "Optional Subtitle", "html": "...", "side_panel": {"type": "image", "prompt": "..."}, "narration": "Conversational, natural spoken explanation of the concept."}
+   *FATAL CRASH WARNING*: Keep the 'html' content visually concise enough to fit on one screen without scrolling. You MUST write EVERY SINGLE SENTENCE as a separate <p> tag, <li> tag, or <div class='definition'> tag. DO NOT EVER group multiple sentences into one paragraph! If you put more than one sentence in a single tag, the real-time text-to-speech animation engine WILL CRASH. All heavy, wordy conceptual explanations MUST go into the spoken 'narration' field, leaving ONLY concise summaries in the 'html'. CRITICAL REQUIREMENT: You MUST ALWAYS provide a 'side_panel' object for content slides without fail.
 
 3. Manim Simulation (Math/Logic Visualization):
    {"type": "simulation", "concept_id": "concept1", "title": "VISUALIZING X", "visual_reasoning": "...", "manim_code": "...", "narration": "Enthusiastic spoken narration explaining the visual logic."}
@@ -3919,19 +4153,21 @@ Here are the types of scenes you can generate:
 Styling guidelines for content within the 'html' field:
 - Definitions: Wrap definitions or core concepts in: <div class='definition'><strong>Definition:</strong> Detailed description.</div>
 - Keywords: Wrap key terms in <span class="keyword">key term</span> to apply the glowing effect.
-- Math/Equations: Wrap equations in MathJax format. Block equations must use \\\\[ ... \\\\] (double escaped backslash). Inline equations must use \\\\( ... \\\\) (double escaped backslash). For example: \\\\sigma = \\\\frac{F}{A}.
+- Math/Equations: Wrap equations in MathJax format. Block equations must use $$ ... $$ and inline equations must use $ ... $. DO NOT use backslashes for the equation wrappers. For example: $\sigma = \frac{F}{A}$. Inside the equation, remember to properly double-escape LaTeX backslashes for JSON (e.g., \\frac{F}{A}). CRITICAL: You MUST use proper LaTeX symbols for Greek letters and math operators (e.g., use \\sigma, \\alpha, \\mu instead of writing the words 'sigma', 'alpha', 'mu' as plain text).
 - Lists: Use <ul> and <li> elements. Avoid plain text paragraphs; prefer structured lists.
 - Section Headings: Inside content scenes, use <h2 class='section-heading'>Subheading</h2> to organize content.
 - Code snippets: Wrap inline code in <span class="inline-code">code</span>.
 
 AI Cinematic Video guidelines (For "ai_video" type scenes ONLY):
-- CRITICAL: The 'prompt' MUST be structured explicitly for the LTX-Video AI model.
-- LTX-Video requires highly descriptive, physical prompts. Describe the subject, their exact motion, the background setting, the lighting, and the camera movement (e.g., 'Panning shot', 'Zoom in').
-- Structure: [Camera movement] of [Subject] doing [Action] in [Setting], [Lighting/Atmosphere].
-- Example: "A slow-motion tracking shot of a heavy steel suspension bridge cable pulling taut under extreme tension, shot on 35mm film, highly detailed, photorealistic, 4k."
+- CRITICAL: The 'prompt' MUST be structured explicitly for the Veo/Google Flow AI model and must be EXTREMELY descriptive and detailed.
+- Veo requires highly descriptive, physical prompts. Describe the subject, their exact motion, the background setting, the lighting, and the camera movement (e.g., 'Panning shot', 'Zoom in', 'Cinematic tracking shot').
+- MASCOT INCLUSION (CRITICAL REQUIREMENT): EVERY SINGLE AI video prompt MUST explicitly feature our mascot interacting with or presenting the scene.
+- The mascot is defined as: "A deer/blackbuck mascot wearing a purple jacket, purple pants, and goggles." You MUST include this exact description in EVERY prompt.
+- Structure: [Camera movement] of [Mascot Description] doing [Action/Explaining/Observing] [Subject] in [Setting], [Lighting/Atmosphere], highly detailed, photorealistic, cinematic.
+- Example: "A cinematic tracking shot of a deer/blackbuck mascot wearing a purple jacket, purple pants, and goggles, pointing excitedly at a heavy steel suspension bridge cable pulling taut under extreme tension, shot on 35mm film, highly detailed, photorealistic, 4k."
 - CRITICAL: AVOID using fancy, sci-fi, or cliché words like "futuristic", "glowing", "neon", or "cyberpunk" unless the text explicitly demands it. Write highly grounded, photorealistic, and mechanically detailed descriptions of real-world objects and their exact materials (e.g. steel, concrete, water).
 - Do NOT describe abstract concepts, text, or math equations in the prompt. Describe ONLY concrete physical objects, their exact materials, and their physical movement!
-- Make it sound like a highly detailed, professional B-roll footage description for a high-end documentary.
+- Make it sound like a highly detailed, professional B-roll footage description for a high-end documentary featuring the mascot.
 
 Simulation Script guidelines (For "simulation" type scenes ONLY):
 - CHAIN OF THOUGHT FOR MEANINGFUL VISUALS: You MUST include a 'visual_reasoning' field before the 'manim_code'. In it, explain how your animation directly maps to the specific facts, equations, or diagrams in the uploaded PDF text.
@@ -3952,16 +4188,24 @@ Simulation Script guidelines (For "simulation" type scenes ONLY):
   5. SCALING: Keep text and formulas scaled appropriately (e.g., .scale(0.8)) so they do not bleed off the edges of the screen or overlap with other large shapes.
   6. LATEX WARNING: ALWAYS use raw strings for MathTex and Tex (e.g., MathTex(r"\frac{a}{b}")). If you don't use raw strings, the backslashes will break (e.g., \f will become a form feed).
   7. CONTENT ACCURACY (CRITICAL): Ensure that you accurately represent all mathematical equations, parameters, and diagrams from the source document. Do NOT skip variables or misrepresent formulas. Be exhaustively accurate.
+  8. EXPLANATORY TEXT: Do NOT just draw abstract shapes and math equations. You MUST include explanatory text labels (using Text("...")) next to your shapes and equations to explicitly explain what is happening on screen so the viewer can follow along.
+  9. VIDEO GENERATION (CRITICAL): You MUST animate your objects using self.play() or add a delay using self.wait(1). If you only use self.add() without any animations or wait times, Manim will render a static PNG image instead of an MP4 video. The frontend expects an MP4 video, so generating a static image will cause a fatal crash!
 
 Pacing Strategy:
-- CRITICAL REQUIREMENT: You MUST generate 'ai_video' scenes frequently! Do NOT rely solely on 'simulation' (Manim) scenes. It is an absolute necessity that you include AI Cinematic Videos throughout the presentation.
+- CRITICAL REQUIREMENT (STRICT QUOTA): You MUST generate a MINIMUM of 5 to 6 'ai_video' scenes throughout the presentation (you can generate more if needed)! Do NOT rely solely on 'simulation' (Manim) scenes. It is an absolute necessity that you heavily feature AI Cinematic Videos.
 - Alternate between Content scenes, Manim Simulations, and AI Cinematic Video scenes.
-- Start a new topic with a Content scene to define terms and core formulas. Keep text concise enough to not scroll.
+- Start a new topic with a Content scene to define terms and core formulas. 
+- CRITICAL SLIDE PACING: Group related content onto a single board! Do NOT unnecessarily split small lists (e.g., 4 learning objectives) across multiple boards. Only split content into a new board when it physically cannot fit on a single screen.
 - If the topic involves heavy math or diagrams, follow up with a Manim Simulation.
-- Every major concept MUST feature an AI Cinematic Video scene ('ai_video') to show a real-world, highly visual application of the concept.
+- Every major concept MUST feature an AI Cinematic Video scene ('ai_video') to show a real-world, highly visual application of the concept. Do not under-deliver; generate at least 5 or 6 of them, but feel free to generate more!
 - FINAL SLIDE RULE: The very last scene of the presentation MUST be a 'content' scene featuring a concluding summary. To allow the Mascot to return to the screen for the final sign-off, you MUST place an 'ai_video' scene immediately before this final scene.
 
 Formatting and Narration constraints:
+- DO NOT use markdown bolding (**) or italics (*) inside the narration field! The narration text must be plain string text meant for a TTS engine to read.
+- Spell out abbreviations or math symbols in the narration (e.g., write 'f sub m' instead of 'fm', 'equals' instead of '=').
+- Write numbers as words if you want them spoken a specific way.
+- MASCOT PERSONA (CRITICAL): The narrator is our mascot (the cool deer/blackbuck). The narration should occasionally reflect this persona—confident, highly energetic, friendly, and slightly playful. Speak directly to the student ("let's look at", "we can see here"). Keep the energy extremely high!
+- PRESERVE ALL CONTENT (CRITICAL): Do NOT summarize away, skip, or gloss over important details, definitions, equations, or concepts from the source document. You must comprehensively cover the material.
 - Do NOT generate markdown image tags in the html field. Use the 'manim_code' field exclusively for video simulations.
 - Ensure all MathJax equations are mathematically correct and properly escaped.
 - TERMINOLOGY RULE: Do NOT use the words "Video 1", "Video 2", or refer to the content as a "video". You MUST always refer to it as a "Session" (e.g., "Welcome to Session 1", "In this session").
@@ -4029,6 +4273,7 @@ Formatting and Narration constraints:
                 if (!finalJsonData) {
                     throw new Error("Did not receive final JSON data from backend.");
                 }
+                } // End if (!isDirectJsonUpload)
                 
                 let parsedData = finalJsonData;
                 
@@ -4042,6 +4287,9 @@ Formatting and Narration constraints:
                     newSlides = parsedData.scenes;
                     conceptMapData = parsedData.concept_map || null;
                     currentSubjectName = parsedData.subject_name || "Subject Overview";
+                    currentUnitName = parsedData.unit_name || "";
+                    currentSessionNumber = parsedData.session_number || "Session 1";
+                    currentSessionTitle = parsedData.session_title || "";
                 }
 
                 if (!Array.isArray(newSlides) || newSlides.length === 0) {
@@ -4121,6 +4369,15 @@ Formatting and Narration constraints:
                         }
                         if (parsed.subjectName) {
                             currentSubjectName = parsed.subjectName;
+                        }
+                        if (parsed.unitName) {
+                            currentUnitName = parsed.unitName;
+                        }
+                        if (parsed.sessionNumber) {
+                            currentSessionNumber = parsed.sessionNumber;
+                        }
+                        if (parsed.sessionTitle) {
+                            currentSessionTitle = parsed.sessionTitle;
                         }
                     }
 
@@ -4361,21 +4618,27 @@ Formatting and Narration constraints:
                 document.getElementById('script-editor-save').style.display = 'inline-block';
                 
                 const hasManim = sceneData.type === 'simulation' || (sceneData.side_panel && sceneData.side_panel.type === 'manim');
+                const hasGif = sceneData.side_panel && sceneData.side_panel.type === 'gif';
                 document.getElementById('script-editor-regen-manim').style.display = hasManim ? 'inline-block' : 'none';
-                document.getElementById('script-editor-regen-feedback').style.display = hasManim ? 'block' : 'none';
-                if (hasManim) document.getElementById('script-editor-regen-feedback').value = '';
+                document.getElementById('script-editor-regen-gif').style.display = hasGif ? 'inline-block' : 'none';
+                document.getElementById('script-editor-regen-feedback').style.display = (hasManim || hasGif) ? 'block' : 'none';
+                if (hasManim || hasGif) document.getElementById('script-editor-regen-feedback').value = '';
+                if (hasGif) document.getElementById('script-editor-regen-feedback').placeholder = "Optional: New search query for GIF";
+                else document.getElementById('script-editor-regen-feedback').placeholder = "Optional: Tell AI what to change";
                 
             } else if (currentMode === 'narration') {
                 scriptEditorTextarea.value = sceneData.narration || "";
                 scriptEditorHint.innerText = "Edit the voiceover text for the current scene.";
                 document.getElementById('script-editor-regen-feedback').style.display = 'none';
                 document.getElementById('script-editor-regen-manim').style.display = 'none';
+                document.getElementById('script-editor-regen-gif').style.display = 'none';
                 document.getElementById('script-editor-save').style.display = 'inline-block';
             } else if (currentMode === 'full') {
                 scriptEditorTextarea.value = JSON.stringify(currentParsedJson, null, 4);
                 scriptEditorHint.innerText = "Edit the entire presentation JSON.";
                 document.getElementById('script-editor-regen-feedback').style.display = 'none';
                 document.getElementById('script-editor-regen-manim').style.display = 'none';
+                document.getElementById('script-editor-regen-gif').style.display = 'none';
                 document.getElementById('script-editor-save').style.display = 'inline-block';
             }
             scriptEditorModal.classList.add('active');
@@ -4518,6 +4781,60 @@ Formatting and Narration constraints:
                 } finally {
                     scriptEditorRegenManim.innerText = "Regenerate Manim";
                     scriptEditorRegenManim.disabled = false;
+                }
+            });
+        }
+
+        const scriptEditorRegenGif = document.getElementById('script-editor-regen-gif');
+        if (scriptEditorRegenGif) {
+            scriptEditorRegenGif.addEventListener('click', async () => {
+                const s = slides[currentSlide];
+                if (!s.side_panel || s.side_panel.type !== 'gif') return;
+                
+                const regenFeedbackInput = document.getElementById('script-editor-regen-feedback');
+                const userFeedback = regenFeedbackInput ? regenFeedbackInput.value.trim() : "";
+                
+                if (userFeedback) {
+                    s.side_panel.query = userFeedback; // Update query if user typed one
+                }
+                
+                scriptEditorRegenGif.innerText = "Loading...";
+                scriptEditorRegenGif.disabled = true;
+                
+                try {
+                    // If user provides a NEW query, they want the BEST result for it (randomize=false).
+                    // If they just click reload, they want a DIFFERENT result for the SAME query (randomize=true).
+                    const isRandom = !userFeedback;
+                    const res = await fetch(`/get-gif?query=${encodeURIComponent(s.side_panel.query)}&randomize=${isRandom}`);
+                    const data = await res.json();
+                    
+                    if(data.status === 'success') {
+                        s.side_panel.gif_url = data.gif_url;
+                        
+                        // Update the textarea immediately
+                        scriptEditorTextarea.value = JSON.stringify(s, null, 2);
+                        
+                        // Automatically save and render!
+                        slides[currentSlide] = s;
+                        saveProjectBackup(); 
+                        
+                        scriptEditorModal.classList.remove('active');
+                        renderSlide(currentSlide);
+                        
+                        // Resume TTS and Video
+                        window.speechSynthesis.resume();
+                        const aiVideo = document.getElementById('ai-video-player');
+                        if (aiVideo && aiVideo.paused) {
+                            aiVideo.play().catch(e => console.log("Video resume failed:", e));
+                        }
+                    } else {
+                        alert("Failed to reload GIF.");
+                    }
+                } catch(err) {
+                    alert("Error reloading GIF: " + err.message);
+                } finally {
+                    scriptEditorRegenGif.innerText = "Reload GIF";
+                    scriptEditorRegenGif.disabled = false;
                 }
             });
         }

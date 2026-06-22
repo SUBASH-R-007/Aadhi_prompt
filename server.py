@@ -6,6 +6,7 @@ import shutil
 import hashlib
 import traceback
 import time
+import json
 import edge_tts
 from dotenv import load_dotenv
 
@@ -163,6 +164,35 @@ async def get_image(prompt: str, subjectName: str = ""):
         except:
             raise HTTPException(status_code=500, detail="Failed to generate image")
 
+@app.get("/get-gif")
+async def get_gif(query: str, randomize: bool = False):
+    if not query:
+        raise HTTPException(status_code=400, detail="Query is required")
+        
+    api_key = os.environ.get("GIPHY_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="GIPHY_API_KEY is not set in .env")
+        
+    encoded_query = urllib.parse.quote(query)
+    import random
+    url = f"https://api.giphy.com/v1/gifs/search?api_key={api_key}&q={encoded_query}&limit=10&rating=g"
+    
+    try:
+        req = urllib.request.Request(url)
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read().decode())
+            if data and data.get("data") and len(data["data"]) > 0:
+                if randomize:
+                    gif_obj = random.choice(data["data"])
+                else:
+                    gif_obj = data["data"][0]
+                gif_url = gif_obj["images"]["original"]["url"]
+                return {"status": "success", "gif_url": gif_url}
+            else:
+                raise HTTPException(status_code=404, detail="No GIFs found for query")
+    except Exception as e:
+        print(f"Failed to fetch GIF: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 class RegenerateManimRequest(BaseModel):
     slide_title: str
     narration: str
@@ -309,11 +339,13 @@ async def render_manim(request: RenderRequest, username: str = Depends(verify_cr
                 f.write(code)
         
         command = ["manim", "-qm", py_filename, scene_name]
+        env = os.environ.copy()
         try:
             process = await asyncio.create_subprocess_exec(
                 *command,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.STDOUT
+                stderr=asyncio.subprocess.STDOUT,
+                env=env
             )
             
             error_log = ""

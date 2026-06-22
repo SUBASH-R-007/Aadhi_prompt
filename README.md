@@ -28,52 +28,80 @@ A revolutionary, fully automated presentation and lecture generator powered by G
 *   **Audio Engine:** `edge-tts`
 *   **Visual Libraries:** `Chart.js`, `JSXGraph`, `Three.js`, `Prism.js`, `MathJax`
 
-## 🚀 Getting Started
+## 🚀 Complete Setup Guide
 
-### 1. Prerequisites
-Ensure you have the following installed on your machine:
-*   Python 3.10 or higher
-*   [FFmpeg](https://ffmpeg.org/download.html) (Required for Manim and Edge-TTS audio processing)
-*   [MiKTeX](https://miktex.org/) (Required for Manim LaTeX rendering)
-*   [Git LFS](https://git-lfs.com/) (Required for handling large media files natively in the repository)
-*   Google Gemini API Key
+### 1. System Prerequisites
+
+Before running the application, you must install the following core dependencies. This project relies heavily on Manim and FFmpeg, which require system-level installations.
+
+#### A. Python
+* Download and install **Python 3.10+** from [python.org](https://www.python.org/downloads/).
+* **Crucial:** During installation on Windows, ensure you check the box that says **"Add Python to PATH"**.
+
+#### B. FFmpeg (Audio & Video Processing)
+Required by Manim and `edge-tts` to process media.
+* **Windows:**
+  1. Download the latest `ffmpeg-release-essentials.zip` from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/).
+  2. Extract the folder to your C: drive (e.g., `C:\ffmpeg`).
+  3. Add `C:\ffmpeg\bin` to your system's **Environment Variables** (`PATH`).
+* **Mac:** Run `brew install ffmpeg`
+* **Linux:** Run `sudo apt install ffmpeg`
+
+#### C. MiKTeX (For Manim LaTeX Rendering)
+Required to dynamically generate and render mathematical equations and symbols.
+* Download and install **[MiKTeX](https://miktex.org/download)**.
+* **Crucial Configuration:** After installing, open the **MiKTeX Console**. Go to Settings, and ensure that **"Install missing packages on-the-fly"** is set to **Always** (or "Yes"). This prevents the server from crashing when Manim requests a specific LaTeX package it doesn't have yet.
+* Ensure the MiKTeX `\bin` directory is added to your system `PATH`.
+
+#### D. Git LFS (Large File Storage)
+Required because this repository contains large `.mp4` background videos and `.mp3` music files.
+* Download and install from [git-lfs.com](https://git-lfs.com/).
+* Open your terminal and run `git lfs install` to initialize it.
 
 ### 2. Installation
 
-Clone the repository and install the backend dependencies:
+Once your system prerequisites are configured, clone the repository and install the Python backend dependencies:
+
 ```bash
+# Clone the repository
 git clone https://github.com/SUBASH-R-007/Aadhi_prompt.git
 cd Aadhi_prompt
 
-# Pull the large media assets (videos, MP3s, databases) using Git LFS
+# Pull the large media assets (videos, MP3s) using Git LFS
 git lfs pull
 
+# Install all required Python packages (FastAPI, Manim, Edge-TTS, etc.)
 pip install -r requirements.txt
 ```
 
 ### 3. Environment Setup
 
-Create a `.env` file in the root directory and add your credentials. You can use the provided template:
+The backend relies on the Google Gemini API to orchestrate content extraction, voiceover scripts, and B-Roll video synthesis.
+
+1. Create a `.env` file in the root directory by copying the template:
 ```bash
 cp .env.example .env
 ```
-Open `.env` and fill in your keys:
+2. Open `.env` and fill in your keys:
 ```env
-# Gemini API Key for Veo Video Generation, Text Extraction, and Native Text-To-Speech
+# Gemini API Key for Veo Video Generation, Text Extraction, and TTS Scripting
 GEMINI_API_KEY=your_actual_api_key_here
 
-# App Authentication
+# App Authentication (Optional, used for locking down the web interface)
 APP_USERNAME=your_username
 APP_PASSWORD=your_password
 ```
 
 ### 4. Running the Application
 
-Start the FastAPI backend server (which automatically serves the frontend interface and acts as a media proxy):
+Start the FastAPI backend server (which automatically serves the frontend interface, acts as a media proxy, and handles Manim compilation):
+
 ```bash
 python server.py
 ```
-Open your browser and navigate to:
+*Wait until the terminal says `Uvicorn running on http://0.0.0.0:8000`.*
+
+Finally, open your browser and navigate to:
 **http://127.0.0.1:8000**
 
 ## 💡 How to Use
