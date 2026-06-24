@@ -1,14 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Academic Lecture Overlay</title>
-    
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@300;400;700;900&family=Montserrat:wght@900&family=League+Gothic&family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-    
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@300;400;700;900&family=Montserrat:wght@900&family=League+Gothic&family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap"
+        rel="stylesheet">
+
     <script>
         window.MathJax = {
             tex: {
@@ -54,7 +57,8 @@
             padding: 0;
         }
 
-        body, html {
+        body,
+        html {
             width: 100%;
             height: 100%;
             overflow: hidden;
@@ -73,7 +77,8 @@
         }
 
         /* 1. Background Layers */
-        .video-background, .static-background {
+        .video-background,
+        .static-background {
             position: fixed;
             top: 0;
             left: 0;
@@ -92,17 +97,25 @@
 
         /* Mascot Container & Layers (Seamless Crossfade) */
         .mascot-container {
-            top: 0 !important; left: 0 !important; right: auto !important; bottom: auto !important;
-            width: 100vw !important; height: 100vh !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: auto !important;
+            bottom: auto !important;
+            width: 100vw !important;
+            height: 100vh !important;
             transform: none !important;
             border-radius: 0 !important;
             border: none !important;
             box-shadow: none !important;
             z-index: var(--mascot-z-index) !important;
         }
+
         .mascot-layer {
             position: absolute;
-            top: 0; left: 0; width: 100vw; height: 100vh;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
             object-fit: cover;
             opacity: 0;
             visibility: hidden;
@@ -110,6 +123,7 @@
             pointer-events: none;
             will-change: opacity;
         }
+
         .mascot-layer.active-layer {
             opacity: 1;
             visibility: visible;
@@ -141,16 +155,16 @@
             min-width: 25vw;
             max-width: 40vw;
         }
-        
+
         .side-panel-view {
             position: absolute;
             top: 5%;
             left: 5%;
             width: 90%;
             height: 90%;
-            transition: transform 0.8s cubic-bezier(0.32, 0.72, 0, 1), 
-                        opacity 0.6s cubic-bezier(0.32, 0.72, 0, 1),
-                        filter 0.6s ease;
+            transition: transform 0.8s cubic-bezier(0.32, 0.72, 0, 1),
+                opacity 0.6s cubic-bezier(0.32, 0.72, 0, 1),
+                filter 0.6s ease;
             opacity: 0;
             filter: blur(10px);
             transform: scale(0.95) translateY(10px);
@@ -158,11 +172,19 @@
             display: flex;
             flex-direction: column;
         }
-        
+
         @keyframes float3D {
-            0% { transform: scale(1) translateY(0px) rotateX(2deg) rotateY(-2deg); }
-            50% { transform: scale(1.03) translateY(-12px) rotateX(-2deg) rotateY(2deg); }
-            100% { transform: scale(1) translateY(0px) rotateX(2deg) rotateY(-2deg); }
+            0% {
+                transform: scale(1) translateY(0px) rotateX(2deg) rotateY(-2deg);
+            }
+
+            50% {
+                transform: scale(1.03) translateY(-12px) rotateX(-2deg) rotateY(2deg);
+            }
+
+            100% {
+                transform: scale(1) translateY(0px) rotateX(2deg) rotateY(-2deg);
+            }
         }
 
         .side-panel-view.active {
@@ -194,9 +216,15 @@
 
         /* Cinematic Slow Zoom Effect */
         @keyframes slowCinematicZoom {
-            from { transform: scale(1); }
-            to { transform: scale(1.05); }
+            from {
+                transform: scale(1);
+            }
+
+            to {
+                transform: scale(1.05);
+            }
         }
+
         .cinematic-zoom-active {
             animation: slowCinematicZoom 20s ease-out forwards;
         }
@@ -206,6 +234,7 @@
             opacity: 0;
             transform: translateY(20px);
         }
+
         .cascade-visible {
             opacity: 1;
             transform: translateY(0);
@@ -227,14 +256,16 @@
             background: rgba(55, 15, 100, 0.82);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 215, 0, 0.3); /* subtle gold edge */
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            /* subtle gold edge */
             border-radius: 24px;
             padding: 2rem 3rem;
-            box-shadow: 0 0 30px rgba(255, 215, 0, 0.2), 0 20px 60px rgba(0,0,0,0.7), inset 0 0 50px rgba(130, 40, 200, 0.25);
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.2), 0 20px 60px rgba(0, 0, 0, 0.7), inset 0 0 50px rgba(130, 40, 200, 0.25);
             /* Only transition cosmetics. Let View Transition API handle layout morphing */
             transition: opacity 0.5s cubic-bezier(0.7, 0, 0.3, 1), background 0.5s, box-shadow 0.5s;
             will-change: top, left, width, height, transform, border-radius, padding;
-            overflow: hidden; /* For progress bar container */
+            overflow: hidden;
+            /* For progress bar container */
             display: flex;
             flex-direction: column;
             opacity: 0;
@@ -245,7 +276,7 @@
             content: '';
             position: absolute;
             inset: 0;
-            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 100%);
             pointer-events: none;
             transition: opacity 0.5s ease;
             animation: breathe 8s infinite alternate ease-in-out;
@@ -254,22 +285,43 @@
 
         ::view-transition-group(presentation-board) {
             animation-duration: 1.4s;
-            animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); /* Ultra-fluid Apple Expo Ease Out */
+            animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+            /* Ultra-fluid Apple Expo Ease Out */
         }
 
         @keyframes diffuse-out {
-            0% { opacity: 1; filter: blur(0px) brightness(1); transform: scale(1); }
-            100% { opacity: 0; filter: blur(25px) brightness(1.5); transform: scale(0.9); }
+            0% {
+                opacity: 1;
+                filter: blur(0px) brightness(1);
+                transform: scale(1);
+            }
+
+            100% {
+                opacity: 0;
+                filter: blur(25px) brightness(1.5);
+                transform: scale(0.9);
+            }
         }
+
         @keyframes diffuse-in {
-            0% { opacity: 0; filter: blur(25px) brightness(1.5); transform: scale(1.1); }
-            100% { opacity: 1; filter: blur(0px) brightness(1); transform: scale(1); }
+            0% {
+                opacity: 0;
+                filter: blur(25px) brightness(1.5);
+                transform: scale(1.1);
+            }
+
+            100% {
+                opacity: 1;
+                filter: blur(0px) brightness(1);
+                transform: scale(1);
+            }
         }
 
         ::view-transition-old(presentation-board) {
             animation: 1.4s cubic-bezier(0.16, 1, 0.3, 1) both diffuse-out;
             mix-blend-mode: plus-lighter;
         }
+
         ::view-transition-new(presentation-board) {
             animation: 1.4s cubic-bezier(0.16, 1, 0.3, 1) both diffuse-in;
             mix-blend-mode: plus-lighter;
@@ -288,7 +340,8 @@
         .cinematic-scene-container.cinematic-fullscreen {
             position: absolute !important;
             top: 50% !important;
-            left: 25vw !important; /* 25vw relative to 25vw parent offset = 50vw true screen center */
+            left: 25vw !important;
+            /* 25vw relative to 25vw parent offset = 50vw true screen center */
             width: 100vw !important;
             max-width: 100vw !important;
             height: 100vh !important;
@@ -297,13 +350,14 @@
             padding: 0 !important;
             margin: 0 !important;
             border: none !important;
-            background: rgba(0,0,0,1) !important;
+            background: rgba(0, 0, 0, 1) !important;
             backdrop-filter: blur(0px) !important;
             -webkit-backdrop-filter: blur(0px) !important;
             box-shadow: none !important;
             justify-content: center;
             align-items: center;
-            transform: translate(-50%, -50%) scale(1) !important; /* Matching transform structure */
+            transform: translate(-50%, -50%) scale(1) !important;
+            /* Matching transform structure */
             z-index: 9999 !important;
         }
 
@@ -312,7 +366,8 @@
         .cinematic-scene-container.cinematic-fullscreen .slide-content,
         .cinematic-scene-container.cinematic-fullscreen .progress-bar-container,
         .cinematic-scene-container.cinematic-fullscreen #slide-title-container {
-            display: none !important; /* Hide text and progress during immersive video */
+            display: none !important;
+            /* Hide text and progress during immersive video */
         }
 
         .cinematic-scene-container.cinematic-fullscreen .board-body {
@@ -337,7 +392,7 @@
             filter: blur(10px);
             transition: opacity 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
-        
+
         .fade-transition.visible {
             opacity: 1;
             transform: translateY(0) scale(1);
@@ -371,11 +426,11 @@
             overflow: hidden;
             width: 100%;
         }
-        
+
         .slide-visual.hidden {
             display: none !important;
         }
-        
+
         .slide-visual svg {
             width: 100%;
             height: 100%;
@@ -398,7 +453,7 @@
             letter-spacing: -0.01em;
             line-height: 1.2;
             color: var(--text-gold);
-            text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
             margin-bottom: 0.5rem;
             text-transform: uppercase;
         }
@@ -409,7 +464,7 @@
             font-weight: 700;
             color: var(--text-gold);
             letter-spacing: -0.01em;
-            text-shadow: 0 2px 16px rgba(0,0,0,0.9);
+            text-shadow: 0 2px 16px rgba(0, 0, 0, 0.9);
             margin-bottom: 1.5rem;
             text-transform: uppercase;
         }
@@ -421,13 +476,20 @@
             line-height: 1.7;
             font-weight: 300;
             color: rgba(255, 255, 255, 0.95);
-            text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
             width: 90%;
         }
 
         @keyframes textReveal {
-            0% { opacity: 0; transform: translateY(15px); }
-            100% { opacity: 1; transform: translateY(0); }
+            0% {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .slide-content ul {
@@ -459,7 +521,7 @@
             border-radius: 8px;
             overflow: hidden;
             border: 1px solid rgba(255, 215, 0, 0.2);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
         }
 
         .slide-content th {
@@ -487,11 +549,11 @@
         .keyword {
             color: var(--text-gold);
             font-weight: 600;
-            text-shadow: 0 0 15px rgba(255,215,0,0.4);
+            text-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
             position: relative;
             display: inline-block;
         }
-        
+
         .definition {
             background: rgba(255, 255, 255, 0.05);
             border-left: 4px solid var(--border-gold);
@@ -555,7 +617,7 @@
             border: 1px solid rgba(255, 215, 0, 0.15);
             border-top: 1px solid rgba(255, 215, 0, 0.3);
             border-radius: 24px;
-            box-shadow: 0 30px 60px rgba(0,0,0,0.8), inset 0 2px 20px rgba(255, 215, 0, 0.05);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8), inset 0 2px 20px rgba(255, 215, 0, 0.05);
             padding: clamp(16px, 3vw, 24px) clamp(24px, 4vw, 40px);
             width: 95%;
             max-width: 1400px;
@@ -572,16 +634,19 @@
         .upload-board::-webkit-scrollbar {
             width: 6px;
         }
+
         .upload-board::-webkit-scrollbar-track {
             background: rgba(255, 255, 255, 0.05);
             border-radius: 10px;
             margin: 24px 0;
         }
+
         .upload-board::-webkit-scrollbar-thumb {
             background: linear-gradient(180deg, #FFD700, #FF8A00);
             border-radius: 10px;
-            box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
         }
+
         .upload-board::-webkit-scrollbar-thumb:hover {
             background: #FFF;
             box-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
@@ -608,7 +673,7 @@
             padding: 1.5rem;
             border-radius: 16px;
             border: 1px solid rgba(255, 255, 255, 0.05);
-            box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.2);
         }
 
         .config-row {
@@ -685,7 +750,7 @@
             flex: 1;
             min-height: 120px;
             border: 2px dashed rgba(255, 215, 0, 0.3);
-            background: linear-gradient(180deg, rgba(255, 215, 0, 0.02) 0%, rgba(0,0,0,0.2) 100%);
+            background: linear-gradient(180deg, rgba(255, 215, 0, 0.02) 0%, rgba(0, 0, 0, 0.2) 100%);
             border-radius: 16px;
             display: flex;
             flex-direction: column;
@@ -703,17 +768,19 @@
             content: '';
             position: absolute;
             inset: 0;
-            background: radial-gradient(circle at center, rgba(255,215,0,0.1) 0%, transparent 60%);
+            background: radial-gradient(circle at center, rgba(255, 215, 0, 0.1) 0%, transparent 60%);
             opacity: 0;
             transition: opacity 0.4s ease;
         }
 
-        .drop-zone:hover::before, .drop-zone.dragover::before {
+        .drop-zone:hover::before,
+        .drop-zone.dragover::before {
             opacity: 1;
         }
 
-        .drop-zone:hover, .drop-zone.dragover {
-            background: linear-gradient(180deg, rgba(255, 215, 0, 0.05) 0%, rgba(0,0,0,0.3) 100%);
+        .drop-zone:hover,
+        .drop-zone.dragover {
+            background: linear-gradient(180deg, rgba(255, 215, 0, 0.05) 0%, rgba(0, 0, 0, 0.3) 100%);
             border-color: rgba(255, 215, 0, 0.8);
             transform: translateY(-2px);
             box-shadow: 0 10px 30px rgba(255, 215, 0, 0.1);
@@ -724,13 +791,20 @@
             margin-bottom: 1rem;
             color: #FFD700;
             animation: float 4s ease-in-out infinite;
-            filter: drop-shadow(0 5px 15px rgba(255,215,0,0.4));
+            filter: drop-shadow(0 5px 15px rgba(255, 215, 0, 0.4));
             z-index: 1;
         }
 
         @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-8px); }
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-8px);
+            }
         }
 
         .drop-zone-text {
@@ -770,7 +844,7 @@
             font-family: var(--font-sans);
             text-transform: uppercase;
             letter-spacing: 1px;
-            box-shadow: 0 4px 15px rgba(255, 138, 0, 0.3), inset 0 2px 0 rgba(255,255,255,0.4);
+            box-shadow: 0 4px 15px rgba(255, 138, 0, 0.3), inset 0 2px 0 rgba(255, 255, 255, 0.4);
             position: relative;
             overflow: hidden;
         }
@@ -778,20 +852,29 @@
         .btn-gold::after {
             content: '';
             position: absolute;
-            top: 0; left: -100%; width: 50%; height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
             transform: skewX(-20deg);
             animation: shimmer 4s infinite;
         }
 
         @keyframes shimmer {
-            0% { left: -100%; }
-            20%, 100% { left: 200%; }
+            0% {
+                left: -100%;
+            }
+
+            20%,
+            100% {
+                left: 200%;
+            }
         }
 
         .btn-gold:hover:not(:disabled) {
             transform: translateY(-3px) scale(1.02);
-            box-shadow: 0 12px 25px rgba(255, 138, 0, 0.5), inset 0 2px 0 rgba(255,255,255,0.5);
+            box-shadow: 0 12px 25px rgba(255, 138, 0, 0.5), inset 0 2px 0 rgba(255, 255, 255, 0.5);
             background: linear-gradient(135deg, #FFE240 0%, #FFA033 100%);
         }
 
@@ -806,7 +889,10 @@
             cursor: not-allowed;
             box-shadow: none;
         }
-        .btn-gold:disabled::after { display: none; }
+
+        .btn-gold:disabled::after {
+            display: none;
+        }
 
         .btn-outline {
             background: transparent;
@@ -829,18 +915,32 @@
         .ambient-particle {
             position: fixed;
             border-radius: 50%;
-            background: radial-gradient(circle, rgba(176,38,255,0.8) 0%, rgba(255,215,0,0) 70%);
+            background: radial-gradient(circle, rgba(176, 38, 255, 0.8) 0%, rgba(255, 215, 0, 0) 70%);
             pointer-events: none;
-            z-index: 1; /* Behind the board */
+            z-index: 1;
+            /* Behind the board */
             opacity: 0.4;
             animation: floatParticle 20s infinite linear;
         }
 
         @keyframes floatParticle {
-            0% { transform: translateY(0) scale(1) translateX(0); opacity: 0; }
-            20% { opacity: 0.4; }
-            80% { opacity: 0.3; }
-            100% { transform: translateY(-100vh) scale(1.5) translateX(50px); opacity: 0; }
+            0% {
+                transform: translateY(0) scale(1) translateX(0);
+                opacity: 0;
+            }
+
+            20% {
+                opacity: 0.4;
+            }
+
+            80% {
+                opacity: 0.3;
+            }
+
+            100% {
+                transform: translateY(-100vh) scale(1.5) translateX(50px);
+                opacity: 0;
+            }
         }
 
         .btn-outline:hover {
@@ -881,8 +981,13 @@
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         .loading-title {
@@ -920,7 +1025,7 @@
             height: 80px;
             transform: translateY(80px);
             opacity: 0;
-            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
             padding: 0 2rem 1rem 2rem;
             display: none;
             justify-content: space-between;
@@ -935,7 +1040,9 @@
 
         .voice-control-bar.hidden-force {
             display: none !important;
-        }        /* --- Concept Map (Skill Tree) Panel --- */
+        }
+
+        /* --- Concept Map (Skill Tree) Panel --- */
         #concept-map-panel {
             padding: 2rem;
             display: flex;
@@ -971,8 +1078,8 @@
             text-align: center;
             z-index: 2;
             transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
         }
 
         .concept-node::after {
@@ -983,7 +1090,7 @@
             transform: translateX(-50%);
             width: 2px;
             height: 2rem;
-            background: linear-gradient(to bottom, rgba(255,255,255,0.3), rgba(255,255,255,0));
+            background: linear-gradient(to bottom, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0));
             z-index: 1;
         }
 
@@ -1012,7 +1119,8 @@
         }
 
         /* Show the control bar when hovering near the bottom of the screen */
-        body:hover .voice-control-bar, .voice-control-bar:focus-within {
+        body:hover .voice-control-bar,
+        .voice-control-bar:focus-within {
             transform: translateY(0);
             opacity: 1;
         }
@@ -1035,13 +1143,16 @@
 
         .progress-bar {
             height: 100%;
-            background: var(--border-gold); /* Cinematic Gold */
+            background: var(--border-gold);
+            /* Cinematic Gold */
             width: 0%;
             transition: width 0.3s ease;
             box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
         }
 
-        .control-left, .control-center, .control-right {
+        .control-left,
+        .control-center,
+        .control-right {
             display: flex;
             align-items: center;
             gap: 1.5rem;
@@ -1067,7 +1178,7 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 2px 4px rgba(0,0,0,0.2);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 2px 4px rgba(0, 0, 0, 0.2);
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
             padding: 0;
@@ -1083,7 +1194,7 @@
 
         .control-btn:active {
             transform: translateY(0);
-            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
             background: rgba(255, 255, 255, 0.08);
         }
 
@@ -1091,7 +1202,7 @@
             background: rgba(255, 255, 255, 0.25);
             color: #fff;
             border-color: rgba(255, 255, 255, 0.6);
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.3), 0 0 15px rgba(255, 255, 255, 0.1);
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 15px rgba(255, 255, 255, 0.1);
         }
 
         .slider-label {
@@ -1106,7 +1217,9 @@
             color: var(--text-white);
             font-family: var(--font-mono);
             min-width: 35px;
-        }        #tts-rate-slider {
+        }
+
+        #tts-rate-slider {
             -webkit-appearance: none;
             appearance: none;
             width: 100px;
@@ -1126,15 +1239,15 @@
             background: rgba(255, 255, 255, 0.8);
             cursor: pointer;
             transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
         }
 
         #tts-rate-slider::-webkit-slider-thumb:hover {
             transform: scale(1.4);
             background: #fff;
-            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
         }
-        
+
         /* Slide Scrubber (Integrated into Control Bar) */
         .slide-scrubber-container {
             display: flex;
@@ -1188,14 +1301,15 @@
             pointer-events: none;
             opacity: 0;
             transition: all 0.2s ease;
-            border: 1px solid rgba(255,215,0,0.3);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
         }
 
         .scrubber-dot:hover .scrubber-tooltip {
             opacity: 1;
             transform: translateX(-50%) translateY(0);
         }
+
         .history-btn {
             position: absolute;
             top: 1.5rem;
@@ -1214,15 +1328,19 @@
             align-items: center;
             gap: 0.5rem;
         }
+
         .history-btn:hover {
             background: rgba(255, 255, 255, 0.1);
             color: #fff;
             border-color: rgba(255, 215, 0, 0.5);
         }
-        
+
         .history-modal-overlay {
             position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             background: rgba(0, 0, 0, 0.8);
             backdrop-filter: blur(10px);
             z-index: 9999;
@@ -1233,10 +1351,12 @@
             pointer-events: none;
             transition: opacity 0.4s ease;
         }
+
         .history-modal-overlay.active {
             opacity: 1;
             pointer-events: auto;
         }
+
         .history-modal {
             background: rgba(15, 15, 20, 0.95);
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -1250,9 +1370,11 @@
             transform: translateY(20px) scale(0.98);
             transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
+
         .history-modal-overlay.active .history-modal {
             transform: translateY(0) scale(1);
         }
+
         .history-header {
             padding: 1.5rem 2rem;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -1260,12 +1382,14 @@
             justify-content: space-between;
             align-items: center;
         }
+
         .history-header h2 {
             margin: 0;
             font-family: var(--font-display);
             font-size: 1.5rem;
             color: #FFD700;
         }
+
         .close-history {
             background: none;
             border: none;
@@ -1274,9 +1398,11 @@
             cursor: pointer;
             transition: color 0.2s;
         }
+
         .close-history:hover {
             color: #fff;
         }
+
         .history-grid {
             padding: 2rem;
             display: flex;
@@ -1284,6 +1410,7 @@
             gap: 1rem;
             overflow-y: auto;
         }
+
         .history-item {
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -1295,42 +1422,53 @@
             transition: all 0.3s ease;
             text-decoration: none;
         }
+
         .history-item:hover {
             background: rgba(255, 255, 255, 0.08);
             border-color: rgba(255, 215, 0, 0.5);
             transform: translateY(-2px);
         }
+
         .history-info {
             display: flex;
             flex-direction: column;
         }
+
         .history-name {
             color: #fff;
             font-family: var(--font-sans);
             font-weight: 600;
             font-size: 1.1rem;
         }
+
         .history-date {
             color: #aaa;
             font-size: 0.85rem;
             margin-top: 0.3rem;
         }
+
         .history-action {
             color: #B026FF;
             font-weight: bold;
             font-family: var(--font-sans);
             font-size: 0.9rem;
         }
+
         .auth-modal {
             position: fixed;
-            top: 0; left: 0; width: 100vw; height: 100vh;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
             background: rgba(0, 0, 0, 0.85);
-            display: none; /* flex when active */
+            display: none;
+            /* flex when active */
             justify-content: center;
             align-items: center;
             z-index: 10000;
             backdrop-filter: blur(15px);
         }
+
         .auth-box {
             background: rgba(20, 20, 25, 0.95);
             padding: 3rem;
@@ -1341,27 +1479,31 @@
             max-width: 90%;
             text-align: center;
         }
+
         .auth-box h2 {
             font-family: var(--font-title);
             margin-bottom: 2rem;
             color: #fff;
             font-size: 2rem;
         }
+
         .auth-input {
             width: 100%;
             padding: 1rem;
             margin-bottom: 1rem;
-            background: rgba(0,0,0,0.5);
-            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             color: #fff;
             border-radius: 6px;
             font-family: var(--font-sans);
             font-size: 1rem;
         }
+
         .auth-input:focus {
             outline: none;
             border-color: #b026ff;
         }
+
         .auth-btn {
             width: 100%;
             padding: 1rem;
@@ -1375,23 +1517,27 @@
             transition: all 0.2s;
             margin-bottom: 1rem;
         }
+
         .auth-btn:hover {
             background: #9015d8;
         }
+
         .auth-switch {
             color: #aaa;
             font-size: 0.9rem;
             cursor: pointer;
         }
+
         .auth-switch:hover {
             color: #fff;
         }
+
         #logout-btn {
             position: absolute;
             top: 20px;
             right: 20px;
-            background: rgba(255,0,0,0.2);
-            border: 1px solid rgba(255,0,0,0.5);
+            background: rgba(255, 0, 0, 0.2);
+            border: 1px solid rgba(255, 0, 0, 0.5);
             color: white;
             padding: 8px 16px;
             border-radius: 4px;
@@ -1399,29 +1545,32 @@
             z-index: 9999;
             display: none;
         }
+
         #logout-btn:hover {
-            background: rgba(255,0,0,0.4);
+            background: rgba(255, 0, 0, 0.4);
         }
+
         body.presentation-active #logout-btn,
         body.presentation-active #admin-btn {
             display: none !important;
         }
     </style>
-    
+
     <!-- Prism.js for Syntax Highlighting -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
     <!-- UI Revamp Styles: Glassmorphism & Neon -->
-        <style id="ui-revamp-styles">
+    <style id="ui-revamp-styles">
         /* Dynamic Image Layouts */
-        .slide-content table, 
-        .slide-content pre, 
+        .slide-content table,
+        .slide-content pre,
         .slide-content .math-block,
         .slide-content .formula-block {
             clear: right;
         }
+
         .slide-content .info-callout,
         .slide-content .tip-callout,
         .slide-content .warning-callout,
@@ -1429,6 +1578,7 @@
         .slide-content ol {
             display: flow-root;
         }
+
         .board-image-placeholder {
             float: right;
             width: 40%;
@@ -1444,23 +1594,28 @@
             font-size: 0.9rem;
             text-align: center;
             padding: 1rem;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
             clear: right;
         }
-        
+
         /* Left Pane Enrichment: GIFs & Callouts */
         .context-gif {
             width: 100%;
             max-width: 400px;
             border-radius: 12px;
             margin: 1.5rem 0;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.6);
-            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             transition: transform 0.3s ease;
         }
-        .context-gif:hover { transform: scale(1.02); }
 
-        .info-callout, .tip-callout, .warning-callout {
+        .context-gif:hover {
+            transform: scale(1.02);
+        }
+
+        .info-callout,
+        .tip-callout,
+        .warning-callout {
             padding: 1rem 1.5rem;
             border-radius: 12px;
             margin: 1.5rem 0;
@@ -1468,40 +1623,88 @@
             background: rgba(10, 10, 20, 0.6);
             backdrop-filter: blur(10px);
             border-left: 4px solid transparent;
-            color: rgba(255,255,255,0.9);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            color: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
             font-size: 1.1rem;
             line-height: 1.6;
         }
-        
+
         .info-callout {
             border-left-color: #00e5ff;
             box-shadow: inset 2px 0 10px rgba(0, 229, 255, 0.1);
         }
-        .info-callout::before { content: 'ℹ️ Info'; display: block; color: #00e5ff; font-weight: bold; margin-bottom: 0.5rem; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; }
-        
+
+        .info-callout::before {
+            content: 'ℹ️ Info';
+            display: block;
+            color: #00e5ff;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+        }
+
         .tip-callout {
             border-left-color: #00ff88;
             box-shadow: inset 2px 0 10px rgba(0, 255, 136, 0.1);
         }
-        .tip-callout::before { content: '💡 Pro Tip'; display: block; color: #00ff88; font-weight: bold; margin-bottom: 0.5rem; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; }
+
+        .tip-callout::before {
+            content: '💡 Pro Tip';
+            display: block;
+            color: #00ff88;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+        }
 
         .warning-callout {
             border-left-color: #ff5555;
             box-shadow: inset 2px 0 10px rgba(255, 85, 85, 0.1);
         }
-        .warning-callout::before { content: '⚠️ Warning'; display: block; color: #ff5555; font-weight: bold; margin-bottom: 0.5rem; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; }
+
+        .warning-callout::before {
+            content: '⚠️ Warning';
+            display: block;
+            color: #ff5555;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+        }
 
         /* Staggered Entrance Animations */
         @keyframes fadeSlideUp {
-            0% { opacity: 0; transform: translateY(30px); }
-            100% { opacity: 1; transform: translateY(0); }
+            0% {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
-        
-        .animate-entrance-1 { animation: fadeSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both; }
-        .animate-entrance-2 { animation: fadeSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both; }
-        .animate-entrance-3 { animation: fadeSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both; }
-        .animate-entrance-4 { animation: fadeSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both; }
+
+        .animate-entrance-1 {
+            animation: fadeSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+        }
+
+        .animate-entrance-2 {
+            animation: fadeSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+        }
+
+        .animate-entrance-3 {
+            animation: fadeSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
+        }
+
+        .animate-entrance-4 {
+            animation: fadeSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;
+        }
 
         /* Smooth Modals */
         .glass-overlay {
@@ -1510,7 +1713,7 @@
             transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             backdrop-filter: blur(0px);
         }
-        
+
         .glass-overlay.active {
             opacity: 1;
             pointer-events: auto;
@@ -1530,24 +1733,33 @@
         .enhanced-progress {
             width: 100%;
             height: 6px;
-            background: rgba(255,255,255,0.1);
+            background: rgba(255, 255, 255, 0.1);
             border-radius: 3px;
             overflow: hidden;
             position: relative;
             margin-top: 1rem;
         }
+
         .enhanced-progress::after {
             content: '';
             position: absolute;
-            top: 0; left: 0; bottom: 0;
+            top: 0;
+            left: 0;
+            bottom: 0;
             width: 40%;
             background: linear-gradient(90deg, transparent, var(--text-gold), #B026FF, transparent);
             border-radius: 3px;
             animation: pulse-bar 2s linear infinite;
         }
+
         @keyframes pulse-bar {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(300%); }
+            0% {
+                transform: translateX(-100%);
+            }
+
+            100% {
+                transform: translateX(300%);
+            }
         }
 
         /* Glassmorphism Panel Base */
@@ -1571,11 +1783,12 @@
             font-family: var(--font-sans);
             outline: none;
             transition: all 0.3s ease;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
         }
+
         .neon-input:focus {
             border-color: rgba(255, 215, 0, 0.8);
-            box-shadow: 0 0 15px rgba(255, 215, 0, 0.3), inset 0 2px 4px rgba(0,0,0,0.5);
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.3), inset 0 2px 4px rgba(0, 0, 0, 0.5);
             background: rgba(20, 5, 30, 0.6);
         }
 
@@ -1596,15 +1809,18 @@
             overflow: hidden;
             box-shadow: 0 4px 15px rgba(107, 33, 158, 0.4);
         }
+
         .neon-btn:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(176, 38, 255, 0.6);
             border-color: rgba(255, 215, 0, 0.8);
             background: linear-gradient(135deg, #8b2bcf 0%, #4a1c82 100%);
         }
+
         .neon-btn:active:not(:disabled) {
             transform: translateY(1px);
         }
+
         .neon-btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
@@ -1618,6 +1834,7 @@
             border: none;
             box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
         }
+
         .neon-btn-gold:hover:not(:disabled) {
             background: linear-gradient(135deg, #FFF066 0%, #FFD700 100%);
             box-shadow: 0 6px 25px rgba(255, 215, 0, 0.5);
@@ -1631,10 +1848,11 @@
             color: #fff;
             box-shadow: none;
         }
+
         .neon-btn-outline:hover {
             background: rgba(255, 255, 255, 0.05);
             border-color: #fff;
-            box-shadow: 0 0 10px rgba(255,255,255,0.2);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
         }
 
         /* Drop Zone */
@@ -1653,7 +1871,9 @@
             padding: 3rem 2rem;
             margin: 1.5rem 0;
         }
-        .glass-drop-zone:hover, .glass-drop-zone.dragover {
+
+        .glass-drop-zone:hover,
+        .glass-drop-zone.dragover {
             border-color: rgba(255, 215, 0, 1);
             background: rgba(255, 215, 0, 0.08);
             box-shadow: 0 0 20px rgba(255, 215, 0, 0.2) inset;
@@ -1665,10 +1885,11 @@
             color: #a5d6ff !important;
             font-family: 'Fira Code', Consolas, monospace !important;
             border: 1px solid rgba(255, 215, 0, 0.3) !important;
-            box-shadow: inset 0 4px 10px rgba(0,0,0,0.6) !important;
+            box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.6) !important;
             transition: border-color 0.3s !important;
             border-radius: 8px !important;
         }
+
         .ide-textarea:focus {
             border-color: rgba(176, 38, 255, 0.8) !important;
         }
@@ -1689,13 +1910,13 @@
             -webkit-text-fill-color: transparent;
             margin-bottom: 0.5rem;
             text-align: center;
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
             letter-spacing: 1px;
         }
-        
+
         .revamp-subtitle {
             text-align: center;
-            color: rgba(255,255,255,0.6);
+            color: rgba(255, 255, 255, 0.6);
             font-family: var(--font-sans);
             letter-spacing: 3px;
             text-transform: uppercase;
@@ -1717,36 +1938,52 @@
             align-items: center;
             justify-content: space-between;
         }
+
         .glass-list-item:hover {
             background: rgba(255, 255, 255, 0.08);
             border-color: rgba(255, 215, 0, 0.4);
             transform: scale(1.01);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
         }
+
         /* --- CINEMATIC OVERLAYS --- */
-        .letterbox-top, .letterbox-bottom {
+        .letterbox-top,
+        .letterbox-bottom {
             position: fixed;
-            left: 0; right: 0;
+            left: 0;
+            right: 0;
             height: 8vh;
             background: #000;
             z-index: 9999;
             pointer-events: none;
         }
-        .letterbox-top { top: 0; }
-        .letterbox-bottom { bottom: 0; }
-        
+
+        .letterbox-top {
+            top: 0;
+        }
+
+        .letterbox-bottom {
+            bottom: 0;
+        }
+
         .cinematic-vignette {
             position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             pointer-events: none;
             z-index: 9998;
-            background: radial-gradient(circle, rgba(0,0,0,0) 60%, rgba(0,0,0,0.8) 100%);
+            background: radial-gradient(circle, rgba(0, 0, 0, 0) 60%, rgba(0, 0, 0, 0.8) 100%);
             mix-blend-mode: multiply;
         }
 
         .film-grain {
             position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             pointer-events: none;
             z-index: 9997;
             opacity: 0.04;
@@ -1754,9 +1991,15 @@
         }
 
         @keyframes kenburns {
-            0% { transform: scale(1); }
-            100% { transform: scale(1.05); }
+            0% {
+                transform: scale(1);
+            }
+
+            100% {
+                transform: scale(1.05);
+            }
         }
+
         .background-media,
         .scene-content img,
         .scene-content video {
@@ -1766,7 +2009,8 @@
 
         .video-progress-container {
             position: fixed;
-            bottom: 8vh; /* Rest exactly on top of the bottom letterbox */
+            bottom: 8vh;
+            /* Rest exactly on top of the bottom letterbox */
             left: 0;
             width: 100%;
             height: 4px;
@@ -1774,6 +2018,7 @@
             z-index: 10000;
             pointer-events: none;
         }
+
         .video-progress-fill {
             height: 100%;
             width: 0%;
@@ -1784,7 +2029,8 @@
 
         #subtitle-track {
             position: fixed;
-            bottom: 60px; /* Moved lower down the screen */
+            bottom: 60px;
+            /* Moved lower down the screen */
             left: 50%;
             transform: translateX(-50%);
             width: 80%;
@@ -1793,16 +2039,18 @@
             font-size: 1.8rem;
             font-weight: 600;
             color: #fff;
-            text-shadow: 0px 2px 8px rgba(0,0,0,0.9), 0px 0px 4px rgba(0,0,0,0.6);
+            text-shadow: 0px 2px 8px rgba(0, 0, 0, 0.9), 0px 0px 4px rgba(0, 0, 0, 0.6);
             z-index: 9996;
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.3s ease-in-out, transform 0.3s ease-out;
         }
+
         #subtitle-track.active {
             opacity: 1;
             transform: translateX(-50%) translateY(-5px);
         }
+
         /* Highlight specific words dynamically */
 
 
@@ -1812,6 +2060,7 @@
         }
     </style>
 </head>
+
 <body>
 
     <!-- Application Container -->
@@ -1819,11 +2068,16 @@
     <!-- Background Elements -->
 
     <div id="mascot-bg" class="video-background mascot-container">
-        <video class="mascot-layer layer-left active-layer" data-src="video_template/aadhi_left.mp4" muted loop playsinline preload="metadata"></video>
-        <video class="mascot-layer layer-right" data-src="video_template/aadhi_right.mp4" muted loop playsinline preload="metadata"></video>
-        <video class="mascot-layer layer-center" data-src="video_template/aadhi_center.mp4" muted loop playsinline preload="metadata"></video>
-        <video class="mascot-layer layer-popup" data-src="video_template/aadhi_popup.mp4" muted loop playsinline preload="metadata"></video>
-        <video class="mascot-layer layer-none" data-src="video_template/no_aadhi.mp4" muted loop playsinline preload="metadata"></video>
+        <video class="mascot-layer layer-left active-layer" data-src="video_template/aadhi_left.mp4" muted loop
+            playsinline preload="metadata"></video>
+        <video class="mascot-layer layer-right" data-src="video_template/aadhi_right.mp4" muted loop playsinline
+            preload="metadata"></video>
+        <video class="mascot-layer layer-center" data-src="video_template/aadhi_center.mp4" muted loop playsinline
+            preload="metadata"></video>
+        <video class="mascot-layer layer-popup" data-src="video_template/aadhi_popup.mp4" muted loop playsinline
+            preload="metadata"></video>
+        <video class="mascot-layer layer-none" data-src="video_template/no_aadhi.mp4" muted loop playsinline
+            preload="metadata"></video>
     </div>
     <script>
         // Immediately assign src with timestamp to bypass browser cache
@@ -1832,7 +2086,7 @@
         });
         // Play the default left layer to save hardware resources from playing all 4 simultaneously
         const defaultLayer = document.querySelector('.layer-left');
-        if(defaultLayer) {
+        if (defaultLayer) {
             defaultLayer.play().catch(e => console.log('Auto-play prevented', e));
         }
     </script>
@@ -1841,122 +2095,174 @@
     <div class="dynamic-side-zone">
         <!-- Concept Map (Skill Tree) Panel -->
         <div id="concept-map-panel" class="side-panel-view">
-            <h2 style="color: var(--text-gold); font-size: 1.2rem; margin-bottom: 0.5rem; letter-spacing: 1px; text-transform: uppercase;">Skill Tree</h2>
-            <p style="color: #aaa; font-size: 0.8rem; text-align: center; margin-bottom: 1rem;">Track your learning journey</p>
+            <h2
+                style="color: var(--text-gold); font-size: 1.2rem; margin-bottom: 0.5rem; letter-spacing: 1px; text-transform: uppercase;">
+                Skill Tree</h2>
+            <p style="color: #aaa; font-size: 0.8rem; text-align: center; margin-bottom: 1rem;">Track your learning
+                journey</p>
             <div id="concept-map-canvas">
                 <!-- Concept nodes will be injected here dynamically -->
             </div>
         </div>
-        
+
         <!-- Image Panel -->
-        <div id="side-image-panel" class="side-panel-view" style="border-radius:20px; border:1px solid rgba(255, 215, 0, 0.3); background: rgba(40, 15, 60, 0.85); backdrop-filter: blur(20px); padding: 2rem; display: flex; flex-direction: column;">
-            <div style="flex-grow: 1; position: relative; width: 100%; height: 100%; border-radius: 10px; overflow: hidden;">
-                <div id="side-image-loader" style="position: absolute; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; background: rgba(0,0,0,0.5); z-index:10; transition: opacity 0.3s ease;">
+        <div id="side-image-panel" class="side-panel-view"
+            style="border-radius:20px; border:1px solid rgba(255, 215, 0, 0.3); background: rgba(40, 15, 60, 0.85); backdrop-filter: blur(20px); padding: 2rem; display: flex; flex-direction: column;">
+            <div
+                style="flex-grow: 1; position: relative; width: 100%; height: 100%; border-radius: 10px; overflow: hidden;">
+                <div id="side-image-loader"
+                    style="position: absolute; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; background: rgba(0,0,0,0.5); z-index:10; transition: opacity 0.3s ease;">
                     <div class="spinner"></div>
                     <div style="color:var(--text-gold); margin-top:1rem; font-weight:bold;">Generating Image...</div>
                 </div>
-                <img id="side-image-display" src="" style="width:100%; height:100%; object-fit:cover; position:relative; z-index:5; transition: opacity 0.5s ease;">
+                <img id="side-image-display" src=""
+                    style="width:100%; height:100%; object-fit:cover; position:relative; z-index:5; transition: opacity 0.5s ease;">
             </div>
         </div>
-        
+
         <!-- Animation Panel -->
-        <div id="side-animation-panel" class="side-panel-view" style="border-radius:20px; border:1px solid rgba(255, 215, 0, 0.3); background: rgba(40, 15, 60, 0.6); backdrop-filter: blur(10px); position:relative; overflow:hidden;">
+        <div id="side-animation-panel" class="side-panel-view"
+            style="border-radius:20px; border:1px solid rgba(255, 215, 0, 0.3); background: rgba(40, 15, 60, 0.6); backdrop-filter: blur(10px); position:relative; overflow:hidden;">
             <div id="side-animation-canvas" style="position:absolute; width:100%; height:100%;"></div>
         </div>
         <!-- Chart Panel -->
-        <div id="side-chart-panel" class="side-panel-view" style="border-radius:20px; border:1px solid rgba(255, 215, 0, 0.3); background: rgba(40, 15, 60, 0.85); backdrop-filter: blur(20px); padding: 1.5rem; display: flex; flex-direction: column;">
-            <h3 id="chart-panel-title" style="color: var(--text-gold); font-size: 1.2rem; margin-bottom: 1rem; text-align: center;">Data Visualization</h3>
+        <div id="side-chart-panel" class="side-panel-view"
+            style="border-radius:20px; border:1px solid rgba(255, 215, 0, 0.3); background: rgba(40, 15, 60, 0.85); backdrop-filter: blur(20px); padding: 1.5rem; display: flex; flex-direction: column;">
+            <h3 id="chart-panel-title"
+                style="color: var(--text-gold); font-size: 1.2rem; margin-bottom: 1rem; text-align: center;">Data
+                Visualization</h3>
             <div style="flex-grow: 1; position: relative;">
                 <canvas id="side-chart-canvas"></canvas>
             </div>
         </div>
 
         <!-- 3D Model Panel -->
-        <div id="side-3d-panel" class="side-panel-view" style="border-radius:20px; border:1px solid rgba(255, 215, 0, 0.3); background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(10px); overflow: hidden; position: relative;">
-            <div id="side-3d-canvas-container" style="width: 100%; height: 100%; position: absolute; top:0; left:0;"></div>
-            <div id="side-3d-label" style="position: absolute; bottom: 10px; left: 0; width: 100%; text-align: center; color: rgba(255,255,255,0.7); font-size: 0.9rem; pointer-events: none;">Interactive 3D Model</div>
+        <div id="side-3d-panel" class="side-panel-view"
+            style="border-radius:20px; border:1px solid rgba(255, 215, 0, 0.3); background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(10px); overflow: hidden; position: relative;">
+            <div id="side-3d-canvas-container" style="width: 100%; height: 100%; position: absolute; top:0; left:0;">
+            </div>
+            <div id="side-3d-label"
+                style="position: absolute; bottom: 10px; left: 0; width: 100%; text-align: center; color: rgba(255,255,255,0.7); font-size: 0.9rem; pointer-events: none;">
+                Interactive 3D Model</div>
         </div>
 
         <!-- Quiz Panel -->
-        <div id="side-quiz-panel" class="side-panel-view" style="border-radius:20px; border:1px solid rgba(255, 215, 0, 0.3); background: rgba(40, 15, 60, 0.9); backdrop-filter: blur(20px); padding: 2rem; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-            <div style="background: rgba(255, 215, 0, 0.2); color: var(--text-gold); padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.8rem; margin-bottom: 1rem; font-weight: bold; text-transform: uppercase;">Knowledge Check</div>
-            <h3 id="quiz-question-text" style="color: white; font-size: 1.3rem; text-align: center; margin-bottom: 2rem; line-height: 1.4;">Question goes here</h3>
+        <div id="side-quiz-panel" class="side-panel-view"
+            style="border-radius:20px; border:1px solid rgba(255, 215, 0, 0.3); background: rgba(40, 15, 60, 0.9); backdrop-filter: blur(20px); padding: 2rem; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <div
+                style="background: rgba(255, 215, 0, 0.2); color: var(--text-gold); padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.8rem; margin-bottom: 1rem; font-weight: bold; text-transform: uppercase;">
+                Knowledge Check</div>
+            <h3 id="quiz-question-text"
+                style="color: white; font-size: 1.3rem; text-align: center; margin-bottom: 2rem; line-height: 1.4;">
+                Question goes here</h3>
             <div id="quiz-options-container" style="display: flex; flex-direction: column; gap: 1rem; width: 100%;">
                 <!-- Options injected dynamically -->
             </div>
-            <div id="quiz-feedback" style="margin-top: 1.5rem; font-size: 1.1rem; font-weight: bold; opacity: 0; transition: opacity 0.3s;"></div>
+            <div id="quiz-feedback"
+                style="margin-top: 1.5rem; font-size: 1.1rem; font-weight: bold; opacity: 0; transition: opacity 0.3s;">
+            </div>
         </div>
 
         <!-- Terminal Panel -->
-        <div id="side-terminal-panel" class="side-panel-view" style="border-radius:10px; border:1px solid #333; background: #1e1e1e; padding: 1.5rem; display: flex; flex-direction: column; box-shadow: 0 0 20px rgba(0,0,0,0.8) inset;">
+        <div id="side-terminal-panel" class="side-panel-view"
+            style="border-radius:10px; border:1px solid #333; background: #1e1e1e; padding: 1.5rem; display: flex; flex-direction: column; box-shadow: 0 0 20px rgba(0,0,0,0.8) inset;">
             <div style="display: flex; gap: 6px; margin-bottom: 1rem;">
                 <div style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f56;"></div>
                 <div style="width: 12px; height: 12px; border-radius: 50%; background: #ffbd2e;"></div>
                 <div style="width: 12px; height: 12px; border-radius: 50%; background: #27c93f;"></div>
             </div>
-            <pre style="flex-grow: 1; margin: 0; overflow-y: auto; color: #00ff00; font-family: 'Courier New', monospace; font-size: 0.95rem; line-height: 1.5;"><code id="side-terminal-output" style="text-shadow: 0 0 5px rgba(0,255,0,0.5);">root@aadhi:~# </code></pre>
+            <pre
+                style="flex-grow: 1; margin: 0; overflow-y: auto; color: #00ff00; font-family: 'Courier New', monospace; font-size: 0.95rem; line-height: 1.5;"><code id="side-terminal-output" style="text-shadow: 0 0 5px rgba(0,255,0,0.5);">root@aadhi:~# </code></pre>
         </div>
 
         <!-- Math Graph Panel (JSXGraph) -->
-        <div id="side-graph-panel" class="side-panel-view" style="border-radius:20px; border:1px solid rgba(255, 215, 0, 0.3); background: rgba(20, 10, 40, 0.9); backdrop-filter: blur(20px); padding: 1rem; display: flex; flex-direction: column;">
-            <h3 id="graph-panel-title" style="color: var(--text-gold); font-size: 1.2rem; margin-bottom: 0.5rem; text-align: center;">Interactive Graph</h3>
-            <div id="side-jxgbox" class="jxgbox" style="flex-grow: 1; width: 100%; border-radius: 10px; border: 1px solid rgba(176,38,255,0.3);"></div>
+        <div id="side-graph-panel" class="side-panel-view"
+            style="border-radius:20px; border:1px solid rgba(255, 215, 0, 0.3); background: rgba(20, 10, 40, 0.9); backdrop-filter: blur(20px); padding: 1rem; display: flex; flex-direction: column;">
+            <h3 id="graph-panel-title"
+                style="color: var(--text-gold); font-size: 1.2rem; margin-bottom: 0.5rem; text-align: center;">
+                Interactive Graph</h3>
+            <div id="side-jxgbox" class="jxgbox"
+                style="flex-grow: 1; width: 100%; border-radius: 10px; border: 1px solid rgba(176,38,255,0.3);"></div>
         </div>
 
-        <div id="side-video-panel" class="side-panel-view" style="border-radius:20px; border:1px solid rgba(255, 215, 0, 0.3); background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-            <video id="side-video-player" style="width: 100%; height: 100%; object-fit: contain;" autoplay loop muted playsinline></video>
-            <div id="side-video-label" style="position: absolute; bottom: 10px; left: 0; width: 100%; text-align: center; color: rgba(255,255,255,0.7); font-size: 0.9rem; pointer-events: none; text-shadow: 0 1px 3px black;">Explanatory Video</div>
+        <div id="side-video-panel" class="side-panel-view"
+            style="border-radius:20px; border:1px solid rgba(255, 215, 0, 0.3); background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <video id="side-video-player" style="width: 100%; height: 100%; object-fit: contain;" autoplay loop muted
+                playsinline></video>
+            <div id="side-video-label"
+                style="position: absolute; bottom: 10px; left: 0; width: 100%; text-align: center; color: rgba(255,255,255,0.7); font-size: 0.9rem; pointer-events: none; text-shadow: 0 1px 3px black;">
+                Explanatory Video</div>
         </div>
 
-        <div id="side-gif-panel" class="side-panel-view" style="border-radius:20px; border:1px solid rgba(255, 215, 0, 0.3); background: rgba(40, 15, 60, 0.85); backdrop-filter: blur(20px); padding: 2rem; display: flex; flex-direction: column;">
-            <img id="side-gif-player" style="flex-grow: 1; width: 100%; height: 100%; object-fit: cover; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);" />
-            <div id="side-gif-label" style="margin-top: 1rem; color: rgba(255,255,255,0.7); text-align: center; font-size: 0.9rem; font-style: italic; text-transform: uppercase;">Animated GIF</div>
+        <div id="side-gif-panel" class="side-panel-view"
+            style="border-radius:20px; border:1px solid rgba(255, 215, 0, 0.3); background: rgba(40, 15, 60, 0.85); backdrop-filter: blur(20px); padding: 2rem; display: flex; flex-direction: column;">
+            <img id="side-gif-player"
+                style="flex-grow: 1; width: 100%; height: 100%; object-fit: cover; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);" />
+            <div id="side-gif-label"
+                style="margin-top: 1rem; color: rgba(255,255,255,0.7); text-align: center; font-size: 0.9rem; font-style: italic; text-transform: uppercase;">
+                Animated GIF</div>
         </div>
 
 
     </div>
-    
 
 
-    <div class="lecture-overlay-zone">        <!-- Upload Screen -->
-        <div class="glass-panel slide-entry animate-entrance-1" id="upload-screen" style="width: 1100px; padding: 3rem; position: relative; max-width: 95vw;">
-            <button id="open-history-btn" class="neon-btn neon-btn-outline animate-entrance-2" style="position: absolute; top: 30px; right: 30px;">
+
+    <div class="lecture-overlay-zone"> <!-- Upload Screen -->
+        <div class="glass-panel slide-entry animate-entrance-1" id="upload-screen"
+            style="width: 1100px; padding: 3rem; position: relative; max-width: 95vw;">
+            <button id="open-history-btn" class="neon-btn neon-btn-outline animate-entrance-2"
+                style="position: absolute; top: 30px; right: 30px;">
                 <span>📋</span> View History
             </button>
             <h1 class="revamp-title animate-entrance-2" style="font-size: 3rem;">Aadhi Generator</h1>
             <p class="revamp-subtitle animate-entrance-2">Rajalakshmi Engineering College - Kutty Koncepts</p>
-            
+
             <div style="display: flex; gap: 3rem; margin-top: 2rem;">
-                
+
                 <!-- Left Column: Primary Actions -->
                 <div style="flex: 1.2; display: flex; flex-direction: column;" class="animate-entrance-3">
-                    <div class="glass-drop-zone" id="drop-zone" style="flex-grow: 1; min-height: 250px; margin: 0 0 1.5rem 0;">
+                    <div class="glass-drop-zone" id="drop-zone"
+                        style="flex-grow: 1; min-height: 250px; margin: 0 0 1.5rem 0;">
                         <div class="drop-zone-icon" style="font-size: 3rem; margin-bottom: 1rem;">📄</div>
-                        <div class="drop-zone-text" id="drop-zone-text" style="color: #fff; font-size: 1.2rem; font-weight: 600; text-align: center;">Drag & drop your lecture PDF, Word document, or JSON script here or click to browse</div>
-                        <div class="drop-zone-subtext" style="color: rgba(255,255,255,0.5); margin-top: 0.5rem;">Supports PDF, DOCX and JSON files up to 20MB</div>
-                        <input type="file" id="file-input" accept=".pdf,.docx,.json,application/pdf,application/json,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display: none;">
+                        <div class="drop-zone-text" id="drop-zone-text"
+                            style="color: #fff; font-size: 1.2rem; font-weight: 600; text-align: center;">Drag & drop
+                            your lecture PDF, Word document, or JSON script here or click to browse</div>
+                        <div class="drop-zone-subtext" style="color: rgba(255,255,255,0.5); margin-top: 0.5rem;">
+                            Supports PDF, DOCX and JSON files up to 20MB</div>
+                        <input type="file" id="file-input"
+                            accept=".pdf,.docx,.json,application/pdf,application/json,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                            style="display: none;">
                     </div>
                     <div class="action-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                         <button type="button" id="browse-btn" class="neon-btn neon-btn-outline">Choose File</button>
-                        <button type="button" id="generate-btn" class="neon-btn neon-btn-gold" disabled>Generate Video</button>
-                        <button type="button" id="demo-btn" class="neon-btn neon-btn-outline" style="border-color:#ccc; color:#ccc; grid-column: 1 / -1;">Play Demo</button>
-                        <button type="button" id="restore-btn" class="neon-btn neon-btn-outline" style="border-color:#B026FF; color:#B026FF; display:none; grid-column: 1 / -1;">Restore Previous</button>
+                        <button type="button" id="generate-btn" class="neon-btn neon-btn-gold" disabled>Generate
+                            Video</button>
+                        <button type="button" id="demo-btn" class="neon-btn neon-btn-outline"
+                            style="border-color:#ccc; color:#ccc; grid-column: 1 / -1;">Play Demo</button>
+                        <button type="button" id="restore-btn" class="neon-btn neon-btn-outline"
+                            style="border-color:#B026FF; color:#B026FF; display:none; grid-column: 1 / -1;">Restore
+                            Previous</button>
                     </div>
                 </div>
 
                 <!-- Right Column: Configuration -->
-                <div class="config-section animate-entrance-4" style="flex: 1; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 12px; display: flex; flex-direction: column; gap: 1.2rem;">
-                    
+                <div class="config-section animate-entrance-4"
+                    style="flex: 1; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 12px; display: flex; flex-direction: column; gap: 1.2rem;">
+
                     <div class="config-group">
-                        <label class="config-label" for="provider-select" style="color: var(--text-gold);">AI Provider</label>
-                        <select id="provider-select" class="neon-input" style="width: 100%; cursor: pointer; border-color: #00F3FF; margin-bottom: 1rem;">
+                        <label class="config-label" for="provider-select" style="color: var(--text-gold);">AI
+                            Provider</label>
+                        <select id="provider-select" class="neon-input"
+                            style="width: 100%; cursor: pointer; border-color: #00F3FF; margin-bottom: 1rem;">
                             <option value="gemini" selected>Google Gemini</option>
                             <option value="openai">OpenAI</option>
                         </select>
                     </div>
-                    
+
                     <div class="config-group">
-                        <label class="config-label" for="model-select" style="color: var(--text-gold);">Gemini Model</label>
+                        <label class="config-label" for="model-select" style="color: var(--text-gold);">Gemini
+                            Model</label>
                         <select id="model-select" class="neon-input" style="width: 100%; cursor: pointer;">
                             <option value="gemini-3.5-flash">gemini-3.5-flash</option>
                             <option value="gemini-3.1-pro-preview">gemini-3.1-pro (Preview)</option>
@@ -1971,7 +2277,8 @@
                     </div>
 
                     <div class="config-group">
-                        <label class="config-label" for="tts-engine-select" style="color: var(--text-gold);">TTS Engine</label>
+                        <label class="config-label" for="tts-engine-select" style="color: var(--text-gold);">TTS
+                            Engine</label>
                         <select id="tts-engine-select" class="neon-input" style="width: 100%; cursor: pointer;">
                             <option value="default" selected>Default (Edge-TTS)</option>
                             <option value="gemini-2.5-flash">Gemini TTS Flash</option>
@@ -1981,8 +2288,10 @@
 
                     <div style="display: flex; gap: 1rem;">
                         <div class="config-group" style="flex: 1;">
-                            <label class="config-label" for="voice-select" style="color: var(--text-gold);">Default Voice</label>
-                            <select id="voice-select" class="neon-input" style="width: 100%; cursor: pointer; padding: 0.6rem;">
+                            <label class="config-label" for="voice-select" style="color: var(--text-gold);">Default
+                                Voice</label>
+                            <select id="voice-select" class="neon-input"
+                                style="width: 100%; cursor: pointer; padding: 0.6rem;">
                                 <option value="en-US-BrianMultilingualNeural">Brian (Multilingual)</option>
                                 <option value="en-US-BrianNeural">Brian (Casual)</option>
                                 <option value="en-US-GuyNeural">Guy (Professional)</option>
@@ -1995,8 +2304,10 @@
                             </select>
                         </div>
                         <div class="config-group" style="flex: 1;">
-                            <label class="config-label" for="gemini-voice-select" style="color: var(--text-gold);">Gemini Voice</label>
-                            <select id="gemini-voice-select" class="neon-input" style="width: 100%; cursor: pointer; opacity: 0.5; padding: 0.6rem;" disabled>
+                            <label class="config-label" for="gemini-voice-select"
+                                style="color: var(--text-gold);">Gemini Voice</label>
+                            <select id="gemini-voice-select" class="neon-input"
+                                style="width: 100%; cursor: pointer; opacity: 0.5; padding: 0.6rem;" disabled>
                                 <option value="Puck">Puck</option>
                                 <option value="Charon">Charon</option>
                                 <option value="Fenrir">Fenrir</option>
@@ -2004,21 +2315,30 @@
                         </div>
                     </div>
 
-                    <div class="config-group" style="margin-top: auto; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
-                        <label class="config-label" for="hardware-select" style="color: var(--text-gold);">AI Server Profile</label>
-                        <select id="hardware-select" class="neon-input" style="width: 100%; cursor: pointer; border-color: rgba(255, 215, 0, 0.4); margin-bottom: 1rem;">
-                            <option value="rtx_3090_2x" disabled style="color: #666; background-color: #111;">Option 1: 2x RTX 3090 - Unavailable</option>
-                            <option value="rtx_4060_laptop" disabled style="color: #666; background-color: #111;">Option 2: Laptop RTX 4060 - Unavailable</option>
-                            <option value="no_ai_generation" selected>Option 3: No AI Generation (Manual Workflow)</option>
-                            <option value="gemini_api_video" style="color: #FFD700; font-weight: bold;">Option 4: Auto Generation via Gemini</option>
+                    <div class="config-group"
+                        style="margin-top: auto; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
+                        <label class="config-label" for="hardware-select" style="color: var(--text-gold);">AI Server
+                            Profile</label>
+                        <select id="hardware-select" class="neon-input"
+                            style="width: 100%; cursor: pointer; border-color: rgba(255, 215, 0, 0.4); margin-bottom: 1rem;">
+                            <option value="rtx_3090_2x" disabled style="color: #666; background-color: #111;">Option 1:
+                                2x RTX 3090 - Unavailable</option>
+                            <option value="rtx_4060_laptop" disabled style="color: #666; background-color: #111;">Option
+                                2: Laptop RTX 4060 - Unavailable</option>
+                            <option value="no_ai_generation" selected>Option 3: No AI Generation (Manual Workflow)
+                            </option>
+                            <option value="gemini_api_video" style="color: #FFD700; font-weight: bold;">Option 4: Auto
+                                Generation via Gemini</option>
                         </select>
-                        <button type="button" id="start-server-btn" class="neon-btn neon-btn-gold" style="width: 100%;">Start AI Server</button>
+                        <button type="button" id="start-server-btn" class="neon-btn neon-btn-gold"
+                            style="width: 100%;">Start AI Server</button>
                     </div>
                 </div>
             </div>
-            
+
             <!-- Loading Overlay (hidden initially) -->
-            <div class="glass-overlay" id="loading-overlay" style="position:absolute; top:0; left:0; width:100%; height:100%; border-radius: 16px; display:flex; flex-direction:column; justify-content:center; align-items:center; background:rgba(0,0,0,0.8); z-index:100;">
+            <div class="glass-overlay" id="loading-overlay"
+                style="position:absolute; top:0; left:0; width:100%; height:100%; border-radius: 16px; display:flex; flex-direction:column; justify-content:center; align-items:center; background:rgba(0,0,0,0.8); z-index:100;">
                 <div class="loading-title" id="loading-title" style="margin-bottom: 0;">Processing PDF...</div>
                 <div class="enhanced-progress" style="width: 60%; margin-bottom: 1rem;"></div>
                 <div class="loading-log" id="loading-log">Initializing...</div>
@@ -2030,125 +2350,158 @@
 
             <div id="slide-title-container" style="transition: opacity 0.4s ease;"></div>
             <div class="board-body">
-                <div id="slide-content-container" class="slide-container slide-content" style="transition: opacity 0.4s ease;"></div>
-                <div id="slide-visual-container" class="slide-visual hidden" style="transition: opacity 0.4s ease;"></div>
+                <div id="slide-content-container" class="slide-container slide-content"
+                    style="transition: opacity 0.4s ease;"></div>
+                <div id="slide-visual-container" class="slide-visual hidden" style="transition: opacity 0.4s ease;">
+                </div>
             </div>
         </div>
     </div>
-        
-        <!-- Subtitles/Karaoke Layer -->
-        <div id="subtitle-track"></div>
 
-        <!-- Floating Voice Control Bar -->
-        <div class="voice-control-bar" id="voice-control-bar">
-            <div class="progress-bar-container">
-                <div class="progress-bar" id="progress-bar"></div>
+    <!-- Subtitles/Karaoke Layer -->
+    <div id="subtitle-track"></div>
+
+    <!-- Floating Voice Control Bar -->
+    <div class="voice-control-bar" id="voice-control-bar">
+        <div class="progress-bar-container">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+        <div class="control-left">
+            <button type="button" id="tts-play-btn" class="control-btn" title="Play/Pause">
+                <span class="btn-icon">▶</span>
+            </button>
+            <button type="button" id="tts-stop-btn" class="control-btn" title="Stop">
+                <span class="btn-icon">■</span>
+            </button>
+        </div>
+        <div class="control-center" style="gap: 12px;">
+            <div id="slide-scrubber-container" class="slide-scrubber-container"></div>
+            <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.2); margin: 0 4px;"></div>
+            <span class="btn-icon" style="color: rgba(255,255,255,0.4); font-size: 1rem;">⧗</span>
+            <input type="range" id="tts-rate-slider" min="0.5" max="1.5" step="0.1" value="0.9">
+            <span id="tts-rate-value" class="slider-value" style="color: rgba(255,255,255,0.7);">0.9x</span>
+        </div>
+        <div class="control-right">
+            <button type="button" id="edit-script-btn" class="control-btn" title="Edit Generated Script">
+                <span class="btn-icon">✎</span>
+            </button>
+            <button type="button" id="info-btn" class="control-btn" title="Presentation Info & Settings">
+                <span class="btn-icon">ⓘ</span>
+            </button>
+            <button type="button" id="record-btn" class="control-btn" title="Export as Video">
+                <span class="btn-icon">●</span>
+            </button>
+            <button type="button" id="auto-export-btn" class="control-btn" title="Automated Video Export">
+                <span class="btn-icon">⚡</span>
+            </button>
+            <button type="button" id="export-html-btn" class="control-btn" title="Download HTML Presentation">
+                <span class="btn-icon">↓</span>
+            </button>
+            <button type="button" id="reload-slide-btn" class="control-btn" title="Reload Slide">
+                <span class="btn-icon">⟳</span>
+            </button>
+            <button type="button" id="tts-mute-btn" class="control-btn" title="Mute/Unmute">
+                <span class="btn-icon">♫</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Script Editor Modal -->
+    <div id="script-editor-modal" class="glass-overlay"
+        style="position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:500; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+        <div class="glass-panel" style="width: 80%; height: 80%; display: flex; flex-direction: column; padding: 2rem;">
+            <h2 class="revamp-title" style="font-size: 2.5rem; text-align: left; margin-top: 0; margin-bottom: 1rem;">
+                Raw Script Editor</h2>
+
+            <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                <button class="editor-tab active-tab" data-mode="slide"
+                    style="background: rgba(255, 215, 0, 0.2); border: 1px solid var(--border-gold); color: var(--text-gold); padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.3s;">Current
+                    Slide</button>
+                <button class="editor-tab" data-mode="narration"
+                    style="background: transparent; border: 1px solid #555; color: #aaa; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.3s;">Current
+                    Voiceover</button>
+                <button class="editor-tab" data-mode="full"
+                    style="background: transparent; border: 1px solid #555; color: #aaa; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.3s;">Entire
+                    Script</button>
             </div>
-            <div class="control-left">
-                <button type="button" id="tts-play-btn" class="control-btn" title="Play/Pause">
-                    <span class="btn-icon">▶</span>
-                </button>
-                <button type="button" id="tts-stop-btn" class="control-btn" title="Stop">
-                    <span class="btn-icon">■</span>
-                </button>
-            </div>
-            <div class="control-center" style="gap: 12px;">
-                <div id="slide-scrubber-container" class="slide-scrubber-container"></div>
-                <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.2); margin: 0 4px;"></div>
-                <span class="btn-icon" style="color: rgba(255,255,255,0.4); font-size: 1rem;">⧗</span>
-                <input type="range" id="tts-rate-slider" min="0.5" max="1.5" step="0.1" value="0.9">
-                <span id="tts-rate-value" class="slider-value" style="color: rgba(255,255,255,0.7);">0.9x</span>
-            </div>
-            <div class="control-right">
-                <button type="button" id="edit-script-btn" class="control-btn" title="Edit Generated Script">
-                    <span class="btn-icon">✎</span>
-                </button>
-                <button type="button" id="info-btn" class="control-btn" title="Presentation Info & Settings">
-                    <span class="btn-icon">ⓘ</span>
-                </button>
-                <button type="button" id="record-btn" class="control-btn" title="Export as Video">
-                    <span class="btn-icon">●</span>
-                </button>
-                <button type="button" id="auto-export-btn" class="control-btn" title="Automated Video Export">
-                    <span class="btn-icon">⚡</span>
-                </button>
-                <button type="button" id="export-html-btn" class="control-btn" title="Download HTML Presentation">
-                    <span class="btn-icon">↓</span>
-                </button>
-                <button type="button" id="reload-slide-btn" class="control-btn" title="Reload Slide">
-                    <span class="btn-icon">⟳</span>
-                </button>
-                <button type="button" id="tts-mute-btn" class="control-btn" title="Mute/Unmute">
-                    <span class="btn-icon">♫</span>
-                </button>
+
+            <p id="script-editor-hint" style="color: rgba(255,255,255,0.6); margin-bottom: 1rem; font-size: 0.9rem;">
+                Edit the JSON object for the current scene.</p>
+            <textarea id="script-editor-textarea" class="ide-textarea"
+                style="flex-grow: 1; width: 100%; padding: 1.5rem; resize: none; margin-bottom: 1.5rem; outline: none;"></textarea>
+
+            <div style="display: flex; justify-content: flex-end; gap: 1rem; align-items: center; width: 100%;">
+                <input type="text" id="script-editor-regen-feedback" class="neon-input"
+                    placeholder="Optional: Tell AI what to change (e.g., 'Make the circle red', 'Align elements to the left')"
+                    style="flex-grow: 1; display: none;">
+                <button id="script-editor-regen-manim" class="neon-btn"
+                    style="display: none; white-space: nowrap;">Regenerate Manim</button>
+                <button id="script-editor-regen-gif" class="neon-btn" style="display: none; white-space: nowrap;">Reload
+                    GIF</button>
+                <button id="script-editor-cancel" class="neon-btn neon-btn-outline"
+                    style="padding: 0.8rem 2rem;">Cancel</button>
+                <button id="script-editor-save" class="neon-btn neon-btn-gold"
+                    style="padding: 0.8rem 2rem; white-space: nowrap;">Save & Apply</button>
             </div>
         </div>
+    </div>
 
-        <!-- Script Editor Modal -->
-        <div id="script-editor-modal" class="glass-overlay" style="position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:500; display:flex; flex-direction:column; justify-content:center; align-items:center;">
-            <div class="glass-panel" style="width: 80%; height: 80%; display: flex; flex-direction: column; padding: 2rem;">
-                <h2 class="revamp-title" style="font-size: 2.5rem; text-align: left; margin-top: 0; margin-bottom: 1rem;">Raw Script Editor</h2>
-                
-                <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
-                    <button class="editor-tab active-tab" data-mode="slide" style="background: rgba(255, 215, 0, 0.2); border: 1px solid var(--border-gold); color: var(--text-gold); padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.3s;">Current Slide</button>
-                    <button class="editor-tab" data-mode="narration" style="background: transparent; border: 1px solid #555; color: #aaa; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.3s;">Current Voiceover</button>
-                    <button class="editor-tab" data-mode="full" style="background: transparent; border: 1px solid #555; color: #aaa; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.3s;">Entire Script</button>
-                </div>
-                
-                <p id="script-editor-hint" style="color: rgba(255,255,255,0.6); margin-bottom: 1rem; font-size: 0.9rem;">Edit the JSON object for the current scene.</p>
-                <textarea id="script-editor-textarea" class="ide-textarea" style="flex-grow: 1; width: 100%; padding: 1.5rem; resize: none; margin-bottom: 1.5rem; outline: none;"></textarea>
-                
-                <div style="display: flex; justify-content: flex-end; gap: 1rem; align-items: center; width: 100%;">
-                    <input type="text" id="script-editor-regen-feedback" class="neon-input" placeholder="Optional: Tell AI what to change (e.g., 'Make the circle red', 'Align elements to the left')" style="flex-grow: 1; display: none;">
-                    <button id="script-editor-regen-manim" class="neon-btn" style="display: none; white-space: nowrap;">Regenerate Manim</button>
-                    <button id="script-editor-regen-gif" class="neon-btn" style="display: none; white-space: nowrap;">Reload GIF</button>
-                    <button id="script-editor-cancel" class="neon-btn neon-btn-outline" style="padding: 0.8rem 2rem;">Cancel</button>
-                    <button id="script-editor-save" class="neon-btn neon-btn-gold" style="padding: 0.8rem 2rem; white-space: nowrap;">Save & Apply</button>
-                </div>
+    <!-- Info & Settings Modal -->
+    <div id="info-modal" class="glass-overlay"
+        style="position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:500; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+        <div class="glass-panel"
+            style="width: 80%; max-width: 800px; height: 80%; display: flex; flex-direction: column; padding: 2rem;">
+            <h2 class="revamp-title" style="font-size: 2.5rem; text-align: left; margin-top: 0; margin-bottom: 1rem;">
+                Presentation Overview</h2>
+            <p style="color: rgba(255,255,255,0.6); margin-bottom: 1.5rem; font-size: 0.9rem;">Review the generated
+                slides and force the background to either Aadhi (Mascot) or the Concept Tree for specific scenes. "Auto"
+                allows the AI to decide based on continuous flow.</p>
+
+            <div id="info-modal-list"
+                style="flex-grow: 1; overflow-y: auto; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 1rem; display: flex; flex-direction: column; gap: 0.8rem; margin-bottom: 1.5rem;">
+                <!-- Slide rows will be injected here dynamically -->
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                <button id="info-modal-close" class="neon-btn neon-btn-gold" style="padding: 0.8rem 2rem;">Close &
+                    Apply</button>
             </div>
         </div>
+    </div>
 
-        <!-- Info & Settings Modal -->
-        <div id="info-modal" class="glass-overlay" style="position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:500; display:flex; flex-direction:column; justify-content:center; align-items:center;">
-            <div class="glass-panel" style="width: 80%; max-width: 800px; height: 80%; display: flex; flex-direction: column; padding: 2rem;">
-                <h2 class="revamp-title" style="font-size: 2.5rem; text-align: left; margin-top: 0; margin-bottom: 1rem;">Presentation Overview</h2>
-                <p style="color: rgba(255,255,255,0.6); margin-bottom: 1.5rem; font-size: 0.9rem;">Review the generated slides and force the background to either Aadhi (Mascot) or the Concept Tree for specific scenes. "Auto" allows the AI to decide based on continuous flow.</p>
-                
-                <div id="info-modal-list" style="flex-grow: 1; overflow-y: auto; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 1rem; display: flex; flex-direction: column; gap: 0.8rem; margin-bottom: 1.5rem;">
-                    <!-- Slide rows will be injected here dynamically -->
-                </div>
-                
-                <div style="display: flex; justify-content: flex-end; gap: 1rem;">
-                    <button id="info-modal-close" class="neon-btn neon-btn-gold" style="padding: 0.8rem 2rem;">Close & Apply</button>
-                </div>
-            </div>
-        </div>
+    <!-- Cinematic Start Overlay -->
+    <div id="start-overlay"
+        style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.85); z-index:200; display:none; flex-direction:column; justify-content:center; align-items:center; backdrop-filter:blur(10px);">
+        <h1 style="color:#FFD700; font-size:3rem; margin-bottom:2rem; text-shadow:0 0 20px rgba(255,215,0,0.5);">Ready
+            to Begin</h1>
+        <button id="start-lecture-btn" class="btn-gold"
+            style="font-size:1.5rem; padding:1rem 3rem; border-radius:50px;">▶ Play Video</button>
+    </div>
 
-        <!-- Cinematic Start Overlay -->
-        <div id="start-overlay" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.85); z-index:200; display:none; flex-direction:column; justify-content:center; align-items:center; backdrop-filter:blur(10px);">
-            <h1 style="color:#FFD700; font-size:3rem; margin-bottom:2rem; text-shadow:0 0 20px rgba(255,215,0,0.5);">Ready to Begin</h1>
-            <button id="start-lecture-btn" class="btn-gold" style="font-size:1.5rem; padding:1rem 3rem; border-radius:50px;">▶ Play Video</button>
+    <!-- Intro Sequence Container -->
+    <div id="intro-sequence-container"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000; z-index: 1500; justify-content: center; align-items: center; overflow: hidden;">
+        <!-- Logo Video -->
+        <video id="intro-logo-video" src="video_template/logo_animation.mp4"
+            style="width: 100%; height: 100%; object-fit: cover; display: none;" playsinline></video>
+        <!-- Background for Subject Title -->
+        <img id="intro-static-bg" src="video_template/static_background.png"
+            style="position: absolute; width: 100%; height: 100%; object-fit: cover; display: none; z-index: 1;">
+        <!-- Subject Title -->
+        <div id="intro-subject-title"
+            style="display: none; color: #6c159e; font-family: var(--font-title), sans-serif; font-weight: 900; font-size: 5.5rem; text-align: center; text-transform: uppercase; letter-spacing: 4px; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.3)); text-shadow: 0 0 20px rgba(176, 38, 255, 0.4); opacity: 0; transition: opacity 2.5s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2; padding: 0 2rem; line-height: 1.2;">
         </div>
-
-        <!-- Intro Sequence Container -->
-        <div id="intro-sequence-container" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #000; z-index: 1500; justify-content: center; align-items: center; overflow: hidden;">
-            <!-- Logo Video -->
-            <video id="intro-logo-video" src="video_template/logo_animation.mp4" style="width: 100%; height: 100%; object-fit: cover; display: none;" playsinline></video>
-            <!-- Background for Subject Title -->
-            <img id="intro-static-bg" src="video_template/static_background.png" style="position: absolute; width: 100%; height: 100%; object-fit: cover; display: none; z-index: 1;">
-            <!-- Subject Title -->
-            <div id="intro-subject-title" style="display: none; color: #6c159e; font-family: var(--font-title), sans-serif; font-weight: 900; font-size: 5.5rem; text-align: center; text-transform: uppercase; letter-spacing: 4px; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.3)); text-shadow: 0 0 20px rgba(176, 38, 255, 0.4); opacity: 0; transition: opacity 2.5s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2; padding: 0 2rem; line-height: 1.2;"></div>
-        </div>
+    </div>
 
     <script>
         // --- VERCEL / RAILWAY DEPLOYMENT CONFIG ---
-        window.API_BASE_URL = ""; // Change this to the Railway URL when deploying Vercel
-        
+        window.API_BASE_URL = "https://aadhiprompt-production.up.railway.app"; // Change this to the Railway URL when deploying Vercel
+
         // --- JWT AUTHENTICATION OVERRIDE ---
         const originalFetch = window.fetch;
-        window.fetch = async function() {
+        window.fetch = async function () {
             let [resource, config] = arguments;
-            
+
             if (typeof resource === 'string' && resource.startsWith('/') && !resource.startsWith('//')) {
                 resource = window.API_BASE_URL + resource;
             }
@@ -2163,9 +2516,9 @@
                     config.headers['Authorization'] = `Bearer ${token}`;
                 }
             }
-            
+
             const response = await originalFetch(resource, config);
-            
+
             if (response.status === 401 && !resource.includes('/api/login')) {
                 localStorage.removeItem('jwt_token');
                 document.getElementById('auth-modal').style.display = 'flex';
@@ -2268,7 +2621,7 @@
                 const nodeDiv = document.createElement('div');
                 nodeDiv.className = 'concept-node';
                 nodeDiv.textContent = node.title || node.id;
-                
+
                 if (node.id === activeConceptId) {
                     nodeDiv.classList.add('active');
                     passedActive = true;
@@ -2276,7 +2629,7 @@
                     // Nodes before the active one are considered completed
                     nodeDiv.classList.add('completed');
                 }
-                
+
                 canvas.appendChild(nodeDiv);
             });
 
@@ -2293,7 +2646,7 @@
                 }
             });
         }
-        
+
         // --- Experiential Sound Engine ---
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         const audioCtx = new AudioContext();
@@ -2311,29 +2664,29 @@
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             const filter = audioCtx.createBiquadFilter();
-            
+
             osc.type = 'sine';
             filter.type = 'lowpass';
-            
+
             osc.connect(filter);
             filter.connect(gain);
             gain.connect(audioCtx.destination);
-            
+
             const now = audioCtx.currentTime;
-            
+
             // Frequency sweep for "whoosh"
             osc.frequency.setValueAtTime(800, now);
             osc.frequency.exponentialRampToValueAtTime(100, now + 0.3);
-            
+
             // Filter sweep
             filter.frequency.setValueAtTime(2000, now);
             filter.frequency.exponentialRampToValueAtTime(200, now + 0.3);
-            
+
             // Envelope
             gain.gain.setValueAtTime(0, now);
             gain.gain.linearRampToValueAtTime(0.5, now + 0.1);
             gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
-            
+
             osc.start(now);
             osc.stop(now + 0.4);
         }
@@ -2342,20 +2695,20 @@
             if (audioCtx.state === 'suspended') return;
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
-            
+
             osc.type = 'sine';
-            
+
             osc.connect(gain);
             gain.connect(audioCtx.destination);
-            
+
             const now = audioCtx.currentTime;
-            
+
             osc.frequency.setValueAtTime(1200, now);
-            
+
             gain.gain.setValueAtTime(0, now);
             gain.gain.linearRampToValueAtTime(0.3, now + 0.05);
             gain.gain.exponentialRampToValueAtTime(0.01, now + 1.0);
-            
+
             osc.start(now);
             osc.stop(now + 1.0);
         }
@@ -2368,7 +2721,7 @@
 
             const mascotBg = document.getElementById('mascot-bg');
             const staticBg = document.getElementById('static-bg');
-            
+
             // Hide all side panels first
             document.getElementById('concept-map-panel').classList.remove('active');
             document.getElementById('side-image-panel').classList.remove('active');
@@ -2380,7 +2733,7 @@
             document.getElementById('side-graph-panel').classList.remove('active');
             document.getElementById('side-video-panel').classList.remove('active');
             document.getElementById('side-gif-panel').classList.remove('active');
-            
+
             // 1. Static Background Visibility
             if (mascotBg.classList.contains('mascot-hidden')) {
                 staticBg.classList.remove('bg-hidden');
@@ -2389,7 +2742,7 @@
             }
 
             // 2. Render the Side Panel if it exists in the slide JSON
-            
+
             const flipToPanel = (panelId, preRenderCallback) => {
                 if (preRenderCallback) preRenderCallback();
                 document.getElementById('concept-map-panel').classList.add('active');
@@ -2406,14 +2759,14 @@
                         const imgEl = document.getElementById('side-image-display');
                         const loaderEl = document.getElementById('side-image-loader');
                         const prompt = slide.side_panel.prompt || slide.title;
-                        
+
                         imgEl.style.opacity = '0';
-                        if(loaderEl) loaderEl.style.opacity = '1';
-                        
+                        if (loaderEl) loaderEl.style.opacity = '1';
+
                         const finalizeImage = (url) => {
                             imgEl.onload = () => {
                                 imgEl.style.opacity = '1';
-                                if(loaderEl) loaderEl.style.opacity = '0';
+                                if (loaderEl) loaderEl.style.opacity = '0';
                             };
                             imgEl.src = url;
                         };
@@ -2425,7 +2778,7 @@
                             // If we click too fast and beat the preloader, force it to load now
                             imagePreloader.preloadImage(prompt, currentSubjectName)
                                 .then(finalizeImage)
-                                .catch(() => { if(loaderEl) loaderEl.style.opacity = '0'; });
+                                .catch(() => { if (loaderEl) loaderEl.style.opacity = '0'; });
                         }
                     });
                 } else if (spType === 'animation') {
@@ -2471,27 +2824,27 @@
         function spawnSideAnimations(keyword) {
             const canvas = document.getElementById('side-animation-canvas');
             canvas.innerHTML = '';
-            
+
             const isMath = keyword.includes('math') || keyword.includes('science');
             const isCode = keyword.includes('code') || keyword.includes('tech');
-            
+
             // Generate professional geometric floating nodes
             const numNodes = 25;
             for (let i = 0; i < numNodes; i++) {
                 const el = document.createElement('div');
-                
+
                 // Base styles for professional sleek nodes
                 el.style.position = 'absolute';
                 el.style.background = 'rgba(255, 215, 0, 0.05)';
                 el.style.border = '1px solid rgba(255, 215, 0, 0.3)';
                 el.style.boxShadow = '0 0 15px rgba(255, 215, 0, 0.1)';
-                
+
                 const size = 10 + Math.random() * 40;
                 el.style.width = size + 'px';
                 el.style.height = size + 'px';
                 el.style.left = Math.random() * 100 + '%';
                 el.style.top = (100 + Math.random() * 20) + '%';
-                
+
                 // Shape variations based on subject context
                 if (isMath) {
                     // Abstract geometric circles
@@ -2499,15 +2852,15 @@
                 } else if (isCode) {
                     // Sharp tech squares and data blocks
                     el.style.borderRadius = '2px';
-                    if (Math.random() > 0.6) el.style.width = (size * 2) + 'px'; 
+                    if (Math.random() > 0.6) el.style.width = (size * 2) + 'px';
                 } else {
                     // Mixed abstract
                     if (Math.random() > 0.5) el.style.borderRadius = '50%';
                     else el.style.borderRadius = '4px';
                 }
-                
+
                 canvas.appendChild(el);
-                
+
                 if (window.gsap) {
                     gsap.to(el, {
                         y: -1200 - Math.random() * 500,
@@ -2527,7 +2880,7 @@
             const canvas = document.getElementById('side-chart-canvas');
             const titleEl = document.getElementById('chart-panel-title');
             if (!canvas) return;
-            
+
             titleEl.innerText = config.title || "Data Visualization";
 
             if (currentSideChart) {
@@ -2556,7 +2909,7 @@
         function renderSide3DModel(modelName) {
             const container = document.getElementById('side-3d-canvas-container');
             container.innerHTML = '';
-            
+
             // Basic Three.js setup
             const scene = new THREE.Scene();
             const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
@@ -2620,7 +2973,7 @@
                 btn.style.cursor = "pointer";
                 btn.style.transition = "all 0.2s";
                 btn.style.fontSize = "1rem";
-                
+
                 btn.onmouseover = () => btn.style.background = "rgba(176,38,255,0.4)";
                 btn.onmouseout = () => btn.style.background = "rgba(0,0,0,0.5)";
 
@@ -2660,7 +3013,7 @@
         function renderSideTerminal(config) {
             const outEl = document.getElementById('side-terminal-output');
             outEl.innerText = "root@aadhi:~# " + (config.command || "executing...");
-            
+
             // Simple typing effect
             const fullText = "\n\n" + (config.output || "Process completed successfully.\nMemory cleared.");
             let i = 0;
@@ -2680,22 +3033,22 @@
             if (currentJSXBoard) {
                 JXG.JSXGraph.freeBoard(currentJSXBoard);
             }
-            
+
             currentJSXBoard = JXG.JSXGraph.initBoard('side-jxgbox', {
                 boundingbox: [-5, 5, 5, -5],
                 axis: true,
                 showCopyright: false,
                 theme: 'dark'
             });
-            
+
             if (config.function) {
                 // Safely plot the function if provided
                 try {
-                    currentJSXBoard.create('functiongraph', [function(x){
+                    currentJSXBoard.create('functiongraph', [function (x) {
                         // A simple eval for demo purposes. In production, use a math parser.
                         return eval(config.function.replace(/x/g, `(${x})`));
-                    }], {strokeColor: '#b026ff', strokeWidth: 3});
-                } catch(e) {
+                    }], { strokeColor: '#b026ff', strokeWidth: 3 });
+                } catch (e) {
                     console.error("Function parsing error:", e);
                 }
             }
@@ -2704,13 +3057,13 @@
         function renderSideVideo(config) {
             const videoElement = document.getElementById('side-video-player');
             const labelElement = document.getElementById('side-video-label');
-            
+
             if (config.title) {
                 labelElement.innerText = config.title;
             } else {
                 labelElement.innerText = "Explanatory Video";
             }
-            
+
             // Check if we already have the compiled video url
             if (config.video_url) {
                 videoElement.src = config.video_url;
@@ -2720,7 +3073,7 @@
                 // We need to compile it on the fly!
                 videoElement.src = '';
                 videoElement.poster = '';
-                
+
                 // Add spinner for side panel compiling
                 let spinner = document.getElementById('side-video-spinner');
                 if (!spinner) {
@@ -2738,14 +3091,14 @@
 
                 fetch('/render', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({code: config.manim_code})
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: config.manim_code })
                 }).then(res => {
-                    if (!res.ok) return res.json().then(err => {throw new Error(err.detail)});
+                    if (!res.ok) return res.json().then(err => { throw new Error(err.detail) });
                     return res.json();
                 }).then(data => {
                     spinner.style.display = 'none';
-                    if(data.status === 'success') {
+                    if (data.status === 'success') {
                         config.video_url = data.video_url; // Cache it
                         saveProjectBackup();
                         videoElement.src = data.video_url;
@@ -2766,35 +3119,35 @@
         function renderSideGif(config) {
             const imgElement = document.getElementById('side-gif-player');
             const labelElement = document.getElementById('side-gif-label');
-            
+
             if (config.title) {
                 labelElement.innerText = config.title;
             } else {
                 labelElement.innerText = "";
             }
-            
+
             if (config.gif_url) {
                 imgElement.src = config.gif_url;
             } else if (config.query) {
                 imgElement.src = '';
                 labelElement.innerText = "Searching Giphy...";
-                
+
                 fetch(`/get-gif?query=${encodeURIComponent(config.query)}`)
-                .then(res => {
-                    if (!res.ok) return res.json().then(err => {throw new Error(err.detail)});
-                    return res.json();
-                }).then(data => {
-                    if(data.status === 'success') {
-                        config.gif_url = data.gif_url; // Cache it
-                        saveProjectBackup();
-                        imgElement.src = data.gif_url;
-                        if (config.title) labelElement.innerText = config.title;
-                        else labelElement.innerText = "";
-                    }
-                }).catch(err => {
-                    console.error("Giphy Error:", err);
-                    labelElement.innerText = "Failed to load GIF";
-                });
+                    .then(res => {
+                        if (!res.ok) return res.json().then(err => { throw new Error(err.detail) });
+                        return res.json();
+                    }).then(data => {
+                        if (data.status === 'success') {
+                            config.gif_url = data.gif_url; // Cache it
+                            saveProjectBackup();
+                            imgElement.src = data.gif_url;
+                            if (config.title) labelElement.innerText = config.title;
+                            else labelElement.innerText = "";
+                        }
+                    }).catch(err => {
+                        console.error("Giphy Error:", err);
+                        labelElement.innerText = "Failed to load GIF";
+                    });
             }
         }
 
@@ -2805,7 +3158,7 @@
         let wsProgress;
         function connectWebSocket() {
             wsProgress = new WebSocket(`ws://${window.location.host}/ws/progress`);
-            wsProgress.onmessage = function(event) {
+            wsProgress.onmessage = function (event) {
                 if (event.data.startsWith('MANIM_LOG:')) {
                     const logMsg = event.data.replace('MANIM_LOG:', '');
                     const logDiv = document.querySelector('.manim-live-log');
@@ -2815,7 +3168,7 @@
                     }
                 }
             };
-            wsProgress.onclose = function() {
+            wsProgress.onclose = function () {
                 setTimeout(connectWebSocket, 5000); // Reconnect
             };
         }
@@ -2826,7 +3179,7 @@
         function applyAadhiLayout(position, slide) {
             const root = document.documentElement;
             const mascotContainer = document.getElementById('mascot-bg');
-            
+
             // Backward compatibility logic
             if (!position) {
                 let needsMascot = (slide.type === 'title' || slide.type === 'content');
@@ -2834,7 +3187,7 @@
                 if (slide.force_background && slide.force_background !== 'auto') {
                     needsMascot = (slide.force_background === 'mascot');
                 }
-                
+
                 if (needsMascot) {
                     position = 'left'; // Default new static position
                 } else {
@@ -2852,7 +3205,7 @@
                         activeLayer.play().catch(e => console.log('play prevented', e));
                     }
                 }
-                
+
                 // Allow the 0.5s CSS crossfade to finish while both play, then pause the hidden ones
                 setTimeout(() => {
                     layers.forEach(layer => {
@@ -2863,7 +3216,7 @@
                 }, 500);
             };
 
-            switch(position) {
+            switch (position) {
                 case 'left':
                     root.style.setProperty('--side-zone-left', '75%');
                     root.style.setProperty('--side-zone-width', 'fit-content');
@@ -2919,13 +3272,13 @@
 
         function renderSlide(index) {
             const thisSlideRenderId = ++window.currentSlideRenderId;
-            
+
             // Instantly kill any currently playing or fetching TTS audio from previous slides
             speakNarration(null);
-            
+
             const slide = slides[index];
             const container = document.getElementById('slide-content-container');
-            
+
             // Apply Dynamic Mascot Layout
             let aadhiPos = slide.aadhi_position;
             if (slide.type === 'ai_video' && (aadhiPos === 'hidden' || !aadhiPos)) {
@@ -2935,12 +3288,12 @@
 
             const root = document.documentElement;
             const sideZoneEl = document.querySelector('.dynamic-side-zone');
-            
+
             // Hide sidebar for ai_video and expand the board to utilize the space
             if (slide.type === 'ai_video') {
                 if (sideZoneEl) sideZoneEl.style.display = 'none';
                 if (aadhiPos === 'left') {
-                    root.style.setProperty('--board-width', '65%'); 
+                    root.style.setProperty('--board-width', '65%');
                 } else if (aadhiPos === 'right') {
                     root.style.setProperty('--board-left', '5%');
                     root.style.setProperty('--board-width', '65%');
@@ -2952,13 +3305,13 @@
                 if (sideZoneEl) sideZoneEl.style.display = '';
             }
 
-            
+
             // Global Video Progress Bar
             const progFill = document.querySelector('.video-progress-fill');
             if (progFill) {
                 progFill.style.width = ((index + 1) / slides.length) * 100 + '%';
             }
-            
+
             // Slide Scrubber Logic
             const scrubber = document.getElementById('slide-scrubber-container');
             if (scrubber) {
@@ -2968,12 +3321,12 @@
                         const dot = document.createElement('div');
                         dot.className = 'scrubber-dot';
                         if (idx === index) dot.classList.add('active');
-                        
+
                         const tooltip = document.createElement('div');
                         tooltip.className = 'scrubber-tooltip';
                         tooltip.textContent = s.title || `Scene ${idx + 1}`;
                         dot.appendChild(tooltip);
-                        
+
                         dot.addEventListener('click', () => {
                             if (currentSlide !== idx) {
                                 currentSlide = idx;
@@ -3037,13 +3390,13 @@
                 // Remove old classes
                 container.className = 'slide-container slide-content';
                 titleContainer.innerHTML = '';
-                
+
                 // Ensure visibility (no manual fading needed with View Transitions)
                 titleContainer.style.opacity = '1';
                 container.style.opacity = '1';
                 if (visualContainer) visualContainer.style.opacity = '1';
                 board.classList.add('visible');
-                
+
                 // Handle Visual Container Layout
                 if (visualContainer) {
                     // Explicitly pause and wipe any active videos to guarantee audio stops instantly
@@ -3053,7 +3406,7 @@
                         v.removeAttribute('src');
                         v.load();
                     });
-                    
+
                     visualContainer.innerHTML = '';
                     if (slide.type === 'ai_video') {
                         let prompt = slide.prompt;
@@ -3061,10 +3414,10 @@
                         container.classList.add('hidden'); // Hide text container completely
 
                         const renderAiVideoPlayer = (url) => {
-                            let videoAttrs = slide.ai_audio_source === 'video' 
-                                ? 'autoplay style="width:100%; height:100%; object-fit:cover;"' 
+                            let videoAttrs = slide.ai_audio_source === 'video'
+                                ? 'autoplay style="width:100%; height:100%; object-fit:cover;"'
                                 : 'autoplay muted style="width:100%; height:100%; object-fit:cover;"';
-                            
+
                             document.getElementById('jxgbox').innerHTML = `<video id="active-ai-video" src="${url}" ${videoAttrs}></video>`;
 
                             const videoEl = document.getElementById('active-ai-video');
@@ -3104,20 +3457,20 @@
                                 <div class="spinner" style="border-top-color: #FFD700;"></div>
                                 <div style="margin-top:1rem; color:#FFD700; font-family:monospace; text-align:center;">Generating AI Video (approx 1-2 min)...<br><span style="font-size:0.8em; opacity:0.8;">Prompt: "${prompt}"</span></div>
                             `;
-                            
+
                             fetch('/generate-ai-video', {
                                 method: 'POST',
-                                headers: {'Content-Type': 'application/json'},
-                                body: JSON.stringify({prompt: prompt})
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ prompt: prompt })
                             }).then(res => {
-                                if (!res.ok) return res.json().then(err => {throw new Error(err.detail)});
+                                if (!res.ok) return res.json().then(err => { throw new Error(err.detail) });
                                 return res.json();
                             }).then(data => {
                                 if (window.currentSlideRenderId !== thisSlideRenderId) return;
-                                if(data.status === 'success') {
+                                if (data.status === 'success') {
                                     slide.video_url = data.video_url; // Cache it!
                                     renderAiVideoPlayer(slide.video_url);
-                                } else if(data.status === 'manual_required') {
+                                } else if (data.status === 'manual_required') {
                                     document.getElementById('jxgbox').innerHTML = `
                                     <div style='color:var(--border-gold); padding:2rem; font-family:sans-serif; text-align:center; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; max-width:800px; margin:0 auto;'>
                                         <h2 style='font-size:2rem; margin-bottom:1rem; color: #E50914;'>Manual AI Generation Required</h2>
@@ -3138,7 +3491,7 @@
                             }).catch(err => {
                                 if (window.currentSlideRenderId !== thisSlideRenderId) return;
                                 const jxgbox = document.getElementById('jxgbox');
-                                if(jxgbox) {
+                                if (jxgbox) {
                                     jxgbox.innerHTML = `<div style='color:#FF4444; padding:1rem; font-family:monospace; font-size:12px; overflow-y:auto; max-height:100%; width:100%; text-align:left;'><b>AI Video Error:</b><br>${err.message}</div>`;
                                 }
                             });
@@ -3148,15 +3501,15 @@
                     } else if (slide.type === 'p5_simulation') {
                         visualContainer.classList.remove('hidden');
                         container.classList.add('hidden'); // Hide text container
-                        
+
                         visualContainer.innerHTML = '';
-                        
+
                         const iframe = document.createElement('iframe');
                         iframe.style.width = '100%';
                         iframe.style.height = '100%';
                         iframe.style.border = 'none';
                         iframe.style.borderRadius = '12px';
-                        
+
                         // Construct HTML blob for iframe
                         const p5Html = `
                             <!DOCTYPE html>
@@ -3176,15 +3529,15 @@
 </body>
                             </html>
                         `;
-                        
-                        const blob = new Blob([p5Html], {type: 'text/html'});
+
+                        const blob = new Blob([p5Html], { type: 'text/html' });
                         iframe.src = URL.createObjectURL(blob);
                         visualContainer.appendChild(iframe);
-                        
+
                     } else if (slide.type === 'visual' || slide.type === 'simulation') {
                         let code = slide.manim_code || slide.simulation_code || slide.code;
                         let svg = slide.visual_svg || slide.svg;
-                        
+
                         visualContainer.classList.remove('hidden');
                         container.classList.add('hidden'); // Hide text container completely
 
@@ -3194,18 +3547,18 @@
                                 <div style="margin-top:1rem; color:#FFD700; font-family:monospace;">Compiling Manim Video...</div>
                                 <div class="manim-live-log" style="margin-top:0.5rem; color:#888; font-family:monospace; font-size:12px; max-width:80%; text-align:center;">Connecting to build server...</div>
                             </div>`;
-                            
+
                             // Call Python backend
                             fetch('/render', {
                                 method: 'POST',
-                                headers: {'Content-Type': 'application/json'},
-                                body: JSON.stringify({code: code})
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ code: code })
                             }).then(res => {
-                                if (!res.ok) return res.json().then(err => {throw new Error(err.detail)});
+                                if (!res.ok) return res.json().then(err => { throw new Error(err.detail) });
                                 return res.json();
                             }).then(data => {
                                 if (window.currentSlideRenderId !== thisSlideRenderId) return;
-                                if(data.status === 'success') {
+                                if (data.status === 'success') {
                                     document.getElementById('jxgbox').innerHTML = `<video src="${data.video_url}" autoplay loop muted style="width:100%; height:100%; object-fit:contain;"></video>`;
                                 } else {
                                     throw new Error(data.detail || 'Unknown compilation error');
@@ -3213,7 +3566,7 @@
                             }).catch(err => {
                                 if (window.currentSlideRenderId !== thisSlideRenderId) return;
                                 const jxgbox = document.getElementById('jxgbox');
-                                if(jxgbox) {
+                                if (jxgbox) {
                                     jxgbox.innerHTML = `<div style='color:#FF4444; padding:1rem; font-family:monospace; font-size:12px; overflow-y:auto; max-height:100%; width:100%; text-align:left;'><b>Manim Compilation Error:</b><br>${err.message}<br><br><b>Code Generated:</b><br><pre style="white-space:pre-wrap; word-break:break-all;">${code.replace(/</g, '&lt;')}</pre></div>`;
                                 }
                             });
@@ -3259,7 +3612,7 @@
                     // Clean up double-escaped MathJax blocks from uploaded JSON scripts
                     // This converts \\[ to \[ so MathJax can correctly identify the delimiters
                     finalHtml = finalHtml.replace(/\\\\\[/g, '\\[').replace(/\\\\\]/g, '\\]')
-                                         .replace(/\\\\\(/g, '\\(').replace(/\\\\\)/g, '\\)');
+                        .replace(/\\\\\(/g, '\\(').replace(/\\\\\)/g, '\\)');
                     if (finalHtml && slide.uploaded_images) {
                         const tempDiv = document.createElement('div');
                         tempDiv.innerHTML = finalHtml;
@@ -3282,7 +3635,7 @@
                         finalHtml = tempDiv.innerHTML;
                     }
                     container.innerHTML = finalHtml;
-                    
+
                     // Process Left Pane Dynamic GIFs
                     const liveGifs = container.querySelectorAll('.context-gif');
                     liveGifs.forEach(gif => {
@@ -3332,7 +3685,7 @@
                 if (overlayZone && dynamicZone) {
                     overlayZone.classList.remove('cinematic-zoom-active');
                     dynamicZone.classList.remove('cinematic-zoom-active');
-                    
+
                     if (!isGoingFullscreen) {
                         void overlayZone.offsetWidth; // trigger reflow to restart animation
                         overlayZone.classList.add('cinematic-zoom-active');
@@ -3342,7 +3695,7 @@
 
                 // 2. Kinetic Typography (Staggered cascading reveal)
                 const animateItems = container.querySelectorAll('h2, h3, p, li, tbody tr, .math-block, .definition, .formula-block, .info-callout, .warning-callout, .tip-callout, pre, .context-gif');
-                
+
                 animateItems.forEach((item, i) => {
                     // Start hidden, waiting for TTS sync
                     item.classList.add('cascade-hidden');
@@ -3355,7 +3708,7 @@
                     MathJax.typesetClear();
                     MathJax.typesetPromise([container]).catch((err) => console.log('MathJax error:', err));
                 }
-                
+
                 // Re-trigger Prism JS Syntax Highlighting
                 if (window.Prism) {
                     Prism.highlightAllUnder(container);
@@ -3374,9 +3727,9 @@
                             item.classList.add('cascade-visible');
                         }, i * 400 + 200); // Fast cascade fallback
                     });
-                    
+
                     updateTTSButtons();
-                    
+
                     // Fallback auto-advance for silent slides if exporting
                     if (isAutoExporting) {
                         setTimeout(() => {
@@ -3418,7 +3771,7 @@
         document.addEventListener('keydown', (e) => {
             const scriptModal = document.getElementById('script-editor-modal');
             const infoModal = document.getElementById('info-modal');
-            
+
             // Do not trigger slide transitions if a modal is open or typing in an input
             if (scriptModal && scriptModal.classList.contains('active')) return;
             if (infoModal && infoModal.classList.contains('active')) return;
@@ -3445,13 +3798,13 @@
             const mascotBg = document.getElementById('mascot-bg');
             const staticBg = document.getElementById('static-bg');
             const isMascotVisible = !mascotBg.classList.contains('bg-hidden');
-            
+
             if (isMascotVisible) {
                 // Switch from Mascot to Board/Tree
                 slide.force_background = 'tree';
                 mascotBg.classList.add('bg-hidden');
                 staticBg.classList.remove('bg-hidden');
-                
+
                 // Show appropriate side panel for this slide without re-rendering everything
                 document.querySelectorAll('.side-panel-content').forEach(p => p.classList.remove('active'));
                 if (slide.side_panel) {
@@ -3482,7 +3835,7 @@
                 staticBg.classList.add('bg-hidden');
             }
             saveProjectBackup();
-            
+
             // Also explicitly update the select dropdown in the voice control bar if it exists
             const selectEl = document.querySelector('.voice-control-bar select');
             if (selectEl) {
@@ -3512,7 +3865,7 @@
 
         function showStartOverlay() {
             uploadScreen.classList.add('hidden');
-            
+
             // Start background preloading of all AI images to prevent rate-limits and lag
             slides.forEach(s => {
                 if (s.side_panel && s.side_panel.type === 'image') {
@@ -3520,11 +3873,11 @@
                     imagePreloader.enqueue(prompt, currentSubjectName);
                 }
             });
-            
+
             // Bypass the start overlay and initialize audio context immediately
             const dummyAudio = new Audio();
-            dummyAudio.play().catch(e => {});
-            
+            dummyAudio.play().catch(e => { });
+
             startPresentationSequence(false);
         }
 
@@ -3547,16 +3900,16 @@
             clearTimeout(introTimeout3);
             clearTimeout(introTimeout4);
             clearTimeout(introTimeout5);
-            
+
             document.removeEventListener('keydown', introSkipListener);
             isIntroRunning = false;
-            
+
             const introContainer = document.getElementById('intro-sequence-container');
             const logoVideo = document.getElementById('intro-logo-video');
-            
+
             logoVideo.pause();
             introContainer.style.display = 'none';
-            
+
             startMainPresentation();
         }
 
@@ -3579,71 +3932,71 @@
             currentIsExporting = isExporting;
             if (window.currentAudio) window.currentAudio.pause();
             currentSlide = 0;
-            
+
             // Mark presentation as active to show bottom bar immediately
             document.body.classList.add('presentation-active');
-            
+
             // Hide presentation board initially
             const presentationBoard = document.getElementById('presentation-board');
             presentationBoard.classList.add('hidden');
-            
+
             const introContainer = document.getElementById('intro-sequence-container');
             const logoVideo = document.getElementById('intro-logo-video');
             const subjectTitle = document.getElementById('intro-subject-title');
             const staticBg = document.getElementById('intro-static-bg');
-            
+
             introContainer.style.display = 'flex';
             logoVideo.style.display = 'block';
             subjectTitle.style.display = 'none';
             subjectTitle.style.opacity = '0';
             staticBg.style.display = 'none';
-            
+
             logoVideo.currentTime = 0;
             logoVideo.play().catch(e => console.error("Logo video play error", e));
-            
+
             isIntroRunning = true;
             document.addEventListener('keydown', introSkipListener);
-            
+
             // Force transition to subject title exactly after 5.5 seconds
             introTimeout1 = setTimeout(() => {
                 if (!isIntroRunning) return;
                 logoVideo.pause();
                 logoVideo.style.display = 'none';
-                
+
                 // Show static background and subject title
                 staticBg.style.display = 'block';
-                
+
                 // --- Title Card 1: Subject Name + Unit Name ---
                 const card1_line1 = currentSubjectName || "Subject Title";
                 const card1_line2 = currentUnitName || "";
                 subjectTitle.innerHTML = `${card1_line1}${card1_line2 ? `<br><span style="font-size: 0.6em; opacity: 0.85;">${card1_line2}</span>` : ''}`;
-                
+
                 subjectTitle.style.display = 'block';
                 // Trigger fade in
                 setTimeout(() => { subjectTitle.style.opacity = '1'; }, 100);
-                
+
                 // Hold for 2.5 seconds, then fade out
                 introTimeout2 = setTimeout(() => {
                     if (!isIntroRunning) return;
                     subjectTitle.style.opacity = '0';
-                    
+
                     // Wait for fade out, then show Title Card 2
                     introTimeout3 = setTimeout(() => {
                         if (!isIntroRunning) return;
-                        
+
                         // --- Title Card 2: Session Number + Session Title ---
                         const card2_line1 = currentSessionNumber || "Session 1";
                         const card2_line2 = currentSessionTitle || "";
                         subjectTitle.innerHTML = `${card2_line1}${card2_line2 ? `<br><span style="font-size: 0.6em; opacity: 0.85;">${card2_line2}</span>` : ''}`;
-                        
+
                         // Trigger fade in
                         subjectTitle.style.opacity = '1';
-                        
+
                         // Hold for 2.5 seconds, then fade out
                         introTimeout4 = setTimeout(() => {
                             if (!isIntroRunning) return;
                             subjectTitle.style.opacity = '0';
-                            
+
                             // Wait for fade out, then end intro
                             introTimeout5 = setTimeout(() => {
                                 if (!isIntroRunning) return;
@@ -3653,7 +4006,7 @@
                                 startMainPresentation();
                             }, 2000);
                         }, 2500); // Hold Card 2 for 2.5 seconds
-                        
+
                     }, 2000); // Wait for Card 1 fade out
                 }, 2500); // Hold Card 1 for 2.5 seconds
             }, 5500); // Wait exactly 5.5 seconds for logo video
@@ -3662,8 +4015,8 @@
         startBtn.addEventListener('click', () => {
             // Unlocks Audio Context
             const dummyAudio = new Audio();
-            dummyAudio.play().catch(e => {});
-            
+            dummyAudio.play().catch(e => { });
+
             startOverlay.style.opacity = '0';
             setTimeout(() => {
                 startOverlay.style.display = 'none';
@@ -3689,17 +4042,17 @@
                 if (!prompt) return;
                 const cacheKey = prompt.trim();
                 if (this.cache.has(cacheKey) || this.queue.some(q => q.prompt === cacheKey)) return;
-                
+
                 this.queue.push({ prompt: cacheKey, subjectName });
                 this.processQueue();
             }
 
             async processQueue() {
                 if (this.activeConnections >= this.maxConnections || this.queue.length === 0) return;
-                
+
                 const item = this.queue.shift();
                 this.activeConnections++;
-                
+
                 try {
                     await this.preloadImage(item.prompt, item.subjectName);
                 } catch (e) {
@@ -3716,7 +4069,7 @@
                     const encoded = encodeURIComponent(prompt);
                     const encodedSubject = encodeURIComponent(subjectName || "");
                     const url = `/get-image?prompt=${encoded}&subjectName=${encodedSubject}`;
-                    
+
                     img.onload = () => {
                         this.cache.set(prompt, url);
                         resolve(url);
@@ -3730,7 +4083,7 @@
                 return this.cache.get(prompt ? prompt.trim() : "");
             }
         }
-        
+
         const imagePreloader = new ImagePreloaderQueue();
 
         // State variables
@@ -3792,7 +4145,7 @@
             const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
             const isDOCX = file.name.toLowerCase().endsWith('.docx') || file.type.includes('wordprocessingml');
             const isJSON = file.name.toLowerCase().endsWith('.json') || file.type === 'application/json';
-            
+
             if (!isPDF && !isDOCX && !isJSON) {
                 alert('Please upload a PDF, DOCX, or JSON script file.');
                 return;
@@ -3816,27 +4169,27 @@
                 return JSON.parse(text);
             } catch (e) {
                 console.warn("Standard JSON.parse failed, attempting repair...", e);
-                
+
                 // Fix unescaped literal control characters
                 let repaired = text.replace(/(?<!\\)\n/g, '\\n')
-                                   .replace(/(?<!\\)\r/g, '\\r')
-                                   .replace(/(?<!\\)\t/g, '\\t');
-                
+                    .replace(/(?<!\\)\r/g, '\\r')
+                    .replace(/(?<!\\)\t/g, '\\t');
+
                 // Fix invalid backslash escapes (e.g. \s, \a, \ ) by pairing odd backslashes
-                repaired = repaired.replace(/\\+/g, function(match, offset, str) {
+                repaired = repaired.replace(/\\+/g, function (match, offset, str) {
                     if (match.length % 2 === 0) return match;
-                    
+
                     const nextChar = str[offset + match.length];
                     const isHex = nextChar === 'u' && /^[0-9a-fA-F]{4}/.test(str.substring(offset + match.length + 1, offset + match.length + 5));
                     const isValidJSONEscape = ['"', '/', 'b', 'f', 'n', 'r', 't'].includes(nextChar) || isHex;
-                    
+
                     if (isValidJSONEscape) return match;
                     return match + '\\'; // Make the sequence even, thereby escaping the last backslash
                 });
-                
+
                 // Fix trailing commas in arrays/objects
                 repaired = repaired.replace(/,\s*([}\]])/g, '$1');
-                
+
                 return JSON.parse(repaired);
             }
         }
@@ -3915,16 +4268,16 @@
             }
 
             const ttsEngine = document.getElementById('tts-engine-select') ? document.getElementById('tts-engine-select').value : 'default';
-            const selectedVoice = ttsEngine === 'default' 
-                                    ? document.getElementById('voice-select').value 
-                                    : document.getElementById('gemini-voice-select').value;
-            
+            const selectedVoice = ttsEngine === 'default'
+                ? document.getElementById('voice-select').value
+                : document.getElementById('gemini-voice-select').value;
+
             // -----------------------------------------------------
             // ULTIMATE PROPORTIONAL SYNC ENGINE (100% TTS INDEPENDENT)
             // -----------------------------------------------------
-            
+
             const subTrack = document.getElementById('subtitle-track');
-            
+
             if (ttsEngine === 'default') {
                 const cleanText = text.replace(/\[SYNC\]/g, "");
                 const utterance = new SpeechSynthesisUtterance(cleanText);
@@ -3932,7 +4285,7 @@
                 const voiceObj = voices.find(v => v.name === selectedVoice);
                 if (voiceObj) utterance.voice = voiceObj;
                 utterance.rate = ttsState.rate;
-                
+
                 utterance.onstart = () => {
                     ttsState.isPlaying = true;
                     updateTTSButtons();
@@ -3975,10 +4328,10 @@
                 // Parse the [SYNC] markers for DOM reveals
                 const parts = text.split('[SYNC]');
                 const cleanText = text.replace(/\[SYNC\]/g, "");
-                
+
                 // Calculate exact character index for each sync point
                 const syncTimings = [];
-                
+
                 if (parts.length > 1) {
                     let currentLen = 0;
                     for (let i = 0; i < parts.length - 1; i++) {
@@ -3993,24 +4346,24 @@
                     let currentIndex = 0;
                     syncElements.forEach(el => {
                         const elText = el.textContent.trim().toLowerCase();
-                        const words = elText.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g,"").split(/\s+/);
+                        const words = elText.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "").split(/\s+/);
                         let anchorWord = words.find(w => w.length > 3) || words[0] || "";
-                        
+
                         let foundIndex = -1;
                         if (anchorWord) {
                             foundIndex = cleanText.toLowerCase().indexOf(anchorWord, currentIndex);
                         }
-                        
+
                         // If not found, just distribute them evenly as a fallback
                         if (foundIndex === -1) {
                             foundIndex = currentIndex + (cleanText.length - currentIndex) / (syncElements.length);
                         }
-                        
+
                         syncTimings.push({
                             charIndex: foundIndex,
                             revealed: false
                         });
-                        
+
                         currentIndex = foundIndex;
                     });
                 }
@@ -4034,13 +4387,13 @@
                     voice: selectedVoice,
                     tts_engine: ttsEngine
                 };
-                
+
                 const res = await fetch('/generate-audio', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(requestBody)
                 });
-                
+
                 if (!res.ok) throw new Error("Audio generation failed");
                 const data = await res.json();
                 if (data.status !== 'success') throw new Error(data.detail);
@@ -4057,10 +4410,10 @@
                 // When audio loads, initialize the UI and start playback
                 audio.addEventListener('loadedmetadata', () => {
                     if (window.currentNarrationId !== thisNarrationId) return;
-                    
+
                     const totalChars = cleanText.length;
                     const duration = audio.duration || 1; // Fallback to 1 to avoid div-by-zero
-                    
+
                     // Assign a target time in seconds to each sync point based on character ratio
                     syncTimings.forEach(sync => {
                         sync.targetTime = (sync.charIndex / totalChars) * duration;
@@ -4069,7 +4422,7 @@
                     subtitleTimings.forEach(sub => {
                         sub.targetTime = (sub.charIndex / totalChars) * duration;
                     });
-                    
+
                     if (subTrack && subtitleTimings.length > 0) {
                         subTrack.innerHTML = subtitleTimings[0].subtitle;
                         subTrack.classList.add('active');
@@ -4079,17 +4432,17 @@
                         audio.play().catch(e => console.error("Playback prevented:", e));
                     }
                 });
-                
+
                 // Sync points via timeupdate
                 audio.addEventListener('timeupdate', () => {
                     if (window.currentNarrationId !== thisNarrationId) return;
                     const ct = audio.currentTime;
-                    
+
                     for (let i = 0; i < syncTimings.length; i++) {
                         const sync = syncTimings[i];
                         if (!sync.revealed && ct >= sync.targetTime) {
                             sync.revealed = true;
-                            
+
                             // Reveal the corresponding DOM element
                             if (syncElements && i < syncElements.length) {
                                 syncElements[i].classList.remove('cascade-hidden');
@@ -4120,7 +4473,7 @@
                             }
                         }
                     }
-                    
+
                     // Reveal any remaining elements if we are at the very end
                     if (ct >= audio.duration - 0.5) {
                         triggerFallbackReveal();
@@ -4130,7 +4483,7 @@
                 audio.addEventListener('ended', () => {
                     if (window.currentNarrationId !== thisNarrationId) return;
                     triggerFallbackReveal();
-                    
+
                     if (ttsState.isPlaying) {
                         if (currentSlide < slides.length - 1) {
                             currentSlide++;
@@ -4143,7 +4496,7 @@
                         }
                     }
                 });
-                
+
                 // Fallback loop to ensure play/pause state is respected
                 const checkPlayState = setInterval(() => {
                     if (window.currentNarrationId !== thisNarrationId) {
@@ -4157,21 +4510,21 @@
                         audio.play().catch(e => console.log("Auto-play prevented", e));
                     }
                 }, 100);
-                
+
                 audio.addEventListener('ended', () => clearInterval(checkPlayState));
                 audio.addEventListener('error', () => clearInterval(checkPlayState));
 
             } catch (e) {
                 console.error("Audio playback error:", e);
                 triggerFallbackReveal();
-                
+
                 if (ttsState.isPlaying && currentSlide < slides.length - 1) {
                     currentSlide++;
                     setTimeout(() => {
                         if (ttsState.isPlaying) renderSlide(currentSlide);
                     }, 2000);
                 }
-                
+
                 ttsState.isPlaying = false;
                 updateTTSButtons();
             }
@@ -4242,7 +4595,7 @@
             const newRate = parseFloat(e.target.value);
             ttsState.rate = newRate;
             ttsRateValue.textContent = `${newRate.toFixed(1)}x`;
-            
+
             if (window.currentAudio) {
                 window.currentAudio.playbackRate = newRate;
             }
@@ -4268,7 +4621,7 @@
                     geminiVoiceSelect.disabled = false;
                     geminiVoiceSelect.style.opacity = '1';
                     voiceSelect.style.opacity = '0.5';
-                    
+
                     if (ttsEngineSelect.value === 'elevenlabs') {
                         geminiVoiceSelect.innerHTML = elevenlabsVoicesHtml;
                         document.querySelector('label[for="gemini-voice-select"]').innerText = "ElevenLabs Voice";
@@ -4287,7 +4640,7 @@
         }
         const hardwareSelect = document.getElementById('hardware-select');
         const providerSelect = document.getElementById('provider-select');
-        
+
         const geminiModels = `
             <option value="gemini-3.5-flash">gemini-3.5-flash</option>
             <option value="gemini-3.1-pro-preview">gemini-3.1-pro (Preview)</option>
@@ -4360,16 +4713,16 @@
             });
         }
 
-        
+
         startServerBtn.addEventListener('click', async () => {
             const profile = hardwareSelect.value;
-            
+
             // UI Loading state
             startServerBtn.disabled = true;
             const originalText = startServerBtn.innerHTML;
             startServerBtn.innerHTML = '<span class="spinner" style="width:16px; height:16px; border-width:2px; margin:0;"></span> Loading...';
             startServerBtn.style.opacity = '0.7';
-            
+
             try {
                 const response = await fetch('/start-ai-server', {
                     method: 'POST',
@@ -4378,14 +4731,14 @@
                     },
                     body: JSON.stringify({ profile: profile })
                 });
-                
+
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.detail || 'Failed to start AI server');
                 }
-                
+
                 const data = await response.json();
-                
+
                 // UI Success state
                 startServerBtn.innerHTML = '✔ Server Online';
                 startServerBtn.style.background = '#28a745';
@@ -4393,14 +4746,14 @@
                 startServerBtn.style.color = 'white';
                 startServerBtn.style.opacity = '1';
                 // Keep it disabled so they don't click it again unnecessarily
-                
+
                 // Allow generating now that server is confirmed online
                 generateBtn.disabled = !selectedFile;
-                
+
             } catch (err) {
                 console.error(err);
                 alert('Error starting AI server: ' + err.message);
-                
+
                 // Reset UI
                 startServerBtn.disabled = false;
                 startServerBtn.innerHTML = originalText;
@@ -4436,7 +4789,7 @@
                 let extractedText = '';
                 let finalJsonData = null;
                 let isDirectJsonUpload = false;
-                
+
                 if (selectedFile.name.toLowerCase().endsWith('.json') || selectedFile.type === 'application/json') {
                     logStatus('Reading JSON...', 'Parsing the uploaded script...');
                     const textDecoder = new TextDecoder('utf-8');
@@ -4464,23 +4817,23 @@
                     }
                 } else if (selectedFile.name.toLowerCase().endsWith('.docx') || selectedFile.type.includes('wordprocessingml')) {
                     logStatus('Extracting Text...', 'Starting Mammoth.js DOCX parser...');
-                    const result = await mammoth.extractRawText({arrayBuffer: arrayBuffer});
+                    const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
                     extractedText = result.value;
                     logStatus('Extracting Text...', `DOCX loaded successfully.`);
                 }
 
                 if (!isDirectJsonUpload) {
 
-                // Cap the input to roughly 65,536 tokens (~262,144 characters) to save costs
-                const MAX_CHARS = 262144;
-                if (extractedText.length > MAX_CHARS) {
-                    logStatus('Extracting Text...', `Warning: Document is too large. Truncating from ${extractedText.length} characters to ${MAX_CHARS} characters (~65,536 tokens)...`);
-                    extractedText = extractedText.substring(0, MAX_CHARS);
-                }
+                    // Cap the input to roughly 65,536 tokens (~262,144 characters) to save costs
+                    const MAX_CHARS = 262144;
+                    if (extractedText.length > MAX_CHARS) {
+                        logStatus('Extracting Text...', `Warning: Document is too large. Truncating from ${extractedText.length} characters to ${MAX_CHARS} characters (~65,536 tokens)...`);
+                        extractedText = extractedText.substring(0, MAX_CHARS);
+                    }
 
-                logStatus('Sending to Gemini...', `Extracted ${extractedText.length} characters of text. Communicating with Gemini API...`);
+                    logStatus('Sending to Gemini...', `Extracted ${extractedText.length} characters of text. Communicating with Gemini API...`);
 
-                const systemPrompt = `You are an expert documentary director and educational content creator. Your task is to analyze the extracted text from a PDF.
+                    const systemPrompt = `You are an expert documentary director and educational content creator. Your task is to analyze the extracted text from a PDF.
 
   CRITICAL RULE - PRESERVE ALL CONTENT:
   You MUST preserve ALL information, points, sections, and details from the source document. Do NOT summarize, condense, truncate, or skip any content. Every single concept or paragraph from the source must be represented in the final presentation. It is absolutely FORBIDDEN to summarize the document for the sake of brevity.
@@ -4635,68 +4988,68 @@ Formatting and Narration constraints:
 - For 'simulation' (Manim) scenes, the narration MUST explain exactly what the student is seeing happen on screen in real-time.
 - Return ONLY a valid JSON object with the 'subject_name', 'concept_map' and 'scenes' keys. Do not write any explanations, markdown code blocks, or conversational text. Start with '{' and end with '}'.`;
 
-                const response = await fetch('/generate-script', {
-                    method: 'POST',
-                    headers: {
-                        'content-type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        prompt_text: `${systemPrompt}\n\nHere is the extracted text from the PDF:\n${extractedText}`,
-                        model_name: modelName,
-                        api_provider: document.getElementById('provider-select').value
-                    })
-                });
+                    const response = await fetch('/generate-script', {
+                        method: 'POST',
+                        headers: {
+                            'content-type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            prompt_text: `${systemPrompt}\n\nHere is the extracted text from the PDF:\n${extractedText}`,
+                            model_name: modelName,
+                            api_provider: document.getElementById('provider-select').value
+                        })
+                    });
 
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`API returned ${response.status}: ${errorText}`);
-                }
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`API returned ${response.status}: ${errorText}`);
+                    }
 
-                logStatus('Processing Response...', 'Reading streaming response from backend...');
-                
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder('utf-8');
-                let buffer = '';
-                let finalJsonData = null;
+                    logStatus('Processing Response...', 'Reading streaming response from backend...');
 
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    
-                    buffer += decoder.decode(value, { stream: true });
-                    let lines = buffer.split('\n');
-                    buffer = lines.pop(); // keep partial line in buffer
-                    
-                    for (let line of lines) {
-                        line = line.trim();
-                        if (!line) continue;
-                        
-                        if (line.startsWith('PROGRESS:')) {
-                            const chars = line.split(':')[1];
-                            logStatus('Generating Presentation...', `Received ${chars} characters from AI...`);
-                        } else if (line.startsWith('FINAL_JSON:')) {
-                            const jsonStr = line.substring('FINAL_JSON:'.length);
-                            finalJsonData = JSON.parse(jsonStr);
-                        } else if (line.startsWith('ERROR:')) {
-                            throw new Error(line.substring('ERROR:'.length));
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder('utf-8');
+                    let buffer = '';
+                    let finalJsonData = null;
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+
+                        buffer += decoder.decode(value, { stream: true });
+                        let lines = buffer.split('\n');
+                        buffer = lines.pop(); // keep partial line in buffer
+
+                        for (let line of lines) {
+                            line = line.trim();
+                            if (!line) continue;
+
+                            if (line.startsWith('PROGRESS:')) {
+                                const chars = line.split(':')[1];
+                                logStatus('Generating Presentation...', `Received ${chars} characters from AI...`);
+                            } else if (line.startsWith('FINAL_JSON:')) {
+                                const jsonStr = line.substring('FINAL_JSON:'.length);
+                                finalJsonData = JSON.parse(jsonStr);
+                            } else if (line.startsWith('ERROR:')) {
+                                throw new Error(line.substring('ERROR:'.length));
+                            }
                         }
                     }
-                }
-                
-                if (buffer.trim().startsWith('FINAL_JSON:')) {
-                    const jsonStr = buffer.trim().substring('FINAL_JSON:'.length);
-                    finalJsonData = JSON.parse(jsonStr);
-                } else if (buffer.trim().startsWith('ERROR:')) {
-                    throw new Error(buffer.trim().substring('ERROR:'.length));
-                }
-                
-                if (!finalJsonData) {
-                    throw new Error("Did not receive final JSON data from backend.");
-                }
+
+                    if (buffer.trim().startsWith('FINAL_JSON:')) {
+                        const jsonStr = buffer.trim().substring('FINAL_JSON:'.length);
+                        finalJsonData = JSON.parse(jsonStr);
+                    } else if (buffer.trim().startsWith('ERROR:')) {
+                        throw new Error(buffer.trim().substring('ERROR:'.length));
+                    }
+
+                    if (!finalJsonData) {
+                        throw new Error("Did not receive final JSON data from backend.");
+                    }
                 } // End if (!isDirectJsonUpload)
-                
+
                 let parsedData = finalJsonData;
-                
+
                 let newSlides = [];
                 if (Array.isArray(parsedData)) {
                     // Backward compatibility with old Array format
@@ -4748,7 +5101,7 @@ Formatting and Narration constraints:
             } catch (err) {
                 console.error(err);
                 logStatus('Error Occurred', `Failed: ${err.message}`);
-                
+
                 // Add retry/dismiss action button
                 const errDiv = document.createElement('div');
                 errDiv.className = 'error-message';
@@ -4785,7 +5138,7 @@ Formatting and Narration constraints:
                 try {
                     const parsed = JSON.parse(savedSlides);
                     let restoredSlides = [];
-                    
+
                     if (Array.isArray(parsed) && parsed.length > 0) {
                         // Backward compatibility (old backup)
                         restoredSlides = parsed;
@@ -4812,7 +5165,7 @@ Formatting and Narration constraints:
                     if (restoredSlides.length > 0) {
                         slides.length = 0;
                         slides.push(...restoredSlides);
-                        
+
                         const restoreBtn = document.getElementById('restore-btn');
                         if (restoreBtn) {
                             restoreBtn.style.display = 'block';
@@ -4823,7 +5176,7 @@ Formatting and Narration constraints:
                             });
                         }
                     }
-                } catch(e) {
+                } catch (e) {
                     console.error("Failed to restore slides", e);
                 }
             }
@@ -4832,10 +5185,10 @@ Formatting and Narration constraints:
         // --- Video Recorder Feature ---
         let mediaRecorder;
         let recordedChunks = [];
-        
+
         document.getElementById('record-btn').addEventListener('click', async () => {
             const btn = document.getElementById('record-btn');
-            
+
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 // Stop recording
                 mediaRecorder.stop();
@@ -4863,11 +5216,11 @@ Formatting and Narration constraints:
                 mediaRecorder = new MediaRecorder(stream, options);
                 recordedChunks = [];
 
-                mediaRecorder.ondataavailable = function(e) {
+                mediaRecorder.ondataavailable = function (e) {
                     if (e.data.size > 0) recordedChunks.push(e.data);
                 };
 
-                mediaRecorder.onstop = function() {
+                mediaRecorder.onstop = function () {
                     const blob = new Blob(recordedChunks, { type: 'video/webm' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -4877,7 +5230,7 @@ Formatting and Narration constraints:
                     a.download = 'presentation_export.webm';
                     a.click();
                     window.URL.revokeObjectURL(url);
-                    
+
                     // Stop all tracks to end sharing
                     stream.getTracks().forEach(track => track.stop());
                 };
@@ -4885,8 +5238,8 @@ Formatting and Narration constraints:
                 mediaRecorder.start();
                 btn.innerHTML = '<span class="btn-icon">⏹</span> Stop Recording';
                 btn.style.background = '#888';
-                
-            } catch(err) {
+
+            } catch (err) {
                 console.error("Recording error:", err);
                 alert("Failed to start recording. Please make sure you grant screen recording permissions.");
             }
@@ -4899,7 +5252,7 @@ Formatting and Narration constraints:
 
         document.getElementById('auto-export-btn').addEventListener('click', async () => {
             if (isAutoExporting) return; // Prevent double click
-            
+
             // Check if we have a presentation ready
             if (!slides || slides.length === 0) {
                 alert("Generate a video first before exporting!");
@@ -4933,11 +5286,11 @@ Formatting and Narration constraints:
                 autoExportRecorder = new MediaRecorder(stream, options);
                 autoExportChunks = [];
 
-                autoExportRecorder.ondataavailable = function(e) {
+                autoExportRecorder.ondataavailable = function (e) {
                     if (e.data.size > 0) autoExportChunks.push(e.data);
                 };
 
-                autoExportRecorder.onstop = function() {
+                autoExportRecorder.onstop = function () {
                     const blob = new Blob(autoExportChunks, { type: 'video/webm' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -4947,9 +5300,9 @@ Formatting and Narration constraints:
                     a.download = 'ultimate_presentation_export.webm';
                     a.click();
                     window.URL.revokeObjectURL(url);
-                    
+
                     stream.getTracks().forEach(track => track.stop());
-                    
+
                     isAutoExporting = false;
                     document.getElementById('voice-control-bar').classList.remove('hidden-force');
                 };
@@ -4957,15 +5310,15 @@ Formatting and Narration constraints:
                 isAutoExporting = true;
                 // Immediately hide UI
                 document.getElementById('voice-control-bar').classList.add('hidden-force');
-                
+
                 autoExportRecorder.start();
-                
+
                 // Buffer to let UI fade out before recording visually captures it
                 setTimeout(() => {
                     startPresentationSequence(true);
                 }, 500);
 
-            } catch(err) {
+            } catch (err) {
                 console.error("Auto Export error:", err);
                 alert("Failed to start auto-export. Please grant screen & audio recording permissions.");
                 isAutoExporting = false;
@@ -4993,11 +5346,11 @@ Formatting and Narration constraints:
             // Remove script editor modal
             const scriptModal = htmlClone.querySelector('#script-editor-modal');
             if (scriptModal) scriptModal.remove();
-            
+
             // Remove the Export HTML button from the cloned copy so they don't export an export
             const exportBtn = htmlClone.querySelector('#export-html-btn');
             if (exportBtn) exportBtn.remove();
-            
+
             // Remove the auto export button from the cloned copy
             const ultimateBtn = htmlClone.querySelector('#auto-export-btn');
             if (ultimateBtn) ultimateBtn.remove();
@@ -5018,7 +5371,7 @@ Formatting and Narration constraints:
             const fullHtml = "<!DOCTYPE html>\\n" + htmlClone.outerHTML;
             const blob = new Blob([fullHtml], { type: "text/html;charset=utf-8" });
             const url = URL.createObjectURL(blob);
-            
+
             // Trigger download
             const a = document.createElement('a');
             a.href = url;
@@ -5056,7 +5409,7 @@ Formatting and Narration constraints:
                 scriptEditorTextarea.value = JSON.stringify(sceneData, null, 4);
                 scriptEditorHint.innerText = "Edit the JSON object for the current scene.";
                 document.getElementById('script-editor-save').style.display = 'inline-block';
-                
+
                 const hasManim = sceneData.type === 'simulation' || (sceneData.side_panel && sceneData.side_panel.type === 'manim');
                 const hasGif = sceneData.side_panel && sceneData.side_panel.type === 'gif';
                 document.getElementById('script-editor-regen-manim').style.display = hasManim ? 'inline-block' : 'none';
@@ -5065,7 +5418,7 @@ Formatting and Narration constraints:
                 if (hasManim || hasGif) document.getElementById('script-editor-regen-feedback').value = '';
                 if (hasGif) document.getElementById('script-editor-regen-feedback').placeholder = "Optional: New search query for GIF";
                 else document.getElementById('script-editor-regen-feedback').placeholder = "Optional: Tell AI what to change";
-                
+
             } else if (currentMode === 'narration') {
                 scriptEditorTextarea.value = sceneData.narration || "";
                 scriptEditorHint.innerText = "Edit the voiceover text for the current scene.";
@@ -5092,13 +5445,13 @@ Formatting and Narration constraints:
                     t.style.color = '#aaa';
                     t.style.border = '1px solid #555';
                 });
-                
+
                 const clickedTab = e.target;
                 clickedTab.classList.add('active-tab');
                 clickedTab.style.background = 'rgba(255, 215, 0, 0.2)';
                 clickedTab.style.color = 'var(--text-gold)';
                 clickedTab.style.border = '1px solid var(--border-gold)';
-                
+
                 editorMode = clickedTab.getAttribute('data-mode');
                 populateEditor();
             });
@@ -5109,7 +5462,7 @@ Formatting and Narration constraints:
                 alert("No script has been generated yet. Please generate a video first.");
                 return;
             }
-            
+
             // Pause TTS and Video so user can edit in peace
             window.speechSynthesis.pause();
             const aiVideo = document.getElementById('ai-video-player');
@@ -5119,7 +5472,7 @@ Formatting and Narration constraints:
 
             // Populate textarea with currently selected mode
             populateEditor();
-            
+
             // Show Modal
         });
 
@@ -5130,7 +5483,7 @@ Formatting and Narration constraints:
         scriptEditorSave.addEventListener('click', () => {
             try {
                 const rawText = scriptEditorTextarea.value;
-                
+
                 if (editorMode === 'slide') {
                     const updatedSlide = JSON.parse(rawText);
                     slides[currentSlide] = updatedSlide;
@@ -5143,13 +5496,13 @@ Formatting and Narration constraints:
                 } else if (editorMode === 'narration') {
                     slides[currentSlide].narration = rawText;
                 }
-                
+
                 // Re-render the current slide to instantly show any HTML changes
                 renderSlide(currentSlide);
-                
+
                 // Auto-save backup to ensure edits are not lost on refresh
                 saveProjectBackup();
-                
+
                 fetch('/save-history', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -5162,16 +5515,16 @@ Formatting and Narration constraints:
                         scenes: slides
                     })
                 }).catch(e => console.error("History save failed:", e));
-                
+
                 scriptEditorModal.classList.remove('active');
-                
+
                 // Resume TTS and Video
                 window.speechSynthesis.resume();
                 const aiVideo = document.getElementById('ai-video-player');
                 if (aiVideo && aiVideo.paused) {
                     aiVideo.play().catch(e => console.log("Video resume failed:", e));
                 }
-                
+
             } catch (err) {
                 alert("Error saving! If you are editing JSON, please check your syntax. Error: " + err.message);
             }
@@ -5184,15 +5537,15 @@ Formatting and Narration constraints:
                 let existingCode = "";
                 if (s.type === 'simulation') existingCode = s.manim_code;
                 else if (s.side_panel && s.side_panel.type === 'manim') existingCode = s.side_panel.manim_code;
-                
+
                 if (!existingCode) return;
-                
+
                 scriptEditorRegenManim.innerText = "Regenerating... (Wait)";
                 scriptEditorRegenManim.disabled = true;
-                
+
                 const regenFeedbackInput = document.getElementById('script-editor-regen-feedback');
                 const userFeedback = regenFeedbackInput ? regenFeedbackInput.value.trim() : "";
-                
+
                 try {
                     const res = await fetch('/regenerate-manim', {
                         method: 'POST',
@@ -5204,22 +5557,22 @@ Formatting and Narration constraints:
                             user_feedback: userFeedback
                         })
                     });
-                    
+
                     if (!res.ok) throw new Error("Failed to reach server.");
                     const data = await res.json();
                     if (data.status !== 'success') throw new Error(data.detail);
-                    
+
                     // Replace the code
                     if (s.type === 'simulation') s.manim_code = data.manim_code;
                     else s.side_panel.manim_code = data.manim_code;
-                    
+
                     // Update the textarea immediately
                     scriptEditorTextarea.value = JSON.stringify(s, null, 2);
-                    
+
                     // Automatically save and render!
                     slides[currentSlide] = s;
                     saveProjectBackup(); // Save to local storage backup
-                    
+
                     fetch('/save-history', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -5232,10 +5585,10 @@ Formatting and Narration constraints:
                             scenes: slides
                         })
                     }).catch(e => console.error("History save failed:", e));
-                    
+
                     scriptEditorModal.classList.remove('active');
                     renderSlide(currentSlide);
-                    
+
                     // Resume TTS and Video
                     window.speechSynthesis.resume();
                     const aiVideo = document.getElementById('ai-video-player');
@@ -5256,34 +5609,34 @@ Formatting and Narration constraints:
             scriptEditorRegenGif.addEventListener('click', async () => {
                 const s = slides[currentSlide];
                 if (!s.side_panel || s.side_panel.type !== 'gif') return;
-                
+
                 const regenFeedbackInput = document.getElementById('script-editor-regen-feedback');
                 const userFeedback = regenFeedbackInput ? regenFeedbackInput.value.trim() : "";
-                
+
                 if (userFeedback) {
                     s.side_panel.query = userFeedback; // Update query if user typed one
                 }
-                
+
                 scriptEditorRegenGif.innerText = "Loading...";
                 scriptEditorRegenGif.disabled = true;
-                
+
                 try {
                     // If user provides a NEW query, they want the BEST result for it (randomize=false).
                     // If they just click reload, they want a DIFFERENT result for the SAME query (randomize=true).
                     const isRandom = !userFeedback;
                     const res = await fetch(`/get-gif?query=${encodeURIComponent(s.side_panel.query)}&randomize=${isRandom}`);
                     const data = await res.json();
-                    
-                    if(data.status === 'success') {
+
+                    if (data.status === 'success') {
                         s.side_panel.gif_url = data.gif_url;
-                        
+
                         // Update the textarea immediately
                         scriptEditorTextarea.value = JSON.stringify(s, null, 2);
-                        
+
                         // Automatically save and render!
                         slides[currentSlide] = s;
-                        saveProjectBackup(); 
-                        
+                        saveProjectBackup();
+
                         fetch('/save-history', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -5296,10 +5649,10 @@ Formatting and Narration constraints:
                                 scenes: slides
                             })
                         }).catch(e => console.error("History save failed:", e));
-                        
+
                         scriptEditorModal.classList.remove('active');
                         renderSlide(currentSlide);
-                        
+
                         // Resume TTS and Video
                         window.speechSynthesis.resume();
                         const aiVideo = document.getElementById('ai-video-player');
@@ -5309,7 +5662,7 @@ Formatting and Narration constraints:
                     } else {
                         alert("Failed to reload GIF.");
                     }
-                } catch(err) {
+                } catch (err) {
                     alert("Error reloading GIF: " + err.message);
                 } finally {
                     scriptEditorRegenGif.innerText = "Reload GIF";
@@ -5341,17 +5694,17 @@ Formatting and Narration constraints:
                 const titleSection = document.createElement('div');
                 titleSection.style.display = 'flex';
                 titleSection.style.flexDirection = 'column';
-                
+
                 const titleText = document.createElement('span');
                 titleText.style.color = '#fff';
                 titleText.style.fontWeight = 'bold';
                 titleText.innerText = `Slide ${index + 1}: ${slide.title || 'Untitled'}`;
-                
+
                 const typeText = document.createElement('span');
                 typeText.style.color = '#aaa';
                 typeText.style.fontSize = '0.8rem';
                 typeText.innerText = `Type: ${slide.type}`;
-                
+
                 titleSection.appendChild(titleText);
                 titleSection.appendChild(typeText);
 
@@ -5440,26 +5793,26 @@ Formatting and Narration constraints:
                     vidLabel.style.border = '1px solid #4CAF50';
                     vidLabel.style.borderRadius = '4px';
                     vidLabel.innerText = slide.video_url ? 'Re-Upload Video ✓' : 'Upload Video';
-                    
+
                     const vidInput = document.createElement('input');
                     vidInput.type = 'file';
                     vidInput.accept = 'video/*';
                     vidInput.style.display = 'none';
-                    
+
                     vidInput.addEventListener('change', async (e) => {
                         const file = e.target.files[0];
-                        if(!file) return;
+                        if (!file) return;
                         vidLabel.innerText = 'Uploading...';
                         const fd = new FormData();
                         fd.append('file', file);
                         try {
-                            const res = await fetch('/upload-media', {method: 'POST', body: fd});
+                            const res = await fetch('/upload-media', { method: 'POST', body: fd });
                             const data = await res.json();
                             slide.video_url = data.url;
                             vidLabel.innerText = 'Re-Upload Video ✓';
                             saveProjectBackup();
-                            if(currentSlide === index) renderSlide(currentSlide);
-                        } catch(err) {
+                            if (currentSlide === index) renderSlide(currentSlide);
+                        } catch (err) {
                             vidLabel.innerText = 'Upload Failed';
                             console.error(err);
                         }
@@ -5474,7 +5827,7 @@ Formatting and Narration constraints:
                     temp.innerHTML = slide.html;
                     const placeholders = temp.querySelectorAll('.board-image-placeholder');
                     if (!slide.uploaded_images) slide.uploaded_images = {};
-                    
+
                     placeholders.forEach(ph => {
                         const imgId = ph.getAttribute('data-img-id');
                         const imgLabel = document.createElement('label');
@@ -5485,25 +5838,25 @@ Formatting and Narration constraints:
                         imgLabel.style.border = '1px solid #ff9800';
                         imgLabel.style.borderRadius = '4px';
                         imgLabel.innerText = slide.uploaded_images[imgId] ? `${imgId} ✓` : `Upload ${imgId}`;
-                        
+
                         const imgInput = document.createElement('input');
                         imgInput.type = 'file';
                         imgInput.accept = 'image/*';
                         imgInput.style.display = 'none';
-                        
+
                         imgInput.addEventListener('change', async (e) => {
                             const file = e.target.files[0];
-                            if(!file) return;
+                            if (!file) return;
                             imgLabel.innerText = 'Uploading...';
                             const fd = new FormData();
                             fd.append('file', file);
                             try {
-                                const res = await fetch('/upload-media', {method: 'POST', body: fd});
+                                const res = await fetch('/upload-media', { method: 'POST', body: fd });
                                 const data = await res.json();
                                 slide.uploaded_images[imgId] = data.url;
                                 imgLabel.innerText = `${imgId} ✓`;
                                 saveProjectBackup();
-                            } catch(err) {
+                            } catch (err) {
                                 imgLabel.innerText = 'Upload Failed';
                                 console.error(err);
                             }
@@ -5552,13 +5905,13 @@ Formatting and Narration constraints:
                 slides.push(...window.__EXPORTED_STATE__.slides);
                 conceptMapData = window.__EXPORTED_STATE__.conceptMapData;
                 currentSubjectName = window.__EXPORTED_STATE__.currentSubjectName;
-                
+
                 // Attempt to set voice dropdown if it still exists
                 const voiceSelect = document.getElementById('voice-select');
                 if (voiceSelect) {
                     voiceSelect.value = window.__EXPORTED_STATE__.selectedVoice;
                 }
-                
+
                 // Hide input panel UI
                 const inputPanel = document.querySelector('.input-container');
                 if (inputPanel) inputPanel.style.display = 'none';
@@ -5592,7 +5945,7 @@ Formatting and Narration constraints:
         };
 
     </script>
-    
+
     <!-- History Modal HTML -->
     <div id="history-modal-overlay" class="history-modal-overlay glass-overlay">
         <div class="history-modal glass-panel">
@@ -5600,50 +5953,53 @@ Formatting and Narration constraints:
                 <h2 class="revamp-title" style="font-size: 2rem;">Generated Videos History</h2>
                 <button id="close-history-btn" class="close-history" style="color: #fff;">&times;</button>
             </div>
-            <div id="history-grid" class="history-grid" style="background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); padding: 1rem;">
+            <div id="history-grid" class="history-grid"
+                style="background: rgba(0,0,0,0.3); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); padding: 1rem;">
                 <!-- Videos will be injected here -->
             </div>
         </div>
     </div>
 
-    
-    
-    
+
+
+
     <script src="app.js" defer></script>
     <!-- Ambient Particles Generator -->
     <script>
         function spawnAmbientParticles() {
             const container = document.body;
             const particleCount = 20; // Number of glowing orbs
-            
+
             for (let i = 0; i < particleCount; i++) {
                 let p = document.createElement('div');
                 p.classList.add('ambient-particle');
-                
+
                 // Randomize position, size, and animation
                 let size = Math.random() * 150 + 50; // 50px to 200px
                 let startX = Math.random() * window.innerWidth;
                 let startY = window.innerHeight + Math.random() * 500;
                 let duration = Math.random() * 15 + 15; // 15s to 30s
                 let delay = Math.random() * 20; // Stagger start times
-                
+
                 p.style.width = size + 'px';
                 p.style.height = size + 'px';
                 p.style.left = startX + 'px';
                 p.style.top = startY + 'px';
                 p.style.animationDuration = duration + 's';
                 p.style.animationDelay = '-' + delay + 's'; // Starts animation part-way through
-                
+
                 container.appendChild(p);
             }
         }
-        
+
         // Spawn them once on load
         window.addEventListener('DOMContentLoaded', spawnAmbientParticles);
     </script>
     <button id="logout-btn" onclick="logout()">Logout</button>
-    <button id="admin-btn" onclick="openAdminModal()" style="display: none; position: absolute; top: 20px; right: 100px; background: rgba(0,255,0,0.2); border: 1px solid rgba(0,255,0,0.5); color: white; padding: 8px 16px; border-radius: 4px; cursor: pointer; z-index: 9999;">Admin Panel</button>
-    
+    <button id="admin-btn" onclick="openAdminModal()"
+        style="display: none; position: absolute; top: 20px; right: 100px; background: rgba(0,255,0,0.2); border: 1px solid rgba(0,255,0,0.5); color: white; padding: 8px 16px; border-radius: 4px; cursor: pointer; z-index: 9999;">Admin
+        Panel</button>
+
     <div id="auth-modal" class="auth-modal">
         <div class="auth-box">
             <h2 id="auth-title">Login</h2>
@@ -5679,24 +6035,24 @@ Formatting and Narration constraints:
             const u = document.getElementById('admin-new-username').value.trim();
             const p = document.getElementById('admin-new-password').value.trim();
             const errDiv = document.getElementById('admin-error');
-            
+
             if (!u || !p) {
                 errDiv.innerText = "Please fill all fields.";
                 errDiv.style.color = '#ff4d4d';
                 errDiv.style.display = 'block';
                 return;
             }
-            
+
             try {
                 const body = JSON.stringify({ username: u, password: p });
                 const headers = { 'Content-Type': 'application/json' };
                 const res = await window.fetch('/api/register', { method: 'POST', headers, body });
-                
+
                 if (!res.ok) {
                     const data = await res.json();
                     throw new Error(data.detail || "Registration failed");
                 }
-                
+
                 errDiv.innerText = "User created successfully!";
                 errDiv.style.color = '#4CAF50';
                 errDiv.style.display = 'block';
@@ -5713,31 +6069,31 @@ Formatting and Narration constraints:
             const u = document.getElementById('auth-username').value.trim();
             const p = document.getElementById('auth-password').value.trim();
             const errDiv = document.getElementById('auth-error');
-            
+
             if (!u || !p) {
                 errDiv.innerText = "Please fill all fields.";
                 errDiv.style.display = 'block';
                 return;
             }
-            
+
             try {
                 const body = new URLSearchParams();
                 body.append('username', u);
                 body.append('password', p);
                 const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
-                
+
                 const res = await window.fetch('/api/login', { method: 'POST', headers, body });
-                
+
                 if (!res.ok) {
                     const data = await res.json();
                     throw new Error(data.detail || "Authentication failed");
                 }
-                
+
                 const data = await res.json();
                 localStorage.setItem('jwt_token', data.access_token);
                 document.getElementById('auth-modal').style.display = 'none';
                 document.getElementById('logout-btn').style.display = 'block';
-                
+
                 checkUserRoleAndLoad();
             } catch (err) {
                 errDiv.style.color = '#ff4d4d';
@@ -5762,7 +6118,7 @@ Formatting and Narration constraints:
                         document.getElementById('admin-btn').style.display = 'block';
                     }
                 }
-            } catch (e) {}
+            } catch (e) { }
             loadInitialProject();
         }
 
@@ -5786,9 +6142,10 @@ Formatting and Narration constraints:
                         // The existing app.js or script will pick this up automatically
                         location.reload(); // Reload to let the main script process window.INJECTED_DATA naturally
                     }
-                } catch(e) { console.error("Failed to load project", e); }
+                } catch (e) { console.error("Failed to load project", e); }
             }
         }
     </script>
 </body>
+
 </html>
