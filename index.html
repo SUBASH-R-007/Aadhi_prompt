@@ -4738,7 +4738,13 @@ Formatting and Narration constraints:
                     systemAudio: "include"
                 });
 
-                mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+                let options = { mimeType: 'video/webm', videoBitsPerSecond: 8000000 };
+                if (MediaRecorder.isTypeSupported('video/webm; codecs=vp9')) {
+                    options.mimeType = 'video/webm; codecs=vp9';
+                } else if (MediaRecorder.isTypeSupported('video/webm; codecs=h264')) {
+                    options.mimeType = 'video/webm; codecs=h264';
+                }
+                mediaRecorder = new MediaRecorder(stream, options);
                 recordedChunks = [];
 
                 mediaRecorder.ondataavailable = function(e) {
@@ -4802,7 +4808,13 @@ Formatting and Narration constraints:
                     return;
                 }
 
-                autoExportRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+                let options = { mimeType: 'video/webm', videoBitsPerSecond: 8000000 };
+                if (MediaRecorder.isTypeSupported('video/webm; codecs=vp9')) {
+                    options.mimeType = 'video/webm; codecs=vp9';
+                } else if (MediaRecorder.isTypeSupported('video/webm; codecs=h264')) {
+                    options.mimeType = 'video/webm; codecs=h264';
+                }
+                autoExportRecorder = new MediaRecorder(stream, options);
                 autoExportChunks = [];
 
                 autoExportRecorder.ondataavailable = function(e) {
