@@ -37,28 +37,108 @@ if not shutil.which("latex"):
 # ----------------------------------------------
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Depends, status, UploadFile, File
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import asyncio
 import secrets
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from passlib.context import CryptContext
+import jwt
+from datetime import datetime, timedelta
+from sqlalchemy.orm import Session
+from database import engine, get_db, Base, SessionLocal
+import models
 
-security = HTTPBasic()
+# Create database tables
+models.Base.metadata.create_all(bind=engine)
 
-def verify_credentials(credentials: HTTPBasicCredentials = Depends(security)):
-    correct_username = secrets.compare_digest(credentials.username, os.getenv("APP_USERNAME", "admin"))
-    correct_password = secrets.compare_digest(credentials.password, os.getenv("APP_PASSWORD", "secret"))
-    if not (correct_username and correct_password):
+SECRET_KEY = os.getenv("JWT_SECRET", secrets.token_urlsafe(32))
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # 7 days
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/login")
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+# Initialize admin user if not exists
+db = SessionLocal()
+try:
+    admin_user = db.query(models.User).filter(models.User.username == "admin").first()
+    if not admin_user:
+        hashed_password = get_password_hash("kutty@KONCEPTS$2026")
+        admin_user = models.User(username="admin", password_hash=hashed_password)
+        db.add(admin_user)
+        db.commit()
+finally:
+    db.close()
+
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+    except jwt.PyJWTError:
+        raise credentials_exception
+    user = db.query(models.User).filter(models.User.username == username).first()
+    if user is None:
+        raise credentials_exception
+    return user
+
+app = FastAPI()
+
+class UserCreate(BaseModel):
+    username: str
+    password: str
+
+@app.get("/api/me")
+def get_me(current_user: models.User = Depends(get_current_user)):
+    return {"username": current_user.username}
+
+@app.post("/api/register")
+def register(user: UserCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.username != "admin":
+        raise HTTPException(status_code=403, detail="Only admin can register new users")
+    db_user = db.query(models.User).filter(models.User.username == user.username).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="Username already registered")
+    hashed_password = get_password_hash(user.password)
+    new_user = models.User(username=user.username, password_hash=hashed_password)
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return {"message": "User created successfully"}
+
+@app.post("/api/login")
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.username == form_data.username).first()
+    if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Basic"},
+            headers={"WWW-Authenticate": "Bearer"},
         )
-    return credentials.username
-
-app = FastAPI()
+    access_token = create_access_token(data={"sub": user.username})
+    return {"access_token": access_token, "token_type": "bearer"}
 
 # --- WebSocket Progress Tracking ---
 class ConnectionManager:
@@ -115,7 +195,7 @@ app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 app.mount("/video_template", StaticFiles(directory="video_template"), name="video_template")
 
 @app.get("/", response_class=HTMLResponse)
-async def get_index(username: str = Depends(verify_credentials)):
+async def get_index():
     with open("index.html", "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
@@ -200,7 +280,7 @@ class RegenerateManimRequest(BaseModel):
     user_feedback: str | None = None
 
 @app.post("/regenerate-manim")
-async def regenerate_manim(request: RegenerateManimRequest, username: str = Depends(verify_credentials)):
+async def regenerate_manim(request: RegenerateManimRequest, current_user: models.User = Depends(get_current_user)):
     from google import genai
     from google.genai import types
     
@@ -249,7 +329,7 @@ class RenderRequest(BaseModel):
     code: str
 
 @app.post("/render")
-async def render_manim(request: RenderRequest, username: str = Depends(verify_credentials)):
+async def render_manim(request: RenderRequest, current_user: models.User = Depends(get_current_user)):
     original_code = request.code
     code = original_code
     
@@ -431,7 +511,7 @@ class HardwareRequest(BaseModel):
 gemini_api_key = None
 
 @app.post("/start-ai-server")
-def start_ai_server(request: HardwareRequest, username: str = Depends(verify_credentials)):
+def start_ai_server(request: HardwareRequest, current_user: models.User = Depends(get_current_user)):
     global ltx_pipeline
     profile = request.profile
     
@@ -494,7 +574,7 @@ class AIVideoRequest(BaseModel):
     prompt: str
 
 @app.post("/generate-ai-video")
-async def generate_ai_video(request: AIVideoRequest, username: str = Depends(verify_credentials)):
+async def generate_ai_video(request: AIVideoRequest, current_user: models.User = Depends(get_current_user)):
     global ltx_pipeline
     
     if ltx_pipeline is None:
@@ -638,7 +718,7 @@ class HistoryRequest(BaseModel):
     scenes: list | None = None
 
 @app.post("/generate-audio")
-async def generate_audio(request: AudioRequest, username: str = Depends(verify_credentials)):
+async def generate_audio(request: AudioRequest, current_user: models.User = Depends(get_current_user)):
     text = request.text.strip()
     voice = request.voice
     tts_engine = request.tts_engine
@@ -854,7 +934,7 @@ async def generate_audio(request: AudioRequest, username: str = Depends(verify_c
             raise HTTPException(status_code=500, detail=f"Gemini and fallback TTS both failed: {fallback_err}")
 
 @app.post("/upload-image")
-async def upload_image(request: ImageUploadRequest, username: str = Depends(verify_credentials)):
+async def upload_image(request: ImageUploadRequest, current_user: models.User = Depends(get_current_user)):
     import base64
     import uuid
     
@@ -883,7 +963,7 @@ async def upload_image(request: ImageUploadRequest, username: str = Depends(veri
 STATIC_VIDEOS_DIR = STATIC_DIR  # alias
 
 @app.post("/upload-media")
-async def upload_media(file: UploadFile = File(...), username: str = Depends(verify_credentials)):
+async def upload_media(file: UploadFile = File(...), current_user: models.User = Depends(get_current_user)):
     try:
         os.makedirs(STATIC_VIDEOS_DIR, exist_ok=True)
         filename = f"{uuid.uuid4().hex[:8]}_{file.filename}"
@@ -897,21 +977,8 @@ async def upload_media(file: UploadFile = File(...), username: str = Depends(ver
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/save-history")
-async def save_history(request: HistoryRequest, username: str = Depends(verify_credentials)):
-    timestamp = int(time.time())
-    safe_name = "".join([c if c.isalnum() else "_" for c in request.subject_name.strip()]).strip("_")
-    if not safe_name:
-        safe_name = "presentation"
-    
-    filename = f"{safe_name}_{timestamp}.html"
-    filepath = os.path.join(FINAL_VIDEOS_DIR, filename)
-    
-    try:
-        with open("index.html", "r", encoding="utf-8") as f:
-            html_content = f.read()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Could not read index.html template.")
-        
+def save_history(request: HistoryRequest, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    import json
     payload = {
         "subject_name": request.subject_name,
         "unit_name": request.unit_name,
@@ -921,38 +988,42 @@ async def save_history(request: HistoryRequest, username: str = Depends(verify_c
         "scenes": request.scenes
     }
     
-    import json
-    json_data = json.dumps(payload).replace("</script>", "<\\/script>")
-    injected_script = f'<base href="/"><script id="injected-data">window.INJECTED_DATA = {json_data};</script>'
+    new_project = models.Project(
+        user_id=current_user.id,
+        subject_name=request.subject_name,
+        unit_name=request.unit_name,
+        session_number=request.session_number,
+        session_title=request.session_title,
+        json_data=json.dumps(payload)
+    )
+    db.add(new_project)
+    db.commit()
+    db.refresh(new_project)
     
-    if '<script id="injected-data">window.INJECTED_DATA = null;</script>' in html_content:
-        html_content = html_content.replace('<script id="injected-data">window.INJECTED_DATA = null;</script>', injected_script)
-    else:
-        html_content = html_content.replace("</head>", f"{injected_script}\n</head>")
-        
-    with open(filepath, "w", encoding="utf-8") as f:
-        f.write(html_content)
-        
-    print(f"\n[HISTORY SAVED] Presentation exported to {filepath}")
-    return {"status": "success", "url": f"/final_videos/{filename}"}
+    print(f"\n[HISTORY SAVED] Project ID {new_project.id} saved for user {current_user.username}")
+    # Return a URL that the frontend can use to load this project via query param
+    return {"status": "success", "url": f"/?project_id={new_project.id}"}
 
 @app.get("/get-history")
-async def get_history(username: str = Depends(verify_credentials)):
-    import glob
-    files = glob.glob(f"{FINAL_VIDEOS_DIR}/*.html")
+def get_history(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    projects = db.query(models.Project).filter(models.Project.user_id == current_user.id).order_by(models.Project.updated_at.desc()).all()
     history = []
-    for f in files:
-        filename = os.path.basename(f)
-        parts = filename.rsplit("_", 1)
-        if len(parts) == 2 and parts[1].replace(".html", "").isdigit():
-            name = parts[0].replace("_", " ")
-            ts = int(parts[1].replace(".html", ""))
-            history.append({"url": f"/final_videos/{filename}", "name": name, "timestamp": ts})
-        else:
-            history.append({"url": f"/final_videos/{filename}", "name": filename, "timestamp": 0})
-            
-    history.sort(key=lambda x: x["timestamp"], reverse=True)
+    for p in projects:
+        history.append({
+            "id": p.id,
+            "url": f"/?project_id={p.id}",
+            "name": f"{p.subject_name} - {p.unit_name or ''} {p.session_number or ''}",
+            "timestamp": int(p.updated_at.timestamp())
+        })
     return {"history": history}
+
+@app.get("/api/projects/{project_id}")
+def get_project(project_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    project = db.query(models.Project).filter(models.Project.id == project_id, models.Project.user_id == current_user.id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    import json
+    return json.loads(project.json_data)
 
 class ScriptRequest(BaseModel):
     prompt_text: str
@@ -960,7 +1031,7 @@ class ScriptRequest(BaseModel):
     api_provider: str = "gemini"
 
 @app.post("/generate-script")
-async def generate_script(request: ScriptRequest, username: str = Depends(verify_credentials)):
+async def generate_script(request: ScriptRequest, current_user: models.User = Depends(get_current_user)):
     import json
     import re
     from fastapi.responses import StreamingResponse

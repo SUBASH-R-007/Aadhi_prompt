@@ -8,3 +8,8 @@ python-dotenv
 python-multipart
 openai>=1.12.0
 httpx
+sqlalchemy
+pyjwt
+passlib[bcrypt]
+bcrypt
+psycopg2-binary

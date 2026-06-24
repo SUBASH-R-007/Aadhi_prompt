@@ -1321,6 +1321,91 @@
             font-family: var(--font-sans);
             font-size: 0.9rem;
         }
+        .auth-modal {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.85);
+            display: none; /* flex when active */
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            backdrop-filter: blur(15px);
+        }
+        .auth-box {
+            background: rgba(20, 20, 25, 0.95);
+            padding: 3rem;
+            border-radius: 12px;
+            border: 1px solid rgba(176, 38, 255, 0.3);
+            box-shadow: 0 0 40px rgba(176, 38, 255, 0.2);
+            width: 400px;
+            max-width: 90%;
+            text-align: center;
+        }
+        .auth-box h2 {
+            font-family: var(--font-title);
+            margin-bottom: 2rem;
+            color: #fff;
+            font-size: 2rem;
+        }
+        .auth-input {
+            width: 100%;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #fff;
+            border-radius: 6px;
+            font-family: var(--font-sans);
+            font-size: 1rem;
+        }
+        .auth-input:focus {
+            outline: none;
+            border-color: #b026ff;
+        }
+        .auth-btn {
+            width: 100%;
+            padding: 1rem;
+            background: #b026ff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 1rem;
+        }
+        .auth-btn:hover {
+            background: #9015d8;
+        }
+        .auth-switch {
+            color: #aaa;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+        .auth-switch:hover {
+            color: #fff;
+        }
+        #logout-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,0,0,0.2);
+            border: 1px solid rgba(255,0,0,0.5);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            z-index: 9999;
+            display: none;
+        }
+        #logout-btn:hover {
+            background: rgba(255,0,0,0.4);
+        }
+        body.presentation-active #logout-btn,
+        body.presentation-active #admin-btn {
+            display: none !important;
+        }
     </style>
     
     <!-- Prism.js for Syntax Highlighting -->
@@ -2056,6 +2141,37 @@
         </div>
 
     <script>
+        // --- VERCEL / RAILWAY DEPLOYMENT CONFIG ---
+        window.API_BASE_URL = ""; // Change this to the Railway URL when deploying Vercel
+        
+        // --- JWT AUTHENTICATION OVERRIDE ---
+        const originalFetch = window.fetch;
+        window.fetch = async function() {
+            let [resource, config] = arguments;
+            
+            if (typeof resource === 'string' && resource.startsWith('/') && !resource.startsWith('//')) {
+                resource = window.API_BASE_URL + resource;
+            }
+
+            const token = localStorage.getItem('jwt_token');
+            if (token && typeof resource === 'string' && resource.startsWith(window.API_BASE_URL || '/')) {
+                config = config || {};
+                config.headers = config.headers || {};
+                if (config.headers instanceof Headers) {
+                    config.headers.set('Authorization', `Bearer ${token}`);
+                } else {
+                    config.headers['Authorization'] = `Bearer ${token}`;
+                }
+            }
+            
+            const response = await originalFetch(resource, config);
+            
+            if (response.status === 401 && !resource.includes('/api/login')) {
+                localStorage.removeItem('jwt_token');
+                document.getElementById('auth-modal').style.display = 'flex';
+            }
+            return response;
+        };
         const slides = [
             {
                 type: "title",
@@ -5524,6 +5640,155 @@ Formatting and Narration constraints:
         
         // Spawn them once on load
         window.addEventListener('DOMContentLoaded', spawnAmbientParticles);
+    </script>
+    <button id="logout-btn" onclick="logout()">Logout</button>
+    <button id="admin-btn" onclick="openAdminModal()" style="display: none; position: absolute; top: 20px; right: 100px; background: rgba(0,255,0,0.2); border: 1px solid rgba(0,255,0,0.5); color: white; padding: 8px 16px; border-radius: 4px; cursor: pointer; z-index: 9999;">Admin Panel</button>
+    
+    <div id="auth-modal" class="auth-modal">
+        <div class="auth-box">
+            <h2 id="auth-title">Login</h2>
+            <input type="text" id="auth-username" class="auth-input" placeholder="Username" />
+            <input type="password" id="auth-password" class="auth-input" placeholder="Password" />
+            <button class="auth-btn" onclick="submitAuth()">Login</button>
+            <div id="auth-error" style="color: #ff4d4d; margin-top: 10px; font-size: 0.9rem; display: none;"></div>
+        </div>
+    </div>
+
+    <div id="admin-modal" class="auth-modal">
+        <div class="auth-box">
+            <h2>Add New User</h2>
+            <input type="text" id="admin-new-username" class="auth-input" placeholder="New Username" />
+            <input type="password" id="admin-new-password" class="auth-input" placeholder="New Password" />
+            <button class="auth-btn" onclick="submitAdminRegister()">Create User</button>
+            <div class="auth-switch" onclick="closeAdminModal()">Close Panel</div>
+            <div id="admin-error" style="color: #ff4d4d; margin-top: 10px; font-size: 0.9rem; display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        function openAdminModal() {
+            document.getElementById('admin-modal').style.display = 'flex';
+            document.getElementById('admin-error').style.display = 'none';
+        }
+
+        function closeAdminModal() {
+            document.getElementById('admin-modal').style.display = 'none';
+        }
+
+        async function submitAdminRegister() {
+            const u = document.getElementById('admin-new-username').value.trim();
+            const p = document.getElementById('admin-new-password').value.trim();
+            const errDiv = document.getElementById('admin-error');
+            
+            if (!u || !p) {
+                errDiv.innerText = "Please fill all fields.";
+                errDiv.style.color = '#ff4d4d';
+                errDiv.style.display = 'block';
+                return;
+            }
+            
+            try {
+                const body = JSON.stringify({ username: u, password: p });
+                const headers = { 'Content-Type': 'application/json' };
+                const res = await window.fetch('/api/register', { method: 'POST', headers, body });
+                
+                if (!res.ok) {
+                    const data = await res.json();
+                    throw new Error(data.detail || "Registration failed");
+                }
+                
+                errDiv.innerText = "User created successfully!";
+                errDiv.style.color = '#4CAF50';
+                errDiv.style.display = 'block';
+                document.getElementById('admin-new-username').value = '';
+                document.getElementById('admin-new-password').value = '';
+            } catch (err) {
+                errDiv.style.color = '#ff4d4d';
+                errDiv.innerText = err.message;
+                errDiv.style.display = 'block';
+            }
+        }
+
+        async function submitAuth() {
+            const u = document.getElementById('auth-username').value.trim();
+            const p = document.getElementById('auth-password').value.trim();
+            const errDiv = document.getElementById('auth-error');
+            
+            if (!u || !p) {
+                errDiv.innerText = "Please fill all fields.";
+                errDiv.style.display = 'block';
+                return;
+            }
+            
+            try {
+                const body = new URLSearchParams();
+                body.append('username', u);
+                body.append('password', p);
+                const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+                
+                const res = await window.fetch('/api/login', { method: 'POST', headers, body });
+                
+                if (!res.ok) {
+                    const data = await res.json();
+                    throw new Error(data.detail || "Authentication failed");
+                }
+                
+                const data = await res.json();
+                localStorage.setItem('jwt_token', data.access_token);
+                document.getElementById('auth-modal').style.display = 'none';
+                document.getElementById('logout-btn').style.display = 'block';
+                
+                checkUserRoleAndLoad();
+            } catch (err) {
+                errDiv.style.color = '#ff4d4d';
+                errDiv.innerText = err.message;
+                errDiv.style.display = 'block';
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('jwt_token');
+            document.getElementById('logout-btn').style.display = 'none';
+            document.getElementById('admin-btn').style.display = 'none';
+            document.getElementById('auth-modal').style.display = 'flex';
+        }
+
+        async function checkUserRoleAndLoad() {
+            try {
+                const res = await fetch('/api/me');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.username === 'admin') {
+                        document.getElementById('admin-btn').style.display = 'block';
+                    }
+                }
+            } catch (e) {}
+            loadInitialProject();
+        }
+
+        // Check auth state on load
+        if (!localStorage.getItem('jwt_token')) {
+            document.getElementById('auth-modal').style.display = 'flex';
+        } else {
+            document.getElementById('logout-btn').style.display = 'block';
+            checkUserRoleAndLoad();
+        }
+
+        async function loadInitialProject() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const projectId = urlParams.get('project_id');
+            if (projectId && !window.INJECTED_DATA) {
+                try {
+                    const res = await fetch(`/api/projects/${projectId}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        window.INJECTED_DATA = data;
+                        // The existing app.js or script will pick this up automatically
+                        location.reload(); // Reload to let the main script process window.INJECTED_DATA naturally
+                    }
+                } catch(e) { console.error("Failed to load project", e); }
+            }
+        }
     </script>
 </body>
 </html>
