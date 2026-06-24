@@ -63,6 +63,15 @@
             color: var(--text-white);
         }
 
+        :root {
+            --side-zone-width: 25%;
+            --side-zone-left: 0%;
+            --board-width: 75%;
+            --board-left: 25%;
+            --mascot-z-index: 0;
+            --mascot-transition: all 1s ease-in-out;
+        }
+
         /* 1. Background Layers */
         .video-background, .static-background {
             position: fixed;
@@ -71,13 +80,39 @@
             width: 100vw;
             height: 100vh;
             object-fit: cover;
-            z-index: 0;
+            z-index: var(--mascot-z-index);
             pointer-events: none;
-            transition: opacity 0.5s ease-in-out, filter 1s ease-in-out;
+            transition: var(--mascot-transition);
         }
 
         .bg-hidden {
             opacity: 0 !important;
+            pointer-events: none !important;
+        }
+
+        /* Mascot Container & Layers (Seamless Crossfade) */
+        .mascot-container {
+            top: 0 !important; left: 0 !important; right: auto !important; bottom: auto !important;
+            width: 100vw !important; height: 100vh !important;
+            transform: none !important;
+            border-radius: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            z-index: var(--mascot-z-index) !important;
+        }
+        .mascot-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            object-fit: cover;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease-in-out, visibility 0.5s;
+            pointer-events: none;
+            will-change: opacity;
+        }
+        .mascot-layer.active-layer {
+            opacity: 1;
+            visibility: visible;
         }
 
         /* 2. Layout & Zones */
@@ -101,10 +136,16 @@
         body.presentation-active .dynamic-side-zone {
             opacity: 1;
             transform: translateX(0);
+            left: var(--side-zone-left);
+            width: var(--side-zone-width);
+            min-width: 25vw;
+            max-width: 40vw;
         }
         
         .side-panel-view {
             position: absolute;
+            top: 5%;
+            left: 5%;
             width: 90%;
             height: 90%;
             transition: transform 0.8s cubic-bezier(0.32, 0.72, 0, 1), 
@@ -118,11 +159,17 @@
             flex-direction: column;
         }
         
+        @keyframes float3D {
+            0% { transform: scale(1) translateY(0px) rotateX(2deg) rotateY(-2deg); }
+            50% { transform: scale(1.03) translateY(-12px) rotateX(-2deg) rotateY(2deg); }
+            100% { transform: scale(1) translateY(0px) rotateX(2deg) rotateY(-2deg); }
+        }
+
         .side-panel-view.active {
             opacity: 1;
             filter: blur(0px);
-            transform: scale(1) translateY(0) !important;
             pointer-events: auto;
+            animation: float3D 10s ease-in-out infinite;
         }
 
         .lecture-overlay-zone {
@@ -140,8 +187,8 @@
         }
 
         body.presentation-active .lecture-overlay-zone {
-            left: 25%;
-            width: 75%;
+            left: var(--board-left);
+            width: var(--board-width);
             padding: 3vw;
         }
 
@@ -336,9 +383,9 @@
             filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.4));
         }
 
-        /* 5. Modern Typography Overlays */
+        /* 5. Modern Typography Overlays (Board Header) */
         #slide-title-container {
-            margin-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
             z-index: 30;
             text-align: left;
             transition: opacity 0.3s ease;
@@ -364,6 +411,7 @@
             letter-spacing: -0.01em;
             text-shadow: 0 2px 16px rgba(0,0,0,0.9);
             margin-bottom: 1.5rem;
+            text-transform: uppercase;
         }
 
 
@@ -777,6 +825,24 @@
             font-family: var(--font-sans);
         }
 
+        /* Cinematic Ambient Particles */
+        .ambient-particle {
+            position: fixed;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(176,38,255,0.8) 0%, rgba(255,215,0,0) 70%);
+            pointer-events: none;
+            z-index: 1; /* Behind the board */
+            opacity: 0.4;
+            animation: floatParticle 20s infinite linear;
+        }
+
+        @keyframes floatParticle {
+            0% { transform: translateY(0) scale(1) translateX(0); opacity: 0; }
+            20% { opacity: 0.4; }
+            80% { opacity: 0.3; }
+            100% { transform: translateY(-100vh) scale(1.5) translateX(50px); opacity: 0; }
+        }
+
         .btn-outline:hover {
             background: rgba(255, 215, 0, 0.15);
             transform: translateY(-2px);
@@ -1069,24 +1135,15 @@
             box-shadow: 0 0 10px rgba(255,255,255,0.5);
         }
         
-        /* Slide Scrubber */
+        /* Slide Scrubber (Integrated into Control Bar) */
         .slide-scrubber-container {
-            position: fixed;
-            bottom: 2rem;
-            left: 50%;
-            transform: translateX(-50%);
             display: flex;
-            gap: 12px;
-            z-index: 100;
-            padding: 12px 24px;
-            background: rgba(0,0,0,0.4);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border-radius: 30px;
-            border: 1px solid rgba(255, 215, 0, 0.15);
+            gap: 8px;
+            align-items: center;
             transition: all 0.3s ease;
             opacity: 0;
             pointer-events: none;
+            padding: 0 8px;
         }
 
         .slide-scrubber-container.visible {
@@ -1642,7 +1699,7 @@
 
         #subtitle-track {
             position: fixed;
-            bottom: calc(8vh + 20px); /* Just above progress bar */
+            bottom: 60px; /* Moved lower down the screen */
             left: 50%;
             transform: translateX(-50%);
             width: 80%;
@@ -1662,6 +1719,8 @@
             transform: translateX(-50%) translateY(-5px);
         }
         /* Highlight specific words dynamically */
+
+
         #subtitle-track .highlight {
             color: #00F0FF;
             text-shadow: 0 0 10px rgba(0, 240, 255, 0.6);
@@ -1670,10 +1729,28 @@
 </head>
 <body>
 
+    <!-- Application Container -->
+
     <!-- Background Elements -->
 
-    <video class="video-background" id="mascot-bg" autoplay muted loop playsinline>
-    </video>
+    <div id="mascot-bg" class="video-background mascot-container">
+        <video class="mascot-layer layer-left active-layer" data-src="video_template/aadhi_left.mp4" muted loop playsinline preload="metadata"></video>
+        <video class="mascot-layer layer-right" data-src="video_template/aadhi_right.mp4" muted loop playsinline preload="metadata"></video>
+        <video class="mascot-layer layer-center" data-src="video_template/aadhi_center.mp4" muted loop playsinline preload="metadata"></video>
+        <video class="mascot-layer layer-popup" data-src="video_template/aadhi_popup.mp4" muted loop playsinline preload="metadata"></video>
+        <video class="mascot-layer layer-none" data-src="video_template/no_aadhi.mp4" muted loop playsinline preload="metadata"></video>
+    </div>
+    <script>
+        // Immediately assign src with timestamp to bypass browser cache
+        document.querySelectorAll('.mascot-layer').forEach(v => {
+            v.src = v.getAttribute('data-src') + '?t=' + Date.now();
+        });
+        // Play the default left layer to save hardware resources from playing all 4 simultaneously
+        const defaultLayer = document.querySelector('.layer-left');
+        if(defaultLayer) {
+            defaultLayer.play().catch(e => console.log('Auto-play prevented', e));
+        }
+    </script>
     <img class="static-background" id="static-bg" src="video_template/static_background.png">
 
     <div class="dynamic-side-zone">
@@ -1874,6 +1951,9 @@
         </div>
     </div>
         
+        <!-- Subtitles/Karaoke Layer -->
+        <div id="subtitle-track"></div>
+
         <!-- Floating Voice Control Bar -->
         <div class="voice-control-bar" id="voice-control-bar">
             <div class="progress-bar-container">
@@ -1888,6 +1968,8 @@
                 </button>
             </div>
             <div class="control-center" style="gap: 12px;">
+                <div id="slide-scrubber-container" class="slide-scrubber-container"></div>
+                <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.2); margin: 0 4px;"></div>
                 <span class="btn-icon" style="color: rgba(255,255,255,0.4); font-size: 1rem;">⧗</span>
                 <input type="range" id="tts-rate-slider" min="0.5" max="1.5" step="0.1" value="0.9">
                 <span id="tts-rate-value" class="slider-value" style="color: rgba(255,255,255,0.7);">0.9x</span>
@@ -2183,22 +2265,14 @@
             document.getElementById('side-video-panel').classList.remove('active');
             document.getElementById('side-gif-panel').classList.remove('active');
             
-            // 1. Avatar (Mascot) Logic takes absolute priority
-            let needsMascot = (slide.type === 'title' || slide.type === 'content');
-            if (needsMascot && slide.html && slide.html.length > 300) needsMascot = false;
-            if (slide.force_background && slide.force_background !== 'auto') {
-                needsMascot = (slide.force_background === 'mascot');
-            }
-
-            if (needsMascot) {
-                mascotBg.classList.remove('bg-hidden');
+            // 1. Static Background Visibility
+            if (mascotBg.classList.contains('mascot-hidden')) {
+                staticBg.classList.remove('bg-hidden');
+            } else {
                 staticBg.classList.add('bg-hidden');
-                return; 
             }
 
-            // 2. Avatar is hidden. Show a side panel!
-            mascotBg.classList.add('bg-hidden');
-            staticBg.classList.remove('bg-hidden');
+            // 2. Render the Side Panel if it exists in the slide JSON
             
             const flipToPanel = (panelId, preRenderCallback) => {
                 if (preRenderCallback) preRenderCallback();
@@ -2384,14 +2458,14 @@
             const material = new THREE.MeshPhongMaterial({ color: 0x9b59b6, wireframe: true, emissive: 0x330033 });
 
             if (modelName === 'torus') {
-                const geometry = new THREE.TorusKnotGeometry(10, 3, 100, 16);
+                const geometry = new THREE.TorusKnotGeometry(12, 3.5, 120, 16);
                 mesh = new THREE.Mesh(geometry, material);
             } else if (modelName === 'atom') {
-                const geometry = new THREE.IcosahedronGeometry(15, 1);
+                const geometry = new THREE.IcosahedronGeometry(16, 1);
                 mesh = new THREE.Mesh(geometry, material);
             } else {
                 // Default box
-                const geometry = new THREE.BoxGeometry(15, 15, 15);
+                const geometry = new THREE.BoxGeometry(18, 18, 18);
                 mesh = new THREE.Mesh(geometry, material);
             }
 
@@ -2464,7 +2538,7 @@
                     feedbackEl.style.color = "#4caf50";
                     feedbackEl.style.opacity = '1';
                 }
-            }, 4000);
+            }, 10000);
         }
 
         function renderSideTerminal(config) {
@@ -2632,6 +2706,101 @@
         connectWebSocket();
         // -------------------------------
 
+        // --- Dynamic Mascot Layout Engine ---
+        function applyAadhiLayout(position, slide) {
+            const root = document.documentElement;
+            const mascotContainer = document.getElementById('mascot-bg');
+            
+            // Backward compatibility logic
+            if (!position) {
+                let needsMascot = (slide.type === 'title' || slide.type === 'content');
+                if (needsMascot && slide.html && slide.html.length > 300) needsMascot = false;
+                if (slide.force_background && slide.force_background !== 'auto') {
+                    needsMascot = (slide.force_background === 'mascot');
+                }
+                
+                if (needsMascot) {
+                    position = 'left'; // Default new static position
+                } else {
+                    position = 'hidden';
+                }
+            }
+
+            const activateLayer = (layerClass) => {
+                const layers = mascotContainer.querySelectorAll('.mascot-layer');
+                layers.forEach(layer => layer.classList.remove('active-layer'));
+                if (layerClass) {
+                    const activeLayer = mascotContainer.querySelector(layerClass);
+                    if (activeLayer) {
+                        activeLayer.classList.add('active-layer');
+                        activeLayer.play().catch(e => console.log('play prevented', e));
+                    }
+                }
+                
+                // Allow the 0.5s CSS crossfade to finish while both play, then pause the hidden ones
+                setTimeout(() => {
+                    layers.forEach(layer => {
+                        if (!layer.classList.contains('active-layer')) {
+                            layer.pause();
+                        }
+                    });
+                }, 500);
+            };
+
+            switch(position) {
+                case 'left':
+                    root.style.setProperty('--side-zone-left', '75%');
+                    root.style.setProperty('--side-zone-width', 'fit-content');
+                    root.style.setProperty('--board-left', '30%');
+                    root.style.setProperty('--board-width', '45%');
+                    activateLayer('.layer-left');
+                    mascotContainer.classList.remove('mascot-hidden');
+                    break;
+                case 'right':
+                    root.style.setProperty('--side-zone-left', '0%');
+                    root.style.setProperty('--side-zone-width', 'fit-content');
+                    root.style.setProperty('--board-left', '25%');
+                    root.style.setProperty('--board-width', '45%');
+                    activateLayer('.layer-right');
+                    mascotContainer.classList.remove('mascot-hidden');
+                    break;
+                case 'center':
+                    // Side Panel (fit-content), Aadhi (30%), Board (45%)
+                    root.style.setProperty('--side-zone-left', '0%');
+                    root.style.setProperty('--side-zone-width', 'fit-content');
+                    root.style.setProperty('--board-left', '55%');
+                    root.style.setProperty('--board-width', '45%');
+                    activateLayer('.layer-center');
+                    mascotContainer.classList.remove('mascot-hidden');
+                    break;
+                case 'popup_bottom_left':
+                    root.style.setProperty('--side-zone-left', '0%');
+                    root.style.setProperty('--side-zone-width', 'fit-content');
+                    root.style.setProperty('--board-left', '25%');
+                    root.style.setProperty('--board-width', '75%');
+                    activateLayer('.layer-popup');
+                    mascotContainer.classList.remove('mascot-hidden');
+                    break;
+                case 'popup_bottom_right':
+                    root.style.setProperty('--side-zone-left', '0%');
+                    root.style.setProperty('--side-zone-width', 'fit-content');
+                    root.style.setProperty('--board-left', '25%');
+                    root.style.setProperty('--board-width', '75%');
+                    activateLayer('.layer-popup');
+                    mascotContainer.classList.remove('mascot-hidden');
+                    break;
+                case 'hidden':
+                default:
+                    root.style.setProperty('--side-zone-left', '0%');
+                    root.style.setProperty('--side-zone-width', 'fit-content');
+                    root.style.setProperty('--board-left', '25%');
+                    root.style.setProperty('--board-width', '75%');
+                    activateLayer('.layer-none');
+                    mascotContainer.classList.remove('mascot-hidden');
+                    break;
+            }
+        }
+
         function renderSlide(index) {
             const thisSlideRenderId = ++window.currentSlideRenderId;
             
@@ -2640,6 +2809,33 @@
             
             const slide = slides[index];
             const container = document.getElementById('slide-content-container');
+            
+            // Apply Dynamic Mascot Layout
+            let aadhiPos = slide.aadhi_position;
+            if (slide.type === 'ai_video' && (aadhiPos === 'hidden' || !aadhiPos)) {
+                aadhiPos = 'left'; // Force Aadhi to remain in the background for ai_video windows
+            }
+            applyAadhiLayout(aadhiPos, slide);
+
+            const root = document.documentElement;
+            const sideZoneEl = document.querySelector('.dynamic-side-zone');
+            
+            // Hide sidebar for ai_video and expand the board to utilize the space
+            if (slide.type === 'ai_video') {
+                if (sideZoneEl) sideZoneEl.style.display = 'none';
+                if (aadhiPos === 'left') {
+                    root.style.setProperty('--board-width', '65%'); 
+                } else if (aadhiPos === 'right') {
+                    root.style.setProperty('--board-left', '5%');
+                    root.style.setProperty('--board-width', '65%');
+                } else {
+                    root.style.setProperty('--board-left', '15%');
+                    root.style.setProperty('--board-width', '70%');
+                }
+            } else {
+                if (sideZoneEl) sideZoneEl.style.display = '';
+            }
+
             
             // Global Video Progress Bar
             const progFill = document.querySelector('.video-progress-fill');
@@ -2684,11 +2880,11 @@
             const board = document.getElementById('presentation-board');
 
             // --- Background Transition Engine ---
-            if (slide.type === 'ai_video' || slide.type === 'simulation' || slide.type === 'p5_simulation') {
+            if (slide.type === 'simulation' || slide.type === 'p5_simulation') {
                 // We are in full screen. Safe to swap background underneath for the next slide!
                 let nextContentSlide = null;
                 for (let i = index + 1; i < slides.length; i++) {
-                    if (slides[i].type !== 'ai_video' && slides[i].type !== 'simulation' && slides[i].type !== 'p5_simulation') {
+                    if (slides[i].type !== 'simulation' && slides[i].type !== 'p5_simulation') {
                         nextContentSlide = slides[i];
                         break;
                     }
@@ -2711,7 +2907,8 @@
                 renderConceptMap(slide.concept_id);
             }
 
-            const isGoingFullscreen = (slide.type === 'ai_video' || slide.type === 'visual' || slide.type === 'simulation');
+            // Removed ai_video from fullscreen to play it in a window
+            const isGoingFullscreen = (slide.type === 'visual' || slide.type === 'simulation');
             const wasFullscreen = board.classList.contains('cinematic-fullscreen');
 
             const performDOMUpdate = () => {
@@ -2747,11 +2944,50 @@
                         visualContainer.classList.remove('hidden');
                         container.classList.add('hidden'); // Hide text container completely
 
-                        if (prompt) {
-                            visualContainer.innerHTML = `<div id="jxgbox" class="jxgbox" style="width:100%; height:100%; border-radius:0px; overflow:hidden; display:flex; justify-content:center; align-items:center; flex-direction:column; background:#000;">
+                        const renderAiVideoPlayer = (url) => {
+                            let videoAttrs = slide.ai_audio_source === 'video' 
+                                ? 'autoplay style="width:100%; height:100%; object-fit:cover;"' 
+                                : 'autoplay muted style="width:100%; height:100%; object-fit:cover;"';
+                            
+                            document.getElementById('jxgbox').innerHTML = `<video id="active-ai-video" src="${url}" ${videoAttrs}></video>`;
+
+                            const videoEl = document.getElementById('active-ai-video');
+                            if (slide.ai_audio_source === 'video') {
+                                videoEl.onended = () => {
+                                    if (ttsState.isPlaying) {
+                                        if (currentSlide < slides.length - 1) {
+                                            currentSlide++;
+                                            setTimeout(() => {
+                                                if (ttsState.isPlaying) renderSlide(currentSlide);
+                                            }, 800);
+                                        } else {
+                                            ttsState.isPlaying = false;
+                                            updateTTSButtons();
+                                            if (isAutoExporting && autoExportRecorder && autoExportRecorder.state === 'recording') {
+                                                autoExportRecorder.stop();
+                                            }
+                                        }
+                                    }
+                                };
+                            } else {
+                                videoEl.onended = () => {
+                                    if (ttsState.isPlaying) {
+                                        videoEl.currentTime = 0;
+                                        videoEl.play().catch(e => console.log("Loop prevented", e));
+                                    }
+                                };
+                            }
+                        };
+
+                        visualContainer.innerHTML = `<div id="jxgbox" class="jxgbox" style="width:100%; aspect-ratio: 16/9; border-radius:12px; overflow:hidden; display:flex; justify-content:center; align-items:center; flex-direction:column; background:#000; margin-top: 1rem;"></div>`;
+
+                        if (slide.video_url) {
+                            renderAiVideoPlayer(slide.video_url);
+                        } else if (prompt) {
+                            document.getElementById('jxgbox').innerHTML = `
                                 <div class="spinner" style="border-top-color: #FFD700;"></div>
                                 <div style="margin-top:1rem; color:#FFD700; font-family:monospace; text-align:center;">Generating AI Video (approx 1-2 min)...<br><span style="font-size:0.8em; opacity:0.8;">Prompt: "${prompt}"</span></div>
-                            </div>`;
+                            `;
                             
                             fetch('/generate-ai-video', {
                                 method: 'POST',
@@ -2763,38 +2999,8 @@
                             }).then(data => {
                                 if (window.currentSlideRenderId !== thisSlideRenderId) return;
                                 if(data.status === 'success') {
-                                    let videoAttrs = slide.ai_audio_source === 'video' 
-                                        ? 'autoplay style="width:100%; height:100%; object-fit:cover;"' 
-                                        : 'autoplay muted style="width:100%; height:100%; object-fit:cover;"';
-                                    
-                                    document.getElementById('jxgbox').innerHTML = `<video id="active-ai-video" src="${data.video_url}" ${videoAttrs}></video>`;
-
-                                    const videoEl = document.getElementById('active-ai-video');
-                                    if (slide.ai_audio_source === 'video') {
-                                        videoEl.onended = () => {
-                                            if (ttsState.isPlaying) {
-                                                if (currentSlide < slides.length - 1) {
-                                                    currentSlide++;
-                                                    setTimeout(() => {
-                                                        if (ttsState.isPlaying) renderSlide(currentSlide);
-                                                    }, 800);
-                                                } else {
-                                                    ttsState.isPlaying = false;
-                                                    updateTTSButtons();
-                                                    if (isAutoExporting && autoExportRecorder && autoExportRecorder.state === 'recording') {
-                                                        autoExportRecorder.stop();
-                                                    }
-                                                }
-                                            }
-                                        };
-                                    } else {
-                                        videoEl.onended = () => {
-                                            if (ttsState.isPlaying) {
-                                                videoEl.currentTime = 0;
-                                                videoEl.play().catch(e => console.log("Loop prevented", e));
-                                            }
-                                        };
-                                    }
+                                    slide.video_url = data.video_url; // Cache it!
+                                    renderAiVideoPlayer(slide.video_url);
                                 } else if(data.status === 'manual_required') {
                                     document.getElementById('jxgbox').innerHTML = `
                                     <div style='color:var(--border-gold); padding:2rem; font-family:sans-serif; text-align:center; height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; max-width:800px; margin:0 auto;'>
@@ -2884,7 +3090,7 @@
                             }).then(data => {
                                 if (window.currentSlideRenderId !== thisSlideRenderId) return;
                                 if(data.status === 'success') {
-                                    document.getElementById('jxgbox').innerHTML = `<video src="${data.video_url}" autoplay loop muted style="width:100%; height:100%; object-fit:cover;"></video>`;
+                                    document.getElementById('jxgbox').innerHTML = `<video src="${data.video_url}" autoplay loop muted style="width:100%; height:100%; object-fit:contain;"></video>`;
                                 } else {
                                     throw new Error(data.detail || 'Unknown compilation error');
                                 }
@@ -2947,15 +3153,13 @@
                             if (slide.uploaded_images[imgId]) {
                                 const img = document.createElement('img');
                                 img.src = slide.uploaded_images[imgId];
-                                img.style.float = 'right';
-                                img.style.maxWidth = '45%';
+                                img.style.display = 'block';
+                                img.style.margin = '1.5rem auto';
+                                img.style.maxWidth = '70%';
                                 img.style.maxHeight = '350px';
                                 img.style.borderRadius = '12px';
                                 img.style.objectFit = 'contain';
-                                img.style.display = 'block';
-                                img.style.margin = '0.5rem 0 1rem 2rem';
                                 img.style.boxShadow = '0 0 20px rgba(255,215,0,0.2)';
-                                img.style.clear = 'right';
                                 ph.replaceWith(img);
                             }
                         });
@@ -3000,9 +3204,15 @@
             }; // End of performDOMUpdate
 
             const finalizeSlideAnimations = () => {
-                // 1. Cinematic Zoom Trigger
+                // 1. Cinematic Animations (Zoom)
                 const overlayZone = document.querySelector('.lecture-overlay-zone');
                 const dynamicZone = document.querySelector('.dynamic-side-zone');
+                const titleContainer = document.getElementById('slide-title-container');
+
+                if (titleContainer) {
+                    titleContainer.style.opacity = '1';
+                }
+
                 if (overlayZone && dynamicZone) {
                     overlayZone.classList.remove('cinematic-zoom-active');
                     dynamicZone.classList.remove('cinematic-zoom-active');
@@ -3594,52 +3804,14 @@
                                     : document.getElementById('gemini-voice-select').value;
             
             // -----------------------------------------------------
-            // NEW REAL-TIME API CHUNKING ENGINE (100% PERFECT SYNC)
+            // ULTIMATE PROPORTIONAL SYNC ENGINE (100% TTS INDEPENDENT)
             // -----------------------------------------------------
             
-            const chunks = [];
-            let lastCutIndex = 0;
-            const narrationLower = text.toLowerCase();
+            const subTrack = document.getElementById('subtitle-track');
             
-            if (syncElements && syncElements.length > 0) {
-                let activeElementIndex = 0;
-                
-                const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
-                
-                sentences.forEach((sen) => {
-                    let senLower = sen.toLowerCase();
-                    let elemsToReveal = [];
-                    
-                    while (activeElementIndex < syncElements.length) {
-                        const elText = syncElements[activeElementIndex].textContent.trim().toLowerCase();
-                        const cleanText = elText.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g,"");
-                        const words = cleanText.split(/\s+/).filter(w => w.length > 3).slice(0, 2);
-                        
-                        if (words.length > 0 && senLower.includes(words[0])) {
-                            elemsToReveal.push(syncElements[activeElementIndex]);
-                            activeElementIndex++;
-                        } else {
-                            break;
-                        }
-                    }
-                    
-                    if (sen.trim().length > 1 && /[a-zA-Z0-9]/.test(sen)) {
-                        chunks.push({ text: sen.trim(), elementsToReveal: elemsToReveal });
-                    }
-                });
-                
-                while (activeElementIndex < syncElements.length) {
-                    if (chunks.length > 0) {
-                        chunks[chunks.length-1].elementsToReveal.push(syncElements[activeElementIndex]);
-                    }
-                    activeElementIndex++;
-                }
-            } else {
-                chunks.push({ text: text, elementsToReveal: [] });
-            }
-
             if (ttsEngine === 'default') {
-                const utterance = new SpeechSynthesisUtterance(text);
+                const cleanText = text.replace(/\[SYNC\]/g, "");
+                const utterance = new SpeechSynthesisUtterance(cleanText);
                 const voices = window.speechSynthesis.getVoices();
                 const voiceObj = voices.find(v => v.name === selectedVoice);
                 if (voiceObj) utterance.voice = voiceObj;
@@ -3649,11 +3821,10 @@
                     ttsState.isPlaying = true;
                     updateTTSButtons();
                     triggerFallbackReveal();
-                    const subTrack = document.getElementById('subtitle-track');
                     if (subTrack) {
                         subTrack.classList.remove('active');
                         void subTrack.offsetWidth;
-                        subTrack.innerHTML = text;
+                        subTrack.innerHTML = cleanText;
                         subTrack.classList.add('active');
                     }
                 };
@@ -3674,112 +3845,217 @@
                 return;
             }
 
-            async function fetchAudioForChunk(chunkText) {
+            ttsState.isPlaying = true;
+            updateTTSButtons();
+
+            if (subTrack) {
+                subTrack.classList.remove('active');
+                void subTrack.offsetWidth;
+                subTrack.innerHTML = "Generating Voiceover...";
+                subTrack.classList.add('active');
+            }
+
+            try {
+                // Parse the [SYNC] markers for DOM reveals
+                const parts = text.split('[SYNC]');
+                const cleanText = text.replace(/\[SYNC\]/g, "");
+                
+                // Calculate exact character index for each sync point
+                const syncTimings = [];
+                
+                if (parts.length > 1) {
+                    let currentLen = 0;
+                    for (let i = 0; i < parts.length - 1; i++) {
+                        currentLen += parts[i].length;
+                        syncTimings.push({
+                            charIndex: currentLen,
+                            revealed: false
+                        });
+                    }
+                } else if (syncElements && syncElements.length > 0) {
+                    // FALLBACK: If no [SYNC] markers exist (old slide), use anchor-word mathematical syncing
+                    let currentIndex = 0;
+                    syncElements.forEach(el => {
+                        const elText = el.textContent.trim().toLowerCase();
+                        const words = elText.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g,"").split(/\s+/);
+                        let anchorWord = words.find(w => w.length > 3) || words[0] || "";
+                        
+                        let foundIndex = -1;
+                        if (anchorWord) {
+                            foundIndex = cleanText.toLowerCase().indexOf(anchorWord, currentIndex);
+                        }
+                        
+                        // If not found, just distribute them evenly as a fallback
+                        if (foundIndex === -1) {
+                            foundIndex = currentIndex + (cleanText.length - currentIndex) / (syncElements.length);
+                        }
+                        
+                        syncTimings.push({
+                            charIndex: foundIndex,
+                            revealed: false
+                        });
+                        
+                        currentIndex = foundIndex;
+                    });
+                }
+
+                // Sentence by Sentence Subtitle timings
+                const subtitleTimings = [];
+                // Split by regex looking for ending punctuation (.?!) followed by space, or just use the whole text.
+                const sentenceMatches = cleanText.match(/[^.!?]+[.!?]+/g) || [cleanText];
+                let currentSubLen = 0;
+                for (let i = 0; i < sentenceMatches.length; i++) {
+                    subtitleTimings.push({
+                        charIndex: currentSubLen,
+                        subtitle: sentenceMatches[i].trim()
+                    });
+                    currentSubLen += sentenceMatches[i].length;
+                }
+
+                // Make ONE single API call for the entire slide narration!
                 const requestBody = {
-                    text: chunkText,
+                    text: cleanText,
                     voice: selectedVoice,
                     tts_engine: ttsEngine
                 };
+                
                 const res = await fetch('/generate-audio', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(requestBody)
                 });
-                if (!res.ok) throw new Error("Audio chunk generation failed");
+                
+                if (!res.ok) throw new Error("Audio generation failed");
                 const data = await res.json();
                 if (data.status !== 'success') throw new Error(data.detail);
-                return data.audio_url;
-            }
 
-            ttsState.isPlaying = true;
-            updateTTSButtons();
+                if (window.currentNarrationId !== thisNarrationId) return;
 
-            try {
-                let nextAudioPromise = fetchAudioForChunk(chunks[0].text);
+                const audio = new Audio(data.audio_url);
+                audio.crossOrigin = "anonymous";
+                audio.style.display = 'none';
+                document.body.appendChild(audio);
+                window.currentAudio = audio;
+                audio.playbackRate = ttsState.rate;
 
-                for (let i = 0; i < chunks.length; i++) {
+                // When audio loads, initialize the UI and start playback
+                audio.addEventListener('loadedmetadata', () => {
                     if (window.currentNarrationId !== thisNarrationId) return;
-
-                    const audioUrl = await nextAudioPromise;
                     
-                    if (i + 1 < chunks.length) {
-                        nextAudioPromise = fetchAudioForChunk(chunks[i + 1].text);
-                    }
-
-                    if (window.currentNarrationId !== thisNarrationId) return;
-
-                    const audio = new Audio(audioUrl);
-                    audio.crossOrigin = "anonymous";
-                    audio.style.display = 'none';
-                    document.body.appendChild(audio);
+                    const totalChars = cleanText.length;
+                    const duration = audio.duration || 1; // Fallback to 1 to avoid div-by-zero
                     
-                    window.currentAudio = audio;
-                    audio.playbackRate = ttsState.rate;
+                    // Assign a target time in seconds to each sync point based on character ratio
+                    syncTimings.forEach(sync => {
+                        sync.targetTime = (sync.charIndex / totalChars) * duration;
+                    });
 
-                    const subTrack = document.getElementById('subtitle-track');
-                    if (subTrack) {
-                        subTrack.classList.remove('active');
-                        void subTrack.offsetWidth;
-                        subTrack.innerHTML = chunks[i].text;
+                    subtitleTimings.forEach(sub => {
+                        sub.targetTime = (sub.charIndex / totalChars) * duration;
+                    });
+                    
+                    if (subTrack && subtitleTimings.length > 0) {
+                        subTrack.innerHTML = subtitleTimings[0].subtitle;
                         subTrack.classList.add('active');
                     }
 
-                    if (chunks[i].elementsToReveal && chunks[i].elementsToReveal.length > 0) {
-                        chunks[i].elementsToReveal.forEach(el => {
-                            if (el) {
-                                el.classList.remove('cascade-hidden');
-                                el.classList.add('cascade-visible');
-                            }
-                        });
+                    if (ttsState.isPlaying) {
+                        audio.play().catch(e => console.error("Playback prevented:", e));
                     }
-
-                    await new Promise((resolve, reject) => {
-                        audio.addEventListener('ended', resolve);
-                        audio.addEventListener('error', reject);
-                        
-                        const checkPlayState = setInterval(() => {
-                            if (!ttsState.isPlaying && !audio.paused) {
-                                audio.pause();
-                            } else if (ttsState.isPlaying && audio.paused) {
-                                audio.play().catch(e => console.log("Auto-play prevented", e));
-                            }
-                            if (window.currentNarrationId !== thisNarrationId) {
-                                clearInterval(checkPlayState);
-                                audio.pause();
-                                resolve();
-                            }
-                        }, 100);
-
-                        audio.addEventListener('ended', () => clearInterval(checkPlayState));
-                        audio.addEventListener('error', () => clearInterval(checkPlayState));
-
-                        if (ttsState.isPlaying) {
-                            audio.play().catch(reject);
-                        }
-                    });
+                });
+                
+                // Sync points via timeupdate
+                audio.addEventListener('timeupdate', () => {
+                    if (window.currentNarrationId !== thisNarrationId) return;
+                    const ct = audio.currentTime;
                     
-                    if (audio.parentNode) {
-                        audio.parentNode.removeChild(audio);
+                    for (let i = 0; i < syncTimings.length; i++) {
+                        const sync = syncTimings[i];
+                        if (!sync.revealed && ct >= sync.targetTime) {
+                            sync.revealed = true;
+                            
+                            // Reveal the corresponding DOM element
+                            if (syncElements && i < syncElements.length) {
+                                syncElements[i].classList.remove('cascade-hidden');
+                                syncElements[i].classList.add('cascade-visible');
+                            }
+                        }
                     }
-                }
-                
-                if (window.currentNarrationId !== thisNarrationId) return;
-                
-                if (ttsState.isPlaying) {
-                    if (currentSlide < slides.length - 1) {
-                        currentSlide++;
-                        setTimeout(() => {
-                            if (ttsState.isPlaying) renderSlide(currentSlide);
-                        }, 800);
-                    } else {
-                        ttsState.isPlaying = false;
-                        updateTTSButtons();
-                    }
-                }
 
-            } catch (err) {
-                console.error("Realtime Chunk API Sync Error:", err);
+                    // Sentence by Sentence Subtitle Update
+                    if (subTrack) {
+                        let activeSubIndex = 0;
+                        for (let i = subtitleTimings.length - 1; i >= 0; i--) {
+                            if (ct >= subtitleTimings[i].targetTime) {
+                                activeSubIndex = i;
+                                break;
+                            }
+                        }
+                        // Fallback to 0 if we're before the first subtitle
+                        activeSubIndex = Math.max(0, activeSubIndex);
+
+                        if (subtitleTimings[activeSubIndex]) {
+                            const currentSub = subtitleTimings[activeSubIndex].subtitle;
+                            if (subTrack.innerHTML !== currentSub) {
+                                subTrack.classList.remove('active');
+                                void subTrack.offsetWidth; // Reflow to reset animation
+                                subTrack.innerHTML = currentSub;
+                                subTrack.classList.add('active');
+                            }
+                        }
+                    }
+                    
+                    // Reveal any remaining elements if we are at the very end
+                    if (ct >= audio.duration - 0.5) {
+                        triggerFallbackReveal();
+                    }
+                });
+
+                audio.addEventListener('ended', () => {
+                    if (window.currentNarrationId !== thisNarrationId) return;
+                    triggerFallbackReveal();
+                    
+                    if (ttsState.isPlaying) {
+                        if (currentSlide < slides.length - 1) {
+                            currentSlide++;
+                            setTimeout(() => {
+                                if (ttsState.isPlaying) renderSlide(currentSlide);
+                            }, 800);
+                        } else {
+                            ttsState.isPlaying = false;
+                            updateTTSButtons();
+                        }
+                    }
+                });
+                
+                // Fallback loop to ensure play/pause state is respected
+                const checkPlayState = setInterval(() => {
+                    if (window.currentNarrationId !== thisNarrationId) {
+                        clearInterval(checkPlayState);
+                        audio.pause();
+                        return;
+                    }
+                    if (!ttsState.isPlaying && !audio.paused) {
+                        audio.pause();
+                    } else if (ttsState.isPlaying && audio.paused && audio.readyState >= 2) {
+                        audio.play().catch(e => console.log("Auto-play prevented", e));
+                    }
+                }, 100);
+                
+                audio.addEventListener('ended', () => clearInterval(checkPlayState));
+                audio.addEventListener('error', () => clearInterval(checkPlayState));
+
+            } catch (e) {
+                console.error("Audio playback error:", e);
                 triggerFallbackReveal();
+                
+                if (ttsState.isPlaying && currentSlide < slides.length - 1) {
+                    currentSlide++;
+                    setTimeout(() => {
+                        if (ttsState.isPlaying) renderSlide(currentSlide);
+                    }, 2000);
+                }
+                
                 ttsState.isPlaying = false;
                 updateTTSButtons();
             }
@@ -4129,7 +4405,9 @@ CRITICAL JSON STRUCTURE: You must return a JSON OBJECT containing exactly five k
 - "session_number": The sequential session or lecture number (e.g., "Session 1"). If not provided, default to "Session 1".
 - "session_title": The specific title of this presentation/lecture (e.g., "Properties of Solids").
 - "concept_map": A JSON array of nodes representing the Skill Tree. CRITICAL REQUIREMENT: You MUST ALWAYS deduce and generate a detailed concept map based on the progression of topics in the document. The frontend application WILL CRASH if this array is empty. You MUST extract at least 3-10 logical concepts. Each node has: {"id": "unique_string", "title": "Short Title", "depends_on": ["parent_id" or empty array]}.
-- "scenes": An array of scene objects. CRITICAL: Every single scene MUST include a "concept_id" that STRICTLY matches one of the 'id' strings defined in your 'concept_map' array. Do not invent unmapped concept IDs! Every scene (except title, ai_video, or simulation) MUST ALWAYS include a "side_panel" object without fail! The side panel MUST be present for ALL content slides, as the user will manually decide when to show the mascot. The "side_panel" object must be ONE of these NINE formats:
+- "scenes": An array of scene objects. CRITICAL: Every single scene MUST include a "concept_id" that STRICTLY matches one of the 'id' strings defined in your 'concept_map' array. Do not invent unmapped concept IDs! Every scene (except title, ai_video, or simulation) MUST ALWAYS include a "side_panel" object without fail! The side panel MUST be present for ALL content slides, as the user will manually decide when to show the mascot. 
+  CRITICAL: Every single scene MUST include an "aadhi_position" field (string). Valid values: "left", "right", "center", "popup_bottom_left", "popup_bottom_right", "hidden". Aadhi being on screen is not mandatory, but he has to be there often instead of bland slides. Choose "popup" for content-heavy slides to save space, "left" or "right" for standard presentations, and "center" for dramatic introductions.
+  The "side_panel" object must be ONE of these NINE formats:
   1) {"type": "skill_tree"} -> Shows the concept map. Use this for major topic transitions.
   2) {"type": "image", "prompt": "hyper-realistic stock photo of [subject], photography, 8k resolution, highly detailed"} -> Shows a contextual AI-generated image. Use this frequently for content slides to keep the presentation visually engaging.
   3) {"type": "chart", "chart_type": "bar", "title": "Chart Title", "data": { "labels": ["A", "B"], "datasets": [{"label": "Value", "data": [10, 20], "backgroundColor": "rgba(176,38,255,0.5)", "borderColor": "rgba(255,215,0,1)"}] }} -> Renders a gorgeous animated Chart.js data visualization. Use this whenever the text discusses quantitative data, history timelines, or comparisons! Supported chart_types: bar, line, pie, doughnut.
@@ -4155,7 +4433,7 @@ Here are the types of scenes you can generate:
    *CRITICAL TITLE RULE*: The video player AUTOMATICALLY generates a cinematic intro using your global 'subject_name' and 'session_title' fields. Therefore, DO NOT generate a "title" scene as the very first scene of the presentation! That would be redundant. ONLY use a "title" scene later in the presentation if you are transitioning to an entirely new major chapter.
 
 2. Content Scene (Immersive Text Overlay):
-   {"type": "content", "concept_id": "concept1", "title": "CONCEPT", "subtitle": "Optional Subtitle", "html": "...", "side_panel": {"type": "image", "prompt": "..."}, "narration": "Conversational, natural spoken explanation of the concept."}
+   {"type": "content", "concept_id": "concept1", "title": "CONCEPT", "subtitle": "Optional Subtitle", "html": "...", "side_panel": {"type": "image", "prompt": "..."}, "narration": "Conversational, natural spoken explanation of the concept. CRITICAL: You MUST insert the exact text [SYNC] right before you begin discussing each specific concept or bullet point that appears on screen so the video player knows when to reveal it!"}
    *FATAL CRASH WARNING*: Keep the 'html' content visually concise enough to fit on one screen without scrolling. You MUST write EVERY SINGLE SENTENCE as a separate <p> tag, <li> tag, or <div class='definition'> tag. DO NOT EVER group multiple sentences into one paragraph! If you put more than one sentence in a single tag, the real-time text-to-speech animation engine WILL CRASH. All heavy, wordy conceptual explanations MUST go into the spoken 'narration' field, leaving ONLY concise summaries in the 'html'. CRITICAL REQUIREMENT: You MUST ALWAYS provide a 'side_panel' object for content slides without fail.
 
 3. Manim Simulation (Math/Logic Visualization):
@@ -4331,6 +4609,20 @@ Formatting and Narration constraints:
                 // Auto-backup to localStorage so they survive page refreshes
                 saveProjectBackup();
 
+                // Save to server history
+                fetch('/save-history', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        subject_name: currentSubjectName,
+                        unit_name: currentUnitName,
+                        session_number: currentSessionNumber,
+                        session_title: currentSessionTitle,
+                        concept_map: conceptMapData,
+                        scenes: slides
+                    })
+                }).catch(e => console.error("History save failed:", e));
+
                 // Reset slide index
                 currentSlide = 0;
 
@@ -4370,13 +4662,7 @@ Formatting and Narration constraints:
 
         // Initialize first slide when MathJax is ready or document is loaded
         document.addEventListener("DOMContentLoaded", () => {
-            // Dynamically load background video to permanently bypass browser cache
-            const mascotBg = document.getElementById('mascot-bg');
-            mascotBg.innerHTML = `
-                <source src="video_template/video_template.mp4?t=${Date.now()}" type="video/mp4">
-                <source src="video_template/provided-video.mp4?t=${Date.now()}" type="video/mp4">
-            `;
-            mascotBg.load();
+            // The 4 mascot background videos are already preloaded in the HTML DOM
 
             const savedSlides = localStorage.getItem('saved_slides_backup');
             if (savedSlides) {
@@ -4736,6 +5022,19 @@ Formatting and Narration constraints:
                 // Auto-save backup to ensure edits are not lost on refresh
                 saveProjectBackup();
                 
+                fetch('/save-history', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        subject_name: currentSubjectName,
+                        unit_name: currentUnitName,
+                        session_number: currentSessionNumber,
+                        session_title: currentSessionTitle,
+                        concept_map: conceptMapData,
+                        scenes: slides
+                    })
+                }).catch(e => console.error("History save failed:", e));
+                
                 scriptEditorModal.classList.remove('active');
                 
                 // Resume TTS and Video
@@ -4793,6 +5092,19 @@ Formatting and Narration constraints:
                     slides[currentSlide] = s;
                     saveProjectBackup(); // Save to local storage backup
                     
+                    fetch('/save-history', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            subject_name: currentSubjectName,
+                            unit_name: currentUnitName,
+                            session_number: currentSessionNumber,
+                            session_title: currentSessionTitle,
+                            concept_map: conceptMapData,
+                            scenes: slides
+                        })
+                    }).catch(e => console.error("History save failed:", e));
+                    
                     scriptEditorModal.classList.remove('active');
                     renderSlide(currentSlide);
                     
@@ -4843,6 +5155,19 @@ Formatting and Narration constraints:
                         // Automatically save and render!
                         slides[currentSlide] = s;
                         saveProjectBackup(); 
+                        
+                        fetch('/save-history', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                subject_name: currentSubjectName,
+                                unit_name: currentUnitName,
+                                session_number: currentSessionNumber,
+                                session_title: currentSessionTitle,
+                                concept_map: conceptMapData,
+                                scenes: slides
+                            })
+                        }).catch(e => console.error("History save failed:", e));
                         
                         scriptEditorModal.classList.remove('active');
                         renderSlide(currentSlide);
@@ -4986,7 +5311,7 @@ Formatting and Narration constraints:
                     vidLabel.style.padding = '0.2rem 0.5rem';
                     vidLabel.style.border = '1px solid #4CAF50';
                     vidLabel.style.borderRadius = '4px';
-                    vidLabel.innerText = slide.video_url ? 'Video Uploaded ✓' : 'Upload Video';
+                    vidLabel.innerText = slide.video_url ? 'Re-Upload Video ✓' : 'Upload Video';
                     
                     const vidInput = document.createElement('input');
                     vidInput.type = 'file';
@@ -5003,7 +5328,7 @@ Formatting and Narration constraints:
                             const res = await fetch('/upload-media', {method: 'POST', body: fd});
                             const data = await res.json();
                             slide.video_url = data.url;
-                            vidLabel.innerText = 'Video Uploaded ✓';
+                            vidLabel.innerText = 'Re-Upload Video ✓';
                             saveProjectBackup();
                             if(currentSlide === index) renderSlide(currentSlide);
                         } catch(err) {
@@ -5155,7 +5480,38 @@ Formatting and Narration constraints:
 
     
     
-    <div id="slide-scrubber-container" class="slide-scrubber-container"></div>
+    
     <script src="app.js" defer></script>
+    <!-- Ambient Particles Generator -->
+    <script>
+        function spawnAmbientParticles() {
+            const container = document.body;
+            const particleCount = 20; // Number of glowing orbs
+            
+            for (let i = 0; i < particleCount; i++) {
+                let p = document.createElement('div');
+                p.classList.add('ambient-particle');
+                
+                // Randomize position, size, and animation
+                let size = Math.random() * 150 + 50; // 50px to 200px
+                let startX = Math.random() * window.innerWidth;
+                let startY = window.innerHeight + Math.random() * 500;
+                let duration = Math.random() * 15 + 15; // 15s to 30s
+                let delay = Math.random() * 20; // Stagger start times
+                
+                p.style.width = size + 'px';
+                p.style.height = size + 'px';
+                p.style.left = startX + 'px';
+                p.style.top = startY + 'px';
+                p.style.animationDuration = duration + 's';
+                p.style.animationDelay = '-' + delay + 's'; // Starts animation part-way through
+                
+                container.appendChild(p);
+            }
+        }
+        
+        // Spawn them once on load
+        window.addEventListener('DOMContentLoaded', spawnAmbientParticles);
+    </script>
 </body>
 </html>

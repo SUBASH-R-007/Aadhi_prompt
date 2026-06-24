@@ -45,3 +45,14 @@ debug_failed_json.txt
 .vscode/
 .idea/
 *.swp
+
+# ML Models and Weights
+models/
+*.onnx
+*.bin
+*.pt
+*.pth
+
+# Generated Audio
+output.wav
+temp.mp3

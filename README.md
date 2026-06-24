@@ -2,20 +2,36 @@
 
 A revolutionary, fully automated presentation and lecture generator powered by Gemini 2.5 Pro and Google's Veo Video Model. This tool dynamically converts boring PDF documents and textbook chapters into stunning, cinematic, interactive web documentaries with perfectly paced voiceovers, live Manim mathematics simulations, custom background music, and hyper-realistic AI B-roll video.
 
-## ✨ Core Features
+## ✨ Core Features & Technical Breakthroughs
 
-*   **🧠 Intelligent Content Extraction:** Automatically parses large `.pdf`, `.docx`, and `.txt` files into hierarchical skill trees and concept maps using Gemini.
-*   **🗣️ Human-like Voiceovers:** Integrated with `edge-tts` and Gemini to provide buttery smooth, synchronized narration for every slide.
-*   **🎥 The Cinematic UX Overhaul:**
-    *   **Auto-Progression:** The presentation automatically flows from scene to scene, acting as a continuous, hands-free documentary video.
-    *   **Custom Ambient Audio:** Seamlessly loops a copyright-free background music track (`bgm.mp3`) underneath the narration for a professional documentary atmosphere.
-    *   **Kinetic Subtitles:** Movie-style subtitles at the bottom of the screen sync perfectly with the spoken voiceover in real-time.
-    *   **Post-Processing Overlays:** Forces a 16:9 cinematic letterbox, deep vignettes, and realistic film-grain.
-    *   **The Ken Burns Effect:** All static images and background media slowly scale and zoom to ensure the frame remains in constant, dynamic motion.
-*   **🧮 Live Manim Simulations:** Automatically generates raw Python code to mathematically animate formulas and geometry in real-time using Manim.
-*   **🎥 Google Veo Video Generation:** Synthesizes stunning, highly detailed AI-generated cinematic B-roll footage mapped perfectly to the context of the slide using the Gemini API.
-*   **📊 Interactive Data Visualizations:** Dynamically spawns interactive Chart.js graphs, JSXGraph coordinate systems, code hacker terminals, and 3D Three.js models on the fly.
-*   **📚 Persistent History Tracking:** Saves your previously generated projects and dynamically loads them on-demand via a custom Fast API backend.
+### 🧠 Intelligent Content & State Machine Extraction
+* **Gemini Parsing Engine:** Automatically parses large `.pdf`, `.docx`, and `.txt` files into hierarchical skill trees, interactive concept maps, and strict JSON slide schemas.
+* **Mascot State Machine:** Seamless crossfade video architecture for our mascot "Aadhi". The engine intelligently swaps between `idle`, `talking`, and `explaining_math` video layers based on the current slide's context, without breaking the visual flow.
+
+### 🗣️ Audio & Subtitle Sync Engine
+* **Sentence-by-Sentence Sync:** A bespoke mathematical character-length ratio algorithm parses the generated narration and syncs subtitles precisely sentence-by-sentence to the `timeupdate` of the audio stream.
+* **Human-like Voiceovers:** Integrated with `edge-tts` to provide buttery smooth narration for every slide.
+* **Ambient Ducking:** Seamlessly loops a copyright-free background music track (`bgm.mp3`), strictly leveled at 1% volume to provide professional documentary atmosphere without overpowering the narrator.
+
+### 🎥 The Cinematic UX Overhaul
+* **Auto-Progression:** The presentation automatically flows from scene to scene, acting as a continuous, hands-free documentary video.
+* **Dynamic 3D Layout Engine:** The presentation board uses CSS 3D transforms (`rotateY`) and GSAP to simulate camera depth. 
+* **Aspect-Ratio Aware Side Panels:** Side panels (`.dynamic-side-zone`) use native `fit-content` logic bounded by `25vw - 40vw` limits. Whether displaying a vertical image or an ultrawide video, the UI dynamically resizes to fit without ugly cropping.
+* **TV-Broadcast Headers:** Modern, aesthetic slide headers and side-panel integration mimicking a high-end educational broadcast, fully replacing intrusive lower-thirds.
+* **Integrated Control Bar:** A custom glassmorphic bottom bar houses playback controls, TTS speed sliders, and a fully integrated slide scrubber, hiding completely when not in use.
+
+### 🧮 Live Manim & Mathematics Simulations
+* **Automated Python Generation:** The LLM is strictly prompted to generate highly complex `manim_code` for geometric and algebraic proofs.
+* **FastAPI Compilation:** The backend dynamically writes, executes, and compiles Manim Python scripts via local shell processes, serving the resulting `.mp4` directly back to the presentation board.
+
+### 🎬 Media & Interactive Visualizations
+* **Google Veo Video Generation:** Synthesizes stunning, highly detailed AI-generated cinematic B-roll footage mapped perfectly to the context of the slide using the Gemini API. Videos are served with `object-fit: contain` to prevent cinematic cropping.
+* **Interactive Spawns:** Dynamically spawns interactive Chart.js graphs, JSXGraph coordinate systems, code hacker terminals, and 3D Three.js models on the fly.
+* **Knowledge Check Quizzes:** Interactive multiple-choice quizzes are injected into the presentation flow, featuring an extended 10-second auto-reveal timer for seamless video recording workflows.
+
+### 📚 Persistent History Tracking
+* **SQLite Backend (`projects.db`):** Saves your previously generated projects, storing the full JSON schema payload.
+* **Instant Replay:** A glassmorphic "History" modal allows you to dynamically load and reconstruct any previous presentation instantly via the Fast API backend.
 
 ## 🛠️ Tech Stack
 
@@ -54,7 +70,7 @@ Required to dynamically generate and render mathematical equations and symbols.
 * Ensure the MiKTeX `\bin` directory is added to your system `PATH`.
 
 #### D. Git LFS (Large File Storage)
-Required because this repository contains large `.mp4` background videos and `.mp3` music files.
+Required because this repository contains large `.mp4` background videos (Aadhi Mascot videos) and `.mp3` music files.
 * Download and install from [git-lfs.com](https://git-lfs.com/).
 * Open your terminal and run `git lfs install` to initialize it.
 
@@ -67,7 +83,7 @@ Once your system prerequisites are configured, clone the repository and install 
 git clone https://github.com/SUBASH-R-007/Aadhi_prompt.git
 cd Aadhi_prompt
 
-# Pull the large media assets (videos, MP3s) using Git LFS
+# Pull the large media assets (Mascot videos, MP3s) using Git LFS
 git lfs pull
 
 # Install all required Python packages (FastAPI, Manim, Edge-TTS, etc.)

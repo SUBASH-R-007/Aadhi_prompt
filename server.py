@@ -650,8 +650,8 @@ async def generate_audio(request: AudioRequest, username: str = Depends(verify_c
     hash_str = f"{text}_{voice}_{tts_engine}"
     text_hash = hashlib.sha256(hash_str.encode('utf-8')).hexdigest()[:16]
     
-    # Gemini returns .wav implicitly, Edge-TTS returns .mp3
-    file_ext = "wav" if (tts_engine.startswith("gemini") or "gpt-4o-mini" in tts_engine) else "mp3"
+    # Gemini returns .wav. OpenAI defaults to .mp3, but we will convert it to .wav using ffmpeg to prevent corrupted headers and MP3 padding.
+    file_ext = "wav" if (tts_engine.startswith("gemini") or tts_engine.startswith("openai")) else "mp3"
     filename = f"audio_{text_hash}.{file_ext}"
     filepath = os.path.join(STATIC_DIR, filename)
     
@@ -784,10 +784,24 @@ async def generate_audio(request: AudioRequest, username: str = Depends(verify_c
                 response = await client.audio.speech.create(
                     model=actual_model,
                     voice=voice,
-                    input=text
+                    input=text,
+                    response_format="mp3"
                 )
                 
-                response.stream_to_file(filepath)
+                temp_mp3 = filepath + ".temp.mp3"
+                with open(temp_mp3, "wb") as f:
+                    f.write(response.content)
+                
+                import asyncio
+                process = await asyncio.create_subprocess_exec(
+                    'ffmpeg', '-y', '-i', temp_mp3, filepath,
+                    stdout=asyncio.subprocess.DEVNULL,
+                    stderr=asyncio.subprocess.DEVNULL
+                )
+                await process.communicate()
+                
+                if os.path.exists(temp_mp3):
+                    os.remove(temp_mp3)
             
             return {"status": "success", "audio_url": f"http://127.0.0.1:8000/static/{filename}?t={int(time.time())}"}
             
