@@ -3418,7 +3418,11 @@
                                 ? 'autoplay style="width:100%; height:100%; object-fit:cover;"'
                                 : 'autoplay muted style="width:100%; height:100%; object-fit:cover;"';
 
-                            document.getElementById('jxgbox').innerHTML = `<video id="active-ai-video" src="${url}" ${videoAttrs}></video>`;
+                            let finalUrl = url;
+                            if (finalUrl.startsWith('/') && window.API_BASE_URL) {
+                                finalUrl = window.API_BASE_URL + finalUrl;
+                            }
+                            document.getElementById('jxgbox').innerHTML = `<video id="active-ai-video" src="${finalUrl}" ${videoAttrs}></video>`;
 
                             const videoEl = document.getElementById('active-ai-video');
                             if (slide.ai_audio_source === 'video') {
@@ -3559,7 +3563,11 @@
                             }).then(data => {
                                 if (window.currentSlideRenderId !== thisSlideRenderId) return;
                                 if (data.status === 'success') {
-                                    document.getElementById('jxgbox').innerHTML = `<video src="${data.video_url}" autoplay loop muted style="width:100%; height:100%; object-fit:contain;"></video>`;
+                                    let finalUrl = data.video_url;
+                                    if (finalUrl.startsWith('/') && window.API_BASE_URL) {
+                                        finalUrl = window.API_BASE_URL + finalUrl;
+                                    }
+                                    document.getElementById('jxgbox').innerHTML = `<video src="${finalUrl}" autoplay loop muted style="width:100%; height:100%; object-fit:contain;"></video>`;
                                 } else {
                                     throw new Error(data.detail || 'Unknown compilation error');
                                 }
@@ -4320,9 +4328,9 @@
             if (subTrack) {
                 subTrack.classList.remove('active');
                 void subTrack.offsetWidth;
-                subTrack.innerHTML = "Generating Voiceover...";
-                subTrack.classList.add('active');
+                subTrack.innerHTML = "";
             }
+
 
             try {
                 // Parse the [SYNC] markers for DOM reveals
@@ -4388,15 +4396,24 @@
                     tts_engine: ttsEngine
                 };
 
-                const res = await fetch('/generate-audio', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(requestBody)
-                });
+                const cacheKey = cleanText + "_" + selectedVoice + "_" + ttsEngine;
+                window.audioCache = window.audioCache || {};
+                
+                let data;
+                if (window.audioCache[cacheKey]) {
+                    data = window.audioCache[cacheKey];
+                } else {
+                    const res = await fetch('/generate-audio', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(requestBody)
+                    });
 
-                if (!res.ok) throw new Error("Audio generation failed");
-                const data = await res.json();
-                if (data.status !== 'success') throw new Error(data.detail);
+                    if (!res.ok) throw new Error("Audio generation failed");
+                    data = await res.json();
+                    if (data.status !== 'success') throw new Error(data.detail);
+                    window.audioCache[cacheKey] = data;
+                }
 
                 if (window.currentNarrationId !== thisNarrationId) return;
 

@@ -403,7 +403,7 @@ async def render_manim(request: RenderRequest, current_user: models.User = Depen
             print(f"\n[CACHE HIT] Instantly returning cached Manim video for scene: {scene_name}")
             return {
                 "status": "success",
-                "video_url": f"http://127.0.0.1:8000/static/{served_video_filename}",
+                "video_url": f"/static/{served_video_filename}",
                 "cached": True
             }
         
@@ -451,7 +451,7 @@ async def render_manim(request: RenderRequest, current_user: models.User = Depen
                 shutil.copy(generated_video_path, served_video_path)
                 return {
                     "status": "success",
-                    "video_url": f"http://127.0.0.1:8000/static/{served_video_filename}",
+                    "video_url": f"/static/{served_video_filename}",
                     "cached": False
                 }
             else:
@@ -595,7 +595,7 @@ async def generate_ai_video(request: AIVideoRequest, current_user: models.User =
             print(f"\n[CACHE HIT] Instantly returning existing video for prompt: '{prompt[:30]}...'")
             return {
                 "status": "success",
-                "video_url": f"http://127.0.0.1:8000/static/{filename}",
+                "video_url": f"/static/{filename}",
                 "cached": True
             }
         else:
@@ -650,7 +650,7 @@ async def generate_ai_video(request: AIVideoRequest, current_user: models.User =
                 
                 return {
                     "status": "success",
-                    "video_url": f"http://127.0.0.1:8000/static/{filename}"
+                    "video_url": f"/static/{filename}"
                 }
             else:
                 raise Exception("No video was returned from Veo API.")
@@ -693,7 +693,7 @@ async def generate_ai_video(request: AIVideoRequest, current_user: models.User =
         
         return {
             "status": "success",
-            "video_url": f"http://127.0.0.1:8000/static/{filename}",
+            "video_url": f"/static/{filename}",
             "cached": False
         }
     except Exception as e:
