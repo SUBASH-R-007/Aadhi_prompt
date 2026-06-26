@@ -2495,7 +2495,11 @@
 
     <script>
         // --- VERCEL / RAILWAY DEPLOYMENT CONFIG ---
-        window.API_BASE_URL = "https://aadhiprompt-production.up.railway.app"; // Change this to the Railway URL when deploying Vercel
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            window.API_BASE_URL = ""; 
+        } else {
+            window.API_BASE_URL = "https://aadhiprompt-production.up.railway.app"; 
+        }
 
         // --- JWT AUTHENTICATION OVERRIDE ---
         const originalFetch = window.fetch;
@@ -3629,7 +3633,11 @@
                             const imgId = ph.getAttribute('data-img-id');
                             if (slide.uploaded_images[imgId]) {
                                 const img = document.createElement('img');
-                                img.src = slide.uploaded_images[imgId];
+                                let finalImgUrl = slide.uploaded_images[imgId];
+                                if (finalImgUrl.startsWith('/') && window.API_BASE_URL) {
+                                    finalImgUrl = window.API_BASE_URL + finalImgUrl;
+                                }
+                                img.src = finalImgUrl;
                                 img.style.display = 'block';
                                 img.style.margin = '1.5rem auto';
                                 img.style.maxWidth = '70%';
@@ -3938,6 +3946,13 @@
 
         function startPresentationSequence(isExporting) {
             currentIsExporting = isExporting;
+            
+            clearTimeout(introTimeout1);
+            clearTimeout(introTimeout2);
+            clearTimeout(introTimeout3);
+            clearTimeout(introTimeout4);
+            clearTimeout(introTimeout5);
+            
             if (window.currentAudio) window.currentAudio.pause();
             currentSlide = 0;
 
@@ -4417,7 +4432,11 @@
 
                 if (window.currentNarrationId !== thisNarrationId) return;
 
-                const audio = new Audio(data.audio_url);
+                let finalAudioUrl = data.audio_url;
+                if (finalAudioUrl.startsWith('/') && window.API_BASE_URL) {
+                    finalAudioUrl = window.API_BASE_URL + finalAudioUrl;
+                }
+                const audio = new Audio(finalAudioUrl);
                 audio.crossOrigin = "anonymous";
                 audio.style.display = 'none';
                 document.body.appendChild(audio);
@@ -5217,14 +5236,17 @@ Formatting and Narration constraints:
             try {
                 // Ask user to select the tab to record (with audio)
                 const stream = await navigator.mediaDevices.getDisplayMedia({
-                    video: { displaySurface: "browser" },
+                    video: { 
+                        displaySurface: "browser",
+                        frameRate: { ideal: 60, max: 60 } 
+                    },
                     audio: true,
                     selfBrowserSurface: "include",
                     preferCurrentTab: true,
                     systemAudio: "include"
                 });
 
-                let options = { mimeType: 'video/webm', videoBitsPerSecond: 8000000 };
+                let options = { mimeType: 'video/webm', videoBitsPerSecond: 15000000 };
                 if (MediaRecorder.isTypeSupported('video/webm; codecs=vp9')) {
                     options.mimeType = 'video/webm; codecs=vp9';
                 } else if (MediaRecorder.isTypeSupported('video/webm; codecs=h264')) {
@@ -5280,7 +5302,10 @@ Formatting and Narration constraints:
                 alert("CRITICAL: When the share popup appears, you MUST select the 'Share this tab' option and check 'Also share tab audio' at the bottom. If you do not share audio, the recording will fail!");
                 // Ask user to select the tab to record
                 const stream = await navigator.mediaDevices.getDisplayMedia({
-                    video: { displaySurface: "browser" },
+                    video: { 
+                        displaySurface: "browser",
+                        frameRate: { ideal: 60, max: 60 } 
+                    },
                     audio: true,
                     selfBrowserSurface: "include",
                     preferCurrentTab: true,
@@ -5294,7 +5319,7 @@ Formatting and Narration constraints:
                     return;
                 }
 
-                let options = { mimeType: 'video/webm', videoBitsPerSecond: 8000000 };
+                let options = { mimeType: 'video/webm', videoBitsPerSecond: 15000000 };
                 if (MediaRecorder.isTypeSupported('video/webm; codecs=vp9')) {
                     options.mimeType = 'video/webm; codecs=vp9';
                 } else if (MediaRecorder.isTypeSupported('video/webm; codecs=h264')) {

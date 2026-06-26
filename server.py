@@ -747,7 +747,7 @@ async def generate_audio(request: AudioRequest, current_user: models.User = Depe
             
             if os.path.exists(filepath):
                 print(f"\n[CACHE HIT] Instantly returning cached audio for: '{text[:30]}...'")
-                return {"status": "success", "audio_url": f"http://127.0.0.1:8000/static/{filename}?t={int(time.time())}"}
+                return {"status": "success", "audio_url": f"/static/{filename}?t={int(time.time())}"}
         else:
             os.remove(filepath)
             
@@ -834,7 +834,7 @@ async def generate_audio(request: AudioRequest, current_user: models.User = Depe
                 with open(filepath, "wb") as f:
                     f.write(audio_data)
                 
-            return {"status": "success", "audio_url": f"http://127.0.0.1:8000/static/{filename}?t={int(time.time())}"}
+            return {"status": "success", "audio_url": f"/static/{filename}?t={int(time.time())}"}
             
         elif tts_engine.startswith("openai"):
             print(f"\n[OPENAI TTS] Generating voice '{voice}' using model '{tts_engine}'...")
@@ -883,7 +883,7 @@ async def generate_audio(request: AudioRequest, current_user: models.User = Depe
                 if os.path.exists(temp_mp3):
                     os.remove(temp_mp3)
             
-            return {"status": "success", "audio_url": f"http://127.0.0.1:8000/static/{filename}?t={int(time.time())}"}
+            return {"status": "success", "audio_url": f"/static/{filename}?t={int(time.time())}"}
             
         elif tts_engine.startswith("elevenlabs"):
             print(f"\n[ELEVENLABS TTS] Generating voice '{voice}'...")
@@ -915,13 +915,13 @@ async def generate_audio(request: AudioRequest, current_user: models.User = Depe
                 with open(filepath, "wb") as f:
                     f.write(response.content)
                     
-            return {"status": "success", "audio_url": f"http://127.0.0.1:8000/static/{filename}?t={int(time.time())}"}
+            return {"status": "success", "audio_url": f"/static/{filename}?t={int(time.time())}"}
             
         else:
             # Default Edge-TTS fallback
             communicate = edge_tts.Communicate(text, voice)
             await communicate.save(filepath)
-            return {"status": "success", "audio_url": f"http://127.0.0.1:8000/static/{filename}?t={int(time.time())}"}
+            return {"status": "success", "audio_url": f"/static/{filename}?t={int(time.time())}"}
     except Exception as e:
         engine_name = "OpenAI" if tts_engine.startswith("openai") else "ElevenLabs" if tts_engine.startswith("elevenlabs") else "Gemini" if tts_engine.startswith("gemini") else "TTS Engine"
         print(f"\n[WARNING] {engine_name} failed with error: {e}")
@@ -929,7 +929,7 @@ async def generate_audio(request: AudioRequest, current_user: models.User = Depe
         try:
             communicate = edge_tts.Communicate(text, "en-US-GuyNeural")
             await communicate.save(filepath)
-            return {"status": "success", "audio_url": f"http://127.0.0.1:8000/static/{filename}?t={int(time.time())}"}
+            return {"status": "success", "audio_url": f"/static/{filename}?t={int(time.time())}"}
         except Exception as fallback_err:
             raise HTTPException(status_code=500, detail=f"Gemini and fallback TTS both failed: {fallback_err}")
 
