@@ -2502,9 +2502,8 @@
         }
 
         // --- JWT AUTHENTICATION OVERRIDE ---
-        const originalFetch = window.fetch;
-        window.fetch = async function () {
-            let [resource, config] = arguments;
+        const originalFetch = window.fetch.bind(window);
+        window.fetch = async function (resource, config) {
 
             if (typeof resource === 'string' && resource.startsWith('/') && !resource.startsWith('//')) {
                 resource = window.API_BASE_URL + resource;
