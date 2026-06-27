@@ -3160,20 +3160,32 @@
         // --- WebSocket Live Progress ---
         let wsProgress;
         function connectWebSocket() {
-            wsProgress = new WebSocket(`ws://${window.location.host}/ws/progress`);
-            wsProgress.onmessage = function (event) {
-                if (event.data.startsWith('MANIM_LOG:')) {
-                    const logMsg = event.data.replace('MANIM_LOG:', '');
-                    const logDiv = document.querySelector('.manim-live-log');
-                    if (logDiv) {
-                        // Keep it on one line but replace text
-                        logDiv.textContent = logMsg.substring(0, 80) + (logMsg.length > 80 ? '...' : '');
-                    }
+            try {
+                let wsUrl = "";
+                if (window.API_BASE_URL) {
+                    wsUrl = window.API_BASE_URL.replace(/^http/, 'ws') + '/ws/progress';
+                } else {
+                    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    wsUrl = `${protocol}//${window.location.host}/ws/progress`;
                 }
-            };
-            wsProgress.onclose = function () {
-                setTimeout(connectWebSocket, 5000); // Reconnect
-            };
+                
+                wsProgress = new WebSocket(wsUrl);
+                wsProgress.onmessage = function (event) {
+                    if (event.data.startsWith('MANIM_LOG:')) {
+                        const logMsg = event.data.replace('MANIM_LOG:', '');
+                        const logDiv = document.querySelector('.manim-live-log');
+                        if (logDiv) {
+                            // Keep it on one line but replace text
+                            logDiv.textContent = logMsg.substring(0, 80) + (logMsg.length > 80 ? '...' : '');
+                        }
+                    }
+                };
+                wsProgress.onclose = function () {
+                    setTimeout(connectWebSocket, 5000); // Reconnect
+                };
+            } catch (e) {
+                console.error("WebSocket connection failed:", e);
+            }
         }
         connectWebSocket();
         // -------------------------------
