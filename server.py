@@ -634,7 +634,7 @@ async def generate_ai_video(request: AIVideoRequest, current_user: models.User =
             while not operation.done:
                 if time.time() - start_time > timeout_seconds:
                     raise HTTPException(status_code=504, detail="Veo API generation timed out after 5 minutes. Request aborted to prevent hanging.")
-                time.sleep(10)
+                await asyncio.sleep(10)
                 operation = client.operations.get(operation=operation)
                 print(".", end="", flush=True)
                 

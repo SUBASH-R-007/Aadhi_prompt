@@ -2522,8 +2522,12 @@
 
             const response = await originalFetch(resource, config);
 
-            if (response.status === 401 && !resource.includes('/api/login')) {
+            if (response.status === 401 && !resource.includes('/api/login') && resource.startsWith('/')) {
                 localStorage.removeItem('jwt_token');
+                if (typeof ttsState !== 'undefined') {
+                    ttsState.isPlaying = false;
+                    if (typeof updateTTSButtons === 'function') updateTTSButtons();
+                }
                 document.getElementById('auth-modal').style.display = 'flex';
             }
             return response;
@@ -3288,10 +3292,41 @@
         function renderSlide(index) {
             const thisSlideRenderId = ++window.currentSlideRenderId;
 
+            const slide = slides[index];
+
+            // Initialize synchronization state for the slide
+            window.slideSyncState = {
+                audioFinished: false,
+                videoFinished: false,
+                hasVideo: slide.type === 'ai_video' || (slide.type === 'simulation' && (slide.manim_code || slide.simulation_code || slide.code)),
+                hasAudio: !!slide.narration,
+                isReadyToAdvance: function() {
+                    const audioReady = this.hasAudio ? this.audioFinished : true;
+                    const videoReady = this.hasVideo ? this.videoFinished : true;
+                    return audioReady && videoReady;
+                }
+            };
+
+            window.checkAndAdvanceSlide = () => {
+                if (window.slideSyncState.isReadyToAdvance() && ttsState.isPlaying) {
+                    if (currentSlide < slides.length - 1) {
+                        currentSlide++;
+                        setTimeout(() => {
+                            if (ttsState.isPlaying) renderSlide(currentSlide);
+                        }, 800);
+                    } else {
+                        ttsState.isPlaying = false;
+                        updateTTSButtons();
+                        if (typeof isAutoExporting !== 'undefined' && isAutoExporting && typeof autoExportRecorder !== 'undefined' && autoExportRecorder && autoExportRecorder.state === 'recording') {
+                            autoExportRecorder.stop();
+                        }
+                    }
+                }
+            };
+
             // Instantly kill any currently playing or fetching TTS audio from previous slides
             speakNarration(null);
 
-            const slide = slides[index];
             const container = document.getElementById('slide-content-container');
 
             // Apply Dynamic Mascot Layout
@@ -3440,31 +3475,10 @@
                             document.getElementById('jxgbox').innerHTML = `<video id="active-ai-video" src="${finalUrl}" ${videoAttrs}></video>`;
 
                             const videoEl = document.getElementById('active-ai-video');
-                            if (slide.ai_audio_source === 'video') {
-                                videoEl.onended = () => {
-                                    if (ttsState.isPlaying) {
-                                        if (currentSlide < slides.length - 1) {
-                                            currentSlide++;
-                                            setTimeout(() => {
-                                                if (ttsState.isPlaying) renderSlide(currentSlide);
-                                            }, 800);
-                                        } else {
-                                            ttsState.isPlaying = false;
-                                            updateTTSButtons();
-                                            if (isAutoExporting && autoExportRecorder && autoExportRecorder.state === 'recording') {
-                                                autoExportRecorder.stop();
-                                            }
-                                        }
-                                    }
-                                };
-                            } else {
-                                videoEl.onended = () => {
-                                    if (ttsState.isPlaying) {
-                                        videoEl.currentTime = 0;
-                                        videoEl.play().catch(e => console.log("Loop prevented", e));
-                                    }
-                                };
-                            }
+                            videoEl.onended = () => {
+                                window.slideSyncState.videoFinished = true;
+                                window.checkAndAdvanceSlide();
+                            };
                         };
 
                         visualContainer.innerHTML = `<div id="jxgbox" class="jxgbox" style="width:100%; aspect-ratio: 16/9; border-radius:12px; overflow:hidden; display:flex; justify-content:center; align-items:center; flex-direction:column; background:#000; margin-top: 1rem;"></div>`;
@@ -3582,7 +3596,14 @@
                                     if (finalUrl.startsWith('/') && window.API_BASE_URL) {
                                         finalUrl = window.API_BASE_URL + finalUrl;
                                     }
-                                    document.getElementById('jxgbox').innerHTML = `<video src="${finalUrl}" autoplay loop muted style="width:100%; height:100%; object-fit:contain;"></video>`;
+                                    document.getElementById('jxgbox').innerHTML = `<video id="active-manim-video" src="${finalUrl}" autoplay muted style="width:100%; height:100%; object-fit:contain;"></video>`;
+                                    const manimVid = document.getElementById('active-manim-video');
+                                    if (manimVid) {
+                                        manimVid.onended = () => {
+                                            window.slideSyncState.videoFinished = true;
+                                            window.checkAndAdvanceSlide();
+                                        };
+                                    }
                                 } else {
                                     throw new Error(data.detail || 'Unknown compilation error');
                                 }
@@ -3592,6 +3613,8 @@
                                 if (jxgbox) {
                                     jxgbox.innerHTML = `<div style='color:#FF4444; padding:1rem; font-family:monospace; font-size:12px; overflow-y:auto; max-height:100%; width:100%; text-align:left;'><b>Manim Compilation Error:</b><br>${err.message}<br><br><b>Code Generated:</b><br><pre style="white-space:pre-wrap; word-break:break-all;">${code.replace(/</g, '&lt;')}</pre></div>`;
                                 }
+                                window.slideSyncState.videoFinished = true;
+                                window.checkAndAdvanceSlide();
                             });
                         } else if (svg) {
                             visualContainer.innerHTML = svg;
@@ -3757,17 +3780,11 @@
 
                     updateTTSButtons();
 
-                    // Fallback auto-advance for silent slides if exporting
-                    if (isAutoExporting) {
+                    // Fallback auto-advance for silent slides
+                    if (ttsState.isPlaying || isAutoExporting) {
                         setTimeout(() => {
-                            if (currentSlide < slides.length - 1) {
-                                currentSlide++;
-                                renderSlide(currentSlide);
-                            } else {
-                                if (autoExportRecorder && autoExportRecorder.state === 'recording') {
-                                    autoExportRecorder.stop();
-                                }
-                            }
+                            window.slideSyncState.audioFinished = true;
+                            window.checkAndAdvanceSlide();
                         }, 5000); // 5 sec fallback for silent slides
                     }
                 }
@@ -4332,17 +4349,8 @@
                     }
                 };
                 utterance.onend = () => {
-                    if (ttsState.isPlaying) {
-                        if (currentSlide < slides.length - 1) {
-                            currentSlide++;
-                            setTimeout(() => {
-                                if (ttsState.isPlaying) renderSlide(currentSlide);
-                            }, 800);
-                        } else {
-                            ttsState.isPlaying = false;
-                            updateTTSButtons();
-                        }
-                    }
+                    window.slideSyncState.audioFinished = true;
+                    window.checkAndAdvanceSlide();
                 };
                 if (ttsState.isPlaying) window.speechSynthesis.speak(utterance);
                 return;
@@ -4531,17 +4539,8 @@
                     if (window.currentNarrationId !== thisNarrationId) return;
                     triggerFallbackReveal();
 
-                    if (ttsState.isPlaying) {
-                        if (currentSlide < slides.length - 1) {
-                            currentSlide++;
-                            setTimeout(() => {
-                                if (ttsState.isPlaying) renderSlide(currentSlide);
-                            }, 800);
-                        } else {
-                            ttsState.isPlaying = false;
-                            updateTTSButtons();
-                        }
-                    }
+                    window.slideSyncState.audioFinished = true;
+                    window.checkAndAdvanceSlide();
                 });
 
                 // Fallback loop to ensure play/pause state is respected
@@ -4565,15 +4564,8 @@
                 console.error("Audio playback error:", e);
                 triggerFallbackReveal();
 
-                if (ttsState.isPlaying && currentSlide < slides.length - 1) {
-                    currentSlide++;
-                    setTimeout(() => {
-                        if (ttsState.isPlaying) renderSlide(currentSlide);
-                    }, 2000);
-                }
-
-                ttsState.isPlaying = false;
-                updateTTSButtons();
+                window.slideSyncState.audioFinished = true;
+                window.checkAndAdvanceSlide();
             }
         }
 
@@ -4935,10 +4927,15 @@ CRITICAL JSON STRUCTURE: You must return a JSON OBJECT containing exactly five k
   9) {"type": "gif", "query": "search query", "title": "Optional Title"} -> Searches Giphy for an animated GIF and displays it. Use this for fun, engaging reactions, memes, or looping visual analogies (e.g. "mind blown", "gears turning", "confused math lady").
   ADVANCED MANIM ANIMATION RULES:
   If you generate Manim code, you MUST adhere to these cinematic rules:
+  - STEP-BY-STEP SYNCING (CRITICAL): Do NOT generate one massive long animation with a giant block of voiceover narration! This rule applies to EVERYTHING, not just math. You MUST break ALL animations (visualizations, logic, code, math, analogies) into multiple consecutive "simulation" scenes. Each scene should animate exactly ONE small step (just 1 or 2 sentences of voiceover) and contain ONLY the voiceover for that exact step. The next scene continues the voiceover and the next step of the animation.
+  - SEAMLESS CONTINUITY: For consecutive scenes, you MUST explicitly re-draw the previous state at the start of the code using 'self.add(previous_elements)' before playing new animations. You MUST use absolute positioning (e.g., 'obj.to_edge(UP)') rather than relative centering ('VGroup.arrange') so that existing elements do not suddenly jump or shift position when a new scene starts. The visual progression must look like one continuous uninterrupted video to the viewer.
+  - EXAMPLE OF PERFECT SPLITTING:
+    Scene 1: "manim_code": "c = Circle()\nself.play(Create(c))", "narration": "First, we draw a circle."
+    Scene 2: "manim_code": "c = Circle()\nself.add(c) # Explicitly redraw previous state\nt = Text('Radius').next_to(c)\nself.play(Write(t))", "narration": "Next, we label its radius."
   - PREFER 'MovingCameraScene': If the scene has multiple elements, use 'MovingCameraScene' and animate 'self.camera.frame.animate.move_to(obj)' to dynamically pan/zoom.
   - USE MORPHING: For mathematical formulas, strictly use 'TransformMatchingTex' instead of 'Transform' or 'Write' to visually morph equations seamlessly.
   - HIGHLIGHTING: To emphasize concepts during the narration, use 'SurroundingRectangle(element, color=YELLOW, buff=0.1)' and animate its creation.
-  - OVERLAP PREVENTION: You MUST use 'VGroup(*elements).arrange(DOWN, aligned_edge=LEFT)' or explicitly set coordinates to completely prevent overlaps.
+  - OVERLAP PREVENTION: You MUST prevent text overlaps! If using absolute positioning, explicitly space out the coordinates.
 
   CRITICAL LAYOUT RULE: NEVER use "ai_video" or full-scale Manim simulations inside the "side_panel" object! AI videos and complex Manim simulations MUST be generated as entirely separate FULL SCREEN scene types (see scene types below).
 
@@ -5010,10 +5007,12 @@ Simulation Script guidelines (For "simulation" type scenes ONLY):
   7. CONTENT ACCURACY (CRITICAL): Ensure that you accurately represent all mathematical equations, parameters, and diagrams from the source document. Do NOT skip variables or misrepresent formulas. Be exhaustively accurate.
   8. EXPLANATORY TEXT: Do NOT just draw abstract shapes and math equations. You MUST include explanatory text labels (using Text("...")) next to your shapes and equations to explicitly explain what is happening on screen so the viewer can follow along.
   9. VIDEO GENERATION (CRITICAL): You MUST animate your objects using self.play() or add a delay using self.wait(1). If you only use self.add() without any animations or wait times, Manim will render a static PNG image instead of an MP4 video. The frontend expects an MP4 video, so generating a static image will cause a fatal crash!
+  10. SUBTITLE SPACE (CRITICAL): The bottom 20% of the video screen is reserved for subtitles! You MUST keep the bottom portion of your Manim animations completely empty. Shift all your elements upwards (e.g., use `.shift(UP)`) so that nothing is obscured by the subtitles at the bottom.
 
 Pacing Strategy:
-- CRITICAL REQUIREMENT (STRICT QUOTA): You MUST generate a MINIMUM of 5 to 6 'ai_video' scenes throughout the presentation (you can generate more if needed)! Do NOT rely solely on 'simulation' (Manim) scenes. It is an absolute necessity that you heavily feature AI Cinematic Videos.
-- Alternate between Content scenes, Manim Simulations, and AI Cinematic Video scenes.
+- CRITICAL REQUIREMENT (STRICT QUOTAS): You MUST heavily feature 'simulation' (Manim) scenes to deeply explain technical concepts, derivations, and math! Generate frequent Manim animations (a minimum of 3 per presentation, with the maximum scaling naturally based on what the content requires) to improve student understanding. You MUST ALSO generate a MINIMUM of 5 to 6 'ai_video' scenes throughout the presentation.
+- MANIM SEGMENTATION (CRITICAL): You MUST explicitly split your Manim simulations into multiple consecutive scenes based on the voiceover. Each scene should animate exactly ONE small step (1 or 2 sentences) for perfect audio-visual sync.
+- Alternate frequently between Content scenes, Manim Simulations, and AI Cinematic Video scenes.
 - Start a new topic with a Content scene to define terms and core formulas. 
 - CRITICAL SLIDE PACING: Group related content onto a single board! Do NOT unnecessarily split small lists (e.g., 4 learning objectives) across multiple boards. Only split content into a new board when it physically cannot fit on a single screen.
 - If the topic involves heavy math or diagrams, follow up with a Manim Simulation.
