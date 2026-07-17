@@ -241,6 +241,199 @@
             transition: opacity 0.8s cubic-bezier(0.32, 0.72, 0, 1), transform 0.8s cubic-bezier(0.32, 0.72, 0, 1);
         }
 
+        /* Signaling: the item currently being narrated glows so the viewer knows where to look */
+        .narration-active {
+            background: linear-gradient(90deg, rgba(255, 215, 0, 0.14), rgba(255, 215, 0, 0.02) 70%, transparent);
+            box-shadow: inset 3px 0 0 rgba(255, 215, 0, 0.85);
+            border-radius: 6px;
+            text-shadow: 0 0 18px rgba(255, 215, 0, 0.45), 0 2px 10px rgba(0, 0, 0, 0.8);
+            transition: background 0.5s ease, box-shadow 0.5s ease, text-shadow 0.5s ease;
+        }
+
+        /* --- Quiz Checkpoint (full-screen retrieval practice scene) --- */
+        .quiz-cp-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.2rem;
+            width: 100%;
+            padding: 0.5rem 0 1rem 0;
+        }
+
+        .quiz-cp-question {
+            font-family: var(--font-title);
+            font-size: clamp(1.2rem, 2vw, 1.8rem);
+            font-weight: 700;
+            color: #fff;
+            text-align: center;
+            text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
+            max-width: 90%;
+        }
+
+        .quiz-cp-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            width: 90%;
+            max-width: 850px;
+        }
+
+        .quiz-cp-option {
+            position: relative;
+            padding: 1rem 1.2rem;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 215, 0, 0.35);
+            border-radius: 12px;
+            color: #fff;
+            font-size: 1.05rem;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-cp-option .quiz-cp-letter {
+            display: inline-block;
+            width: 1.8rem;
+            height: 1.8rem;
+            line-height: 1.8rem;
+            text-align: center;
+            margin-right: 0.7rem;
+            border-radius: 50%;
+            background: rgba(176, 38, 255, 0.4);
+            border: 1px solid rgba(255, 215, 0, 0.5);
+            font-weight: 700;
+            color: #FFD700;
+        }
+
+        .quiz-cp-option.cp-correct {
+            background: rgba(40, 180, 40, 0.45);
+            border-color: rgba(80, 255, 80, 0.9);
+            box-shadow: 0 0 22px rgba(60, 255, 60, 0.35);
+        }
+
+        .quiz-cp-option.cp-wrong {
+            background: rgba(120, 30, 30, 0.35);
+            border-color: rgba(255, 80, 80, 0.5);
+            opacity: 0.85;
+        }
+
+        .quiz-cp-why {
+            display: block;
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            color: rgba(255, 200, 200, 0.95);
+            font-style: italic;
+            opacity: 0;
+            transition: opacity 0.6s ease;
+        }
+
+        .quiz-cp-option.cp-correct .quiz-cp-why {
+            color: rgba(200, 255, 200, 0.95);
+            font-style: normal;
+        }
+
+        .quiz-cp-reveal .quiz-cp-why {
+            opacity: 1;
+        }
+
+        .quiz-cp-countdown {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.4rem;
+            margin-top: 0.4rem;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .quiz-cp-countdown.cp-active {
+            opacity: 1;
+        }
+
+        .quiz-cp-ring {
+            width: 92px;
+            height: 92px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: conic-gradient(#FFD700 0deg, rgba(255, 255, 255, 0.12) 0deg);
+            box-shadow: 0 0 25px rgba(255, 215, 0, 0.35);
+        }
+
+        .quiz-cp-ring-inner {
+            width: 76px;
+            height: 76px;
+            border-radius: 50%;
+            background: rgba(30, 5, 60, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-title);
+            font-size: 2rem;
+            font-weight: 800;
+            color: #FFD700;
+        }
+
+        .quiz-cp-countdown-label {
+            font-size: 0.85rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: rgba(255, 215, 0, 0.85);
+        }
+
+        .quiz-cp-explanation {
+            width: 90%;
+            max-width: 850px;
+            padding: 1rem 1.4rem;
+            background: rgba(40, 140, 60, 0.18);
+            border: 1px solid rgba(80, 255, 120, 0.45);
+            border-radius: 12px;
+            color: rgba(230, 255, 235, 0.98);
+            font-size: 1rem;
+            line-height: 1.5;
+            opacity: 0;
+            transform: translateY(12px);
+            transition: opacity 0.7s ease, transform 0.7s ease;
+        }
+
+        .quiz-cp-reveal .quiz-cp-explanation {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* --- Chapter Card (segmenting: full-screen transition between major concepts) --- */
+        .chapter-card .chapter-badge {
+            display: inline-block;
+            padding: 0.35rem 1.4rem;
+            margin-bottom: 1.2rem;
+            border: 1px solid rgba(255, 215, 0, 0.7);
+            border-radius: 999px;
+            font-family: var(--font-title);
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 0.35em;
+            text-transform: uppercase;
+            color: #FFD700;
+            background: rgba(255, 215, 0, 0.08);
+            box-shadow: 0 0 25px rgba(255, 215, 0, 0.25);
+        }
+
+        /* --- Recap badge ("Previously in Session N-1") --- */
+        .recap-badge {
+            display: inline-block;
+            padding: 0.25rem 1rem;
+            margin-bottom: 0.6rem;
+            border: 1px solid rgba(176, 38, 255, 0.8);
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: #d9a6ff;
+            background: rgba(176, 38, 255, 0.15);
+        }
+
         /* 3. Sleek Purple Board (Cinematic Scene Container) */
         .cinematic-scene-container {
             view-transition-name: presentation-board;
@@ -404,6 +597,7 @@
             display: flex;
             flex-direction: row;
             flex: 1;
+            min-height: 0;
             overflow: hidden;
             gap: 2rem;
             margin-bottom: 1rem;
@@ -411,9 +605,30 @@
 
         .slide-container {
             flex: 1;
-            overflow: hidden;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
             padding-right: 15px;
             width: 100%;
+        }
+
+        /* Custom Scrollbar for sleek slider */
+        .slide-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        .slide-container::-webkit-scrollbar-track {
+            background: transparent;
+            border-radius: 4px;
+        }
+        .slide-container::-webkit-scrollbar-thumb {
+            background: transparent;
+            border-radius: 4px;
+        }
+        .slide-container:hover::-webkit-scrollbar-thumb {
+            background: rgba(255, 215, 0, 0.4);
+        }
+        .slide-container::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 215, 0, 0.7) !important;
         }
 
         .slide-visual {
@@ -448,7 +663,7 @@
 
         .slide-title {
             font-family: var(--font-title);
-            font-size: clamp(2rem, 3vw, 3.5rem);
+            font-size: clamp(1.4rem, 2.2vw, 2.2rem);
             font-weight: 800;
             letter-spacing: -0.01em;
             line-height: 1.2;
@@ -460,7 +675,7 @@
 
         .section-heading {
             font-family: var(--font-title);
-            font-size: clamp(1.4rem, 2vw, 2rem);
+            font-size: clamp(1.1rem, 1.8vw, 1.6rem);
             font-weight: 700;
             color: var(--text-gold);
             letter-spacing: -0.01em;
@@ -478,6 +693,7 @@
             color: rgba(255, 255, 255, 0.95);
             text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
             width: 90%;
+            margin-bottom: -2px; /* Fix sub-pixel phantom overflow */
         }
 
         @keyframes textReveal {
@@ -2243,6 +2459,8 @@
                         <button type="button" id="restore-btn" class="neon-btn neon-btn-outline"
                             style="border-color:#B026FF; color:#B026FF; display:none; grid-column: 1 / -1;">Restore
                             Previous</button>
+                        <button type="button" id="download-master-prompt-btn" class="neon-btn neon-btn-outline"
+                            style="border-color:#4CAF50; color:#4CAF50; grid-column: 1 / -1;">Download Master Prompt</button>
                     </div>
                 </div>
 
@@ -2393,6 +2611,16 @@
             </button>
             <button type="button" id="auto-export-btn" class="control-btn" title="Automated Video Export">
                 <span class="btn-icon">⚡</span>
+            </button>
+            
+            <button type="button" id="download-json-btn" class="control-btn" title="Download Prompt JSON">
+                <span class="btn-icon" style="font-size: 0.8rem;">{ }</span>
+            </button>
+            <button type="button" id="download-companion-btn" class="control-btn" title="Download Companion Practice Sheet">
+                <span class="btn-icon" style="font-size: 0.8rem;">📝</span>
+            </button>
+            <button type="button" id="download-prompt-btn" class="control-btn" title="Download Master AI Prompt">
+                <span class="btn-icon" style="font-size: 0.8rem;">&lt;P&gt;</span>
             </button>
             <button type="button" id="export-html-btn" class="control-btn" title="Download HTML Presentation">
                 <span class="btn-icon">↓</span>
@@ -2718,6 +2946,166 @@
 
             osc.start(now);
             osc.stop(now + 1.0);
+        }
+
+        function playTick() {
+            if (audioCtx.state === 'suspended') return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'sine';
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+            osc.frequency.setValueAtTime(880, now);
+
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(0.15, now + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+            osc.start(now);
+            osc.stop(now + 0.15);
+        }
+
+        // --- Quiz Checkpoint Scene (video-native retrieval practice) ---
+        function buildQuizCheckpointHTML(slide) {
+            const options = slide.options || [];
+            const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
+            const optionsHtml = options.map((opt, idx) => `
+                <div class="quiz-cp-option" data-idx="${idx}">
+                    <span class="quiz-cp-letter">${letters[idx] || (idx + 1)}</span><span class="quiz-cp-text">${opt}</span>
+                    <span class="quiz-cp-why"></span>
+                </div>`).join('');
+
+            return `
+                <div class="quiz-cp-wrap" id="quiz-cp-wrap">
+                    <div class="quiz-cp-question">${slide.question || ''}</div>
+                    <div class="quiz-cp-options">${optionsHtml}</div>
+                    <div class="quiz-cp-countdown" id="quiz-cp-countdown">
+                        <div class="quiz-cp-ring" id="quiz-cp-ring"><div class="quiz-cp-ring-inner" id="quiz-cp-ring-number"></div></div>
+                        <div class="quiz-cp-countdown-label">Pause &amp; Try It!</div>
+                    </div>
+                    <div class="quiz-cp-explanation" id="quiz-cp-explanation">${slide.explanation || ''}</div>
+                </div>`;
+        }
+
+        function runQuizCheckpoint(slide, renderId, attempt) {
+            attempt = attempt || 0;
+            const wrap = document.getElementById('quiz-cp-wrap');
+            if (!wrap) {
+                // The view-transition DOM update may not have committed yet: retry briefly
+                if (attempt < 20) {
+                    setTimeout(() => {
+                        if (window.currentSlideRenderId !== renderId) return;
+                        runQuizCheckpoint(slide, renderId, attempt + 1);
+                    }, 150);
+                    return;
+                }
+                // Genuinely malformed scene: never deadlock the presentation
+                window.slideSyncState.audioFinished = true;
+                window.checkAndAdvanceSlide();
+                return;
+            }
+
+            const correctIndex = typeof slide.correct_index === 'number' ? slide.correct_index : 0;
+            const optionEls = Array.from(wrap.querySelectorAll('.quiz-cp-option'));
+            const countdownEl = document.getElementById('quiz-cp-countdown');
+            const ringEl = document.getElementById('quiz-cp-ring');
+            const numberEl = document.getElementById('quiz-cp-ring-number');
+
+            let revealed = false;
+
+            const revealAnswer = () => {
+                if (revealed || window.currentSlideRenderId !== renderId) return;
+                revealed = true;
+                playDing();
+                wrap.classList.add('quiz-cp-reveal');
+                if (countdownEl) countdownEl.classList.remove('cp-active');
+
+                optionEls.forEach((el, idx) => {
+                    el.classList.remove('cp-correct', 'cp-wrong');
+                    const whyEl = el.querySelector('.quiz-cp-why');
+                    if (idx === correctIndex) {
+                        el.classList.add('cp-correct');
+                    } else {
+                        el.classList.add('cp-wrong');
+                        const why = (Array.isArray(slide.feedback_wrong) && slide.feedback_wrong[idx]) || '';
+                        if (whyEl && why) whyEl.innerText = why;
+                    }
+                });
+
+                const revealNarration = slide.reveal_narration || slide.explanation || '';
+                if (revealNarration) {
+                    // Explicit onEnded so the advance also fires in muted previews
+                    speakNarration(revealNarration, [], {
+                        onEnded: () => {
+                            if (window.currentSlideRenderId !== renderId) return;
+                            window.slideSyncState.audioFinished = true;
+                            window.checkAndAdvanceSlide();
+                        }
+                    });
+                } else {
+                    setTimeout(() => {
+                        if (window.currentSlideRenderId !== renderId) return;
+                        window.slideSyncState.audioFinished = true;
+                        window.checkAndAdvanceSlide();
+                    }, 4000);
+                }
+            };
+
+            // Live-preview interactivity: clicking an option gives instant feedback
+            optionEls.forEach((el, idx) => {
+                el.addEventListener('click', () => {
+                    if (revealed) return;
+                    if (idx === correctIndex) {
+                        el.classList.add('cp-correct');
+                    } else {
+                        el.classList.add('cp-wrong');
+                    }
+                });
+            });
+
+            const startCountdown = () => {
+                if (window.currentSlideRenderId !== renderId || revealed) return;
+                const duration = Math.max(3, parseFloat(slide.countdown_seconds) || 8);
+                let remaining = duration;
+                let lastWhole = Math.ceil(remaining);
+
+                if (countdownEl) countdownEl.classList.add('cp-active');
+                if (numberEl) numberEl.innerText = lastWhole;
+                playTick();
+
+                const timer = setInterval(() => {
+                    if (window.currentSlideRenderId !== renderId) {
+                        clearInterval(timer);
+                        return;
+                    }
+                    if (!ttsState.isPlaying && !isAutoExporting) return; // hold the timer while paused
+                    remaining -= 0.1;
+
+                    const frac = Math.max(0, remaining / duration);
+                    if (ringEl) ringEl.style.background = `conic-gradient(#FFD700 ${frac * 360}deg, rgba(255,255,255,0.12) 0deg)`;
+
+                    const whole = Math.ceil(Math.max(0, remaining));
+                    if (numberEl) numberEl.innerText = whole;
+                    if (whole !== lastWhole) {
+                        lastWhole = whole;
+                        if (whole > 0) playTick();
+                    }
+
+                    if (remaining <= 0) {
+                        clearInterval(timer);
+                        revealAnswer();
+                    }
+                }, 100);
+            };
+
+            if (slide.narration) {
+                speakNarration(slide.narration, [], { onEnded: startCountdown });
+            } else {
+                startCountdown();
+            }
         }
 
         function updateSidePanel(slide) {
@@ -3294,12 +3682,23 @@
 
             const slide = slides[index];
 
+            // Log scene start times during export so we can emit YouTube chapter timestamps
+            if (typeof isAutoExporting !== 'undefined' && isAutoExporting && window.exportStartTime) {
+                window.exportSceneLog = window.exportSceneLog || [];
+                window.exportSceneLog.push({
+                    t: (Date.now() - window.exportStartTime) / 1000,
+                    title: slide.title || `Scene ${index + 1}`,
+                    type: slide.type,
+                    concept_id: slide.concept_id || null
+                });
+            }
+
             // Initialize synchronization state for the slide
             window.slideSyncState = {
                 audioFinished: false,
                 videoFinished: false,
-                hasVideo: slide.type === 'ai_video' || (slide.type === 'simulation' && (slide.manim_code || slide.simulation_code || slide.code)),
-                hasAudio: !!slide.narration,
+                hasVideo: (slide.type === 'ai_video' && slide.ai_audio_source === 'video') || (slide.type === 'simulation' && (slide.manim_code || slide.simulation_code || slide.code)),
+                hasAudio: !!slide.narration && !(slide.type === 'ai_video' && slide.ai_audio_source === 'video'),
                 isReadyToAdvance: function() {
                     const audioReady = this.hasAudio ? this.audioFinished : true;
                     const videoReady = this.hasVideo ? this.videoFinished : true;
@@ -3351,6 +3750,9 @@
                     root.style.setProperty('--board-left', '15%');
                     root.style.setProperty('--board-width', '70%');
                 }
+            } else if (slide.type === 'quiz_checkpoint' || slide.type === 'chapter_card') {
+                // Full-screen pedagogical scenes: no side panel, keep focus on the board
+                if (sideZoneEl) sideZoneEl.style.display = 'none';
             } else {
                 if (sideZoneEl) sideZoneEl.style.display = '';
             }
@@ -3466,7 +3868,7 @@
                         const renderAiVideoPlayer = (url) => {
                             let videoAttrs = slide.ai_audio_source === 'video'
                                 ? 'autoplay style="width:100%; height:100%; object-fit:cover;"'
-                                : 'autoplay muted style="width:100%; height:100%; object-fit:cover;"';
+                                : 'autoplay loop muted style="width:100%; height:100%; object-fit:cover;"';
 
                             let finalUrl = url;
                             if (finalUrl.startsWith('/') && window.API_BASE_URL) {
@@ -3559,6 +3961,7 @@
                                     ${slide.p5_code || '// No p5 code provided'}
                                 <\/script>
                                 <script src="app.js" defer><\/script>
+
 </body>
                             </html>
                         `;
@@ -3635,6 +4038,18 @@
                             ${slide.subtitle ? `<h2>${slide.subtitle}</h2>` : ''}
                         </div>
                     `;
+                } else if (slide.type === 'chapter_card') {
+                    container.classList.add('slide-type-title');
+                    container.innerHTML = `
+                        <div class="title-slide chapter-card">
+                            <div class="chapter-badge">${slide.chapter_label || 'Chapter'}</div>
+                            <h1 class="main-title">${slide.title}</h1>
+                            ${slide.subtitle ? `<h2>${slide.subtitle}</h2>` : ''}
+                        </div>
+                    `;
+                } else if (slide.type === 'quiz_checkpoint') {
+                    titleContainer.innerHTML = `<h1 class="slide-title">${slide.title || 'Knowledge Checkpoint'}</h1>`;
+                    container.innerHTML = buildQuizCheckpointHTML(slide);
                 } else if (slide.type === 'visual' || slide.type === 'simulation' || slide.type === 'ai_video') {
                     // For visual, simulation, and ai_video slides, just set the title above
                     let titleHTML = `<h1 class="slide-title">${slide.title}</h1>`;
@@ -3648,7 +4063,11 @@
                         container.classList.add('slide-type-example');
                     }
 
-                    let titleHTML = `<h1 class="slide-title">${slide.title}</h1>`;
+                    let titleHTML = '';
+                    if (slide.type === 'recap') {
+                        titleHTML += `<div class="recap-badge">Previously</div>`;
+                    }
+                    titleHTML += `<h1 class="slide-title">${slide.title}</h1>`;
                     if (slide.subtitle) {
                         titleHTML += `<h2 class="section-heading" style="margin-top:-1rem; margin-bottom: 1.5rem;">${slide.subtitle}</h2>`;
                     }
@@ -3744,7 +4163,16 @@
                 }
 
                 // 2. Kinetic Typography (Staggered cascading reveal)
-                const animateItems = container.querySelectorAll('h2, h3, p, li, tbody tr, .math-block, .definition, .formula-block, .info-callout, .warning-callout, .tip-callout, pre, .context-gif');
+                const selectors = 'h2, h3, p, li, .math-block, .definition, .formula-block, .info-callout, .warning-callout, .tip-callout, pre';
+                const rawItems = container.querySelectorAll(selectors);
+                const animateItems = Array.from(rawItems).filter(item => {
+                    let parent = item.parentElement;
+                    while (parent && parent !== container) {
+                        if (parent.matches(selectors)) return false;
+                        parent = parent.parentElement;
+                    }
+                    return true;
+                });
 
                 animateItems.forEach((item, i) => {
                     // Start hidden, waiting for TTS sync
@@ -3765,7 +4193,10 @@
                 }
 
                 // Speech narration trigger
-                if (slide.type === 'ai_video' && slide.ai_audio_source === 'video') {
+                if (slide.type === 'quiz_checkpoint') {
+                    // Dedicated flow: question narration -> countdown -> reveal narration -> advance
+                    runQuizCheckpoint(slide, thisSlideRenderId);
+                } else if (slide.type === 'ai_video' && slide.ai_audio_source === 'video') {
                     // Video plays natively with audio, rely on its onended listener for auto-advance.
                 } else if (slide.narration) {
                     speakNarration(slide.narration, Array.from(animateItems));
@@ -3796,7 +4227,10 @@
                     const transition = document.startViewTransition(() => {
                         performDOMUpdate();
                     });
-                    transition.ready.then(() => {
+                    // updateCallbackDone (NOT ready): guarantees the DOM update has actually
+                    // committed before we query the new slide's elements. 'ready' can reject
+                    // early on skipped transitions and race ahead of the DOM update.
+                    transition.updateCallbackDone.then(() => {
                         finalizeSlideAnimations();
                     }).catch(() => {
                         finalizeSlideAnimations();
@@ -4288,7 +4722,36 @@
         window.currentAudio = null;
         window.currentNarrationId = 0;
 
-        async function speakNarration(text, syncElements = []) {
+        // Parse [PAUSE] / [PAUSE:seconds] markers into narration segments.
+        // A bare [PAUSE] inserts a default 1.5s beat of silence for the viewer to think/read.
+        function parseNarrationSegments(rawText) {
+            const tokens = rawText.split(/\[PAUSE(?::(\d+(?:\.\d+)?))?\]/gi);
+            const segments = [];
+            for (let i = 0; i < tokens.length; i += 2) {
+                const segText = (tokens[i] || '').trim();
+                const hasMarkerAfter = (i + 1) < tokens.length;
+                const pauseRaw = tokens[i + 1];
+                const pauseAfter = hasMarkerAfter
+                    ? (pauseRaw !== undefined && pauseRaw !== '' ? parseFloat(pauseRaw) : 1.5)
+                    : 0;
+                if (segText.length > 0) {
+                    segments.push({ text: segText, pauseAfter: pauseAfter });
+                } else if (segments.length > 0) {
+                    // Empty segment (e.g. two consecutive pauses): merge the silence into the previous one
+                    segments[segments.length - 1].pauseAfter += pauseAfter;
+                }
+            }
+            if (segments.length === 0) segments.push({ text: '', pauseAfter: 0 });
+            return segments;
+        }
+
+        // Signaling: move the golden "currently narrated" highlight to the given element
+        function setNarrationActiveItem(el) {
+            document.querySelectorAll('.narration-active').forEach(n => n.classList.remove('narration-active'));
+            if (el) el.classList.add('narration-active');
+        }
+
+        async function speakNarration(text, syncElements = [], opts = {}) {
             const thisNarrationId = ++window.currentNarrationId;
 
             const triggerFallbackReveal = () => {
@@ -4299,6 +4762,17 @@
                             el.classList.add('cascade-visible');
                         }, index * 400 + 200);
                     });
+                }
+            };
+
+            // Called exactly once when the FULL narration (all segments) has finished
+            const finishNarration = () => {
+                setNarrationActiveItem(null);
+                if (opts && typeof opts.onEnded === 'function') {
+                    opts.onEnded();
+                } else {
+                    window.slideSyncState.audioFinished = true;
+                    window.checkAndAdvanceSlide();
                 }
             };
 
@@ -4315,6 +4789,8 @@
 
             if (ttsState.isMuted || !text) {
                 triggerFallbackReveal();
+                // Muted narration must still drive dependent flows (e.g. quiz countdowns)
+                if (text && opts && typeof opts.onEnded === 'function') opts.onEnded();
                 return;
             }
 
@@ -4325,34 +4801,84 @@
 
             // -----------------------------------------------------
             // ULTIMATE PROPORTIONAL SYNC ENGINE (100% TTS INDEPENDENT)
+            // Narration is split at [PAUSE] markers into segments played
+            // back-to-back with silence in between for deliberate pacing.
             // -----------------------------------------------------
 
             const subTrack = document.getElementById('subtitle-track');
+            const segments = parseNarrationSegments(text);
+
+            // Distribute the slide's sync elements across segments by their [SYNC] counts
+            const segSyncCounts = segments.map(s => s.text.split('[SYNC]').length - 1);
+            const totalSyncCount = segSyncCounts.reduce((a, b) => a + b, 0);
+            const segElements = [];
+            if (segments.length === 1) {
+                segElements.push(syncElements || []);
+            } else if (totalSyncCount > 0) {
+                let cursor = 0;
+                segments.forEach((seg, i) => {
+                    segElements.push((syncElements || []).slice(cursor, cursor + segSyncCounts[i]));
+                    cursor += segSyncCounts[i];
+                });
+                if (cursor < (syncElements || []).length) {
+                    // More elements than [SYNC] tags: give the leftovers to the last segment
+                    segElements[segElements.length - 1] = segElements[segElements.length - 1].concat(syncElements.slice(cursor));
+                }
+            } else {
+                // No [SYNC] markers at all: distribute elements proportionally by segment length
+                const totalLen = segments.reduce((a, s) => a + s.text.length, 0) || 1;
+                let assigned = 0;
+                segments.forEach((seg, i) => {
+                    const count = (i === segments.length - 1)
+                        ? (syncElements || []).length - assigned
+                        : Math.round((syncElements || []).length * seg.text.length / totalLen);
+                    segElements.push((syncElements || []).slice(assigned, assigned + count));
+                    assigned += count;
+                });
+            }
 
             if (ttsEngine === 'default') {
-                const cleanText = text.replace(/\[SYNC\]/g, "");
-                const utterance = new SpeechSynthesisUtterance(cleanText);
-                const voices = window.speechSynthesis.getVoices();
-                const voiceObj = voices.find(v => v.name === selectedVoice);
-                if (voiceObj) utterance.voice = voiceObj;
-                utterance.rate = ttsState.rate;
-
-                utterance.onstart = () => {
-                    ttsState.isPlaying = true;
-                    updateTTSButtons();
-                    triggerFallbackReveal();
-                    if (subTrack) {
-                        subTrack.classList.remove('active');
-                        void subTrack.offsetWidth;
-                        subTrack.innerHTML = cleanText;
-                        subTrack.classList.add('active');
+                const speakSegment = (segIdx) => {
+                    if (window.currentNarrationId !== thisNarrationId) return;
+                    if (segIdx >= segments.length) {
+                        finishNarration();
+                        return;
                     }
+                    const cleanSegText = segments[segIdx].text.replace(/\[SYNC\]/g, "");
+                    const utterance = new SpeechSynthesisUtterance(cleanSegText);
+                    const voices = window.speechSynthesis.getVoices();
+                    const voiceObj = voices.find(v => v.name === selectedVoice);
+                    if (voiceObj) utterance.voice = voiceObj;
+                    utterance.rate = ttsState.rate;
+
+                    utterance.onstart = () => {
+                        ttsState.isPlaying = true;
+                        updateTTSButtons();
+                        (segElements[segIdx] || []).forEach((el, index) => {
+                            setTimeout(() => {
+                                el.classList.remove('cascade-hidden');
+                                el.classList.add('cascade-visible');
+                            }, index * 400 + 200);
+                        });
+                        if (subTrack) {
+                            subTrack.classList.remove('active');
+                            void subTrack.offsetWidth;
+                            subTrack.innerHTML = cleanSegText;
+                            subTrack.classList.add('active');
+                        }
+                    };
+                    utterance.onend = () => {
+                        if (window.currentNarrationId !== thisNarrationId) return;
+                        const pauseMs = (segments[segIdx].pauseAfter || 0) * 1000;
+                        if (pauseMs > 0) {
+                            setTimeout(() => speakSegment(segIdx + 1), pauseMs);
+                        } else {
+                            speakSegment(segIdx + 1);
+                        }
+                    };
+                    if (ttsState.isPlaying) window.speechSynthesis.speak(utterance);
                 };
-                utterance.onend = () => {
-                    window.slideSyncState.audioFinished = true;
-                    window.checkAndAdvanceSlide();
-                };
-                if (ttsState.isPlaying) window.speechSynthesis.speak(utterance);
+                speakSegment(0);
                 return;
             }
 
@@ -4365,207 +4891,273 @@
                 subTrack.innerHTML = "";
             }
 
-
-            try {
-                // Parse the [SYNC] markers for DOM reveals
-                const parts = text.split('[SYNC]');
-                const cleanText = text.replace(/\[SYNC\]/g, "");
-
-                // Calculate exact character index for each sync point
-                const syncTimings = [];
-
-                if (parts.length > 1) {
-                    let currentLen = 0;
-                    for (let i = 0; i < parts.length - 1; i++) {
-                        currentLen += parts[i].length;
-                        syncTimings.push({
-                            charIndex: currentLen,
-                            revealed: false
-                        });
-                    }
-                } else if (syncElements && syncElements.length > 0) {
-                    // FALLBACK: If no [SYNC] markers exist (old slide), use anchor-word mathematical syncing
-                    let currentIndex = 0;
-                    syncElements.forEach(el => {
-                        const elText = el.textContent.trim().toLowerCase();
-                        const words = elText.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "").split(/\s+/);
-                        let anchorWord = words.find(w => w.length > 3) || words[0] || "";
-
-                        let foundIndex = -1;
-                        if (anchorWord) {
-                            foundIndex = cleanText.toLowerCase().indexOf(anchorWord, currentIndex);
-                        }
-
-                        // If not found, just distribute them evenly as a fallback
-                        if (foundIndex === -1) {
-                            foundIndex = currentIndex + (cleanText.length - currentIndex) / (syncElements.length);
-                        }
-
-                        syncTimings.push({
-                            charIndex: foundIndex,
-                            revealed: false
-                        });
-
-                        currentIndex = foundIndex;
-                    });
-                }
-
-                // Sentence by Sentence Subtitle timings
-                const subtitleTimings = [];
-                // Split by regex looking for ending punctuation (.?!) followed by space, or just use the whole text.
-                const sentenceMatches = cleanText.match(/[^.!?]+[.!?]+/g) || [cleanText];
-                let currentSubLen = 0;
-                for (let i = 0; i < sentenceMatches.length; i++) {
-                    subtitleTimings.push({
-                        charIndex: currentSubLen,
-                        subtitle: sentenceMatches[i].trim()
-                    });
-                    currentSubLen += sentenceMatches[i].length;
-                }
-
-                // Make ONE single API call for the entire slide narration!
-                const requestBody = {
-                    text: cleanText,
-                    voice: selectedVoice,
-                    tts_engine: ttsEngine
-                };
-
+            // Prefetch audio for EVERY segment in parallel so pauses never stall on the network
+            const fetchSegmentAudio = (segText) => {
+                const cleanText = segText.replace(/\[SYNC\]/g, "");
                 const cacheKey = cleanText + "_" + selectedVoice + "_" + ttsEngine;
                 window.audioCache = window.audioCache || {};
-                
-                let data;
                 if (window.audioCache[cacheKey]) {
-                    data = window.audioCache[cacheKey];
-                } else {
-                    const res = await fetch('/generate-audio', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(requestBody)
-                    });
-
+                    return Promise.resolve(window.audioCache[cacheKey]);
+                }
+                return fetch('/generate-audio', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: cleanText, voice: selectedVoice, tts_engine: ttsEngine })
+                }).then(res => {
                     if (!res.ok) throw new Error("Audio generation failed");
-                    data = await res.json();
+                    return res.json();
+                }).then(data => {
                     if (data.status !== 'success') throw new Error(data.detail);
                     window.audioCache[cacheKey] = data;
-                }
-
-                if (window.currentNarrationId !== thisNarrationId) return;
-
-                let finalAudioUrl = data.audio_url;
-                if (finalAudioUrl.startsWith('/') && window.API_BASE_URL) {
-                    finalAudioUrl = window.API_BASE_URL + finalAudioUrl;
-                }
-                const audio = new Audio(finalAudioUrl);
-                audio.crossOrigin = "anonymous";
-                audio.style.display = 'none';
-                document.body.appendChild(audio);
-                window.currentAudio = audio;
-                audio.playbackRate = ttsState.rate;
-
-                // When audio loads, initialize the UI and start playback
-                audio.addEventListener('loadedmetadata', () => {
-                    if (window.currentNarrationId !== thisNarrationId) return;
-
-                    const totalChars = cleanText.length;
-                    const duration = audio.duration || 1; // Fallback to 1 to avoid div-by-zero
-
-                    // Assign a target time in seconds to each sync point based on character ratio
-                    syncTimings.forEach(sync => {
-                        sync.targetTime = (sync.charIndex / totalChars) * duration;
-                    });
-
-                    subtitleTimings.forEach(sub => {
-                        sub.targetTime = (sub.charIndex / totalChars) * duration;
-                    });
-
-                    if (subTrack && subtitleTimings.length > 0) {
-                        subTrack.innerHTML = subtitleTimings[0].subtitle;
-                        subTrack.classList.add('active');
-                    }
-
-                    if (ttsState.isPlaying) {
-                        audio.play().catch(e => console.error("Playback prevented:", e));
-                    }
+                    return data;
                 });
+            };
+            const segmentAudioPromises = segments.map(seg => fetchSegmentAudio(seg.text).catch(e => {
+                console.error("Segment audio generation failed:", e);
+                return null;
+            }));
 
-                // Sync points via timeupdate
-                audio.addEventListener('timeupdate', () => {
-                    if (window.currentNarrationId !== thisNarrationId) return;
-                    const ct = audio.currentTime;
-
-                    for (let i = 0; i < syncTimings.length; i++) {
-                        const sync = syncTimings[i];
-                        if (!sync.revealed && ct >= sync.targetTime) {
-                            sync.revealed = true;
-
-                            // Reveal the corresponding DOM element
-                            if (syncElements && i < syncElements.length) {
-                                syncElements[i].classList.remove('cascade-hidden');
-                                syncElements[i].classList.add('cascade-visible');
-                            }
-                        }
-                    }
-
-                    // Sentence by Sentence Subtitle Update
-                    if (subTrack) {
-                        let activeSubIndex = 0;
-                        for (let i = subtitleTimings.length - 1; i >= 0; i--) {
-                            if (ct >= subtitleTimings[i].targetTime) {
-                                activeSubIndex = i;
-                                break;
-                            }
-                        }
-                        // Fallback to 0 if we're before the first subtitle
-                        activeSubIndex = Math.max(0, activeSubIndex);
-
-                        if (subtitleTimings[activeSubIndex]) {
-                            const currentSub = subtitleTimings[activeSubIndex].subtitle;
-                            if (subTrack.innerHTML !== currentSub) {
-                                subTrack.classList.remove('active');
-                                void subTrack.offsetWidth; // Reflow to reset animation
-                                subTrack.innerHTML = currentSub;
-                                subTrack.classList.add('active');
-                            }
-                        }
-                    }
-
-                    // Reveal any remaining elements if we are at the very end
-                    if (ct >= audio.duration - 0.5) {
-                        triggerFallbackReveal();
-                    }
-                });
-
-                audio.addEventListener('ended', () => {
-                    if (window.currentNarrationId !== thisNarrationId) return;
-                    triggerFallbackReveal();
-
-                    window.slideSyncState.audioFinished = true;
-                    window.checkAndAdvanceSlide();
-                });
-
-                // Fallback loop to ensure play/pause state is respected
-                const checkPlayState = setInterval(() => {
+            // Silence between segments, honoring pause/resume and narration cancellation
+            const waitPause = (seconds) => new Promise(resolve => {
+                let remaining = seconds * 1000;
+                const step = 100;
+                const timer = setInterval(() => {
                     if (window.currentNarrationId !== thisNarrationId) {
-                        clearInterval(checkPlayState);
-                        audio.pause();
+                        clearInterval(timer);
+                        resolve(false);
                         return;
                     }
-                    if (!ttsState.isPlaying && !audio.paused) {
-                        audio.pause();
-                    } else if (ttsState.isPlaying && audio.paused && audio.readyState >= 2) {
-                        audio.play().catch(e => console.log("Auto-play prevented", e));
+                    if (ttsState.isPlaying) remaining -= step;
+                    if (remaining <= 0) {
+                        clearInterval(timer);
+                        resolve(true);
                     }
-                }, 100);
+                }, step);
+            });
 
-                audio.addEventListener('ended', () => clearInterval(checkPlayState));
-                audio.addEventListener('error', () => clearInterval(checkPlayState));
+            const playSegment = (segIdx) => new Promise(async (resolve) => {
+                const seg = segments[segIdx];
+                const elements = segElements[segIdx] || [];
 
+                const revealSegmentElements = () => {
+                    elements.forEach((el, index) => {
+                        setTimeout(() => {
+                            el.classList.remove('cascade-hidden');
+                            el.classList.add('cascade-visible');
+                        }, index * 400 + 200);
+                    });
+                };
+
+                try {
+                    // Parse the [SYNC] markers for DOM reveals within this segment
+                    const parts = seg.text.split('[SYNC]');
+                    const cleanText = seg.text.replace(/\[SYNC\]/g, "");
+
+                    // Calculate exact character index for each sync point
+                    const syncTimings = [];
+
+                    if (parts.length > 1) {
+                        let currentLen = 0;
+                        for (let i = 0; i < parts.length - 1; i++) {
+                            currentLen += parts[i].length;
+                            syncTimings.push({
+                                charIndex: currentLen,
+                                revealed: false
+                            });
+                        }
+                    } else if (elements.length > 0) {
+                        // FALLBACK: If no [SYNC] markers exist (old slide), use anchor-word mathematical syncing
+                        let currentIndex = 0;
+                        elements.forEach(el => {
+                            const elText = el.textContent.trim().toLowerCase();
+                            const words = elText.replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "").split(/\s+/);
+                            let anchorWord = words.find(w => w.length > 3) || words[0] || "";
+
+                            let foundIndex = -1;
+                            if (anchorWord) {
+                                foundIndex = cleanText.toLowerCase().indexOf(anchorWord, currentIndex);
+                            }
+
+                            // If not found, just distribute them evenly as a fallback
+                            if (foundIndex === -1) {
+                                foundIndex = currentIndex + (cleanText.length - currentIndex) / (elements.length);
+                            }
+
+                            syncTimings.push({
+                                charIndex: foundIndex,
+                                revealed: false
+                            });
+
+                            currentIndex = foundIndex;
+                        });
+                    }
+
+                    // Sentence by Sentence Subtitle timings
+                    const subtitleTimings = [];
+                    const sentenceMatches = cleanText.match(/[^.!?]+[.!?]+/g) || [cleanText];
+                    let currentSubLen = 0;
+                    for (let i = 0; i < sentenceMatches.length; i++) {
+                        subtitleTimings.push({
+                            charIndex: currentSubLen,
+                            subtitle: sentenceMatches[i].trim()
+                        });
+                        currentSubLen += sentenceMatches[i].length;
+                    }
+
+                    const data = await segmentAudioPromises[segIdx];
+                    if (!data) throw new Error("Audio generation failed for segment " + (segIdx + 1));
+
+                    if (window.currentNarrationId !== thisNarrationId) {
+                        resolve(false);
+                        return;
+                    }
+
+                    let finalAudioUrl = data.audio_url;
+                    if (finalAudioUrl.startsWith('/') && window.API_BASE_URL) {
+                        finalAudioUrl = window.API_BASE_URL + finalAudioUrl;
+                    }
+                    const audio = new Audio(finalAudioUrl);
+                    audio.crossOrigin = "anonymous";
+                    audio.style.display = 'none';
+                    document.body.appendChild(audio);
+                    window.currentAudio = audio;
+                    audio.playbackRate = ttsState.rate;
+
+                    let settled = false;
+                    let checkPlayState = null;
+                    const settle = (ok) => {
+                        if (settled) return;
+                        settled = true;
+                        if (checkPlayState) clearInterval(checkPlayState);
+                        if (audio.parentNode) audio.parentNode.removeChild(audio);
+                        resolve(ok);
+                    };
+
+                    // When audio loads, initialize the UI and start playback
+                    audio.addEventListener('loadedmetadata', () => {
+                        if (window.currentNarrationId !== thisNarrationId) return;
+
+                        const totalChars = cleanText.length;
+                        const duration = audio.duration || 1; // Fallback to 1 to avoid div-by-zero
+
+                        // Assign a target time in seconds to each sync point based on character ratio
+                        syncTimings.forEach(sync => {
+                            sync.targetTime = (sync.charIndex / totalChars) * duration;
+                        });
+
+                        subtitleTimings.forEach(sub => {
+                            sub.targetTime = (sub.charIndex / totalChars) * duration;
+                        });
+
+                        if (subTrack && subtitleTimings.length > 0) {
+                            subTrack.innerHTML = subtitleTimings[0].subtitle;
+                            subTrack.classList.add('active');
+                        }
+
+                        if (ttsState.isPlaying) {
+                            audio.play().catch(e => console.error("Playback prevented:", e));
+                        }
+                    });
+
+                    // Sync points via timeupdate
+                    audio.addEventListener('timeupdate', () => {
+                        if (window.currentNarrationId !== thisNarrationId) return;
+                        const ct = audio.currentTime;
+
+                        for (let i = 0; i < syncTimings.length; i++) {
+                            const sync = syncTimings[i];
+                            if (!sync.revealed && ct >= sync.targetTime) {
+                                sync.revealed = true;
+
+                                // Reveal the corresponding DOM element and move the narration highlight to it
+                                if (elements && i < elements.length) {
+                                    elements[i].classList.remove('cascade-hidden');
+                                    elements[i].classList.add('cascade-visible');
+                                    setNarrationActiveItem(elements[i]);
+                                }
+                            }
+                        }
+
+                        // Sentence by Sentence Subtitle Update
+                        if (subTrack) {
+                            let activeSubIndex = 0;
+                            for (let i = subtitleTimings.length - 1; i >= 0; i--) {
+                                if (ct >= subtitleTimings[i].targetTime) {
+                                    activeSubIndex = i;
+                                    break;
+                                }
+                            }
+                            activeSubIndex = Math.max(0, activeSubIndex);
+
+                            if (subtitleTimings[activeSubIndex]) {
+                                const currentSub = subtitleTimings[activeSubIndex].subtitle;
+                                if (subTrack.innerHTML !== currentSub) {
+                                    subTrack.classList.remove('active');
+                                    void subTrack.offsetWidth; // Reflow to reset animation
+                                    subTrack.innerHTML = currentSub;
+                                    subTrack.classList.add('active');
+                                }
+                            }
+                        }
+
+                        // Reveal any remaining segment elements if we are at the very end
+                        if (ct >= audio.duration - 0.5) {
+                            revealSegmentElements();
+                        }
+                    });
+
+                    audio.addEventListener('ended', () => {
+                        if (window.currentNarrationId !== thisNarrationId) {
+                            settle(false);
+                            return;
+                        }
+                        revealSegmentElements();
+                        settle(true);
+                    });
+
+                    audio.addEventListener('error', () => {
+                        revealSegmentElements();
+                        settle(true);
+                    });
+
+                    // Fallback loop to ensure play/pause state is respected
+                    checkPlayState = setInterval(() => {
+                        if (window.currentNarrationId !== thisNarrationId) {
+                            audio.pause();
+                            settle(false);
+                            return;
+                        }
+                        if (!ttsState.isPlaying && !audio.paused) {
+                            audio.pause();
+                        } else if (ttsState.isPlaying && audio.paused && audio.readyState >= 2) {
+                            audio.play().catch(e => console.log("Auto-play prevented", e));
+                        }
+                    }, 100);
+
+                } catch (e) {
+                    console.error("Audio playback error:", e);
+                    revealSegmentElements();
+                    resolve(true); // keep the presentation moving even if a segment fails
+                }
+            });
+
+            try {
+                for (let s = 0; s < segments.length; s++) {
+                    const ok = await playSegment(s);
+                    if (!ok || window.currentNarrationId !== thisNarrationId) return;
+                    if (segments[s].pauseAfter > 0) {
+                        // Release the highlight during the "think about it" beat of silence
+                        setNarrationActiveItem(null);
+                        const cont = await waitPause(segments[s].pauseAfter);
+                        if (!cont) return;
+                    }
+                }
+                triggerFallbackReveal();
+                finishNarration();
             } catch (e) {
                 console.error("Audio playback error:", e);
                 triggerFallbackReveal();
-
-                window.slideSyncState.audioFinished = true;
-                window.checkAndAdvanceSlide();
+                finishNarration();
             }
         }
 
@@ -4872,167 +5464,7 @@
 
                     logStatus('Sending to Gemini...', `Extracted ${extractedText.length} characters of text. Communicating with Gemini API...`);
 
-                    const systemPrompt = `You are an expert documentary director and educational content creator. Your task is to analyze the extracted text from a PDF.
-
-  CRITICAL RULE - PRESERVE ALL CONTENT:
-  You MUST preserve ALL information, points, sections, and details from the source document. Do NOT summarize, condense, truncate, or skip any content. Every single concept or paragraph from the source must be represented in the final presentation. It is absolutely FORBIDDEN to summarize the document for the sake of brevity.
-
-  IMPORTANT SCRIPT PARSING RULES:
-  The uploaded PDF is likely a PRE-WRITTEN SCRIPT containing explicit directions like "Board content", "Aadhi speaks (voiceover)", and "Animation". 
-  You MUST parse this script faithfully:
-  - Map the "Board content" directly into the "html" field.
-  - Map the "Aadhi speaks" or voiceover text EXACTLY word-for-word into the "narration" field. Do NOT invent your own voiceover if one is provided! You may ONLY regenerate or modify the specific voiceover script if the provided content is way too long and ineffective for a single scene.
-  - Map "Animation" directions into "manim_code" simulations or "ai_video" prompts depending on what fits best.
-  - If the PDF is NOT a script but a normal textbook, you may generate your own highly engaging voiceover and visuals as usual.
-
-CRITICAL IMAGE PLACEHOLDER RULE:
-If the source document explicitly references a diagram, figure, or image (e.g., "Image 1: Static motor" or "Figure 3"), you MUST place an image placeholder exactly where it belongs in the 'html' content using this exact format:
-<div class='board-image-placeholder' data-img-id='Image_1_Static_motor'>[Image Placeholder: Image_1_Static_motor]</div>
-Do not attempt to describe or recreate the image data yourself if it's too complex. The system will detect this placeholder and provide the user an option to upload the actual image file directly onto the main board. Do NOT put these placeholders in the 'side_panel' object; they must go in the 'html' of a 'content' scene.
-
-LEFT PANE HTML ENRICHMENT RULES:
-You must make the 'html' content engaging by injecting the following elements alongside text:
-1. DYNAMIC GIFs: To visually demonstrate an action/concept inline, output: <img class="context-gif" data-query="short search term for gif">. (e.g. data-query="spinning engine"). The system will auto-fetch and play it!
-2. GLOWING CALLOUTS: Break up walls of text by putting important concepts in callouts:
-   - <div class="info-callout">Fascinating fact or definition</div>
-   - <div class="tip-callout">Pro-tips, shortcuts, or best practices</div>
-   - <div class="warning-callout">Common mistakes, safety warnings, or strict rules</div>
-3. CODE BLOCKS: If explaining programming, use: <pre><code class="language-python">print("Hello")</code></pre>. The system will auto-highlight it.
-4. HTML TABLES: If the source document contains tabular data, comparisons, or structured data, you MUST strictly output it as a proper HTML '<table>'. Do NOT convert table data into pointwise text or bullet points!
-
-CRITICAL SLIDE CHUNKING RULE (DO NOT IGNORE):
-The presentation board is EXTREMELY small. A slide can show only a limited amount of content! You MUST adhere to these guidelines for the 'html' field of a "content" scene:
-- KEEP BOARDS CONCISE (FATAL WARNING): Strictly limit each slide to a MAXIMUM of 3 to 4 short bullet points. You MUST use short, concise bullet points. You MUST wrap EVERY SINGLE SENTENCE in its own isolated HTML tag (like <p> or <li>). Grouping multiple sentences inside a single tag will CRASH the frontend animation syncing engine!
-- SINGLE TOPIC RULE: Cover ONLY ONE single topic per slide. Do not mix multiple concepts on the same board.
-- SPLIT HEAVY CONTENT: If a topic requires more than 3 to 4 points, you MUST split it into 2 or more consecutive "content" scenes. Add "(Contd.)" to the title of the subsequent scenes. Never overflow a single slide!
-
-The output works like an immersive cinematic video. There are no "slides", only continuous "scenes".
-CRITICAL JSON STRUCTURE: You must return a JSON OBJECT containing exactly five keys: "subject_name", "unit_name", "session_number", "session_title", "concept_map", and "scenes".
-- "subject_name": The exact name of the subject/course extracted from the PDF. CRITICAL: You MUST explicitly REMOVE any subject code, course code, or alphanumeric IDs from this name (e.g., change "CS101 Intro to Physics" to just "Intro to Physics").
-- "unit_name": The name of the specific unit or module being covered (e.g., "Solids"). If not explicitly mentioned, infer a short 1-3 word topic name.
-- "session_number": The sequential session or lecture number (e.g., "Session 1"). If not provided, default to "Session 1".
-- "session_title": The specific title of this presentation/lecture (e.g., "Properties of Solids").
-- "concept_map": A JSON array of nodes representing the Skill Tree. CRITICAL REQUIREMENT: You MUST ALWAYS deduce and generate a detailed concept map based on the progression of topics in the document. The frontend application WILL CRASH if this array is empty. You MUST extract at least 3-10 logical concepts. Each node has: {"id": "unique_string", "title": "Short Title", "depends_on": ["parent_id" or empty array]}.
-- "scenes": An array of scene objects. CRITICAL: Every single scene MUST include a "concept_id" that STRICTLY matches one of the 'id' strings defined in your 'concept_map' array. Do not invent unmapped concept IDs! Every scene (except title, ai_video, or simulation) MUST ALWAYS include a "side_panel" object without fail! The side panel MUST be present for ALL content slides, as the user will manually decide when to show the mascot. 
-  CRITICAL: Every single scene MUST include an "aadhi_position" field (string). Valid values: "left", "right", "center", "popup_bottom_left", "popup_bottom_right", "hidden". Aadhi being on screen is not mandatory, but he has to be there often instead of bland slides. Choose "popup" for content-heavy slides to save space, "left" or "right" for standard presentations, and "center" for dramatic introductions.
-  The "side_panel" object must be ONE of these NINE formats:
-  1) {"type": "skill_tree"} -> Shows the concept map. Use this for major topic transitions.
-  2) {"type": "image", "prompt": "hyper-realistic stock photo of [subject], photography, 8k resolution, highly detailed"} -> Shows a contextual AI-generated image. Use this frequently for content slides to keep the presentation visually engaging.
-  3) {"type": "chart", "chart_type": "bar", "title": "Chart Title", "data": { "labels": ["A", "B"], "datasets": [{"label": "Value", "data": [10, 20], "backgroundColor": "rgba(176,38,255,0.5)", "borderColor": "rgba(255,215,0,1)"}] }} -> Renders a gorgeous animated Chart.js data visualization. Use this whenever the text discusses quantitative data, history timelines, or comparisons! Supported chart_types: bar, line, pie, doughnut.
-  4) {"type": "3d_model", "model_name": "atom"} -> Renders an interactive 3D model that the user can drag. Supported model_names: atom, torus, box.
-  5) {"type": "quiz", "question": "What is X?", "options": ["A", "B", "C"], "correct_index": 0} -> Generates an interactive multiple-choice knowledge check! Use this to quiz the user on what was just taught.
-  6) {"type": "terminal", "command": "./run_sim.sh", "output": "Simulation complete. Accuracy: 99.9%"} -> Renders a live hacker terminal typing out the output. Great for coding, tech, or logic explanations!
-  7) {"type": "graph", "title": "Quadratic Curve", "function": "x*x + 2*x"} -> Renders a live, interactive JSXGraph Cartesian coordinate system plotting the math function. Use this for ANY math, physics, or geometry topic!
-  8) {"type": "manim", "title": "Visual Proof", "manim_code": "..."} -> SMALL Python Manim animation for the side panel. ONLY use for simple, small animations! Scale all objects down heavily (e.g., .scale(0.4)) so they physically fit within the narrow tight width of the side panel! Use 'VGroup' and '.arrange(DOWN)' to ensure elements strictly align without overlapping! Do NOT use this for complex simulations.
-  9) {"type": "gif", "query": "search query", "title": "Optional Title"} -> Searches Giphy for an animated GIF and displays it. Use this for fun, engaging reactions, memes, or looping visual analogies (e.g. "mind blown", "gears turning", "confused math lady").
-  ADVANCED MANIM ANIMATION RULES:
-  If you generate Manim code, you MUST adhere to these cinematic rules:
-  - STEP-BY-STEP SYNCING (CRITICAL): Do NOT generate one massive long animation with a giant block of voiceover narration! This rule applies to EVERYTHING, not just math. You MUST break ALL animations (visualizations, logic, code, math, analogies) into multiple consecutive "simulation" scenes. Each scene should animate exactly ONE small step (just 1 or 2 sentences of voiceover) and contain ONLY the voiceover for that exact step. The next scene continues the voiceover and the next step of the animation.
-  - SEAMLESS CONTINUITY: For consecutive scenes, you MUST explicitly re-draw the previous state at the start of the code using 'self.add(previous_elements)' before playing new animations. You MUST use absolute positioning (e.g., 'obj.to_edge(UP)') rather than relative centering ('VGroup.arrange') so that existing elements do not suddenly jump or shift position when a new scene starts. The visual progression must look like one continuous uninterrupted video to the viewer.
-  - EXAMPLE OF PERFECT SPLITTING:
-    Scene 1: "manim_code": "c = Circle()\nself.play(Create(c))", "narration": "First, we draw a circle."
-    Scene 2: "manim_code": "c = Circle()\nself.add(c) # Explicitly redraw previous state\nt = Text('Radius').next_to(c)\nself.play(Write(t))", "narration": "Next, we label its radius."
-  - PREFER 'MovingCameraScene': If the scene has multiple elements, use 'MovingCameraScene' and animate 'self.camera.frame.animate.move_to(obj)' to dynamically pan/zoom.
-  - USE MORPHING: For mathematical formulas, strictly use 'TransformMatchingTex' instead of 'Transform' or 'Write' to visually morph equations seamlessly.
-  - HIGHLIGHTING: To emphasize concepts during the narration, use 'SurroundingRectangle(element, color=YELLOW, buff=0.1)' and animate its creation.
-  - OVERLAP PREVENTION: You MUST prevent text overlaps! If using absolute positioning, explicitly space out the coordinates.
-
-  CRITICAL LAYOUT RULE: NEVER use "ai_video" or full-scale Manim simulations inside the "side_panel" object! AI videos and complex Manim simulations MUST be generated as entirely separate FULL SCREEN scene types (see scene types below).
-
-Here are the types of scenes you can generate:
-
-1. Title Scene:
-   {"type": "title", "concept_id": "intro", "title": "Session [Number] - [Topic Name]", "subtitle": "Subtitle or Topic Info", "narration": "Highly conversational, passionate, and natural human narration. Sound like a documentary host, not a textbook."}
-   *CRITICAL TITLE RULE*: The video player AUTOMATICALLY generates a cinematic intro using your global 'subject_name' and 'session_title' fields. Therefore, DO NOT generate a "title" scene as the very first scene of the presentation! That would be redundant. ONLY use a "title" scene later in the presentation if you are transitioning to an entirely new major chapter.
-
-2. Content Scene (Immersive Text Overlay):
-   {"type": "content", "concept_id": "concept1", "title": "CONCEPT", "subtitle": "Optional Subtitle", "html": "...", "side_panel": {"type": "image", "prompt": "..."}, "narration": "Conversational, natural spoken explanation of the concept. CRITICAL: You MUST insert the exact text [SYNC] right before you begin discussing each specific concept or bullet point that appears on screen so the video player knows when to reveal it!"}
-   *FATAL CRASH WARNING*: Keep the 'html' content visually concise enough to fit on one screen without scrolling. You MUST write EVERY SINGLE SENTENCE as a separate <p> tag, <li> tag, or <div class='definition'> tag. DO NOT EVER group multiple sentences into one paragraph! If you put more than one sentence in a single tag, the real-time text-to-speech animation engine WILL CRASH. All heavy, wordy conceptual explanations MUST go into the spoken 'narration' field, leaving ONLY concise summaries in the 'html'. CRITICAL REQUIREMENT: You MUST ALWAYS provide a 'side_panel' object for content slides without fail.
-
-3. Manim Simulation (Math/Logic Visualization):
-   {"type": "simulation", "concept_id": "concept1", "title": "VISUALIZING X", "visual_reasoning": "...", "manim_code": "...", "narration": "Enthusiastic spoken narration explaining the visual logic."}
-
-4. Example Scene (for solved problems, derivations, examples):
-   {"type": "example", "title": "EXAMPLE TITLE", "subtitle": "Optional Subtitle", "html": "HTML content", "narration": "Conversational, step-by-step guidance."}
-
-5. Key Takeaway Scene (uses takeaway-list class):
-   {"type": "key-takeaway", "title": "TAKEAWAY TITLE", "html": "<ul class='takeaway-list'><li>Takeaway 1</li><li>Takeaway 2</li></ul>", "narration": "Detailed spoken narration text summarizing takeaways"}
-
-6. Summary Scene (uses styled tables for comparison/quick reference):
-   {"type": "summary", "title": "SUMMARY TITLE", "html": "<table><thead><tr><th>Header 1</th><th>Header 2</th></tr></thead><tbody><tr><td>Data 1</td><td>Data 2</td></tr></tbody></table>", "narration": "Detailed spoken narration text summarizing the comparison or data"}
-
-7. AI Cinematic Video Scene (Cinematic B-roll via Text-to-Video AI):
-   {"type": "ai_video", "concept_id": "concept1", "title": "CINEMATIC TITLE", "subtitle": "Optional Subtitle", "prompt": "Highly descriptive, mechanically accurate, 30-word max prompt of the exact physical shot you want (e.g., 'A slow-motion tracking shot of a heavy steel suspension bridge cable pulling taut under extreme tension, shot on 35mm film, highly detailed, photorealistic, 4k.')", "narration": "Detailed spoken narration text that plays while the video loops"}
-
-8. Interactive Web Simulation (p5.js):
-   {"type": "p5_simulation", "concept_id": "concept1", "title": "INTERACTIVE CANVAS", "p5_code": "function setup() { createCanvas(800, 600); background(0); }\\nfunction draw() { fill(255, 215, 0); ellipse(mouseX, mouseY, 50, 50); }", "narration": "Explain the interactive elements to the user. E.g., 'Try dragging your mouse across the screen to see how gravity affects the orbit!'"}
-
-Styling guidelines for content within the 'html' field:
-- Definitions: Wrap definitions or core concepts in: <div class='definition'><strong>Definition:</strong> Detailed description.</div>
-- Keywords: Wrap key terms in <span class="keyword">key term</span> to apply the glowing effect.
-- Math/Equations: Wrap equations in MathJax format. Block equations must use $$ ... $$ and inline equations must use $ ... $. DO NOT use backslashes for the equation wrappers. For example: $\sigma = \frac{F}{A}$. Inside the equation, remember to properly double-escape LaTeX backslashes for JSON (e.g., \\frac{F}{A}). CRITICAL: You MUST use proper LaTeX symbols for Greek letters and math operators (e.g., use \\sigma, \\alpha, \\mu instead of writing the words 'sigma', 'alpha', 'mu' as plain text).
-- Lists: Use <ul> and <li> elements. Avoid plain text paragraphs; prefer structured lists.
-- Section Headings: Inside content scenes, use <h2 class='section-heading'>Subheading</h2> to organize content.
-- Code snippets: Wrap inline code in <span class="inline-code">code</span>.
-
-AI Cinematic Video guidelines (For "ai_video" type scenes ONLY):
-- CRITICAL: The 'prompt' MUST be structured explicitly for the Veo/Google Flow AI model and must be EXTREMELY descriptive and detailed.
-- Veo requires highly descriptive, physical prompts. Describe the subject, their exact motion, the background setting, the lighting, and the camera movement (e.g., 'Panning shot', 'Zoom in', 'Cinematic tracking shot').
-- MASCOT INCLUSION (CRITICAL REQUIREMENT): EVERY SINGLE AI video prompt MUST explicitly feature our mascot interacting with or presenting the scene.
-- The mascot is defined as: "A deer/blackbuck mascot wearing a purple jacket, purple pants, and goggles." You MUST include this exact description in EVERY prompt.
-- Structure: [Camera movement] of [Mascot Description] doing [Action/Explaining/Observing] [Subject] in [Setting], [Lighting/Atmosphere], highly detailed, photorealistic, cinematic.
-- Example: "A cinematic tracking shot of a deer/blackbuck mascot wearing a purple jacket, purple pants, and goggles, pointing excitedly at a heavy steel suspension bridge cable pulling taut under extreme tension, shot on 35mm film, highly detailed, photorealistic, 4k."
-- CRITICAL: AVOID using fancy, sci-fi, or cliché words like "futuristic", "glowing", "neon", or "cyberpunk" unless the text explicitly demands it. Write highly grounded, photorealistic, and mechanically detailed descriptions of real-world objects and their exact materials (e.g. steel, concrete, water).
-- Do NOT describe abstract concepts, text, or math equations in the prompt. Describe ONLY concrete physical objects, their exact materials, and their physical movement!
-- Make it sound like a highly detailed, professional B-roll footage description for a high-end documentary featuring the mascot.
-
-Simulation Script guidelines (For "simulation" type scenes ONLY):
-- CHAIN OF THOUGHT FOR MEANINGFUL VISUALS: You MUST include a 'visual_reasoning' field before the 'manim_code'. In it, explain how your animation directly maps to the specific facts, equations, or diagrams in the uploaded PDF text.
-- CRITICAL: DO NOT draw random, generic abstract shapes. Your animations MUST be meaningful. If the text is about engineering, draw the physical object! If it's about network protocols, draw packets moving! Visualize the actual content provided.
-- CRITICAL HALLUCINATION RULES: 
-  1. Do NOT use SVGMobject or ImageMobject under any circumstances, because there are no external image files available. You MUST construct objects using basic shapes like Circle, Square, Rectangle, and Line.
-  2. Do NOT use \`Tex\` for math equations or variables containing underscores (e.g. Y_{11}). You MUST use \`MathTex\` for all mathematical formulas, variables, and equations.
-  3. Do NOT use \`.reverse_path()\`. To reverse a line or path in Manim, use \`.reverse_direction()\`.
-- You MUST write raw Python code using the 'manim' library in the 'manim_code' field. DO NOT write javascript.
-- The code MUST contain exactly ONE class that inherits from 'Scene' (e.g., class MyScene(Scene):).
-- Keep animations under 15 seconds. Use 'self.play()' to animate shapes, text, and equations intuitively.
-- IMPORTANT: The python code string MUST be properly JSON escaped. Use \\n for newlines and escape quotes (\\"). Do not use backticks or markdown wrappers.
-- MANIM CODE PITFALLS:
-  1. DO NOT use '.get_top_left()', '.get_top_right()', '.get_bottom_left()', or '.get_bottom_right()'. Mobjects do not have these attributes. Instead, use '.get_corner(UL)' (upper left), '.get_corner(UR)' (upper right), '.get_corner(DL)' (down left), or '.get_corner(DR)' (down right).
-  2. You can use '.get_top()', '.get_bottom()', '.get_left()', and '.get_right()' for simple edges.
-  3. 'Rectangle' does NOT accept 'corner_radius'. If you want rounded corners, you MUST use 'RoundedRectangle(corner_radius=...)' instead.
-  4. OVERLAPPING PREVENTION (CRITICAL): Elements MUST NEVER overlap! Always explicitly group elements using 'VGroup' and align them perfectly using '.arrange(DOWN, center=False, aligned_edge=LEFT)' or explicitly set coordinates so they are mathematically separated.
-  5. SCALING: Keep text and formulas scaled appropriately (e.g., .scale(0.8)) so they do not bleed off the edges of the screen or overlap with other large shapes.
-  6. LATEX WARNING: ALWAYS use raw strings for MathTex and Tex (e.g., MathTex(r"\frac{a}{b}")). If you don't use raw strings, the backslashes will break (e.g., \f will become a form feed).
-  7. CONTENT ACCURACY (CRITICAL): Ensure that you accurately represent all mathematical equations, parameters, and diagrams from the source document. Do NOT skip variables or misrepresent formulas. Be exhaustively accurate.
-  8. EXPLANATORY TEXT: Do NOT just draw abstract shapes and math equations. You MUST include explanatory text labels (using Text("...")) next to your shapes and equations to explicitly explain what is happening on screen so the viewer can follow along.
-  9. VIDEO GENERATION (CRITICAL): You MUST animate your objects using self.play() or add a delay using self.wait(1). If you only use self.add() without any animations or wait times, Manim will render a static PNG image instead of an MP4 video. The frontend expects an MP4 video, so generating a static image will cause a fatal crash!
-  10. SUBTITLE SPACE (CRITICAL): The bottom 20% of the video screen is reserved for subtitles! You MUST keep the bottom portion of your Manim animations completely empty. Shift all your elements upwards (e.g., use `.shift(UP)`) so that nothing is obscured by the subtitles at the bottom.
-
-Pacing Strategy:
-- CRITICAL REQUIREMENT (STRICT QUOTAS): You MUST heavily feature 'simulation' (Manim) scenes to deeply explain technical concepts, derivations, and math! Generate frequent Manim animations (a minimum of 3 per presentation, with the maximum scaling naturally based on what the content requires) to improve student understanding. You MUST ALSO generate a MINIMUM of 5 to 6 'ai_video' scenes throughout the presentation.
-- MANIM SEGMENTATION (CRITICAL): You MUST explicitly split your Manim simulations into multiple consecutive scenes based on the voiceover. Each scene should animate exactly ONE small step (1 or 2 sentences) for perfect audio-visual sync.
-- Alternate frequently between Content scenes, Manim Simulations, and AI Cinematic Video scenes.
-- Start a new topic with a Content scene to define terms and core formulas. 
-- CRITICAL SLIDE PACING: Group related content onto a single board! Do NOT unnecessarily split small lists (e.g., 4 learning objectives) across multiple boards. Only split content into a new board when it physically cannot fit on a single screen.
-- If the topic involves heavy math or diagrams, follow up with a Manim Simulation.
-- Every major concept MUST feature an AI Cinematic Video scene ('ai_video') to show a real-world, highly visual application of the concept. Do not under-deliver; generate at least 5 or 6 of them, but feel free to generate more!
-- FINAL SLIDE RULE: The very last scene of the presentation MUST be a 'content' scene featuring a concluding summary. To allow the Mascot to return to the screen for the final sign-off, you MUST place an 'ai_video' scene immediately before this final scene.
-
-Formatting and Narration constraints:
-- DO NOT use markdown bolding (**) or italics (*) inside the narration field! The narration text must be plain string text meant for a TTS engine to read.
-- Spell out abbreviations or math symbols in the narration (e.g., write 'f sub m' instead of 'fm', 'equals' instead of '=').
-- Write numbers as words if you want them spoken a specific way.
-- MASCOT PERSONA (CRITICAL): The narrator is our mascot (the cool deer/blackbuck). The narration should occasionally reflect this persona—confident, highly energetic, friendly, and slightly playful. Speak directly to the student ("let's look at", "we can see here"). Keep the energy extremely high!
-- PRESERVE ALL CONTENT (CRITICAL): Do NOT summarize away, skip, or gloss over important details, definitions, equations, or concepts from the source document. You must comprehensively cover the material.
-- Do NOT generate markdown image tags in the html field. Use the 'manim_code' field exclusively for video simulations.
-- Ensure all MathJax equations are mathematically correct and properly escaped.
-- TERMINOLOGY RULE: Do NOT use the words "Video 1", "Video 2", or refer to the content as a "video". You MUST always refer to it as a "Session" (e.g., "Welcome to Session 1", "In this session").
-- CRITICAL NARRATION RULE: Every single scene object (including 'simulation' and 'ai_video' types) MUST contain a 'narration' field! It is strictly FORBIDDEN to omit the 'narration' field. 
-- The narration across the entire presentation must flow like a single, cohesive documentary script with perfect content consistency. 
-- Each narration should be a rich, passionate, and highly detailed spoken explanation (at least 4-8 sentences) that deeply explores the concepts. Do not use mathematical formulas directly in the narration text; write them out in plain spoken English (e.g., "sigma equals force over area").
-- For 'simulation' (Manim) scenes, the narration MUST explain exactly what the student is seeing happen on screen in real-time.
-- Return ONLY a valid JSON object with the 'subject_name', 'concept_map' and 'scenes' keys. Do not write any explanations, markdown code blocks, or conversational text. Start with '{' and end with '}'.`;
+                    const systemPrompt = getSystemPrompt();
 
                     const response = await fetch('/generate-script', {
                         method: 'POST',
@@ -5109,6 +5541,7 @@ Formatting and Narration constraints:
                     currentUnitName = parsedData.unit_name || "";
                     currentSessionNumber = parsedData.session_number || "Session 1";
                     currentSessionTitle = parsedData.session_title || "";
+                    window.companionSheet = parsedData.companion_sheet || null;
                 }
 
                 if (!Array.isArray(newSlides) || newSlides.length === 0) {
@@ -5134,7 +5567,8 @@ Formatting and Narration constraints:
                         session_number: currentSessionNumber,
                         session_title: currentSessionTitle,
                         concept_map: conceptMapData,
-                        scenes: slides
+                        scenes: slides,
+                        companion_sheet: window.companionSheet || null
                     })
                 }).catch(e => console.error("History save failed:", e));
 
@@ -5355,7 +5789,12 @@ Formatting and Narration constraints:
 
                     stream.getTracks().forEach(track => track.stop());
 
+                    // Publishing companions: YouTube chapter timestamps + practice sheet
+                    downloadYouTubeChapters();
+                    downloadCompanionSheet(true);
+
                     isAutoExporting = false;
+                    window.exportStartTime = null;
                     document.getElementById('voice-control-bar').classList.remove('hidden-force');
                 };
 
@@ -5363,6 +5802,8 @@ Formatting and Narration constraints:
                 // Immediately hide UI
                 document.getElementById('voice-control-bar').classList.add('hidden-force');
 
+                window.exportSceneLog = [];
+                window.exportStartTime = Date.now();
                 autoExportRecorder.start();
 
                 // Buffer to let UI fade out before recording visually captures it
@@ -5377,6 +5818,116 @@ Formatting and Narration constraints:
                 document.getElementById('voice-control-bar').classList.remove('hidden-force');
             }
         });
+
+        
+        
+        // --- Publishing Companions: YouTube Chapters + Practice Sheet ---
+        function formatChapterTime(totalSeconds) {
+            const s = Math.max(0, Math.floor(totalSeconds));
+            const h = Math.floor(s / 3600);
+            const m = Math.floor((s % 3600) / 60);
+            const sec = s % 60;
+            const mm = String(m).padStart(2, '0');
+            const ss = String(sec).padStart(2, '0');
+            return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+        }
+
+        function triggerTextDownload(content, filename, mime) {
+            const blob = new Blob([content], { type: mime || 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function downloadYouTubeChapters() {
+            const log = window.exportSceneLog || [];
+            if (log.length === 0) return;
+
+            // Prefer explicit chapter cards; fall back to concept-map transitions
+            let boundaries = log.filter(e => e.type === 'chapter_card');
+            if (boundaries.length === 0) {
+                let lastConcept = null;
+                boundaries = log.filter(e => {
+                    if (e.concept_id && e.concept_id !== lastConcept) {
+                        lastConcept = e.concept_id;
+                        return true;
+                    }
+                    return false;
+                });
+            }
+
+            const lines = ['00:00 Introduction'];
+            const seen = new Set(['00:00']);
+            boundaries.forEach(b => {
+                const stamp = formatChapterTime(b.t);
+                // YouTube requires unique, ascending timestamps
+                if (!seen.has(stamp)) {
+                    seen.add(stamp);
+                    lines.push(`${stamp} ${b.title}`);
+                }
+            });
+
+            triggerTextDownload(lines.join('\n'), 'youtube_chapters.txt', 'text/plain');
+        }
+
+        function downloadCompanionSheet(silent) {
+            const sheet = window.companionSheet || (window.INJECTED_DATA && window.INJECTED_DATA.companion_sheet);
+            if (!sheet) {
+                if (!silent) alert("No companion practice sheet available. Generate a presentation with the updated Master Prompt first — the AI now produces a 'companion_sheet' alongside the scenes.");
+                return;
+            }
+            triggerTextDownload(sheet, 'Aadhi_Companion_Sheet.md', 'text/markdown');
+        }
+
+        document.getElementById('download-companion-btn').addEventListener('click', () => {
+            downloadCompanionSheet(false);
+        });
+
+        // --- Download Prompt JSON Feature ---
+        document.getElementById('download-json-btn').addEventListener('click', () => {
+            if (!window.INJECTED_DATA) {
+                alert("No JSON data available to download! Please generate a video first.");
+                return;
+            }
+            const jsonStr = JSON.stringify(window.INJECTED_DATA, null, 4);
+            const blob = new Blob([jsonStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "Aadhi_Presentation_Data.json";
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // --- Download Master Prompt Feature ---
+        document.getElementById('download-prompt-btn').addEventListener('click', () => {
+            const promptContent = getSystemPrompt();
+            const blob = new Blob([promptContent], { type: "text/plain" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "Aadhi_Master_Prompt.txt";
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // Event listener for the home screen download prompt button
+        const downloadMasterPromptBtn = document.getElementById('download-master-prompt-btn');
+        if (downloadMasterPromptBtn) {
+            downloadMasterPromptBtn.addEventListener('click', () => {
+                const promptContent = getSystemPrompt();
+                const blob = new Blob([promptContent], { type: "text/plain" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = "Aadhi_Master_Prompt.txt";
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+        }
 
         // --- Export HTML Presentation Feature ---
         document.getElementById('export-html-btn').addEventListener('click', () => {
@@ -5564,7 +6115,8 @@ Formatting and Narration constraints:
                         session_number: currentSessionNumber,
                         session_title: currentSessionTitle,
                         concept_map: conceptMapData,
-                        scenes: slides
+                        scenes: slides,
+                        companion_sheet: window.companionSheet || null
                     })
                 }).catch(e => console.error("History save failed:", e));
 
@@ -6198,6 +6750,206 @@ Formatting and Narration constraints:
             }
         }
     </script>
-</body>
 
+    <script>
+        function getSystemPrompt() {
+            return `You are an expert documentary director and educational content creator. Your task is to analyze the extracted text from a PDF.
+
+  CRITICAL JSON OUTPUT RULE:
+  You must output ONLY raw, valid JSON. Do NOT wrap your output in markdown blocks (e.g., \`\`\`json ... \`\`\`). Do NOT include any trailing commas. Ensure all double quotes inside strings are properly escaped using \\".
+
+  CRITICAL RULE - PRESERVE CONTENT BUT OPTIMIZE FLOW (NO REDUNDANCY):
+  You MUST preserve ALL information, points, sections, and details from the source document (especially if it is an uploaded script). Reduce or condense content ONLY when absolutely necessary to prevent severe redundancy or overcrowding. Do NOT arbitrarily summarize, truncate, or skip any content (except for Learning Objectives, which MUST be summarized to exactly one slide if they are too long). Every single concept or paragraph from the source must be faithfully represented in the final presentation. It is absolutely FORBIDDEN to summarize the document merely for the sake of brevity. When you do optimize the flow to eliminate repetition, you must ensure NO unique concepts or spoken lines are lost. Ensure the flow of the presentation is perfect and logical without sacrificing content.
+  Exception: Learning Objectives MUST ALWAYS be summarized and condensed to fit into exactly ONE single slide. Never span learning objectives across multiple slides.
+
+  IMPORTANT SCRIPT PARSING RULES:
+  The uploaded PDF is likely a PRE-WRITTEN SCRIPT containing explicit directions like "Board content", "Aadhi speaks (voiceover)", and "Animation". 
+  You MUST parse this script faithfully:
+  - Map the "Board content" directly into the "html" field.
+  - Map the "Aadhi speaks" or voiceover text EXACTLY word-for-word into the "narration" field. Do NOT invent your own voiceover if one is provided! You may ONLY regenerate or modify the specific voiceover script if the provided content is way too long and ineffective for a single scene.
+  - Map "Animation" directions into "manim_code" simulations or "ai_video" prompts depending on what fits best.
+  - If the PDF is NOT a script but a normal textbook, you may generate your own highly engaging voiceover and visuals as usual.
+
+CRITICAL IMAGE PLACEHOLDER RULE:
+If the source document explicitly references a diagram, figure, or image (e.g., "Image 1: Static motor" or "Figure 3"), you MUST place an image placeholder exactly where it belongs in the 'html' content using this exact format:
+<div class='board-image-placeholder' data-img-id='Image_1_Static_motor'>[Image Placeholder: Image_1_Static_motor]</div>
+Do not attempt to describe or recreate the image data yourself if it's too complex. The system will detect this placeholder and provide the user an option to upload the actual image file directly onto the main board. Do NOT put these placeholders in the 'side_panel' object; they must go in the 'html' of a 'content' scene.
+
+LEFT PANE HTML ENRICHMENT RULES:
+You must make the 'html' content engaging by injecting the following elements alongside text:
+1. DYNAMIC GIFs: To visually demonstrate an action/concept inline, output: <img class="context-gif" data-query="short search term for gif">. (e.g. data-query="spinning engine"). The system will auto-fetch and play it!
+2. GLOWING CALLOUTS: Break up walls of text by putting important concepts in callouts:
+   - <div class="info-callout">Fascinating fact or definition</div>
+   - <div class="tip-callout">Pro-tips, shortcuts, or best practices</div>
+   - <div class="warning-callout">Common mistakes, safety warnings, or strict rules</div>
+3. CODE BLOCKS: If explaining programming, use: <pre><code class="language-python">print("Hello")</code></pre>. The system will auto-highlight it.
+4. HTML TABLES: If the source document contains tabular data, comparisons, or structured data, you MUST strictly output it as a proper HTML '<table>'. Do NOT convert table data into pointwise text or bullet points!
+
+EXPERIENTIAL LEARNING & ENGAGEMENT (CRITICAL):
+Your content must not feel like a dry textbook. It must foster experiential learning to ensure students are always deeply engaged:
+- Use highly relatable, real-world analogies to explain abstract concepts.
+- Frame engineering, mathematical, or scientific problems as real-world scenarios or mysteries to solve rather than just listing facts.
+- NARRATION STYLE: Speak like an enthusiastic, world-class educator (think Carl Sagan or Sal Khan). Use a warm, passionate tone. Actively bridge concepts between slides by posing rhetorical questions (e.g., 'But wait, what happens if we change this variable? Let's find out!'). Never just read facts aloud; tell a compelling story.
+- CONCRETE BEFORE ABSTRACT: Within every concept, ALWAYS show a concrete real-world example or scenario FIRST, and only then present the formal definition or formula. Never open a concept with abstract formalism.
+
+LEARNING SCIENCE RULES (CRITICAL - THESE MAXIMIZE STUDENT UNDERSTANDING IN THE PUBLISHED VIDEO):
+1. PREDICT-BEFORE-REVEAL: Immediately BEFORE every 'simulation' or 'ai_video' scene that demonstrates a behavior, the narration of the preceding scene MUST end with a prediction question (e.g., 'Before we run this - what do you think happens when the load doubles? Make a guess!') followed by a [PAUSE:2] marker. The next scene then answers the prediction. Students who predict and then watch the result remember the correction; students who just watch do not.
+2. MISCONCEPTION TARGETING: For EVERY major concept, you MUST include exactly one <div class="warning-callout"> that names a specific common misconception and corrects it, formatted as: 'Common Misconception: Students often think X, but actually Y, because Z.' Quiz checkpoint distractors MUST be built from these real misconceptions.
+3. EXAMPLE AND NON-EXAMPLE: Every formal definition MUST be immediately followed by one concrete instance AND one non-instance with the reason it does not qualify (e.g., 'A stretched rubber band IS elastic deformation; a bent paperclip is NOT - here is why').
+4. DUAL CODING / VISUAL REFERENCING: Whenever a scene has a 'chart', 'graph', 'manim', or 'image' side panel, the narration MUST explicitly direct the viewer's attention to it at least once (e.g., 'Look at the panel on the right - notice how the curve flattens right here'). A visual the narrator never mentions adds cognitive load instead of reducing it.
+5. ELABORATIVE BRIDGING: Every scene's narration MUST open by explicitly connecting to the previous scene using the concept_map dependency (e.g., 'We just saw that stress is force over area - so what happens when the area shrinks?'). Verbalize the concept_map edges out loud; never start a scene cold.
+6. FADED WORKED EXAMPLES: For problem-solving topics, generate this exact scene sequence: (a) an 'example' scene with the FULL worked solution where every step is its own <p> tag containing a one-line justification of WHY the step is taken, then (b) an 'example' scene of a similar problem with one or two middle steps blanked out using '______' where the narration says 'Pause the video and fill in the missing step yourself! [PAUSE:4]' and then explains the missing step, then (c) a 'quiz_checkpoint' scene testing the full skill.
+
+CRITICAL SLIDE CHUNKING RULE (DO NOT IGNORE):
+The presentation board is EXTREMELY small. A slide can show only a limited amount of content! You MUST adhere to these guidelines for the 'html' field of a "content" scene:
+- KEEP BOARDS CONCISE (FATAL WARNING): Strictly limit each slide to a MAXIMUM of 3 to 4 short bullet points. You MUST use short, concise bullet points. You MUST wrap EVERY SINGLE SENTENCE in its own isolated HTML tag (like <p> or <li>). Grouping multiple sentences inside a single tag will CRASH the frontend animation syncing engine!
+- SINGLE TOPIC RULE: Cover ONLY ONE single topic per slide. Do not mix multiple concepts on the same board.
+- SPLIT HEAVY CONTENT: If a topic requires more than 3 to 4 points, you MUST split it into 2 or more consecutive "content" scenes. Add "(Contd.)" to the title of the subsequent scenes. Never overflow a single slide!
+- LEARNING OBJECTIVES RULE: If the source contains learning objectives, you MUST summarize all of them concisely so they fit on exactly ONE slide. Do not split objectives across multiple slides!
+
+The output works like an immersive cinematic video. There are no "slides", only continuous "scenes".
+CRITICAL JSON STRUCTURE: You must return a JSON OBJECT containing exactly seven keys: "subject_name", "unit_name", "session_number", "session_title", "concept_map", "scenes", and "companion_sheet".
+- "subject_name": The exact name of the subject/course extracted from the PDF. CRITICAL: You MUST explicitly REMOVE any subject code, course code, or alphanumeric IDs from this name (e.g., change "CS101 Intro to Physics" to just "Intro to Physics").
+- "unit_name": The name of the specific unit or module being covered (e.g., "Solids"). If not explicitly mentioned, infer a short 1-3 word topic name.
+- "session_number": The sequential session or lecture number (e.g., "Session 1"). If not provided, default to "Session 1".
+- "session_title": The specific title of this presentation/lecture (e.g., "Properties of Solids").
+- "concept_map": A JSON array of nodes representing the Skill Tree. CRITICAL REQUIREMENT: You MUST ALWAYS deduce and generate a detailed concept map based on the progression of topics in the document. The frontend application WILL CRASH if this array is empty. You MUST extract at least 3-10 logical concepts. Each node has: {"id": "unique_string", "title": "Short Title", "depends_on": ["parent_id" or empty array]}.
+- "companion_sheet": A single markdown-formatted STRING - this is the downloadable practice handout that gets published alongside the video. It MUST contain: a '# Key Formulas & Definitions' section, a '# Common Misconceptions' section listing every misconception you flagged in the scenes, a '# Practice Problems' section with 3 to 5 retrieval practice problems (do NOT put the answers next to the problems), and a final '# Answer Key' section at the very bottom. Use \\n for newlines inside the JSON string.
+- "scenes": An array of scene objects. CRITICAL: Every single scene MUST include a "concept_id" that STRICTLY matches one of the 'id' strings defined in your 'concept_map' array. Do not invent unmapped concept IDs! Every scene (except title, ai_video, or simulation) MUST ALWAYS include a "side_panel" object without fail! The side panel MUST be present for ALL content slides, as the user will manually decide when to show the mascot. 
+  CRITICAL: Every single scene MUST include an "aadhi_position" field (string). Valid values: "left", "right", "center", "popup_bottom_left", "popup_bottom_right", "hidden". Aadhi being on screen is not mandatory, but he has to be there often instead of bland slides. Choose "popup" for content-heavy slides to save space, "left" or "right" for standard presentations, and "center" for dramatic introductions.
+  The "side_panel" object must be ONE of these NINE formats:
+  1) {"type": "skill_tree"} -> Shows the concept map. Use this for major topic transitions.
+  2) {"type": "image", "prompt": "hyper-realistic stock photo of [subject], photography, 8k resolution, highly detailed"} -> Shows a contextual AI-generated image. Use this frequently for content slides to keep the presentation visually engaging.
+  3) {"type": "chart", "chart_type": "bar", "title": "Chart Title", "data": { "labels": ["A", "B"], "datasets": [{"label": "Value", "data": [10, 20], "backgroundColor": "rgba(176,38,255,0.5)", "borderColor": "rgba(255,215,0,1)"}] }} -> Renders a gorgeous animated Chart.js data visualization. Use this whenever the text discusses quantitative data, history timelines, or comparisons! Supported chart_types: bar, line, pie, doughnut.
+  4) {"type": "3d_model", "model_name": "atom"} -> Renders an interactive 3D model that the user can drag. Supported model_names: atom, torus, box.
+  5) {"type": "quiz", "question": "What is X?", "options": ["A", "B", "C"], "correct_index": 0} -> A small side-panel brain-teaser. IMPORTANT: For real knowledge checks you MUST use the full-screen 'quiz_checkpoint' SCENE type (scene type 9 below) instead - only use this side-panel quiz for quick optional teasers.
+  6) {"type": "terminal", "command": "./run_sim.sh", "output": "Simulation complete. Accuracy: 99.9%"} -> Renders a live hacker terminal typing out the output. Great for coding, tech, or logic explanations!
+  7) {"type": "graph", "title": "Quadratic Curve", "function": "x*x + 2*x"} -> Renders a live, interactive JSXGraph Cartesian coordinate system plotting the math function. Use this for ANY math, physics, or geometry topic!
+  8) {"type": "manim", "title": "Visual Proof", "manim_code": "..."} -> SMALL Python Manim animation for the side panel. ONLY use for simple, small animations! Scale all objects down heavily (e.g., .scale(0.4)) so they physically fit within the narrow tight width of the side panel! Use 'VGroup' and '.arrange(DOWN)' to ensure elements strictly align without overlapping! Do NOT use this for complex simulations.
+  9) {"type": "gif", "query": "search query", "title": "Optional Title"} -> Searches Giphy for an animated GIF and displays it. Use this for fun, engaging reactions, memes, or looping visual analogies (e.g. "mind blown", "gears turning", "confused math lady").
+  ADVANCED MANIM ANIMATION RULES:
+  If you generate Manim code, you MUST adhere to these cinematic rules:
+  - PREFER 'MovingCameraScene': If the scene has multiple elements, use 'MovingCameraScene' and animate 'self.camera.frame.animate.move_to(obj)' to dynamically pan/zoom.
+  - USE MORPHING: For mathematical formulas, strictly use 'TransformMatchingTex' instead of 'Transform' or 'Write' to visually morph equations seamlessly.
+  - HIGHLIGHTING: To emphasize concepts during the narration, use 'SurroundingRectangle(element, color=YELLOW, buff=0.1)' and animate its creation.
+  - OVERLAP PREVENTION: You MUST use 'VGroup(*elements).arrange(DOWN, aligned_edge=LEFT)' or explicitly set coordinates to completely prevent overlaps.
+
+  CRITICAL LAYOUT RULE: NEVER use "ai_video" or full-scale Manim simulations inside the "side_panel" object! AI videos and complex Manim simulations MUST be generated as entirely separate FULL SCREEN scene types (see scene types below).
+
+  MANDATORY MULTIMEDIA REQUIREMENT (NOT OPTIONAL):
+  You MUST include numerous Manim simulation scenes and AI video scenes throughout your JSON output. They are an absolute necessity, not optional! The presentation should seamlessly interleave regular content scenes with full-screen "simulation" and "ai_video" scenes. A presentation with mostly text-based slides is considered a failure. You must generate rich, engaging multimedia consistently to break up the text.
+
+Here are the types of scenes you can generate:
+
+1. Title Scene:
+   {"type": "title", "concept_id": "intro", "title": "Session [Number] - [Topic Name]", "subtitle": "Subtitle or Topic Info", "narration": "Highly conversational, passionate, and natural human narration. Sound like a documentary host, not a textbook."}
+   *CRITICAL TITLE RULE*: The video player AUTOMATICALLY generates a cinematic intro using your global 'subject_name' and 'session_title' fields. Therefore, DO NOT generate a "title" scene as the very first scene of the presentation! That would be redundant. ONLY use a "title" scene later in the presentation if you are transitioning to an entirely new major chapter.
+
+2. Content Scene (Immersive Text Overlay):
+   {"type": "content", "concept_id": "concept1", "title": "CONCEPT", "subtitle": "Optional Subtitle", "html": "...", "side_panel": {"type": "image", "prompt": "..."}, "narration": "Conversational, natural spoken explanation of the concept. CRITICAL: You MUST insert the exact text [SYNC] right before you begin discussing each specific concept or bullet point that appears on screen so the video player knows when to reveal it! Also insert [PAUSE] markers after definitions, formulas, and questions per the DELIBERATE PACING rule."}
+   *FATAL CRASH WARNING*: Keep the 'html' content visually concise enough to fit on one screen without scrolling. Note that if both the mascot (Aadhi) and the 'side_panel' are present on the screen, the horizontal space on the main board is EXTREMELY limited. You MUST write EVERY SINGLE SENTENCE as a separate <p> tag, <li> tag, or <div class='definition'> tag. DO NOT EVER group multiple sentences into one paragraph! If you put more than one sentence in a single tag, the real-time text-to-speech animation engine WILL CRASH. All heavy, wordy conceptual explanations MUST go into the spoken 'narration' field, leaving ONLY concise summaries in the 'html'. CRITICAL REQUIREMENT: You MUST ALWAYS provide a 'side_panel' object for content slides without fail.
+
+3. Manim Simulation (Math/Logic Visualization):
+   {"type": "simulation", "concept_id": "concept1", "title": "VISUALIZING X", "visual_reasoning": "...", "manim_code": "...", "narration": "Enthusiastic spoken narration explaining the visual logic."}
+
+4. Example Scene (for solved problems, derivations, examples):
+   {"type": "example", "title": "EXAMPLE TITLE", "subtitle": "Optional Subtitle", "html": "HTML content", "narration": "Conversational, step-by-step guidance."}
+
+5. Key Takeaway Scene (uses takeaway-list class - RETRIEVAL STYLE):
+   {"type": "key-takeaway", "title": "TAKEAWAY TITLE", "html": "<ul class='takeaway-list'><li>Takeaway 1</li><li>Takeaway 2</li></ul>", "narration": "Before I show you the summary - pause the video and try to recall the key ideas we covered yourself! [PAUSE:3] Here they come. [SYNC] First takeaway explained... [PAUSE] [SYNC] Second takeaway explained... [PAUSE]"}
+   *RETRIEVAL RULE (CRITICAL)*: The narration MUST first challenge the viewer to recall the takeaways from memory (with a [PAUSE:3] beat of silence), and only THEN reveal each takeaway one at a time with a [SYNC] before each and a [PAUSE] after each. A summary the student just tried to recall sticks far better than one they only read.
+
+6. Summary Scene (uses styled tables for comparison/quick reference):
+   {"type": "summary", "title": "SUMMARY TITLE", "html": "<table><thead><tr><th>Header 1</th><th>Header 2</th></tr></thead><tbody><tr><td>Data 1</td><td>Data 2</td></tr></tbody></table>", "narration": "Detailed spoken narration text summarizing the comparison or data"}
+
+7. AI Cinematic Video Scene (Cinematic B-roll via Text-to-Video AI):
+   {"type": "ai_video", "concept_id": "concept1", "title": "CINEMATIC TITLE", "subtitle": "Optional Subtitle", "prompt": "Highly descriptive, mechanically accurate, 30-word max prompt of the exact physical shot you want (e.g., 'A slow-motion tracking shot of a heavy steel suspension bridge cable pulling taut under extreme tension, shot on 35mm film, highly detailed, photorealistic, 4k.')", "narration": "Detailed spoken narration text that plays while the video loops"}
+
+8. Interactive Web Simulation (p5.js):
+   {"type": "p5_simulation", "concept_id": "concept1", "title": "INTERACTIVE CANVAS", "p5_code": "function setup() { createCanvas(800, 600); background(0); }\\nfunction draw() { fill(255, 215, 0); ellipse(mouseX, mouseY, 50, 50); }", "narration": "Explain the interactive elements to the user. E.g., 'Try dragging your mouse across the screen to see how gravity affects the orbit!'"}
+
+9. Quiz Checkpoint (MANDATORY full-screen retrieval practice - the single most important scene type for learning):
+   {"type": "quiz_checkpoint", "concept_id": "concept1", "title": "CHECKPOINT", "question": "A clear question testing what was JUST taught", "options": ["Option A", "Option B", "Option C", "Option D"], "correct_index": 1, "feedback_wrong": ["Why option A is tempting but wrong", "", "Why option C is tempting but wrong", "Why option D is tempting but wrong"], "explanation": "1-2 sentence explanation of WHY the correct answer is right", "countdown_seconds": 8, "narration": "Read the question aloud conversationally, then say 'Pause the video here and try it yourself!'", "reveal_narration": "Announce the correct answer enthusiastically, explain WHY it is right, and briefly explain why the most tempting wrong option fools people."}
+   *CHECKPOINT RULES (CRITICAL)*: You MUST insert one 'quiz_checkpoint' scene after every 2 to 3 concepts (STRICT QUOTA: minimum one checkpoint per 3 concept_map nodes). The wrong options MUST be derived from the real misconceptions you flagged in the warning-callouts, NOT random alternatives - that is where the learning happens. 'feedback_wrong' MUST align index-by-index with 'options' (put an empty string "" at the correct answer's index). The video player automatically renders an animated countdown timer with ticking sounds after your 'narration' finishes, then reveals the answer and plays 'reveal_narration' - do NOT describe countdown mechanics yourself beyond inviting the viewer to pause and try.
+
+10. Chapter Card (Segmenting transition between major topics):
+   {"type": "chapter_card", "concept_id": "concept2", "chapter_label": "Part 2", "title": "Stress vs. Strain", "subtitle": "One-line teaser of this chapter's driving question", "narration": "One or two energetic sentences introducing the question this chapter will answer."}
+   *CHAPTER RULES*: Insert a 'chapter_card' scene at EVERY transition to a new major concept_map node. Number the labels sequentially ('Part 1', 'Part 2', ...). These become the published video's YouTube chapter markers, so keep titles short, specific, and searchable.
+
+11. Recap Scene (Previously in this course - cross-session spaced review):
+   {"type": "recap", "concept_id": "intro", "title": "PREVIOUSLY IN [SUBJECT]", "html": "<ul><li>Key point from the last session</li><li>Another key point</li></ul>", "narration": "A fast, energetic 30-second recap. [SYNC] Point one explained... [SYNC] Point two explained..."}
+   *RECAP RULE*: If 'session_number' is greater than 1, the SECOND scene of the presentation (immediately after the cold-open hook) MUST be a 'recap' scene summarizing the 3-4 most important takeaways a student needs from earlier sessions to follow this one.
+
+Styling guidelines for content within the 'html' field:
+- Definitions: Wrap definitions or core concepts in: <div class='definition'><strong>Definition:</strong> Detailed description.</div>
+- Keywords: Wrap key terms in <span class="keyword">key term</span> to apply the glowing effect.
+- Math/Equations: Wrap equations in MathJax format. Block equations must use $$ ... $$ and inline equations must use $ ... $. DO NOT use backslashes for the equation wrappers. For example: $\sigma = \frac{F}{A}$. Inside the equation, remember to properly double-escape LaTeX backslashes for JSON (e.g., \\frac{F}{A}). CRITICAL: You MUST use proper LaTeX symbols for Greek letters and math operators (e.g., use \\sigma, \\alpha, \\mu instead of writing the words 'sigma', 'alpha', 'mu' as plain text).
+- Lists: Use <ul> and <li> elements. Avoid plain text paragraphs; prefer structured lists.
+- Section Headings: Inside content scenes, use <h2 class='section-heading'>Subheading</h2> to organize content.
+- Code snippets: Wrap inline code in <span class="inline-code">code</span>.
+
+AI Cinematic Video guidelines (For "ai_video" type scenes ONLY):
+- CRITICAL: The 'prompt' MUST be structured explicitly for the Veo/Google Flow AI model and must be EXTREMELY descriptive and detailed.
+- Veo requires highly descriptive, physical prompts. Describe the subject, their exact motion, the background setting, the lighting, and the camera movement (e.g., 'Panning shot', 'Zoom in', 'Cinematic tracking shot').
+- MASCOT INCLUSION (CRITICAL REQUIREMENT): EVERY SINGLE AI video prompt MUST explicitly feature our mascot interacting with or presenting the scene.
+- The mascot is defined as: "A deer/blackbuck mascot wearing a purple jacket, purple pants, and goggles." You MUST include this exact description in EVERY prompt.
+- Structure: [Camera movement] of [Mascot Description] doing [Action/Explaining/Observing] [Subject] in [Setting], [Lighting/Atmosphere], highly detailed, photorealistic, cinematic.
+- Example: "A cinematic tracking shot of a deer/blackbuck mascot wearing a purple jacket, purple pants, and goggles, pointing excitedly at a heavy steel suspension bridge cable pulling taut under extreme tension, shot on 35mm film, highly detailed, photorealistic, 4k."
+- CRITICAL: AVOID using fancy, sci-fi, or clich├⌐ words like "futuristic", "glowing", "neon", or "cyberpunk" unless the text explicitly demands it. Write highly grounded, photorealistic, and mechanically detailed descriptions of real-world objects and their exact materials (e.g. steel, concrete, water).
+- Do NOT describe abstract concepts, text, or math equations in the prompt. Describe ONLY concrete physical objects, their exact materials, and their physical movement!
+- Make it sound like a highly detailed, professional B-roll footage description for a high-end documentary featuring the mascot.
+
+Simulation Script guidelines (For "simulation" type scenes ONLY):
+- CHAIN OF THOUGHT FOR MEANINGFUL VISUALS: You MUST include a 'visual_reasoning' field before the 'manim_code'. In it, explain how your animation directly maps to the specific facts, equations, or diagrams in the uploaded PDF text.
+- CRITICAL: DO NOT draw random, generic abstract shapes. Your animations MUST be meaningful. If the text is about engineering, draw the physical object! If it's about network protocols, draw packets moving! Visualize the actual content provided.
+- CRITICAL HALLUCINATION RULES: 
+  1. Do NOT use SVGMobject or ImageMobject under any circumstances, because there are no external image files available. You MUST construct objects using basic shapes like Circle, Square, Rectangle, and Line.
+  2. Do NOT use \`Tex\` for math equations or variables containing underscores (e.g. Y_{11}). You MUST use \`MathTex\` for all mathematical formulas, variables, and equations.
+  3. Do NOT use \`.reverse_path()\`. To reverse a line or path in Manim, use \`.reverse_direction()\`.
+- You MUST write raw Python code using the 'manim' library in the 'manim_code' field. DO NOT write javascript.
+- The code MUST contain exactly ONE class that inherits from 'Scene' (e.g., class MyScene(Scene):).
+- Keep animations under 15 seconds. Use 'self.play()' to animate shapes, text, and equations intuitively. If a topic requires a long visual explanation or a multi-step derivation, you MUST split it into MULTIPLE consecutive 'simulation' scenes rather than generating one massive looping animation block. Splitting animations into smaller segments is MANDATORY to drastically improve user understanding and ensure the voice-over syncs perfectly with each specific visual step.
+- IMPORTANT: The python code string MUST be properly JSON escaped. Use \\n for newlines and escape quotes (\\"). Do not use backticks or markdown wrappers.
+- MANIM CODE PITFALLS:
+  1. DO NOT use '.get_top_left()', '.get_top_right()', '.get_bottom_left()', or '.get_bottom_right()'. Mobjects do not have these attributes. Instead, use '.get_corner(UL)' (upper left), '.get_corner(UR)' (upper right), '.get_corner(DL)' (down left), or '.get_corner(DR)' (down right).
+  2. You can use '.get_top()', '.get_bottom()', '.get_left()', and '.get_right()' for simple edges.
+  3. 'Rectangle' does NOT accept 'corner_radius'. If you want rounded corners, you MUST use 'RoundedRectangle(corner_radius=...)' instead.
+  4. OVERLAPPING PREVENTION (CRITICAL): Elements MUST NEVER overlap! Always explicitly group elements using 'VGroup' and align them perfectly using '.arrange(DOWN, center=False, aligned_edge=LEFT)' or explicitly set coordinates so they are mathematically separated.
+  5. SCALING: Keep text and formulas scaled appropriately (e.g., .scale(0.8)) so they do not bleed off the edges of the screen or overlap with other large shapes.
+  6. LATEX WARNING: ALWAYS use raw strings for MathTex and Tex (e.g., MathTex(r"\frac{a}{b}")). If you don't use raw strings, the backslashes will break (e.g., \f will become a form feed).
+  7. CONTENT ACCURACY (CRITICAL): Ensure that you accurately represent all mathematical equations, parameters, and diagrams from the source document. Do NOT skip variables or misrepresent formulas. Be exhaustively accurate.
+  8. EXPLANATORY TEXT: Do NOT just draw abstract shapes and math equations. You MUST include explanatory text labels (using Text("...")) next to your shapes and equations to explicitly explain what is happening on screen so the viewer can follow along.
+  9. VIDEO GENERATION (CRITICAL): You MUST animate your objects using self.play() or add a delay using self.wait(1). If you only use self.add() without any animations or wait times, Manim will render a static PNG image instead of an MP4 video. The frontend expects an MP4 video, so generating a static image will cause a fatal crash!
+
+Pacing Strategy:
+- CRITICAL REQUIREMENT (STRICT QUOTA): You MUST generate a MINIMUM of 5 to 6 'ai_video' scenes throughout the presentation (you can generate more if needed)! Do NOT rely solely on 'simulation' (Manim) scenes. It is an absolute necessity that you heavily feature AI Cinematic Videos.
+- MULTIMEDIA PLACEMENT DISCIPLINE (CRITICAL): Every 'ai_video' and 'simulation' MUST directly illustrate the concept being narrated around it. NEVER insert cinematic B-roll in the middle of a step-by-step derivation or a multi-scene worked example - place it BEFORE (as a hook) or AFTER (as the real-world payoff), never in between the steps.
+- COLD OPEN HOOK (CRITICAL): The FIRST scene must be a 'content' scene that poses the driving question or mystery of the session (e.g., 'Why don't skyscrapers snap in the wind?') with a {"type": "skill_tree"} side panel presented in the narration as the roadmap of today's journey. Hook first, roadmap second, content third.
+- CHECKPOINT QUOTA (STRICT): Insert 'quiz_checkpoint' scenes after every 2-3 concepts as defined in scene type 9. A presentation without quiz checkpoints is considered a FAILURE.
+- REACTION GIF DISCIPLINE: Use 'gif' side panels and <img class="context-gif"> ONLY in intros, transitions, or celebration moments (e.g., right after a checkpoint reveal). NEVER place a reaction GIF next to a definition, formula, or derivation - decorative motion during an explanation measurably reduces comprehension. A context-gif IS allowed during explanation only if it literally demonstrates the mechanism being described (e.g., 'piston engine cycle').
+- Alternate between Content scenes, Manim Simulations, and AI Cinematic Video scenes.
+- Start every new major topic with a 'chapter_card' scene, then a Content scene to define terms and core formulas.
+- CRITICAL SLIDE PACING: Group related content onto a single board! Do NOT unnecessarily split small lists (e.g., 4 learning objectives) across multiple boards. Only split content into a new board when it physically cannot fit on a single screen.
+- If the topic involves heavy math or diagrams, follow up with a Manim Simulation.
+- Every major concept MUST feature an AI Cinematic Video scene ('ai_video') to show a real-world, highly visual application of the concept. Do not under-deliver; generate at least 5 or 6 of them, but feel free to generate more!
+- FINAL SLIDE RULE: The very last scene of the presentation MUST be a 'content' scene featuring a concluding summary. To allow the Mascot to return to the screen for the final sign-off, you MUST place an 'ai_video' scene immediately before this final scene.
+
+Formatting and Narration constraints:
+- DELIBERATE PACING WITH [PAUSE] (CRITICAL): You may insert the marker [PAUSE] (a 1.5 second beat of silence) or [PAUSE:seconds] (e.g. [PAUSE:3]) anywhere inside any 'narration' string. The video player inserts REAL silence at that exact point. You MUST place a [PAUSE] after every formal definition, after every formula is first stated, after every rhetorical or prediction question, and before every big reveal. Never let the narration become a relentless firehose of words - give the viewer time to read the board and think. [PAUSE] markers do NOT consume [SYNC] slots and combine freely with [SYNC].
+- DO NOT use markdown bolding (**) or italics (*) inside the narration field! The narration text must be plain string text meant for a TTS engine to read.
+- Spell out abbreviations or math symbols in the narration (e.g., write 'f sub m' instead of 'fm', 'equals' instead of '=').
+- Write numbers as words if you want them spoken a specific way.
+- MASCOT PERSONA (CRITICAL): The narrator is our mascot (the cool deer/blackbuck). The narration should occasionally reflect this personaΓÇöconfident, highly energetic, friendly, and slightly playful. Speak directly to the student ("let's look at", "we can see here"). Keep the energy extremely high!
+- PRESERVE ALL CONTENT (CRITICAL): Do NOT summarize away, skip, or gloss over important details, definitions, equations, or concepts from the source document. You must comprehensively cover the material.
+- Do NOT generate markdown image tags in the html field. Use the 'manim_code' field exclusively for video simulations.
+- Ensure all MathJax equations are mathematically correct and properly escaped.
+- TERMINOLOGY RULE: Do NOT use the words "Video 1", "Video 2", or refer to the content as a "video". You MUST always refer to it as a "Session" (e.g., "Welcome to Session 1", "In this session").
+- CRITICAL NARRATION RULE: Every single scene object (including 'simulation' and 'ai_video' types) MUST contain a 'narration' field! It is strictly FORBIDDEN to omit the 'narration' field. 
+- The narration across the entire presentation must flow like a single, cohesive documentary script with perfect content consistency. 
+- Each narration should be a rich, passionate, and highly detailed spoken explanation (at least 4-8 sentences) that deeply explores the concepts. Do not use mathematical formulas directly in the narration text; write them out in plain spoken English (e.g., "sigma equals force over area").
+- For 'simulation' (Manim) scenes, the narration MUST explain exactly what the student is seeing happen on screen in real-time.
+- Return ONLY a valid JSON object with the 'subject_name', 'unit_name', 'session_number', 'session_title', 'concept_map', 'scenes', and 'companion_sheet' keys. Do not write any explanations, markdown code blocks, or conversational text. Start with '{' and end with '}.`;
+        }
+    </script>
+</body>
 </html>

@@ -11,5 +11,5 @@ httpx
 sqlalchemy
 pyjwt
 passlib[bcrypt]
-bcrypt==3.2.2
+bcrypt
 psycopg2-binary

@@ -716,6 +716,7 @@ class HistoryRequest(BaseModel):
     session_title: str | None = None
     concept_map: list | None = None
     scenes: list | None = None
+    companion_sheet: str | None = None
 
 @app.post("/generate-audio")
 async def generate_audio(request: AudioRequest, current_user: models.User = Depends(get_current_user)):
@@ -985,7 +986,8 @@ def save_history(request: HistoryRequest, current_user: models.User = Depends(ge
         "session_number": request.session_number,
         "session_title": request.session_title,
         "concept_map": request.concept_map,
-        "scenes": request.scenes
+        "scenes": request.scenes,
+        "companion_sheet": request.companion_sheet
     }
     
     new_project = models.Project(
