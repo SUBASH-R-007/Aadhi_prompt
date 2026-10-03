@@ -1,0 +1,25 @@
+# Image for the Docker Manim sandbox runtime (Phase 10). UNTESTED here: there was no Docker on the
+# development machine; the Windows AppContainer runtime is what was tested. Build and try it before use:
+#
+#   docker build -f sandbox/Dockerfile.manim -t aadhi-manim-sandbox:0.21.0 sandbox
+#
+# The server runs each job as (manim_sandbox.DockerRuntime.command):
+#   docker run --rm --network none --read-only --tmpfs /tmp --user 10001:10001 --cap-drop ALL
+#     --security-opt no-new-privileges --pids-limit N --memory M --memory-swap M --cpus C
+#     -v <job workspace>:/workspace  aadhi-manim-sandbox:0.21.0 python -I -S -B /workspace/runner.py /workspace/job.json
+# Only the job's workspace is mounted; no environment variable, no network, no secrets.
+FROM python:3.11-slim
+
+# Manim's native dependencies only (no compiler left in the image, no LaTeX: Tex/MathTex are unavailable, as locally)
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg libcairo2 libpango-1.0-0 libpangocairo-1.0-0 \
+        fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential pkg-config libcairo2-dev libpango1.0-dev \
+    && pip install --no-cache-dir "manim==0.21.0" \
+    && apt-get purge -y build-essential pkg-config libcairo2-dev libpango1.0-dev && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/* /root/.cache
+# No pip for the sandboxed user: nothing can be installed at run time
+RUN python -m pip uninstall -y pip setuptools wheel || true
+RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin sandbox
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONIOENCODING=utf-8 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MPLBACKEND=Agg HOME=/tmp
+USER 10001:10001
+WORKDIR /workspace

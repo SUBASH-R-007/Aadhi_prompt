@@ -1,0 +1,187 @@
+/*
+ * Aadhi product UI — the shared design tokens (Phase 21).
+ *
+ * One token layer for the product's own chrome (the Studio, the editor, Visual Review, the Asset Library, the export panel,
+ * the Document Assistant, the start screen, dialogs). Rules of this file:
+ *   - only `:root { --ui-* }` tokens and opt-in `.ui-*` classes: no element selectors, no `*`, so loading it changes no
+ *     existing pixel until an area adopts it;
+ *   - literal values only: never `var(--st-*)` (the lesson's video style, Phase 17), `var(--text-gold)` or `var(--font-*)`
+ *     — the product UI never follows the lesson's style, and nothing here can reach the recorded stage;
+ *   - the stage (the board, presenter, captions, intro, `--st-*`, `--cine-*`) keeps its own CSS: it is what the video records.
+ * tests/ui_tokens.test.js checks these rules.
+ */
+:root {
+    /* surfaces (dark, opaque: the stage behind a panel never shows through its text) */
+    --ui-bg: rgb(10, 5, 20);
+    --ui-surface: rgb(18, 9, 32);
+    --ui-surface-2: rgb(26, 13, 46);
+    --ui-surface-3: rgb(36, 18, 62);
+    --ui-overlay: rgba(5, 2, 12, 0.72);
+
+    /* text (muted text keeps 7.8:1 or more on every surface) */
+    --ui-text: #eeeeee;
+    --ui-text-strong: #ffffff;
+    --ui-muted: #b3acc3;
+
+    /* brand: gold is the one primary action colour; purple is for borders and accents, not body text */
+    --ui-primary: #ffd700;
+    --ui-primary-hover: #ffe24d;
+    --ui-on-primary: #1c0f30;
+    --ui-accent: #b026ff;
+    --ui-accent-text: #c58bff;
+
+    /* states: always paired with an icon and words, never colour alone */
+    --ui-success: #8fdc92;
+    --ui-warning: #ffd27a;
+    --ui-danger: #ffb4a8;
+    --ui-danger-border: #ff8a7a;
+    --ui-info: #9fd8ff;
+
+    /* lines, focus, disabled */
+    --ui-border: rgba(255, 255, 255, 0.14);
+    --ui-border-strong: rgba(176, 38, 255, 0.38);
+    --ui-focus: #ffd700;
+    --ui-focus-width: 2px;
+    --ui-focus-offset: 2px;
+    --ui-disabled-opacity: 0.45;
+
+    /* spacing scale */
+    --ui-space-1: 4px;
+    --ui-space-2: 8px;
+    --ui-space-3: 12px;
+    --ui-space-4: 16px;
+    --ui-space-5: 24px;
+    --ui-space-6: 32px;
+
+    /* radius scale */
+    --ui-radius-sm: 6px;
+    --ui-radius-md: 8px;
+    --ui-radius-lg: 12px;
+    --ui-radius-xl: 18px;
+    --ui-radius-pill: 999px;
+
+    /* shadows */
+    --ui-shadow-1: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --ui-shadow-2: 0 10px 30px rgba(0, 0, 0, 0.45);
+    --ui-shadow-3: 0 24px 60px rgba(0, 0, 0, 0.55);
+
+    /* type: families (literal copies, not the stage's --font-* tokens), scale (12 px floor), weights */
+    --ui-font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --ui-font-title: 'Outfit', 'Inter', system-ui, sans-serif;
+    --ui-font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', Consolas, monospace;
+    --ui-text-display: 2.5rem;
+    --ui-text-title: 1.5rem;
+    --ui-text-section: 1.05rem;
+    --ui-text-card: 0.95rem;
+    --ui-text-body: 0.9rem;
+    --ui-text-secondary: 0.82rem;
+    --ui-text-caption: 0.75rem;
+    --ui-text-mono: 0.8rem;
+    --ui-weight-regular: 400;
+    --ui-weight-semibold: 600;
+    --ui-weight-bold: 700;
+    --ui-line-height: 1.45;
+
+    /* controls */
+    --ui-control-sm: 28px;
+    --ui-control-md: 36px;
+    --ui-control-lg: 44px;
+    --ui-pad-x-sm: 10px;
+    --ui-pad-x-md: 14px;
+    --ui-pad-x-lg: 20px;
+
+    /* the layers of the product UI, bottom to top (documented; each area keeps its own z-index) */
+    --ui-z-bar: 10000;
+    --ui-z-studio: 10010;
+    --ui-z-editor: 10020;
+    --ui-z-review: 10040;
+    --ui-z-panels: 10050;
+    --ui-z-auth: 10150;
+}
+
+/* ---- opt-in components ------------------------------------------------------------------------------------------- */
+
+.ui-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--ui-space-2);
+    min-height: var(--ui-control-md);
+    padding: 0 var(--ui-pad-x-md);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-md);
+    background: var(--ui-surface-3);
+    color: var(--ui-text);
+    font-family: var(--ui-font-sans);
+    font-size: var(--ui-text-body);
+    font-weight: var(--ui-weight-semibold);
+    line-height: 1.2;
+    text-transform: none;
+    letter-spacing: normal;
+    cursor: pointer;
+}
+
+.ui-btn:hover:not(:disabled) {
+    border-color: var(--ui-border-strong);
+}
+
+.ui-btn-primary {
+    border-color: var(--ui-primary);
+    background: var(--ui-primary);
+    color: var(--ui-on-primary);
+}
+
+.ui-btn-primary:hover:not(:disabled) {
+    border-color: var(--ui-primary-hover);
+    background: var(--ui-primary-hover);
+}
+
+.ui-btn-danger {
+    border-color: var(--ui-danger-border);
+    background: transparent;
+    color: var(--ui-danger);
+}
+
+.ui-btn-link {
+    min-height: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--ui-accent-text);
+    text-decoration: underline;
+}
+
+.ui-btn-sm {
+    min-height: var(--ui-control-sm);
+    padding: 0 var(--ui-pad-x-sm);
+    font-size: var(--ui-text-secondary);
+}
+
+.ui-btn-lg {
+    min-height: var(--ui-control-lg);
+    padding: 0 var(--ui-pad-x-lg);
+}
+
+.ui-btn:disabled,
+.ui-btn[aria-disabled="true"] {
+    opacity: var(--ui-disabled-opacity);
+    cursor: not-allowed;
+}
+
+.ui-btn:focus-visible,
+.ui-focusable:focus-visible {
+    outline: var(--ui-focus-width) solid var(--ui-focus);
+    outline-offset: var(--ui-focus-offset);
+}
+
+.ui-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}

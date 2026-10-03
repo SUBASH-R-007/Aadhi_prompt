@@ -1,0 +1,1090 @@
+/*
+ * Aadhi product shell (Phase 21): the top bar, the start screen, the Settings dialog, the start card, the player bar, the
+ * loading overlay, notices, the page's own dialogs (lesson file editor, scene list, sign in) and the focus / motion rules of
+ * the product UI. Loaded after studio.css and editor.css; built only from the ui.css tokens (`--ui-*`).
+ * Never the recorded stage: no rule here reaches the board, the presenter, the captions, the intro or the side panels, and
+ * nothing reads the lesson style (`--st-*`). The shell itself is hidden while a video is recorded (body[data-recording]).
+ */
+:root {
+    --app-bar-h: 52px;
+}
+
+/* ---- top bar: Home · Create · Library · Videos · Settings --------------------------------------------------------- */
+.app-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--app-bar-h);
+    z-index: var(--ui-z-bar);
+    display: flex;
+    align-items: center;
+    gap: var(--ui-space-4);
+    padding: 0 var(--ui-space-4);
+    background: var(--ui-surface);
+    border-bottom: 1px solid var(--ui-border);
+    box-shadow: var(--ui-shadow-1);
+    color: var(--ui-text);
+    font-family: var(--ui-font-sans);
+    transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+/* while the lesson plays the bar steps aside; the top edge, the keyboard or a pause bring it back */
+body.presentation-active.lesson-playing .app-bar::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: 10px;
+}
+
+body.presentation-active.lesson-playing .app-bar:not(:hover):not(:focus-within) {
+    transform: translateY(-100%);
+    box-shadow: none;
+}
+
+body[data-recording] .app-bar,
+body[data-mode="exporting"] .app-bar,
+body[data-recording] #app-notice,
+body[data-mode="exporting"] #app-notice {
+    display: none !important;
+}
+
+.app-brand {
+    display: flex;
+    align-items: baseline;
+    gap: var(--ui-space-2);
+    min-width: 0;
+    white-space: nowrap;
+    font-family: var(--ui-font-title);
+    font-size: var(--ui-text-section);
+    font-weight: var(--ui-weight-bold);
+    color: var(--ui-text-strong);
+}
+
+.app-brand-mark {
+    color: var(--ui-primary);
+}
+
+.app-brand-sub {
+    font-family: var(--ui-font-sans);
+    font-size: var(--ui-text-secondary);
+    font-weight: var(--ui-weight-regular);
+    color: var(--ui-muted);
+}
+
+.app-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--ui-space-1);
+    margin-left: auto;
+}
+
+.app-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--ui-space-2);
+    min-height: var(--ui-control-md);
+    padding: 0 var(--ui-pad-x-sm);
+    border: 1px solid transparent;
+    border-radius: var(--ui-radius-md);
+    background: transparent;
+    color: var(--ui-text);
+    font-family: var(--ui-font-sans);
+    font-size: var(--ui-text-body);
+    font-weight: var(--ui-weight-semibold);
+    cursor: pointer;
+}
+
+.app-nav-btn:hover {
+    background: var(--ui-surface-3);
+    border-color: var(--ui-border);
+}
+
+.app-nav-btn[aria-current="page"] {
+    border-color: var(--ui-border-strong);
+    background: var(--ui-surface-2);
+    color: var(--ui-text-strong);
+}
+
+.app-nav-btn[data-nav="create"] {
+    border-color: var(--ui-primary);
+    color: var(--ui-primary);
+}
+
+.app-nav-icon {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+@media (max-width: 900px) {
+    .app-brand-sub { display: none; }
+}
+
+@media (max-width: 640px) {
+    .app-bar { gap: var(--ui-space-2); padding: 0 var(--ui-space-2); }
+    .app-nav-label { display: none; }
+    .app-nav-btn { min-width: var(--ui-control-lg); justify-content: center; padding: 0 var(--ui-space-2); }
+}
+
+/* ---- start screen ------------------------------------------------------------------------------------------------- */
+#upload-screen.start-screen {
+    width: min(960px, calc(100vw - 2 * var(--ui-space-4)));
+    max-width: none;
+    max-height: calc(100vh - var(--app-bar-h) - 2 * var(--ui-space-4));
+    margin-top: var(--app-bar-h);
+    padding: var(--ui-space-6);
+    overflow-y: auto;
+    position: relative;
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border-strong);
+    border-radius: var(--ui-radius-xl);
+    color: var(--ui-text);
+    font-family: var(--ui-font-sans);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+.start-head {
+    text-align: center;
+}
+
+.start-title {
+    margin: 0;
+    font-family: var(--ui-font-title);
+    font-size: clamp(1.6rem, 3.2vw, var(--ui-text-display));
+    font-weight: var(--ui-weight-bold);
+    line-height: 1.15;
+    color: var(--ui-text-strong);
+}
+
+.start-title-mark {
+    color: var(--ui-primary);
+}
+
+.start-subtitle {
+    margin: var(--ui-space-2) 0 0;
+    font-size: var(--ui-text-secondary);
+    color: var(--ui-muted);
+}
+
+.start-intro {
+    max-width: 560px;
+    margin: var(--ui-space-4) auto 0;
+    text-align: center;
+    font-size: var(--ui-text-body);
+    line-height: var(--ui-line-height);
+    color: var(--ui-text);
+}
+
+.start-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--ui-space-3);
+    margin-top: var(--ui-space-5);
+}
+
+.start-actions .neon-btn {
+    min-height: var(--ui-control-lg);
+    font-size: var(--ui-text-card);
+}
+
+.start-file {
+    margin-top: var(--ui-space-6);
+    padding-top: var(--ui-space-5);
+    border-top: 1px solid var(--ui-border);
+}
+
+.start-section-title {
+    margin: 0 0 var(--ui-space-1);
+    font-family: var(--ui-font-title);
+    font-size: var(--ui-text-section);
+    font-weight: var(--ui-weight-semibold);
+    color: var(--ui-text-strong);
+}
+
+.start-section-note {
+    margin: 0 0 var(--ui-space-3);
+    font-size: var(--ui-text-secondary);
+    color: var(--ui-muted);
+}
+
+#upload-screen .glass-drop-zone {
+    min-height: 120px;
+    margin: 0 0 var(--ui-space-3);
+    padding: var(--ui-space-5) var(--ui-space-4);
+    border-color: var(--ui-border-strong);
+    background: var(--ui-surface-2);
+}
+
+#upload-screen .glass-drop-zone:hover,
+#upload-screen .glass-drop-zone.dragover {
+    border-color: var(--ui-primary);
+}
+
+#upload-screen .drop-zone-icon {
+    font-size: 1.8rem;
+    margin-bottom: var(--ui-space-2);
+}
+
+#upload-screen .drop-zone-text {
+    font-size: var(--ui-text-card);
+    font-weight: var(--ui-weight-semibold);
+    color: var(--ui-text-strong);
+    text-align: center;
+}
+
+#upload-screen .drop-zone-subtext {
+    margin-top: var(--ui-space-1);
+    font-size: var(--ui-text-secondary);
+    color: var(--ui-muted);
+    text-align: center;
+}
+
+#upload-screen .action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ui-space-2);
+}
+
+#upload-screen .action-row .neon-btn {
+    flex: 1 1 180px;
+}
+
+.start-help {
+    margin-top: var(--ui-space-5);
+    text-align: center;
+    font-size: var(--ui-text-secondary);
+    color: var(--ui-muted);
+}
+
+.start-link {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--ui-accent-text);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+@media (max-width: 640px) {
+    #upload-screen.start-screen { padding: var(--ui-space-5) var(--ui-space-4); }
+    .start-actions .neon-btn { flex: 1 1 100%; }
+}
+
+/* ---- loading overlay (classic one-step generation): plain steps, a readable error ---------------------------------- */
+#loading-overlay {
+    background: var(--ui-surface) !important;
+    border-radius: var(--ui-radius-xl) !important;
+    font-family: var(--ui-font-sans);
+}
+
+#loading-overlay .loading-title {
+    color: var(--ui-text-strong);
+    font-family: var(--ui-font-title);
+    font-size: var(--ui-text-title);
+}
+
+#loading-overlay .loading-log {
+    width: min(440px, 90%);
+    height: auto;
+    max-height: 9rem;
+    font-family: var(--ui-font-sans);
+    font-size: var(--ui-text-body);
+    line-height: var(--ui-line-height);
+    color: var(--ui-text);
+    background: var(--ui-surface-2);
+    border: 1px solid var(--ui-border);
+    word-break: normal;
+}
+
+/* the moving line stops once the generation has ended in an error */
+#loading-overlay:has(.error-message) .enhanced-progress {
+    display: none;
+}
+
+#loading-overlay .error-message {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ui-space-2);
+    width: min(440px, 90%);
+    margin-top: var(--ui-space-4);
+    padding: var(--ui-space-4);
+    border: 1px solid var(--ui-danger-border);
+    border-radius: var(--ui-radius-lg);
+    background: var(--ui-surface);
+    color: var(--ui-text);
+}
+
+#loading-overlay .error-message strong {
+    color: var(--ui-danger);
+    font-size: var(--ui-text-card);
+}
+
+#loading-overlay .error-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ui-space-2);
+    justify-content: flex-end;
+}
+
+.shell-debug {
+    max-height: 10rem;
+    overflow: auto;
+    margin: 0;
+    padding: var(--ui-space-2);
+    border-radius: var(--ui-radius-sm);
+    background: var(--ui-bg);
+    color: var(--ui-muted);
+    font-family: var(--ui-font-mono);
+    font-size: var(--ui-text-caption);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* ---- the start card of an opened lesson ------------------------------------------------------------------------- */
+#start-overlay {
+    background: var(--ui-overlay) !important;
+    font-family: var(--ui-font-sans);
+}
+
+.start-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--ui-space-4);
+    width: min(560px, calc(100vw - 2 * var(--ui-space-4)));
+    margin-top: var(--app-bar-h);
+    padding: var(--ui-space-6) var(--ui-space-5);
+    border: 1px solid var(--ui-border-strong);
+    border-radius: var(--ui-radius-xl);
+    background: var(--ui-surface);
+    box-shadow: var(--ui-shadow-3);
+    text-align: center;
+}
+
+.start-card-kicker {
+    margin: 0;
+    font-size: var(--ui-text-caption);
+    font-weight: var(--ui-weight-semibold);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ui-muted);
+}
+
+#start-overlay .start-card-title {
+    margin: 0;
+    font-family: var(--ui-font-title);
+    font-size: clamp(1.4rem, 3vw, 2rem);
+    line-height: 1.2;
+    color: var(--ui-text-strong);
+    text-shadow: none;
+}
+
+.start-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--ui-space-3);
+}
+
+.start-card-actions > button {
+    min-height: var(--ui-control-lg);
+    font-size: var(--ui-text-card) !important;
+    padding: 0 var(--ui-pad-x-lg) !important;
+    border-radius: var(--ui-radius-md) !important;
+}
+
+.start-card-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--ui-space-2) var(--ui-space-5);
+}
+
+#start-overlay .export-link-btn {
+    margin: 0 !important;
+    font-size: var(--ui-text-body) !important;
+    color: var(--ui-accent-text);
+}
+
+/* ---- Settings dialog --------------------------------------------------------------------------------------------- */
+.settings-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10045; /* above the Studio and Visual Review; below the panels it opens (the asset picker) */
+    display: flex;
+    justify-content: flex-end;
+    background: var(--ui-overlay);
+}
+
+.settings-overlay[hidden] {
+    display: none;
+}
+
+.settings-panel {
+    display: flex;
+    flex-direction: column;
+    width: min(720px, 100vw);
+    height: 100%;
+    background: var(--ui-surface);
+    border-left: 1px solid var(--ui-border-strong);
+    box-shadow: var(--ui-shadow-3);
+    color: var(--ui-text);
+    font-family: var(--ui-font-sans);
+    font-size: var(--ui-text-body);
+    line-height: var(--ui-line-height);
+}
+
+.settings-head {
+    display: flex;
+    align-items: center;
+    gap: var(--ui-space-3);
+    padding: var(--ui-space-4) var(--ui-space-5);
+    border-bottom: 1px solid var(--ui-border);
+}
+
+.settings-head h2 {
+    margin: 0;
+    font-family: var(--ui-font-title);
+    font-size: var(--ui-text-title);
+    color: var(--ui-text-strong);
+}
+
+.settings-close {
+    margin-left: auto;
+}
+
+.settings-layout {
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    flex: 1;
+    min-height: 0;
+}
+
+.settings-nav {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ui-space-1);
+    padding: var(--ui-space-4) var(--ui-space-3);
+    border-right: 1px solid var(--ui-border);
+    overflow-y: auto;
+}
+
+.settings-nav-btn {
+    padding: var(--ui-space-2) var(--ui-space-3);
+    border: 1px solid transparent;
+    border-radius: var(--ui-radius-md);
+    background: transparent;
+    color: var(--ui-text);
+    font: inherit;
+    font-weight: var(--ui-weight-semibold);
+    text-align: left;
+    cursor: pointer;
+}
+
+.settings-nav-btn:hover,
+.settings-nav-btn[aria-current="true"] {
+    background: var(--ui-surface-3);
+    border-color: var(--ui-border);
+}
+
+.settings-body {
+    overflow-y: auto;
+    padding: var(--ui-space-4) var(--ui-space-5) var(--ui-space-6);
+    scroll-behavior: smooth;
+}
+
+.settings-section {
+    padding: var(--ui-space-4) 0 var(--ui-space-5);
+    border-bottom: 1px solid var(--ui-border);
+}
+
+.settings-section:last-child {
+    border-bottom: none;
+}
+
+.settings-section > h3 {
+    margin: 0 0 var(--ui-space-1);
+    font-family: var(--ui-font-title);
+    font-size: var(--ui-text-section);
+    color: var(--ui-text-strong);
+}
+
+.settings-section h4 {
+    margin: var(--ui-space-4) 0 var(--ui-space-2);
+    font-size: var(--ui-text-card);
+    color: var(--ui-text-strong);
+}
+
+.settings-note {
+    margin: 0 0 var(--ui-space-3);
+    font-size: var(--ui-text-secondary);
+    color: var(--ui-muted);
+}
+
+.settings-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ui-space-3);
+}
+
+.settings-row > .config-group {
+    flex: 1 1 200px;
+    min-width: 0;
+}
+
+/* the second voice list only while the chosen voice service has one (the page enables it then) */
+.settings-row > .config-group:has(> #gemini-voice-select:disabled) {
+    display: none;
+}
+
+.settings-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ui-space-2);
+}
+
+.settings-check {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--ui-space-2);
+    cursor: pointer;
+}
+
+.settings-check input {
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    accent-color: var(--ui-primary);
+}
+
+.settings-panel .config-group {
+    gap: var(--ui-space-1);
+    margin-bottom: var(--ui-space-3);
+}
+
+.settings-panel .config-label {
+    color: var(--ui-text-strong) !important;
+    font-size: var(--ui-text-secondary);
+    font-weight: var(--ui-weight-semibold);
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.settings-panel .neon-input,
+.settings-panel select {
+    min-height: var(--ui-control-md);
+    padding: var(--ui-space-2) var(--ui-space-3);
+    border: 1px solid var(--ui-border) !important;
+    border-radius: var(--ui-radius-md);
+    background: var(--ui-surface-2);
+    color: var(--ui-text);
+    font-family: var(--ui-font-sans);
+    font-size: var(--ui-text-body);
+    box-shadow: none;
+}
+
+.settings-panel select:disabled {
+    opacity: var(--ui-disabled-opacity) !important;
+}
+
+.settings-panel .neon-btn {
+    min-height: var(--ui-control-md);
+    padding: 0 var(--ui-pad-x-md);
+    font-size: var(--ui-text-body);
+}
+
+.settings-panel .ai-providers > summary {
+    cursor: pointer;
+    font-weight: var(--ui-weight-semibold);
+    color: var(--ui-text-strong);
+}
+
+.settings-account {
+    margin: 0 0 var(--ui-space-3);
+    color: var(--ui-text);
+}
+
+#logout-btn {
+    border-color: var(--ui-danger-border);
+    background: transparent;
+    color: var(--ui-danger);
+}
+
+/* a hidden control stays hidden whatever its class says (.ui-btn is a flex box) */
+.settings-panel [hidden],
+#upload-screen [hidden],
+.control-menu [hidden] {
+    display: none !important;
+}
+
+@media (max-width: 720px) {
+    .settings-layout { grid-template-columns: minmax(0, 1fr); }
+    .settings-nav { flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--ui-border); padding: var(--ui-space-2); }
+    .settings-nav-btn { white-space: nowrap; }
+    .settings-body { padding: var(--ui-space-3) var(--ui-space-4) var(--ui-space-6); }
+}
+
+/* ---- the player bar: legible on any lesson style, usable without hover and at narrow widths ---------------------- */
+.voice-control-bar {
+    height: auto;
+    min-height: 72px;
+    transform: translateY(100%);
+    padding: var(--ui-space-3) var(--ui-space-5) var(--ui-space-3);
+    align-items: center;
+    gap: var(--ui-space-3);
+    background: var(--ui-surface);
+    border-top: 1px solid var(--ui-border);
+    font-family: var(--ui-font-sans);
+}
+
+/* visible while the lesson is paused; while it plays, on activity only (body.player-active: the pointer moved, a tap, a key
+   or a focus move, for 3 s; app.js), under the pointer, with the keyboard inside it (keyboard focus only: a mouse click
+   leaves the focus on ▶) and while its More menu is open. Not whenever the pointer is on the page (the page's body:hover
+   rule) or always on touch screens: it covers the caption band */
+body.presentation-active:not(.lesson-playing) .voice-control-bar {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+body.presentation-active.player-active .voice-control-bar {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+body.presentation-active.lesson-playing:not(.player-active) .voice-control-bar:not(:hover):not(:has(:focus-visible)):not(:has(.control-menu:not([hidden]))) {
+    transform: translateY(100%);
+    opacity: 0;
+}
+
+.voice-control-bar .progress-bar-container {
+    top: auto;
+    bottom: 0;
+}
+
+.control-left,
+.control-center,
+.control-right {
+    gap: var(--ui-space-2);
+}
+
+.control-center {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: center;
+    background: var(--ui-surface-2);
+    border: 1px solid var(--ui-border);
+}
+
+.control-right {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.control-btn {
+    background: var(--ui-surface-3);
+    color: var(--ui-text-strong);
+    border: 1px solid var(--ui-border);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+.control-btn:hover {
+    background: var(--ui-surface-2);
+    color: var(--ui-text-strong);
+    border-color: var(--ui-border-strong);
+}
+
+.control-btn.active {
+    background: var(--ui-surface-2);
+    color: var(--ui-primary);
+    border-color: var(--ui-primary);
+}
+
+/* the play / mute buttons say their state in words ("⏸ Pause"): a pill, not a circle */
+#tts-play-btn,
+#tts-mute-btn {
+    width: auto;
+    min-width: 42px;
+    padding: 0 var(--ui-space-3);
+    border-radius: var(--ui-radius-pill);
+    gap: var(--ui-space-1);
+    font-size: var(--ui-text-body);
+    font-weight: var(--ui-weight-semibold);
+}
+
+/* the four lesson tools (Review · Edit · Studio · Export) say their names where there is room: wide screens, and tablets
+   (the bar wraps there and the tools get a row of their own); icons only in between (the scenes' dots need the room) and on
+   narrow screens. Their accessible names keep the full words */
+.control-tool-label {
+    display: none;
+}
+
+@media (min-width: 1280px), (min-width: 641px) and (max-width: 1100px) {
+    .control-tool-label { display: inline; }
+    #review-btn,
+    #editor-btn,
+    #studio-btn,
+    #auto-export-btn {
+        width: auto;
+        min-width: 42px;
+        padding: 0 var(--ui-space-3);
+        border-radius: var(--ui-radius-pill);
+        gap: var(--ui-space-1);
+        font-size: var(--ui-text-body);
+        font-weight: var(--ui-weight-semibold);
+    }
+}
+
+.control-divider {
+    width: 1px;
+    height: 16px;
+    margin: 0 var(--ui-space-1);
+    background: var(--ui-border);
+}
+
+.control-speed {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--ui-space-1);
+    color: var(--ui-muted);
+    font-size: var(--ui-text-secondary);
+    white-space: nowrap;
+}
+
+.voice-control-bar .slider-value {
+    color: var(--ui-text);
+}
+
+.control-more {
+    position: relative;
+}
+
+.control-menu {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + var(--ui-space-2));
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    min-width: 260px;
+    padding: var(--ui-space-2);
+    border: 1px solid var(--ui-border-strong);
+    border-radius: var(--ui-radius-lg);
+    background: var(--ui-surface);
+    box-shadow: var(--ui-shadow-2);
+}
+
+.control-menu[hidden] {
+    display: none;
+}
+
+.control-menu-item {
+    display: flex;
+    align-items: center;
+    gap: var(--ui-space-2);
+    min-height: var(--ui-control-md);
+    padding: 0 var(--ui-space-3);
+    border: none;
+    border-radius: var(--ui-radius-md);
+    background: transparent;
+    color: var(--ui-text);
+    font-family: var(--ui-font-sans);
+    font-size: var(--ui-text-body);
+    text-align: left;
+    cursor: pointer;
+}
+
+.control-menu-item:hover,
+.control-menu-item:focus-visible {
+    background: var(--ui-surface-3);
+}
+
+.control-menu-sep {
+    height: 1px;
+    margin: var(--ui-space-1) 0;
+    background: var(--ui-border);
+}
+
+@media (max-width: 1100px) {
+    .voice-control-bar { flex-wrap: wrap; padding: var(--ui-space-2) var(--ui-space-3) var(--ui-space-3); }
+    .control-center { order: -1; flex: 1 1 100%; overflow-x: auto; justify-content: flex-start; }
+    .control-right { margin-left: auto; }
+}
+
+@media (max-width: 640px) {
+    .control-btn { width: 38px; height: 38px; font-size: 1rem; }
+    .control-left, .control-right { gap: var(--ui-space-1); }
+    #tts-play-btn, #tts-mute-btn { padding: 0 var(--ui-space-2); }
+    .control-label-wide { display: none; }
+}
+
+/* ---- notices (plain words; an action when there is one) ------------------------------------------------------- */
+#app-notice {
+    position: fixed;
+    top: calc(var(--app-bar-h) + var(--ui-space-3));
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10070;
+    display: flex;
+    flex-direction: column;
+    gap: var(--ui-space-2);
+    width: min(520px, calc(100vw - 2 * var(--ui-space-4)));
+    pointer-events: none;
+}
+
+.app-notice-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--ui-space-2) var(--ui-space-3);
+    padding: var(--ui-space-3) var(--ui-space-4);
+    border: 1px solid var(--ui-border-strong);
+    border-radius: var(--ui-radius-lg);
+    background: var(--ui-surface);
+    box-shadow: var(--ui-shadow-2);
+    color: var(--ui-text);
+    font-family: var(--ui-font-sans);
+    font-size: var(--ui-text-body);
+    line-height: var(--ui-line-height);
+    pointer-events: auto;
+}
+
+.app-notice-item[data-kind="error"] {
+    border-color: var(--ui-danger-border);
+}
+
+.app-notice-item[data-kind="busy"] {
+    border-color: var(--ui-info);
+}
+
+.app-notice-text {
+    flex: 1 1 240px;
+    margin: 0;
+}
+
+.app-notice-actions {
+    display: flex;
+    gap: var(--ui-space-2);
+}
+
+.app-notice-item .shell-debug {
+    flex: 1 1 100%;
+}
+
+/* ---- the page's own dialogs -------------------------------------------------------------------------------------- */
+#script-editor-modal,
+#info-modal {
+    z-index: 10045 !important;
+}
+
+#script-editor-modal .glass-panel,
+#info-modal .glass-panel {
+    width: min(960px, calc(100vw - 2 * var(--ui-space-4))) !important;
+    height: min(86vh, 860px) !important;
+    background: var(--ui-surface);
+    border-color: var(--ui-border-strong);
+    color: var(--ui-text);
+    font-family: var(--ui-font-sans);
+}
+
+#script-editor-modal .revamp-title,
+#info-modal .revamp-title {
+    font-family: var(--ui-font-title);
+    font-size: var(--ui-text-title) !important;
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    color: var(--ui-text-strong);
+    text-align: left;
+    filter: none;
+}
+
+#script-editor-hint,
+#info-modal p {
+    color: var(--ui-muted) !important;
+}
+
+.auth-modal {
+    z-index: var(--ui-z-auth);
+    font-family: var(--ui-font-sans);
+}
+
+.auth-box {
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border-strong);
+    color: var(--ui-text);
+}
+
+.auth-box h2 {
+    font-family: var(--ui-font-title);
+    color: var(--ui-text-strong);
+}
+
+.auth-label {
+    display: block;
+    margin: var(--ui-space-2) 0 var(--ui-space-1);
+    font-size: var(--ui-text-secondary);
+    font-weight: var(--ui-weight-semibold);
+    color: var(--ui-text);
+    text-align: left;
+}
+
+.auth-input {
+    width: 100%;
+    margin: 0 0 var(--ui-space-2) !important;
+}
+
+.auth-error {
+    margin-top: var(--ui-space-2);
+    color: var(--ui-danger);
+    font-size: var(--ui-text-body);
+}
+
+.auth-btn {
+    margin-top: var(--ui-space-2);
+    background: var(--ui-primary);
+    color: var(--ui-on-primary);
+}
+
+.auth-btn:hover {
+    background: var(--ui-primary-hover);
+}
+
+.auth-switch {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--ui-accent-text);
+    font: inherit;
+    text-decoration: underline;
+}
+
+/* ---- typography and contrast of the older controls -------------------------------------------------------------- */
+.neon-btn,
+.btn-gold,
+.config-label,
+.slider-label,
+.revamp-subtitle {
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.btn-gold:disabled {
+    background: var(--ui-surface-3);
+    color: var(--ui-muted);
+    opacity: var(--ui-disabled-opacity);
+}
+
+.asset-count {
+    color: var(--ui-muted);
+}
+
+/* ---- the Document Assistant's footer: never over its content -------------------------------------------------- */
+.doc-actions {
+    flex-wrap: wrap;
+    border-top: 1px solid var(--ui-border);
+    background: var(--ui-surface);
+}
+
+@media (max-width: 720px) {
+    .doc-actions { position: static; justify-content: stretch; }
+    .doc-actions > button { flex: 1 1 100%; }
+}
+
+/* ---- keyboard focus: always visible on the product's controls --------------------------------------------------- */
+.app-nav-btn:focus-visible,
+.settings-nav-btn:focus-visible,
+.settings-panel :is(button, select, input, summary, a):focus-visible,
+.start-link:focus-visible,
+#upload-screen .glass-drop-zone:focus-visible,
+.neon-btn:focus-visible,
+.btn-gold:focus-visible,
+.btn-outline:focus-visible,
+.control-btn:focus-visible,
+.control-menu-item:focus-visible,
+#tts-rate-slider:focus-visible,
+.export-panel :is(button, select, input, a, video):focus-visible,
+.export-link-btn:focus-visible,
+.asset-item:focus-visible,
+.style-suggest-apply:focus-visible,
+.visual-regenerate:focus-visible,
+.ai-run-action:focus-visible,
+.ai-providers > summary:focus-visible,
+.doc-panel :is(button, input, textarea, select, summary):focus-visible,
+.auth-box :is(input, button):focus-visible,
+.auth-switch:focus-visible,
+.app-notice-item button:focus-visible,
+#script-editor-modal :is(button, textarea, input):focus-visible,
+#info-modal :is(button, select, label, input):focus-visible,
+.review-composition-frame:focus-visible {
+    outline: var(--ui-focus-width) solid var(--ui-focus);
+    outline-offset: var(--ui-focus-offset);
+}
+
+.asset-item:focus-visible {
+    outline-offset: -2px;
+}
+
+/* the info modal's upload labels hold a hidden file input: the label shows the focus */
+#info-modal label:focus-within {
+    outline: var(--ui-focus-width) solid var(--ui-focus);
+    outline-offset: var(--ui-focus-offset);
+}
+
+/* ---- reduced motion: the product UI stops its decorative motion (the stage has its own rules: it is the video) ---- */
+@media (prefers-reduced-motion: reduce) {
+    /* (not while an export records: the particles are part of the recorded stage, like the stage's own motion rules) */
+    body:not([data-recording]) .ambient-particle {
+        display: none !important;
+        animation: none !important;
+    }
+
+    .animate-entrance-1,
+    .animate-entrance-2,
+    .animate-entrance-3,
+    .animate-entrance-4,
+    .drop-zone-icon,
+    .btn-gold::after,
+    .enhanced-progress::after,
+    .export-step-icon::before,
+    .export-step-bar.indeterminate .export-step-fill,
+    #upload-screen .spinner,
+    .settings-panel .spinner,
+    body:not(.presentation-active) .dynamic-side-zone .spinner {
+        animation: none !important;
+    }
+
+    .btn-gold::after {
+        display: none;
+    }
+
+    .glass-overlay,
+    .glass-overlay .glass-panel,
+    .glass-panel,
+    .neon-btn,
+    .btn-gold,
+    .btn-outline,
+    .control-btn,
+    .glass-list-item,
+    .scrubber-dot,
+    .app-bar,
+    .voice-control-bar,
+    .settings-body {
+        transition: none !important;
+        scroll-behavior: auto;
+    }
+
+    .glass-overlay .glass-panel,
+    .neon-btn:hover:not(:disabled),
+    .btn-gold:hover:not(:disabled),
+    .btn-outline:hover,
+    .control-btn:hover,
+    .glass-list-item:hover,
+    .scrubber-dot:hover {
+        transform: none !important;
+    }
+}

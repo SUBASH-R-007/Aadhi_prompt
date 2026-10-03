@@ -1,0 +1,61 @@
+{
+    "subject_name": "Mascot Reliability Check",
+    "unit_name": "Unit 1",
+    "session_number": "Session 1",
+    "session_title": "Stress in One Minute",
+    "concept_map": [
+        { "id": "stress", "title": "Stress", "depends_on": [] }
+    ],
+    "scenes": [
+        {
+            "type": "title",
+            "concept_id": "stress",
+            "title": "WHAT IS STRESS?",
+            "subtitle": "A one minute check",
+            "aadhi_position": "left",
+            "narration": "Welcome back. Today we look at stress."
+        },
+        {
+            "type": "content",
+            "concept_id": "stress",
+            "title": "DEFINITION",
+            "aadhi_position": "right",
+            "side_panel": { "type": "skill_tree" },
+            "html": "<p>Stress is force per unit area.</p><p>It is measured in pascals.</p>",
+            "narration": "[SYNC] Stress is the force acting on each unit of area. [PAUSE:1] [SYNC] We measure it in pascals."
+        },
+        {
+            "type": "content",
+            "concept_id": "stress",
+            "title": "WORKED STEP",
+            "aadhi_position": "center",
+            "mascot_state": "explaining",
+            "side_panel": { "type": "skill_tree" },
+            "html": "<p>Divide the force by the area.</p>",
+            "narration": "[SYNC] Divide the force by the area and you have the stress."
+        },
+        {
+            "type": "quiz_checkpoint",
+            "concept_id": "stress",
+            "title": "CHECKPOINT",
+            "aadhi_position": "popup",
+            "question": "What is the unit of stress?",
+            "options": ["Pascal", "Newton", "Joule", "Watt"],
+            "correct_index": 0,
+            "feedback_wrong": ["", "That is a force.", "That is energy.", "That is power."],
+            "countdown_seconds": 3,
+            "narration": "Quick check. What is the unit of stress?",
+            "reveal_narration": "It is the pascal. Nicely done.",
+            "explanation": "One pascal is one newton per square metre."
+        },
+        {
+            "type": "content",
+            "concept_id": "stress",
+            "title": "WRAP UP",
+            "aadhi_position": "hidden",
+            "side_panel": { "type": "skill_tree" },
+            "html": "<p>Stress equals force over area.</p>",
+            "narration": "That is stress in one line."
+        }
+    ]
+}

@@ -1,0 +1,57 @@
+# Newton's Second Law of Motion
+
+## Introduction
+
+Why does an empty shopping cart speed up so easily while a full one feels heavy? Newton's second law answers this question with one short rule.
+
+## What is force?
+
+Force is a push or a pull that can change how an object moves. It is measured in newtons. Acceleration is the rate at which the velocity of an object changes.
+
+## The law in words
+
+The acceleration of an object grows when the force on it grows, and it shrinks when the mass of the object grows. A bigger push gives a bigger change in motion, and a heavier object needs a bigger push for the same change.
+
+## The formula
+
+$$F = m \times a$$
+
+Here F is the net force in newtons, m is the mass in kilograms and a is the acceleration in metres per second squared.
+
+## Pushing a cart
+
+Diagram: a shopping cart on a flat floor with an arrow showing the push to the right.
+
+A force of 20 newtons pushes a cart with a mass of 10 kilograms. The acceleration is 20 divided by 10, which is 2 metres per second squared.
+
+## Solving it step by step
+
+1. Write down the force and the mass.
+2. Rearrange the formula to a = F / m.
+3. Divide the force by the mass.
+4. Give the answer with its unit.
+
+## Checking the answer in code
+
+```python
+force = 20.0   # newtons
+mass = 10.0    # kilograms
+acceleration = force / mass
+print("Acceleration:", acceleration, "m/s^2")
+```
+
+## Light and heavy carts compared
+
+| Cart | Mass | Push | Acceleration |
+| --- | --- | --- | --- |
+| Empty | 10 kg | 20 N | 2 m/s^2 |
+| Full | 40 kg | 20 N | 0.5 m/s^2 |
+
+## Quick check
+
+Question: What happens to the acceleration if the mass doubles and the force stays the same?
+Answer: The acceleration is halved.
+
+## Summary
+
+Newton's second law says that force equals mass times acceleration. A larger force gives a larger acceleration, and a larger mass gives a smaller one.

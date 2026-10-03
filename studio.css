@@ -1,0 +1,1098 @@
+/*
+ * Aadhi Studio (Phase 20; Phase 21 design pass): the guided lesson workflow overlay (studio.js, AadhiStudio).
+ *
+ * One fixed, OPAQUE layer over the page (Phase 19 lesson: a translucent panel lets the stage show through its text).
+ * z-index 10010 (--ui-z-studio): above the stage and the control bar (10000), below the editor (10020), Visual Review
+ * (10040), the Asset Library / Document Assistant / export panel (10050) and the login prompt, which all open on top of it.
+ * Hidden while a video is being recorded. No animated transitions anywhere (reduced motion is respected by design).
+ *
+ * Phase 21: colours, type (a 12 px floor), spacing, radii and the focus ring all come from the shared product tokens
+ * (ui.css, --ui-*). Nothing here reads the lesson's video style (Phase 17's tokens on <html>) or the stage's fonts:
+ * the Studio looks the same whatever style the lesson has, and the page's presenter / style panels moved into it keep
+ * their own look. Hierarchy comes from spacing, type and a few subtle surfaces, not boxes in boxes. Three layouts:
+ * desktop (the stage rail beside the work area), tablet ≤ 900 px (the rail becomes a seven-step stepper that fits, with
+ * short labels), narrow ≤ 600 px (one column, the stages as a select, no horizontal scroll). Statuses are always an icon
+ * and words; their colour only repeats them.
+ */
+
+.studio-root {
+    position: fixed;
+    inset: 0;
+    z-index: var(--ui-z-studio); /* below the editor (10020) and Visual Review / Asset Library / export overlays (10040-10050) */
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    padding: var(--ui-space-4);
+    background: var(--ui-bg);
+    color: var(--ui-text);
+    font-family: var(--ui-font-sans);
+    font-size: var(--ui-text-card);
+    line-height: var(--ui-line-height);
+    text-align: left;
+}
+
+body[data-recording] .studio-root {
+    display: none !important; /* never in a recording of the lesson tab */
+}
+
+.studio-root *,
+.studio-root *::before,
+.studio-root *::after {
+    box-sizing: border-box;
+    transition: none !important;
+    animation: none !important;
+}
+
+.studio-root [hidden] {
+    display: none !important;
+}
+
+:where(.studio-root) :where(button, input, select, textarea) {
+    font: inherit;
+    color: inherit;
+}
+
+.studio-root :focus-visible {
+    outline: var(--ui-focus-width) solid var(--ui-focus);
+    outline-offset: var(--ui-focus-offset);
+}
+
+.studio-panel {
+    display: flex;
+    flex-direction: column;
+    width: min(1180px, 100%);
+    height: 100%;
+    min-height: 0;
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border-strong);
+    border-radius: var(--ui-radius-lg);
+    overflow: hidden;
+}
+
+/* ---- header: the product, back to the lessons, a quiet status line, close ------------------------------------------ */
+
+.studio-top {
+    display: flex;
+    align-items: center;
+    gap: var(--ui-space-3);
+    padding: var(--ui-space-2) var(--ui-space-4);
+    background: var(--ui-surface-2);
+    border-bottom: 1px solid var(--ui-border-strong);
+    flex: none;
+}
+
+.studio-brand {
+    color: var(--ui-primary);
+    font-family: var(--ui-font-title);
+    font-size: var(--ui-text-card);
+    font-weight: var(--ui-weight-bold);
+    white-space: nowrap;
+}
+
+.studio-status {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    color: var(--ui-muted);
+    font-size: var(--ui-text-secondary);
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.studio-main {
+    flex: 1;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: var(--ui-space-5) var(--ui-space-5) var(--ui-space-6);
+}
+
+.studio-view {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ui-space-4);
+    min-width: 0;
+}
+
+.studio-heading {
+    margin: 0;
+    color: var(--ui-text-strong);
+    font-family: var(--ui-font-title);
+    font-size: var(--ui-text-title);
+    font-weight: var(--ui-weight-bold);
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+
+.studio-view h3,
+.studio-view h4 {
+    margin: 0;
+    color: var(--ui-text-strong);
+}
+
+.studio-intro {
+    margin: 0;
+    max-width: 72ch;
+    color: var(--ui-text);
+}
+
+.studio-hint,
+.studio-muted,
+.studio-help {
+    margin: 0;
+    color: var(--ui-muted);
+    font-size: var(--ui-text-secondary);
+}
+
+.studio-note {
+    margin: 0;
+    max-width: 72ch;
+    padding: var(--ui-space-2) var(--ui-space-3);
+    border-left: 3px solid var(--ui-info);
+    border-radius: var(--ui-radius-sm);
+    background: var(--ui-surface-2);
+    color: var(--ui-text);
+    font-size: var(--ui-text-secondary);
+}
+
+.studio-debug {
+    display: block;
+    color: var(--ui-info);
+    font-family: var(--ui-font-mono);
+    font-size: var(--ui-text-caption);
+    overflow-wrap: anywhere;
+}
+
+/* ---- buttons: secondary (default) · primary · quiet · link · danger --------------------------------------------- */
+
+.studio-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--ui-space-2);
+}
+
+.studio-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--ui-space-2);
+    min-height: var(--ui-control-md);
+    max-width: 100%;
+    padding: var(--ui-space-1) var(--ui-pad-x-md);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-md);
+    background: var(--ui-surface-3);
+    color: var(--ui-text);
+    font-size: var(--ui-text-body);
+    font-weight: var(--ui-weight-semibold);
+    line-height: 1.2;
+    text-align: center;
+    cursor: pointer;
+}
+
+.studio-btn:hover:not(:disabled) {
+    border-color: var(--ui-border-strong);
+}
+
+.studio-btn:disabled {
+    opacity: var(--ui-disabled-opacity);
+    cursor: not-allowed;
+}
+
+.studio-btn-primary {
+    border-color: var(--ui-primary);
+    background: var(--ui-primary);
+    color: var(--ui-on-primary);
+    font-weight: var(--ui-weight-bold);
+}
+
+.studio-btn-primary:hover:not(:disabled) {
+    border-color: var(--ui-primary-hover);
+    background: var(--ui-primary-hover);
+}
+
+.studio-btn-quiet {
+    background: transparent;
+}
+
+.studio-btn-danger {
+    border-color: var(--ui-danger-border);
+    background: transparent;
+    color: var(--ui-danger);
+}
+
+.studio-btn-link {
+    min-height: var(--ui-control-sm);
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--ui-accent-text);
+    text-decoration: underline;
+    text-align: left;
+}
+
+.studio-btn-link:hover:not(:disabled) {
+    color: var(--ui-text-strong);
+}
+
+.studio-btn-lg {
+    min-height: var(--ui-control-lg);
+    padding: var(--ui-space-1) var(--ui-pad-x-lg);
+}
+
+/* the header's buttons: at least 36 × 36 px at every width (icon only on narrow screens) */
+.studio-top .studio-btn {
+    min-width: var(--ui-control-md);
+    min-height: var(--ui-control-md);
+    padding: 0 var(--ui-pad-x-sm);
+    font-size: var(--ui-text-secondary);
+    white-space: nowrap;
+}
+
+.studio-btn-icon {
+    font-size: var(--ui-text-card);
+    line-height: 1;
+}
+
+/* ---- statuses (icon + words; the colour only repeats them) -------------------------------------------------------- */
+
+.studio-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px var(--ui-space-3);
+    border-radius: var(--ui-radius-pill);
+    border: 1px solid var(--ui-border);
+    background: var(--ui-surface-3);
+    color: var(--ui-text);
+    font-size: var(--ui-text-caption);
+    font-weight: var(--ui-weight-semibold);
+    white-space: nowrap;
+}
+
+.studio-chip[data-lesson-stage="completed"],
+.studio-chip[data-lesson-stage="ready_to_export"] {
+    color: var(--ui-success);
+    border-color: var(--ui-success);
+}
+
+.studio-chip[data-lesson-stage="needs_attention"] {
+    color: var(--ui-danger);
+    border-color: var(--ui-danger-border);
+}
+
+.studio-chip[data-lesson-stage="generating"],
+.studio-chip[data-lesson-stage="review"],
+.studio-chip[data-lesson-stage="exporting"],
+.studio-chip[data-lesson-stage="writing"] {
+    color: var(--ui-info);
+    border-color: var(--ui-info);
+}
+
+.studio-stage[data-state="complete"] .studio-stage-status,
+.studio-detail-status[data-state="complete"],
+.studio-step[data-status="done"] > .studio-step-state,
+.studio-quality[data-status="good"],
+.studio-quality[data-status="pass"] {
+    color: var(--ui-success);
+}
+
+.studio-stage[data-state="in-progress"] .studio-stage-status,
+.studio-detail-status[data-state="in-progress"],
+.studio-step[data-status="active"] > .studio-step-state {
+    color: var(--ui-info);
+}
+
+.studio-stage[data-state="ready"] .studio-stage-status,
+.studio-detail-status[data-state="ready"] {
+    color: var(--ui-primary);
+}
+
+.studio-stage[data-state="attention"] .studio-stage-status,
+.studio-detail-status[data-state="attention"],
+.studio-step[data-status="stopped"] > .studio-step-state,
+.studio-quality[data-status="attention"],
+.studio-quality[data-status="blocked"] {
+    color: var(--ui-danger);
+}
+
+.studio-stage[data-state="not-started"] .studio-stage-status,
+.studio-detail-status[data-state="not-started"],
+.studio-step[data-status="todo"] > .studio-step-state {
+    color: var(--ui-muted);
+}
+
+.studio-quality[data-status="review"],
+.studio-quality-stale,
+.studio-export-match[data-matches="false"] {
+    color: var(--ui-warning);
+}
+
+.studio-export-match[data-matches="true"] {
+    color: var(--ui-success);
+}
+
+/* "Next step": the suggested stage, in words */
+.studio-stage-next,
+.studio-detail-next {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 var(--ui-space-2);
+    border: 1px solid var(--ui-primary);
+    border-radius: var(--ui-radius-pill);
+    color: var(--ui-primary);
+    font-size: var(--ui-text-caption);
+    font-weight: var(--ui-weight-semibold);
+    white-space: nowrap;
+}
+
+/* ---- errors: what happened, whether the work is safe, what to do ------------------------------------------------- */
+
+.studio-error {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--ui-space-2);
+    margin: 0;
+    max-width: 72ch;
+    padding: var(--ui-space-3) var(--ui-space-4);
+    border: 1px solid var(--ui-danger-border);
+    border-radius: var(--ui-radius-md);
+    background: var(--ui-surface-2);
+    color: var(--ui-text);
+}
+
+.studio-error p {
+    margin: 0;
+}
+
+.studio-error-text {
+    color: var(--ui-danger);
+    font-weight: var(--ui-weight-semibold);
+}
+
+.studio-done {
+    margin: 0;
+    color: var(--ui-success);
+    font-weight: var(--ui-weight-semibold);
+}
+
+/* ---- Home: Your lessons ------------------------------------------------------------------------------------------- */
+
+.studio-view-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--ui-space-3) var(--ui-space-5);
+}
+
+.studio-view-titles {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ui-space-1);
+    flex: 1 1 320px;
+    min-width: 0;
+}
+
+.studio-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--ui-space-4);
+    max-width: 60ch;
+    padding: var(--ui-space-6) 0;
+}
+
+.studio-empty-text {
+    margin: 0;
+    color: var(--ui-text);
+    font-size: var(--ui-text-section);
+}
+
+.studio-lesson-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--ui-border);
+}
+
+.studio-lesson-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: var(--ui-space-2) var(--ui-space-4);
+    padding: var(--ui-space-3) var(--ui-space-1);
+    border-bottom: 1px solid var(--ui-border);
+}
+
+.studio-lesson-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.studio-lesson-title {
+    color: var(--ui-text-strong);
+    font-weight: var(--ui-weight-semibold);
+    overflow-wrap: anywhere;
+}
+
+.studio-lesson-meta {
+    margin: 0;
+    color: var(--ui-muted);
+    font-size: var(--ui-text-secondary);
+}
+
+/* ---- Create: "How would you like to start?" ---------------------------------------------------------------------- */
+
+.studio-choices {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: var(--ui-space-3);
+    max-width: 980px;
+}
+
+.studio-choice-item {
+    display: flex;
+    min-width: 0;
+}
+
+.studio-btn.studio-choice {
+    flex: 1;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: var(--ui-space-3);
+    padding: var(--ui-space-4);
+    border-color: var(--ui-border-strong);
+    border-radius: var(--ui-radius-lg);
+    background: var(--ui-surface-2);
+    font-weight: var(--ui-weight-regular);
+    text-align: left;
+}
+
+.studio-btn.studio-choice:hover:not(:disabled) {
+    border-color: var(--ui-primary);
+    background: var(--ui-surface-3);
+}
+
+.studio-choice-icon {
+    flex: none;
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.studio-choice-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ui-space-1);
+    min-width: 0;
+}
+
+.studio-choice-title {
+    color: var(--ui-text-strong);
+    font-size: var(--ui-text-section);
+    font-weight: var(--ui-weight-semibold);
+}
+
+.studio-choice-text {
+    color: var(--ui-muted);
+    font-size: var(--ui-text-secondary);
+    line-height: var(--ui-line-height);
+}
+
+/* ---- forms (naming, your notes) ----------------------------------------------------------------------------------- */
+
+.studio-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ui-space-4);
+    max-width: 860px;
+}
+
+.studio-names {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: none;
+}
+
+.studio-legend {
+    margin-bottom: var(--ui-space-2);
+    padding: 0;
+    color: var(--ui-text-strong);
+    font-size: var(--ui-text-card);
+    font-weight: var(--ui-weight-semibold);
+}
+
+.studio-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--ui-space-3) var(--ui-space-4);
+    margin-bottom: var(--ui-space-2);
+}
+
+.studio-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ui-space-1);
+    min-width: 0;
+}
+
+.studio-field-label {
+    color: var(--ui-text);
+    font-size: var(--ui-text-secondary);
+    font-weight: var(--ui-weight-semibold);
+}
+
+.studio-field input,
+.studio-text {
+    width: 100%;
+    min-height: var(--ui-control-md);
+    padding: var(--ui-space-2) var(--ui-space-3);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-md);
+    background: var(--ui-bg);
+    color: var(--ui-text);
+    font-size: var(--ui-text-card);
+}
+
+.studio-field input:hover,
+.studio-text:hover {
+    border-color: var(--ui-border-strong);
+}
+
+.studio-field input::placeholder,
+.studio-text::placeholder {
+    color: var(--ui-muted);
+    opacity: 1;
+}
+
+.studio-text {
+    min-height: 220px;
+    resize: vertical;
+    font-family: var(--ui-font-sans); /* notes are prose: the normal UI font, not a code font */
+    line-height: var(--ui-line-height);
+}
+
+.studio-text[aria-invalid="true"] {
+    border-color: var(--ui-danger-border);
+}
+
+/* an error about one field, said right under it (no box: the field's red edge and the words carry it) */
+.studio-error.studio-field-error {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--ui-danger);
+    font-size: var(--ui-text-secondary);
+    font-weight: var(--ui-weight-semibold);
+}
+
+/* ---- progress of a lesson being written --------------------------------------------------------------------------- */
+
+.studio-steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    max-width: 620px;
+    border-top: 1px solid var(--ui-border);
+}
+
+.studio-step {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--ui-space-3);
+    padding: var(--ui-space-3) var(--ui-space-1);
+    border-bottom: 1px solid var(--ui-border);
+}
+
+.studio-step[data-status="active"] .studio-step-label {
+    color: var(--ui-text-strong);
+    font-weight: var(--ui-weight-semibold);
+}
+
+.studio-step-state {
+    font-size: var(--ui-text-secondary);
+    font-weight: var(--ui-weight-semibold);
+    white-space: nowrap;
+}
+
+.studio-confirm {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--ui-space-2);
+    max-width: 620px;
+    padding: var(--ui-space-3) var(--ui-space-4);
+    border-left: 3px solid var(--ui-danger-border);
+    border-radius: var(--ui-radius-sm);
+    background: var(--ui-surface-2);
+}
+
+.studio-confirm-text {
+    margin: 0;
+    color: var(--ui-text-strong);
+    font-weight: var(--ui-weight-semibold);
+}
+
+/* ---- the lesson: stage rail + work area --------------------------------------------------------------------------- */
+
+.studio-lesson-head {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ui-space-1);
+}
+
+.studio-lesson-title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--ui-space-2) var(--ui-space-3);
+}
+
+.studio-lesson-body {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr);
+    gap: var(--ui-space-5);
+    align-items: start;
+}
+
+.studio-rail {
+    min-width: 0;
+}
+
+.studio-stage-picker {
+    display: none; /* narrow screens only */
+}
+
+.studio-rail-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.studio-rail-item {
+    min-width: 0;
+}
+
+.studio-stage {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--ui-space-3);
+    width: 100%;
+    padding: var(--ui-space-2) var(--ui-space-3);
+    border: 1px solid transparent;
+    border-radius: var(--ui-radius-md);
+    background: transparent;
+    color: var(--ui-text);
+    line-height: 1.3;
+    text-align: left;
+    cursor: pointer;
+}
+
+.studio-stage:hover {
+    background: var(--ui-surface-2);
+}
+
+.studio-stage.is-next:not(.is-current) {
+    border-color: var(--ui-border);
+}
+
+/* the stage open now: a raised surface and a gold bar (aria-current="step" says it to assistive technology) */
+.studio-stage.is-current {
+    border-color: var(--ui-border-strong);
+    background: var(--ui-surface-3);
+    box-shadow: inset 3px 0 0 var(--ui-primary);
+}
+
+.studio-stage-num {
+    flex: none;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--ui-border);
+    border-radius: 50%;
+    font-size: var(--ui-text-caption);
+    font-weight: var(--ui-weight-bold);
+}
+
+.studio-stage.is-current .studio-stage-num {
+    border-color: var(--ui-primary);
+    color: var(--ui-primary);
+}
+
+.studio-stage-text {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.studio-stage-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--ui-space-1) var(--ui-space-2);
+}
+
+.studio-stage-name {
+    color: var(--ui-text-strong);
+    font-weight: var(--ui-weight-semibold);
+}
+
+.studio-stage-short {
+    display: none; /* the stepper's label (tablets) */
+}
+
+.studio-stage-status {
+    font-size: var(--ui-text-caption);
+    font-weight: var(--ui-weight-semibold);
+}
+
+.studio-stage-summary {
+    color: var(--ui-muted);
+    font-size: var(--ui-text-caption);
+    overflow-wrap: anywhere;
+}
+
+.studio-detail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ui-space-4);
+    min-width: 0;
+    padding-left: var(--ui-space-5);
+    border-left: 1px solid var(--ui-border);
+}
+
+.studio-detail-main,
+.studio-stage-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ui-space-3);
+    min-width: 0;
+}
+
+.studio-detail-title {
+    margin: 0;
+    color: var(--ui-text-strong);
+    font-family: var(--ui-font-title);
+    font-size: 1.2rem;
+    font-weight: var(--ui-weight-bold);
+}
+
+.studio-detail-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--ui-space-2) var(--ui-space-3);
+}
+
+.studio-detail-status,
+.studio-detail-summary {
+    margin: 0;
+}
+
+.studio-detail-status {
+    font-weight: var(--ui-weight-bold);
+}
+
+.studio-detail-summary {
+    color: var(--ui-text);
+    overflow-wrap: anywhere;
+}
+
+/* a tool inside a stage (Review & edit: Visual Review, Quality): a heading and a hairline, no box */
+.studio-tool {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ui-space-2);
+    padding-top: var(--ui-space-3);
+    border-top: 1px solid var(--ui-border);
+}
+
+.studio-view .studio-tool-title {
+    font-size: var(--ui-text-card);
+}
+
+.studio-facts {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: var(--ui-space-1) var(--ui-space-4);
+    margin: 0;
+}
+
+.studio-facts dt {
+    color: var(--ui-muted);
+}
+
+.studio-facts dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.studio-counts,
+.studio-review-counts,
+.studio-quality,
+.studio-quality-stale,
+.studio-export-latest,
+.studio-export-match {
+    margin: 0;
+}
+
+.studio-quality,
+.studio-export-latest {
+    font-weight: var(--ui-weight-semibold);
+}
+
+.studio-attention {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--ui-space-2);
+}
+
+.studio-attention-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ui-space-2);
+    padding: var(--ui-space-3);
+    border-left: 3px solid var(--ui-danger-border);
+    border-radius: var(--ui-radius-sm);
+    background: var(--ui-surface-2);
+}
+
+.studio-attention-text {
+    margin: 0;
+    font-weight: var(--ui-weight-semibold);
+}
+
+.studio-next-stage {
+    padding-top: var(--ui-space-1);
+}
+
+.studio-settings {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ui-space-2);
+    padding-top: var(--ui-space-4);
+    border-top: 1px solid var(--ui-border);
+}
+
+.studio-settings h4 {
+    margin: 0;
+    color: var(--ui-text-strong);
+    font-size: var(--ui-text-card);
+}
+
+.studio-settings-mount {
+    min-width: 0;
+}
+
+/* ---- a short desktop window (1280 × 720): the rail's lines stay one line each, so all seven stages show ---------- */
+
+@media (min-width: 901px) and (max-height: 820px) {
+    .studio-main {
+        padding-top: var(--ui-space-4);
+    }
+
+    .studio-stage {
+        padding-top: 6px;
+        padding-bottom: 6px;
+    }
+
+    /* (the whole line is in the stage's label and in the work area beside it) */
+    .studio-stage-summary {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}
+
+/* ---- tablets: the rail becomes a seven-step stepper that fits (no sideways scrolling) ------------------------------ */
+
+@media (max-width: 900px) {
+    .studio-main {
+        padding: var(--ui-space-4) var(--ui-space-4) var(--ui-space-6);
+    }
+
+    .studio-lesson-body {
+        grid-template-columns: minmax(0, 1fr);
+        gap: var(--ui-space-4);
+    }
+
+    .studio-detail {
+        padding-top: var(--ui-space-4);
+        padding-left: 0;
+        border-top: 1px solid var(--ui-border);
+        border-left: none;
+    }
+
+    .studio-rail-list {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        gap: var(--ui-space-1);
+    }
+
+    .studio-stage {
+        flex-direction: column;
+        align-items: center;
+        gap: var(--ui-space-1);
+        height: 100%;
+        padding: var(--ui-space-2) var(--ui-space-1);
+        text-align: center;
+    }
+
+    .studio-stage.is-current {
+        box-shadow: inset 0 -3px 0 var(--ui-primary);
+    }
+
+    .studio-stage-text,
+    .studio-stage-line {
+        align-items: center;
+        justify-content: center;
+    }
+
+    .studio-stage-line {
+        flex-direction: column;
+        gap: var(--ui-space-1);
+    }
+
+    .studio-stage-name,
+    .studio-stage-summary {
+        display: none; /* the open stage's full name and line are in the work area below */
+    }
+
+    .studio-stage-short {
+        display: inline;
+        color: var(--ui-text-strong);
+        font-size: var(--ui-text-secondary);
+        font-weight: var(--ui-weight-semibold);
+        overflow-wrap: anywhere;
+    }
+
+    .studio-stage-status,
+    .studio-stage-next {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+}
+
+/* ---- narrow screens: one column; the stages as a select ---------------------------------------------------------- */
+
+@media (max-width: 600px) {
+    .studio-root {
+        padding: 0;
+    }
+
+    .studio-panel {
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+    }
+
+    .studio-top {
+        gap: var(--ui-space-2);
+        padding: var(--ui-space-1) var(--ui-space-2);
+    }
+
+    .studio-top .studio-label-wide {
+        display: none;
+    }
+
+    .studio-brand {
+        font-size: var(--ui-text-secondary);
+    }
+
+    .studio-status {
+        font-size: var(--ui-text-caption);
+    }
+
+    .studio-heading {
+        font-size: 1.3rem;
+    }
+
+    .studio-fields,
+    .studio-choices {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .studio-view-head .studio-btn-lg {
+        width: 100%;
+    }
+
+    .studio-lesson-item {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .studio-lesson-info {
+        grid-column: 1 / -1;
+    }
+
+    .studio-rail-list {
+        display: none;
+    }
+
+    .studio-stage-picker {
+        display: flex;
+        flex-direction: column;
+        gap: var(--ui-space-1);
+    }
+
+    .studio-stage-picker-label {
+        color: var(--ui-muted);
+        font-size: var(--ui-text-secondary);
+        font-weight: var(--ui-weight-semibold);
+    }
+
+    .studio-stage-select {
+        width: 100%;
+        min-height: var(--ui-control-lg);
+        padding: 0 var(--ui-space-3);
+        border: 1px solid var(--ui-border-strong);
+        border-radius: var(--ui-radius-md);
+        background: var(--ui-surface-2);
+        color: var(--ui-text);
+        font-size: var(--ui-text-card);
+    }
+
+    .studio-stage-select option {
+        background: var(--ui-surface);
+        color: var(--ui-text);
+    }
+
+    .studio-facts {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .studio-facts dd {
+        margin-bottom: var(--ui-space-2);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .studio-root *,
+    .studio-root *::before,
+    .studio-root *::after {
+        scroll-behavior: auto !important;
+    }
+}

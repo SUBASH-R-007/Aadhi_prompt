@@ -22,6 +22,8 @@ node_modules/
 package-lock.json
 
 # Project specific media and build folders
+/assets/
+exports/
 media/
 static_videos/
 final_videos/
@@ -56,3 +58,4 @@ models/
 # Generated Audio
 output.wav
 temp.mp3
+.vscode/settings.json

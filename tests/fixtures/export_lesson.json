@@ -1,0 +1,77 @@
+{
+    "subject_name": "Strength of Materials",
+    "unit_name": "Unit 1",
+    "session_number": "Lesson 01",
+    "session_title": "Stress in Structures",
+    "concept_map": [
+        { "id": "stress", "title": "Stress", "depends_on": [] },
+        { "id": "load", "title": "Load", "depends_on": ["stress"] }
+    ],
+    "companion_sheet": "# Key Formulas & Definitions\nStress = Force / Area\n\n# Practice Problems\n1. A 10 N force acts on 2 square metres. Find the stress.\n\n# Answer Key\n1. 5 pascals",
+    "scenes": [
+        {
+            "type": "title",
+            "concept_id": "stress",
+            "title": "STRESS IN STRUCTURES",
+            "subtitle": "Lesson 01",
+            "aadhi_position": "left",
+            "narration": "Welcome to Strength of Materials. Today we meet stress."
+        },
+        {
+            "type": "content",
+            "concept_id": "stress",
+            "title": "WHAT IS STRESS?",
+            "aadhi_position": "right",
+            "side_panel": {
+                "type": "chart",
+                "chart_type": "bar",
+                "title": "Stress by material",
+                "data": {
+                    "labels": ["Steel", "Concrete", "Wood"],
+                    "datasets": [{ "label": "Allowable stress", "data": [250, 30, 40], "backgroundColor": "rgba(176,38,255,0.5)", "borderColor": "rgba(255,215,0,1)" }]
+                }
+            },
+            "html": "<p>Stress is force per unit area.</p><img src=\"/static/e2e_diagram.png\" alt=\"Diagram\" style=\"width:60%;border-radius:12px;\"><p>It is measured in pascals.</p>",
+            "narration": "[SYNC] Stress is the force acting on each unit of area. [PAUSE:1] [SYNC] Look at this diagram. [SYNC] We measure stress in pascals."
+        },
+        {
+            "type": "simulation",
+            "concept_id": "stress",
+            "title": "SQUEEZING A BLOCK",
+            "aadhi_position": "left",
+            "manim_code": "from manim import *\n\nclass SqueezeBlock(Scene):\n    def construct(self):\n        block = Square(side_length=2, color=YELLOW, fill_opacity=0.4)\n        self.play(Create(block))\n        self.play(block.animate.stretch(0.5, 1), run_time=1.5)\n        self.wait(0.5)\n",
+            "narration": "Watch the block get squeezed as the load grows."
+        },
+        {
+            "type": "ai_video",
+            "concept_id": "load",
+            "title": "LOADS IN THE REAL WORLD",
+            "aadhi_position": "left",
+            "prompt": "A bridge cable under tension",
+            "video_url": "/static/e2e_ai_clip.mp4",
+            "narration": "Bridges carry huge loads every single day."
+        },
+        {
+            "type": "quiz_checkpoint",
+            "concept_id": "stress",
+            "title": "CHECKPOINT",
+            "aadhi_position": "center",
+            "question": "What is the unit of stress?",
+            "options": ["Pascal", "Newton", "Joule", "Watt"],
+            "correct_index": 0,
+            "feedback_wrong": ["", "That is a force.", "That is energy.", "That is power."],
+            "countdown_seconds": 3,
+            "narration": "Quick check. What is the unit of stress?",
+            "reveal_narration": "It is the pascal. Well done."
+        },
+        {
+            "type": "content",
+            "concept_id": "load",
+            "title": "WRAP UP",
+            "aadhi_position": "hidden",
+            "side_panel": { "type": "skill_tree" },
+            "html": "<p>Stress equals force over area.</p>",
+            "narration": "That is stress. See you in the next lesson."
+        }
+    ]
+}

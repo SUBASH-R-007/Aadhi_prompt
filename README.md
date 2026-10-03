@@ -6,7 +6,7 @@ A revolutionary, fully automated presentation and lecture generator powered by G
 
 ### 🧠 Intelligent Content & State Machine Extraction
 * **Gemini Parsing Engine:** Automatically parses large `.pdf`, `.docx`, and `.txt` files into hierarchical skill trees, interactive concept maps, and strict JSON slide schemas.
-* **Mascot State Machine:** Seamless crossfade video architecture for our mascot "Aadhi". The engine intelligently swaps between `idle`, `talking`, and `explaining_math` video layers based on the current slide's context, without breaking the visual flow.
+* **Mascot State Machine:** One controller (`mascot.js`) owns Aadhi's clips. It crossfades between the placement clips (`left`, `right`, `center`, `popup`, empty studio) chosen by each scene's `aadhi_position`, and tracks his behaviour state (`idle`, `talking`, `explaining`, `thinking`, `question`, `success`) from the narration: `[SYNC]` reveals switch him to explaining, `[PAUSE]` beats to thinking, and quiz checkpoints to question and success. A scene can set the optional `mascot_state` field. Clips are preloaded per lesson, restarted if they end or stall, and replaced by an animated poster fallback if they cannot play, so Aadhi never freezes.
 
 ### 🗣️ Audio & Subtitle Sync Engine
 * **Sentence-by-Sentence Sync:** A bespoke mathematical character-length ratio algorithm parses the generated narration and syncs subtitles precisely sentence-by-sentence to the `timeupdate` of the audio stream.
@@ -125,6 +125,36 @@ python server.py
 
 Finally, open your browser and navigate to:
 **http://127.0.0.1:8000**
+
+### 5. Exporting a Lesson Video
+
+Press **⚡** in the lesson's control bar (or **My Videos** on the start screen), then **Export this lesson**:
+
+1. The app loads everything the lesson needs first (Aadhi's clips, narration audio, images, Manim simulations, AI videos).
+2. Select **Start Recording**, choose this tab in Chrome's share dialog and keep **Also share tab audio** on.
+3. The lesson plays from the start and is recorded (WebM, VP9 + Opus). Progress shows in the tab title.
+4. The recording is uploaded in resumable chunks, checked, and stored on the server (`EXPORTS_DIR`, default `./exports`).
+5. **Video ready**: preview it, download it, or come back later — it is listed under **My Videos** after a refresh or on another visit.
+
+A cancelled share, an interrupted recording or a failed upload shows what happened, with **Retry export** or **Retry upload**. The ● button records the screen manually (start/stop) through the same pipeline. Exports are private to the account that made them. Needs a recent Chrome or Edge, and `ffmpeg`/`ffprobe` on the server (used to add the duration and seek index to the file and to check it has sound).
+
+### 6. Asset Library
+
+**🗂 Assets** on the start screen opens the library: every image, sound and video you can reuse — your uploads, the media your lessons generated (narration, Manim renders, AI videos), and Aadhi's clips, which are shared with every account. Preview, filter, search, upload, copy an asset's ID, or delete an asset no saved lesson uses.
+
+* Each file is validated from its own bytes (ffprobe), stored once per content (the same file uploaded twice is one asset; filenames are not identity), and gets a stable ID.
+* Lessons can refer to assets instead of file URLs: `video_asset_id` (AI-video scenes), `manim_asset_id` (simulations), `side_panel.video_asset_id`, `uploaded_image_assets`, or `<img src="asset:ID">` in a scene's HTML. The player and the video export resolve them to short-lived links, so they never depend on where a file is stored. Older lessons with plain URLs keep working.
+* Assets are private to their owner (system assets are shared, read-only), and an asset used by a saved lesson cannot be deleted. Full history of every phase: `all-phases-details.md`.
+
+### 7. Mascot Diagnostics and Tests
+
+* Add `?mascotDebug=1` to the URL (or run `mascot.setDebug(true)` in the browser console) to show a panel with Aadhi's state, clip, playback, load status, fallback, audio and the last transition and error. It is hidden while recording.
+* Unit tests (no dependencies): `node --test "tests/*.test.js"`
+* Backend tests (exports and asset library): `python -m unittest discover -s tests -p "test_*.py"`
+* Real-browser checks (server running, Chrome or Edge installed; all run silently): `npm install --no-save playwright-core`, then
+  `node tests/mascot_browser_check.mjs http://127.0.0.1:8000`,
+  `AADHI_USER=admin AADHI_PASSWORD=... node tests/assets_browser_check.mjs http://127.0.0.1:8000` and
+  `AADHI_USER=admin AADHI_PASSWORD=... node tests/export_e2e.mjs http://127.0.0.1:8000` (records, uploads, refreshes, previews, downloads and inspects a real lesson video; add `E2E_USE_ASSETS=1` for a lesson whose media comes from the asset library)
 
 ## 💡 How to Use
 

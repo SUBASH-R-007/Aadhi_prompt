@@ -1,0 +1,21 @@
+/*
+ * Aadhi — captions that fit their band (Phase 21; loaded after editor.css).
+ *
+ * The composition keeps the bottom 15 % of the frame for the caption (cinematic.py SUBTITLES: 108 px at 720p), but the
+ * caption is sized in fixed px (60 px above the bottom, a 1.8rem font or the style's --st-caption-size): at 720p a two-line
+ * caption reached into the presenter's name card and the board's lower edge. cinematic.js (captionFit / watchCaptions)
+ * measures the caption and sets two inline variables on #subtitle-track:
+ *   --cine-caption-drop  px to lower it (never closer to the bottom than 8 px or 1.5 % of the height)
+ *   --cine-caption-fit   its font's factor, only when lowering is not enough (never below 0.85)
+ * Both are unset while the caption fits, so these rules then give exactly today's pixels (bottom 60px, the style's size):
+ * one-line captions and the usual captions at 1080p never move. Cinematic scenes only; Classic is untouched. Nothing else
+ * belongs in this file (no line-breaking rules: they would change every recorded caption, not only the ones that need it).
+ */
+body[data-cinematic] #subtitle-track {
+    bottom: calc(60px - var(--cine-caption-drop, 0px));
+    font-size: calc(var(--st-caption-size, 1.8rem) * var(--cine-caption-fit, 1));
+}
+
+body[data-cinematic][data-cine-caption="box"] #subtitle-track {
+    bottom: calc(60px - 0.3em - var(--cine-caption-drop, 0px));
+}

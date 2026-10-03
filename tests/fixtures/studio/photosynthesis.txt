@@ -1,0 +1,63 @@
+# How Plants Make Food
+
+## Introduction
+
+Every green plant is a small food factory. In this lesson we follow how a leaf turns sunlight, water and air into the food that keeps the plant alive.
+
+## What is photosynthesis?
+
+Photosynthesis is the process by which green plants use sunlight to make glucose from carbon dioxide and water. Chlorophyll is the green pigment that captures the light energy. Oxygen is released as a by-product.
+
+## Inside the leaf
+
+Diagram: a leaf cross section showing the palisade cells, the spongy layer and a stoma.
+
+The palisade cells sit just under the top of the leaf and hold most of the chloroplasts. The stoma is a tiny opening on the underside of the leaf that lets carbon dioxide in and oxygen out.
+
+## The four steps
+
+1. Chlorophyll absorbs sunlight.
+2. Water taken up by the roots is split into hydrogen and oxygen.
+3. Carbon dioxide enters the leaf through the stomata.
+4. Hydrogen and carbon dioxide are combined to make glucose.
+
+## The equation
+
+The whole process can be written as one balanced equation:
+
+$$6CO_2 + 6H_2O \rightarrow C_6H_{12}O_6 + 6O_2$$
+
+Six molecules of carbon dioxide and six molecules of water make one molecule of glucose and six molecules of oxygen.
+
+## Counting the light hours in code
+
+A gardener can add up how many hours of light a plant received in a week with a short Python loop:
+
+```python
+hours = [6, 7, 5, 8, 6, 7, 9]
+total = 0
+for h in hours:
+    total += h
+print("Light this week:", total, "hours")
+```
+
+## Plants and animals compared
+
+| Feature | Plants | Animals |
+| --- | --- | --- |
+| Food | Make their own food | Eat other living things |
+| Energy source | Sunlight | Food |
+| Gas released in daylight | Oxygen | Carbon dioxide |
+
+## Why it matters
+
+Almost every breath you take holds oxygen that a plant released. The food chains that feed animals and people also begin with the glucose that plants make.
+
+## Quick check
+
+Question: Which gas do plants release during photosynthesis?
+Answer: Oxygen.
+
+## Summary
+
+Plants use sunlight, water and carbon dioxide to make glucose. Chlorophyll captures the light, the stomata let gases in and out, and oxygen is released for us to breathe.

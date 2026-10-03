@@ -1,0 +1,1344 @@
+/*
+ * Advanced video editor (Phase 19): the workspace chrome around the live stage (editor_ui.js, AadhiEditorUI).
+ *
+ * The stage (#presentation-board, .dynamic-side-zone, the presenter...) keeps its own CSS: the editor only overlays fixed
+ * panels on a CSS grid that leaves the centre empty (.editor-stage-hole lets the pointer through), so the live page stays
+ * the preview. The panels may cover the stage's edges while editing; "Preview" hides them to see the whole frame (at
+ * 1280 px or less, where they cover part of the scene itself, a small note at the top of the free centre says so).
+ * The player bar is hidden while the editor is open (the editor's timeline replaces it) and comes back on close.
+ * No animated transitions anywhere in the chrome (reduced motion is respected by design).
+ *
+ * Phase 21: the colours, type, spacing, radius and controls are the product's shared tokens (ui.css, --ui-*): the editor
+ * looks like the Studio, and never follows the lesson's video style. Text is 12 px or more; no panel overlaps another.
+ * Layout per width (no panel ever paints over another; the transport row - play, previous / next, the time - always shows):
+ *   wider than 1100 px (1440, 1280)  scene list | stage | inspector; the timeline below them; the top bar on one row
+ *   901-1100 px (1024)               the same three columns, narrower; the top bar's Undo / Redo / Preview / Shortcuts show
+ *                                    their icons only (their names stay as labels)
+ *   701-900 px (820, a tablet)       scene list | stage; below them the transport row and the timeline; the open inspector
+ *                                    takes a row of its own below the timeline, which then keeps only its ruler (scrub) and
+ *                                    scene row ("Hide inspector" in the transport row brings every track back); the top bar
+ *                                    wraps to two rows (Back + title, then the actions); 36 px touch targets
+ *   700 px or less (600, a phone)    one column: the top bar, the transport row with a short note (no tracks), the scene
+ *                                    list, the open inspector below it
+ */
+
+body.editor-active .voice-control-bar {
+    display: none !important;
+}
+
+.editor-root {
+    /* layout (the editor's own) */
+    --ed-top: 52px;
+    --ed-left: 240px;
+    --ed-right: 320px;
+    --ed-bottom: 228px;
+    --ed-label: 92px;
+    --ed-sheet: 50vh;
+    /* colours: the shared product tokens (opaque surfaces: the stage behind a panel never shows through its text) */
+    --ed-bg: var(--ui-surface);
+    --ed-bg-2: var(--ui-surface-2);
+    --ed-bg-3: var(--ui-surface-3);
+    --ed-line: var(--ui-border-strong);
+    --ed-soft: var(--ui-border);
+    --ed-text: var(--ui-text);
+    --ed-strong: var(--ui-text-strong);
+    --ed-muted: var(--ui-muted);
+    --ed-gold: var(--ui-primary);
+    --ed-accent: var(--ui-accent-text);
+    --ed-select: var(--ui-surface-3);
+    --ed-playhead: var(--ui-danger-border);
+    position: fixed;
+    inset: 0;
+    z-index: 10020; /* above the stage and the control bar, below the Asset Library / Visual Review / export overlays */
+    display: grid;
+    grid-template-columns: var(--ed-left) minmax(0, 1fr) var(--ed-right);
+    grid-template-rows: minmax(var(--ed-top), auto) minmax(0, 1fr) var(--ed-bottom);
+    grid-template-areas:
+        "top top top"
+        "scenes stage inspector"
+        "timeline timeline timeline";
+    pointer-events: none;
+    color: var(--ed-text);
+    font-family: var(--ui-font-sans);
+    font-size: var(--ui-text-body);
+    line-height: 1.35;
+}
+
+.editor-root[data-inspector="closed"] {
+    grid-template-columns: var(--ed-left) minmax(0, 1fr) 0;
+}
+
+.editor-root > * {
+    pointer-events: auto;
+    min-width: 0;
+    min-height: 0;
+}
+
+.editor-root > .editor-stage-hole {
+    grid-area: stage;
+    position: relative; /* holds the stage note (.editor-stage-note) at its top edge */
+    pointer-events: none;
+}
+
+.editor-root *,
+.editor-root *::before,
+.editor-root *::after {
+    transition: none !important;
+    animation: none !important;
+}
+
+.editor-root [hidden] {
+    display: none !important;
+}
+
+/* no specificity: every editor control class below sets its own size and colour */
+:where(.editor-root) :where(button, input, select, textarea) {
+    font: inherit;
+    color: inherit;
+}
+
+.editor-root :focus-visible {
+    outline: var(--ui-focus-width) solid var(--ui-focus);
+    outline-offset: var(--ui-focus-offset);
+}
+
+/* ---- buttons (the shared product buttons: secondary, primary, danger, link) ---------------------------------------- */
+
+.editor-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: var(--ui-control-md);
+    padding: 0 var(--ui-pad-x-md);
+    border-radius: var(--ui-radius-md);
+    border: 1px solid var(--ui-border);
+    background: var(--ui-surface-3);
+    color: var(--ed-text);
+    font-size: var(--ui-text-body);
+    font-weight: var(--ui-weight-semibold);
+    line-height: 1.2;
+    text-transform: none;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.editor-btn:hover:not(:disabled) {
+    border-color: var(--ui-border-strong);
+}
+
+.editor-btn:disabled {
+    opacity: var(--ui-disabled-opacity);
+    cursor: not-allowed;
+}
+
+/* a toggle that is on / the chosen option: a double border and strong text, not the colour alone */
+.editor-btn[aria-pressed="true"] {
+    border-color: var(--ed-accent);
+    box-shadow: inset 0 0 0 1px var(--ed-accent);
+    color: var(--ed-strong);
+}
+
+.editor-btn-primary {
+    background: var(--ui-primary);
+    border-color: var(--ui-primary);
+    color: var(--ui-on-primary);
+    font-weight: var(--ui-weight-bold);
+}
+
+.editor-btn-primary:hover:not(:disabled) {
+    background: var(--ui-primary-hover);
+    border-color: var(--ui-primary-hover);
+}
+
+.editor-btn-danger {
+    border-color: var(--ui-danger-border);
+    background: transparent;
+    color: var(--ui-danger);
+}
+
+.editor-btn-link {
+    min-height: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--ed-accent);
+    font-weight: var(--ui-weight-semibold);
+    text-decoration: underline;
+}
+
+.editor-btn-link:hover:not(:disabled) {
+    background: none;
+}
+
+.editor-icon-btn {
+    min-width: var(--ui-control-md);
+    padding: 0 var(--ui-pad-x-sm);
+}
+
+/* the compact size (the inspector, the timeline, the help) */
+.editor-btn-sm,
+.editor-inspector .editor-btn,
+.editor-timeline .editor-btn {
+    min-height: var(--ui-control-sm);
+    padding: 0 var(--ui-pad-x-sm);
+    font-size: var(--ui-text-secondary);
+}
+
+.editor-timeline .editor-icon-btn {
+    min-width: var(--ui-control-sm);
+}
+
+.editor-inspector .editor-btn-link,
+.editor-save .editor-btn-link {
+    min-height: 0;
+    padding: 0;
+}
+
+/* ---- top bar ------------------------------------------------------------------------------------------------------ */
+
+.editor-top {
+    grid-area: top;
+    display: flex;
+    align-items: center;
+    gap: var(--ui-space-2);
+    padding: var(--ui-space-2) var(--ui-space-3);
+    background: var(--ed-bg);
+    border-bottom: 1px solid var(--ed-line);
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.editor-top > .editor-btn,
+.editor-top-group > .editor-btn {
+    flex-shrink: 0;
+}
+
+.editor-title {
+    flex: 1 1 auto;
+    min-width: 60px;
+    margin: 0 4px;
+    overflow: hidden;
+    color: var(--ed-strong);
+    font-family: var(--ui-font-title);
+    font-size: var(--ui-text-section);
+    font-weight: var(--ui-weight-bold);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.editor-top-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.editor-top-actions {
+    margin-left: auto;
+}
+
+/* the line break of the two-row top bar (tablet and phone widths only) */
+.editor-top-break {
+    display: none;
+}
+
+/* the save state: a status pill, icon + words (Saved / Saving… / Unsaved changes / Couldn't save + Retry) */
+.editor-save {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--ui-space-2);
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 460px;
+    overflow: hidden;
+    min-height: var(--ui-control-sm);
+    padding: 0 var(--ui-pad-x-sm);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-pill);
+    background: var(--ed-bg-2);
+    color: var(--ed-muted);
+    font-size: var(--ui-text-secondary);
+    font-weight: var(--ui-weight-semibold);
+    white-space: nowrap;
+}
+
+.editor-save[data-state="saved"] { color: var(--ui-success); }
+.editor-save[data-state="saving"] { color: var(--ui-info); }
+.editor-save[data-state="unsaved"] { color: var(--ui-warning); border-color: var(--ui-warning); }
+.editor-save[data-state="error"],
+.editor-save[data-state="conflict"] { color: var(--ui-danger); border-color: var(--ui-danger-border); }
+
+/* the state's words and "Retry" always show; a long note gives way (its whole text is its tooltip and is announced) */
+.editor-save-text,
+.editor-save .editor-btn-link {
+    flex-shrink: 0;
+}
+
+.editor-save .editor-btn-link:focus-visible {
+    outline-offset: 0;
+}
+
+.editor-save-note {
+    min-width: 0;
+    max-width: 300px;
+    overflow: hidden;
+    color: var(--ed-text);
+    font-weight: var(--ui-weight-regular);
+    text-overflow: ellipsis;
+}
+
+.editor-quality {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 260px;
+    min-height: var(--ui-control-sm);
+    padding: 0 var(--ui-pad-x-sm);
+    overflow: hidden;
+    border-radius: var(--ui-radius-pill);
+    border: 1px solid var(--ui-border);
+    background: transparent;
+    font-size: var(--ui-text-secondary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.editor-quality:hover {
+    border-color: var(--ui-border-strong);
+}
+
+.editor-quality-lesson {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 280px;
+    overflow: hidden;
+    color: var(--ui-warning);
+    font-size: var(--ui-text-secondary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.editor-quality-lesson[data-severity="error"],
+.editor-quality-lesson[data-severity="blocking"] { color: var(--ui-danger); }
+.editor-quality-lesson[data-severity="info"] { color: var(--ed-muted); }
+
+.editor-quality[data-status="good"] { color: var(--ui-success); }
+.editor-quality[data-status="review"] { color: var(--ui-warning); }
+.editor-quality[data-status="attention"] { color: var(--ui-danger); }
+.editor-quality[data-status="none"],
+.editor-quality[data-status="stale"] { color: var(--ed-muted); }
+
+.editor-top-message {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    color: var(--ed-text);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.editor-top-message[data-kind="error"] {
+    color: var(--ui-danger);
+}
+
+/* ---- help popover and confirmation -------------------------------------------------------------------------------- */
+
+.editor-help,
+.editor-confirm {
+    position: fixed;
+    background: var(--ed-bg-2);
+    border: 1px solid var(--ed-line);
+    border-radius: var(--ui-radius-lg);
+    box-shadow: var(--ui-shadow-3);
+    color: var(--ed-text);
+}
+
+.editor-help {
+    z-index: 3;
+    top: calc(var(--ed-top) + 6px);
+    right: 12px;
+    width: min(360px, calc(100vw - 24px));
+    max-height: calc(100vh - var(--ed-top) - 24px);
+    overflow-y: auto;
+    padding: var(--ui-space-3) var(--ui-space-4);
+}
+
+.editor-help-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--ui-space-2);
+    margin-bottom: var(--ui-space-2);
+}
+
+.editor-help h3,
+.editor-confirm h3 {
+    margin: 0;
+    color: var(--ed-strong);
+    font-family: var(--ui-font-title);
+    font-size: var(--ui-text-card);
+}
+
+.editor-confirm h3 {
+    margin-bottom: var(--ui-space-2);
+}
+
+.editor-help dl {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 6px 12px;
+    margin: 0 0 var(--ui-space-2);
+    font-size: var(--ui-text-secondary);
+}
+
+.editor-help dt {
+    color: var(--ed-strong);
+}
+
+.editor-help kbd {
+    padding: 1px 6px;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-sm);
+    background: var(--ed-bg-3);
+    font-family: var(--ui-font-mono);
+    font-size: var(--ui-text-caption);
+}
+
+.editor-help dd {
+    margin: 0;
+    color: var(--ed-text);
+}
+
+.editor-confirm-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 4;
+    background: var(--ui-overlay);
+}
+
+.editor-confirm {
+    z-index: 5;
+    top: 30%;
+    left: 50%;
+    width: min(400px, calc(100vw - 32px));
+    padding: var(--ui-space-4) var(--ui-space-5);
+    transform: translateX(-50%);
+}
+
+.editor-confirm p {
+    margin: 0 0 var(--ui-space-4);
+    color: var(--ed-text);
+    font-size: var(--ui-text-body);
+}
+
+.editor-confirm-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--ui-space-2);
+}
+
+/* ---- scene list (left) -------------------------------------------------------------------------------------------- */
+
+.editor-scenes {
+    grid-area: scenes;
+    display: flex;
+    flex-direction: column;
+    isolation: isolate;
+    background: var(--ed-bg);
+    border-right: 1px solid var(--ed-line);
+}
+
+.editor-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    min-height: 44px;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--ed-soft);
+    color: var(--ed-strong);
+    font-size: var(--ui-text-secondary);
+    font-weight: var(--ui-weight-semibold);
+}
+
+.editor-scene-list {
+    flex: 1;
+    margin: 0;
+    padding: 6px;
+    overflow-y: auto;
+    list-style: none;
+}
+
+.editor-scene {
+    position: relative;
+    display: grid;
+    grid-template-columns: 26px minmax(0, 1fr);
+    gap: 2px 6px;
+    width: 100%;
+    margin: 0 0 4px;
+    padding: 7px 8px;
+    border: 1px solid transparent;
+    border-radius: var(--ui-radius-md);
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    touch-action: pan-y; /* a finger scrolls the list; a mouse or pen drags the scene (the inspector's buttons move it too) */
+}
+
+.editor-scene:hover {
+    background: var(--ed-bg-2);
+}
+
+/* the selected scene: a filled card, an accent border and a bar at its left edge (aria-current; not the colour alone) */
+.editor-scene[aria-current="true"] {
+    background: var(--ed-select);
+    border-color: var(--ed-accent);
+}
+
+.editor-scene[aria-current="true"]::before {
+    content: "";
+    position: absolute;
+    top: 6px;
+    bottom: 6px;
+    left: 2px;
+    width: 3px;
+    border-radius: 2px;
+    background: var(--ed-strong);
+}
+
+.editor-scene.is-hidden {
+    opacity: 0.6;
+}
+
+.editor-scene.is-dragging {
+    border-style: dashed;
+    border-color: var(--ed-gold);
+}
+
+.editor-scene-index {
+    grid-row: span 3;
+    color: var(--ed-muted);
+    font-family: var(--ui-font-mono);
+    font-size: var(--ui-text-mono);
+    text-align: right;
+}
+
+.editor-scene-title {
+    overflow: hidden;
+    color: var(--ed-strong);
+    font-weight: var(--ui-weight-semibold);
+    font-size: var(--ui-text-body);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.editor-scene-meta {
+    color: var(--ed-muted);
+    font-size: var(--ui-text-caption);
+}
+
+.editor-scene-marks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.editor-mark {
+    padding: 0 6px;
+    border-radius: var(--ui-radius-pill);
+    background: var(--ed-bg-3);
+    font-size: var(--ui-text-caption);
+    white-space: nowrap;
+}
+
+.editor-mark[data-mark="hidden"] { color: var(--ed-muted); }
+.editor-mark[data-mark="edited"] { color: var(--ui-info); }
+.editor-mark[data-mark="moved"] { color: var(--ed-accent); }
+.editor-mark[data-mark="new"] { color: var(--ui-success); }
+.editor-mark[data-approval="approved"] { color: var(--ui-success); }
+.editor-mark[data-approval="changed"] { color: var(--ui-info); }
+.editor-mark[data-approval="pending"] { color: var(--ui-warning); }
+.editor-mark[data-severity] { color: var(--ui-warning); font-weight: var(--ui-weight-bold); }
+.editor-mark[data-severity="error"],
+.editor-mark[data-severity="blocking"] { color: var(--ui-danger); }
+.editor-mark[data-stale="true"] { color: var(--ed-muted); font-style: italic; font-weight: var(--ui-weight-regular); }
+
+/* where a dragged scene would land (editor_ui.js sets data-drop on the scene it goes before / after) */
+.editor-scene[data-drop="before"] {
+    box-shadow: inset 0 3px 0 var(--ed-gold);
+}
+
+.editor-scene[data-drop="after"] {
+    box-shadow: inset 0 -3px 0 var(--ed-gold);
+}
+
+.editor-scene-count {
+    color: var(--ed-muted);
+    font-weight: var(--ui-weight-regular);
+}
+
+.editor-finding-rule {
+    margin-left: 6px;
+    color: var(--ui-info);
+    font-family: var(--ui-font-mono);
+    font-size: var(--ui-text-caption);
+}
+
+/* ---- the stage and the preview toggle ----------------------------------------------------------------------------- */
+
+.editor-root.is-previewing {
+    background: transparent !important;
+}
+
+.editor-root.is-previewing > :not(.editor-preview-exit):not(.editor-stage-hole) {
+    display: none !important;
+}
+
+.editor-preview-exit {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 3;
+}
+
+.editor-root:not(.is-previewing) > .editor-preview-exit {
+    display: none;
+}
+
+/* at 1280 px or less the panels cover part of the scene itself: a small note at the top edge of the free centre says so
+   and points to Preview (never over the scene's centre, never in Preview; the editor is never open while recording, and
+   the note stays out of a recording anyway) */
+.editor-stage-note {
+    display: none;
+    position: absolute;
+    top: var(--ui-space-2);
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: calc(100% - 16px);
+    margin: 0;
+    padding: 2px var(--ui-pad-x-sm);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-pill);
+    background: var(--ed-bg-2);
+    color: var(--ed-text);
+    font-size: var(--ui-text-caption);
+    line-height: 1.35;
+    text-align: center;
+    pointer-events: none;
+}
+
+@media (max-width: 1280px) {
+    .editor-stage-note {
+        display: block;
+    }
+}
+
+.editor-root.is-previewing .editor-stage-note,
+body[data-recording] .editor-stage-note,
+body[data-mode="exporting"] .editor-stage-note {
+    display: none !important;
+}
+
+/* ---- inspector (right column; below the timeline's transport row on tablets and phones) --------------------------- */
+
+.editor-inspector {
+    grid-area: inspector;
+    display: flex;
+    flex-direction: column;
+    isolation: isolate;
+    background: var(--ed-bg);
+    border-left: 1px solid var(--ed-line);
+}
+
+.editor-inspector-body {
+    flex: 1;
+    padding: 4px 0 16px;
+    overflow-y: auto;
+}
+
+.editor-empty {
+    padding: 16px;
+    color: var(--ed-muted);
+    font-size: var(--ui-text-secondary);
+}
+
+.editor-section {
+    border-bottom: 1px solid var(--ed-soft);
+}
+
+.editor-section-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-height: var(--ui-control-md);
+    padding: 6px 14px;
+    border: none;
+    background: transparent;
+    color: var(--ed-strong);
+    font-weight: var(--ui-weight-bold);
+    font-size: var(--ui-text-body);
+    text-align: left;
+    cursor: pointer;
+}
+
+.editor-section-head:hover {
+    background: var(--ed-bg-2);
+}
+
+.editor-section-head::before {
+    content: "▸";
+    color: var(--ed-muted);
+}
+
+.editor-section-head[aria-expanded="true"]::before {
+    content: "▾";
+}
+
+.editor-section-summary {
+    min-width: 0;
+    margin-left: auto;
+    overflow: hidden;
+    color: var(--ed-muted);
+    font-weight: var(--ui-weight-regular);
+    font-size: var(--ui-text-caption);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.editor-section-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 4px 14px 14px;
+}
+
+/* a hidden presenter: one line and one "Show presenter" control instead of the whole section */
+.editor-section-compact {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
+    padding: 8px 14px;
+}
+
+.editor-section-compact .editor-compact-label {
+    color: var(--ed-strong);
+    font-weight: var(--ui-weight-bold);
+}
+
+.editor-section-compact .editor-note {
+    flex: 1 1 auto;
+}
+
+/* "Look and motion": the advanced sections, collapsed */
+.editor-group-head {
+    margin: 0;
+    padding: 14px 14px 6px;
+    border-bottom: 1px solid var(--ed-soft);
+    color: var(--ed-muted);
+    font-size: var(--ui-text-secondary);
+    font-weight: var(--ui-weight-semibold);
+}
+
+.editor-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.editor-field-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    color: var(--ed-text);
+    font-size: var(--ui-text-secondary);
+}
+
+.editor-state {
+    padding: 0 6px;
+    border-radius: var(--ui-radius-pill);
+    background: var(--ed-bg-3);
+    color: var(--ed-muted);
+    font-size: var(--ui-text-caption);
+    white-space: nowrap;
+}
+
+.editor-state[data-state="edited"] {
+    color: var(--ui-info);
+}
+
+.editor-field-head .editor-btn-link {
+    margin-left: auto;
+    font-size: var(--ui-text-caption);
+}
+
+.editor-input,
+.editor-select,
+.editor-textarea {
+    width: 100%;
+    min-height: var(--ui-control-sm);
+    padding: 5px 8px;
+    border-radius: var(--ui-radius-sm);
+    border: 1px solid var(--ui-border);
+    background: var(--ui-bg);
+    font-size: var(--ui-text-secondary);
+}
+
+.editor-select option {
+    background: var(--ui-surface-2);
+    color: var(--ui-text);
+}
+
+.editor-textarea {
+    min-height: 92px;
+    resize: vertical;
+}
+
+.editor-input-short {
+    width: 96px;
+}
+
+.editor-generated {
+    margin: 0;
+    color: var(--ed-muted);
+    font-size: var(--ui-text-caption);
+    white-space: pre-wrap;
+}
+
+.editor-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.editor-facts {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 3px 10px;
+    margin: 0;
+    font-size: var(--ui-text-secondary);
+}
+
+.editor-facts dt {
+    color: var(--ed-muted);
+}
+
+.editor-facts dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.editor-note {
+    margin: 0;
+    color: var(--ed-muted);
+    font-size: var(--ui-text-caption);
+}
+
+.editor-note[data-kind="error"] {
+    color: var(--ui-danger);
+}
+
+.editor-segmented {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.editor-findings {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.editor-finding {
+    padding: 6px 8px;
+    border-left: 3px solid var(--ui-warning);
+    border-radius: var(--ui-radius-sm);
+    background: var(--ed-bg-2);
+    font-size: var(--ui-text-secondary);
+}
+
+.editor-finding[data-severity="error"],
+.editor-finding[data-severity="blocking"] {
+    border-left-color: var(--ui-danger-border);
+}
+
+.editor-finding[data-severity="info"] {
+    border-left-color: var(--ui-border);
+}
+
+.editor-finding-severity {
+    margin-right: 6px;
+    font-weight: var(--ui-weight-bold);
+    white-space: nowrap;
+}
+
+.editor-debug {
+    margin: 0;
+    padding: 8px;
+    border-radius: var(--ui-radius-sm);
+    background: var(--ui-bg);
+    color: var(--ui-info);
+    font-family: var(--ui-font-mono);
+    font-size: var(--ui-text-caption);
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* ---- timeline (bottom) -------------------------------------------------------------------------------------------- */
+
+.editor-timeline {
+    grid-area: timeline;
+    display: flex;
+    flex-direction: column;
+    isolation: isolate; /* the tracks' own layers (labels, markers, the playhead) never paint over another panel */
+    background: var(--ed-bg);
+    border-top: 1px solid var(--ed-line);
+}
+
+/* the transport row: always shown, above every track */
+.editor-tl-bar {
+    position: relative;
+    z-index: 6;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: var(--ed-bg);
+    border-bottom: 1px solid var(--ed-soft);
+}
+
+.editor-tl-time {
+    margin: 0 6px;
+    color: var(--ed-strong);
+    font-family: var(--ui-font-mono);
+    font-size: var(--ui-text-mono);
+    white-space: nowrap;
+}
+
+.editor-tl-spacer {
+    flex: 1;
+}
+
+.editor-tl-note,
+.editor-tl-sheet-note {
+    display: none;
+    margin: 8px 12px;
+    color: var(--ed-text);
+    font-size: var(--ui-text-secondary);
+}
+
+.editor-tl-scroll {
+    position: relative;
+    z-index: 0;
+    flex: 1;
+    overflow: auto;
+}
+
+.editor-tl-content {
+    position: relative;
+    min-width: 100%;
+    padding-bottom: 6px;
+}
+
+.editor-tl-row {
+    display: flex;
+    align-items: stretch;
+    height: 22px;
+    margin-top: 3px;
+}
+
+.editor-tl-row[data-track="scene"] {
+    height: 40px;
+}
+
+.editor-tl-row[data-track="ruler"] {
+    height: 22px;
+    margin-top: 0;
+}
+
+/* the track names: sentence case, 12 px, kept in view while the lanes scroll */
+.editor-tl-label {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    flex: 0 0 var(--ed-label);
+    width: var(--ed-label);
+    overflow: hidden;
+    padding: 0 8px;
+    background: var(--ed-bg);
+    color: var(--ed-text);
+    font-size: var(--ui-text-caption);
+    font-weight: var(--ui-weight-semibold);
+    line-height: 22px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.editor-tl-row[data-track="scene"] .editor-tl-label {
+    line-height: 40px;
+}
+
+.editor-tl-lane {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.editor-tl-row[data-track="ruler"] .editor-tl-lane {
+    border-bottom: 1px solid var(--ui-border);
+    cursor: pointer;
+    touch-action: none;
+}
+
+.editor-tl-tick {
+    position: absolute;
+    bottom: 0;
+    height: 6px;
+    border-left: 1px solid var(--ed-muted);
+    padding-left: 3px;
+    color: var(--ed-muted);
+    font-family: var(--ui-font-mono);
+    font-size: var(--ui-text-caption);
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.editor-tl-tick > span {
+    position: absolute;
+    bottom: 7px;
+    left: 2px;
+}
+
+.editor-tl-block {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    overflow: hidden;
+    padding: 0 6px;
+    border: 1px solid rgba(176, 38, 255, 0.55);
+    border-radius: var(--ui-radius-sm);
+    background: rgba(98, 36, 160, 0.55);
+    font-size: var(--ui-text-caption);
+    line-height: 1.2;
+    text-align: left;
+    white-space: nowrap;
+}
+
+/* a scene block: its title, its play time (12 px); room on both sides for the transition marker on the boundary */
+.editor-tl-row[data-track="scene"] .editor-tl-block {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1px;
+    padding: 0 10px 0 12px;
+    border-color: rgba(197, 139, 255, 0.7);
+    color: var(--ed-strong);
+    cursor: grab;
+    touch-action: pan-y; /* a sideways drag moves the scene */
+}
+
+/* the selected scene: a strong inner outline and a bar on top (aria-current), not the colour alone */
+.editor-tl-block[aria-current="true"] {
+    outline: 2px solid var(--ed-strong);
+    outline-offset: -2px;
+    background: rgba(130, 50, 205, 0.8);
+    z-index: 1;
+}
+
+.editor-tl-block[aria-current="true"]::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--ed-strong);
+}
+
+.editor-tl-block:focus-visible {
+    outline: var(--ui-focus-width) solid var(--ui-focus);
+    outline-offset: 1px;
+    z-index: 2;
+}
+
+.editor-tl-block.is-dragging {
+    opacity: 0.6;
+    border-style: dashed;
+    cursor: grabbing;
+}
+
+.editor-tl-block.is-hidden,
+.editor-tl-block[data-state="muted"],
+.editor-tl-block[data-state="off"] {
+    background: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0 4px, rgba(255, 255, 255, 0.02) 4px 8px);
+    border-color: var(--ui-border);
+    color: var(--ed-muted);
+}
+
+.editor-tl-row[data-track="scene"] .editor-tl-block.is-hidden {
+    padding: 0;
+}
+
+.editor-tl-block-title,
+.editor-tl-block-time {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.editor-tl-block-title {
+    font-weight: var(--ui-weight-semibold);
+}
+
+.editor-tl-block-time {
+    color: var(--ed-text);
+    font-size: var(--ui-text-caption);
+}
+
+.editor-tl-quality {
+    color: var(--ui-warning);
+    font-weight: var(--ui-weight-bold);
+}
+
+.editor-tl-quality[data-severity="error"],
+.editor-tl-quality[data-severity="blocking"] { color: var(--ui-danger); }
+.editor-tl-quality[data-stale="true"] { color: var(--ed-muted); font-weight: var(--ui-weight-regular); font-style: italic; }
+
+/* the tracks' colours (which track a bar belongs to; its words say what it is) */
+.editor-tl-row[data-track="narration"] .editor-tl-block { background: rgba(60, 130, 200, 0.45); border-color: rgba(120, 180, 255, 0.55); }
+.editor-tl-row[data-track="presenter"] .editor-tl-block { background: rgba(200, 140, 40, 0.38); border-color: rgba(255, 200, 100, 0.5); }
+.editor-tl-row[data-track="visual"] .editor-tl-block { background: rgba(40, 160, 120, 0.4); border-color: rgba(100, 220, 170, 0.5); }
+.editor-tl-row[data-track="caption"] .editor-tl-block { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.3); }
+.editor-tl-block[data-state="none"],
+.editor-tl-block[data-state="hidden"] { background: transparent !important; border-style: dashed; color: var(--ed-muted); }
+
+/* the transition into a scene: a diamond on the boundary (12 px: at most 9 px into each block, inside their padding) */
+.editor-tl-transition {
+    position: absolute;
+    top: 50%;
+    z-index: 2;
+    width: 12px;
+    height: 12px;
+    margin: -6px 0 0 -6px;
+    padding: 0;
+    border: 1px solid var(--ed-accent);
+    background: var(--ed-bg-2);
+    transform: rotate(45deg);
+    cursor: pointer;
+}
+
+.editor-tl-transition:hover {
+    border-color: var(--ed-strong);
+}
+
+/* where a dragged block would land: a gold line with a cap at each end */
+.editor-tl-drop {
+    position: absolute;
+    top: -3px;
+    bottom: -3px;
+    z-index: 4;
+    width: 0;
+    border-left: 3px solid var(--ed-gold);
+    margin-left: -1px;
+    pointer-events: none;
+}
+
+.editor-tl-drop::before,
+.editor-tl-drop::after {
+    content: "";
+    position: absolute;
+    left: -6px;
+    width: 9px;
+    height: 3px;
+    background: var(--ed-gold);
+}
+
+.editor-tl-drop::before { top: 0; }
+.editor-tl-drop::after { bottom: 0; }
+
+.editor-playhead {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 4;
+    width: 0;
+    border-left: 2px solid var(--ed-playhead);
+    pointer-events: none;
+}
+
+.editor-playhead-handle {
+    position: absolute;
+    top: 0;
+    left: -7px;
+    width: 12px;
+    height: 12px;
+    border-radius: 2px 2px 6px 6px;
+    background: var(--ed-playhead);
+    pointer-events: auto;
+    cursor: ew-resize;
+    touch-action: none;
+}
+
+/* ---- 1024 px class: the same three columns, narrower; the top bar's secondary labels become icons ------------------ */
+
+@media (max-width: 1100px) {
+    .editor-root {
+        --ed-left: 200px;
+        --ed-right: 290px;
+    }
+
+    .editor-top .editor-label-mid {
+        display: none;
+    }
+}
+
+/* ---- tablets: the inspector takes the timeline tracks' place below the transport row (never on top of it) ---------- */
+
+@media (max-width: 900px) {
+    .editor-root,
+    .editor-root[data-inspector="closed"] {
+        grid-template-columns: var(--ed-left) minmax(0, 1fr);
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        grid-template-areas:
+            "top top"
+            "scenes stage"
+            "timeline timeline";
+    }
+
+    .editor-root[data-inspector="open"] {
+        grid-template-rows: auto minmax(0, 1fr) auto minmax(0, var(--ed-sheet));
+        grid-template-areas:
+            "top top"
+            "scenes stage"
+            "timeline timeline"
+            "inspector inspector";
+    }
+
+    .editor-inspector {
+        border-left: none;
+        border-top: 1px solid var(--ed-line);
+    }
+
+    .editor-tl-scroll {
+        flex: none;
+        max-height: 200px;
+    }
+
+    /* the inspector open: the ruler (scrub) and the scene row stay with the playhead; the four detail tracks make way */
+    .editor-root[data-inspector="open"] .editor-tl-row:not([data-track="ruler"]):not([data-track="scene"]) {
+        display: none;
+    }
+
+    .editor-root[data-inspector="open"] .editor-tl-sheet-note {
+        display: block;
+    }
+
+    /* the top bar on two rows: Back and the title, then the actions */
+    .editor-top {
+        flex-wrap: wrap;
+        overflow: visible;
+        row-gap: 6px;
+    }
+
+    .editor-top-break {
+        display: block;
+        flex: 0 0 100%;
+        height: 0;
+    }
+
+    .editor-help {
+        top: 104px;
+    }
+
+    /* touch targets */
+    .editor-inspector .editor-btn,
+    .editor-timeline .editor-btn {
+        min-height: var(--ui-control-md);
+    }
+
+    .editor-timeline .editor-icon-btn {
+        min-width: var(--ui-control-md);
+    }
+}
+
+/* ---- phones: one column (the scene list and the inspector; no timeline tracks) ------------------------------------ */
+
+@media (max-width: 700px) {
+    .editor-root,
+    .editor-root[data-inspector="closed"] {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto auto minmax(0, 1fr);
+        grid-template-areas:
+            "top"
+            "timeline"
+            "scenes";
+        background: var(--ui-bg);
+    }
+
+    .editor-root[data-inspector="open"] {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto auto minmax(0, 1fr) minmax(0, var(--ed-sheet));
+        grid-template-areas:
+            "top"
+            "timeline"
+            "scenes"
+            "inspector";
+        background: var(--ui-bg);
+    }
+
+    .editor-root > .editor-stage-hole {
+        display: none;
+    }
+
+    .editor-scenes {
+        border-right: none;
+    }
+
+    .editor-timeline {
+        border-top: none;
+        border-bottom: 1px solid var(--ed-line);
+    }
+
+    .editor-tl-scroll,
+    .editor-tl-zoom,
+    .editor-root[data-inspector="open"] .editor-tl-sheet-note {
+        display: none !important;
+    }
+
+    .editor-tl-note {
+        display: block;
+    }
+
+    .editor-top .editor-label-wide {
+        display: none;
+    }
+
+    .editor-top .editor-btn {
+        min-width: var(--ui-control-md);
+        min-height: var(--ui-control-md);
+    }
+
+    .editor-quality {
+        max-width: 150px;
+    }
+
+    .editor-save-note {
+        max-width: 160px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .editor-root *,
+    .editor-root *::before,
+    .editor-root *::after {
+        scroll-behavior: auto !important;
+    }
+}
