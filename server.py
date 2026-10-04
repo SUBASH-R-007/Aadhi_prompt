@@ -375,12 +375,35 @@ app.include_router(create_source_documents_router(document_service, get_current_
 # End-to-End Studio (Phase 20): its lesson writing service and routes are set up with the lesson save (save_lesson, below)
 import studio as _studio
 
+# Rendered lesson export (Phase 22): a saved lesson made into an MP4 on the server, frame by frame (renders.py drives
+# render_worker.mjs), as a durable run of kind "lesson_render" on the same runs, leases and recovery
+import renders as _renders
+
+def _render_token(username, minutes, run_id):
+    """A short-lived normal login for the render page (renewed while it renders); handed to the worker on its stdin only."""
+    return jwt.encode({"sub": username, "exp": datetime.utcnow() + timedelta(minutes=minutes), "render": run_id},
+                      SECRET_KEY, algorithm=ALGORITHM)
+
+render_service = _renders.RenderService(asset_library, register_asset=lambda db, key, export: register_export_asset(db, key, export),
+                                        make_token=_render_token)
+ai_recovery.register("lesson_render", render_service)
+app.include_router(_renders.create_render_router(render_service, get_current_user))
+
 def _sweep_manim_workspaces():
     db = SessionLocal()
     try:
         manim_service.sweep(db)
     except Exception as e:  # noqa: BLE001 - cleanup must never stop the server
         print(f"[MANIM] workspace sweep failed: {e}")
+    finally:
+        db.close()
+
+def _sweep_render_workspaces():
+    db = SessionLocal()
+    try:
+        render_service.sweep(db)  # also closes render exports whose run ended without them
+    except Exception as e:  # noqa: BLE001 - cleanup must never stop the server
+        print(f"[RENDER] workspace sweep failed: {e}")
     finally:
         db.close()
 
@@ -394,6 +417,7 @@ app.include_router(create_visuals_router(asset_library, get_current_user, SECRET
 async def _start_recovery():
     """Continues interrupted AI generations and export finishing in the background; serving starts at once."""
     asyncio.get_running_loop().run_in_executor(None, _sweep_manim_workspaces)  # sandbox workspaces a crash left
+    asyncio.get_running_loop().run_in_executor(None, _sweep_render_workspaces)  # render workspaces no render needs any more
     if ai_recovery.enabled():
         app.state.recovery_task = asyncio.create_task(ai_recovery.run_forever())
         asyncio.get_running_loop().run_in_executor(
@@ -406,8 +430,8 @@ async def _stop_recovery():
     if task:
         task.cancel()
     for run_task in (list(ai_media.tasks.values()) + list(manim_service.tasks.values()) + list(document_service.tasks.values())
-                     + list(lesson_script_service.tasks.values())):  # presenter clips run in ai_media
-        run_task.cancel()  # a sandboxed render is stopped (its whole process tree) before its worker gives up
+                     + list(lesson_script_service.tasks.values()) + list(render_service.tasks.values())):  # presenter clips run in ai_media
+        run_task.cancel()  # a sandboxed render or a lesson render is stopped (its whole process tree) before its worker gives up
 
 @app.get("/api/ai-cache/stats")
 def ai_cache_stats(current_user: models.User = Depends(get_current_user)):
@@ -463,7 +487,7 @@ def _run_view(db, run, user, with_attempts=True):
     request = json.loads(run.request or "{}")
     attempts = ai_runs.attempts_of(db, run.id) if with_attempts else []
     kind = run.kind or "ai_media"
-    label = "Rendering" if kind == "manim" and run.status == "running" else STATE_LABELS.get(run.status, run.status)
+    label = "Rendering" if kind in ("manim", "lesson_render") and run.status == "running" else STATE_LABELS.get(run.status, run.status)
     data = {"run_id": run.id, "kind": kind, "status": run.status, "state_label": label,
             "profile": request.get("profile") if kind == "manim" else None, "media_type": run.media_type, "requested_provider": run.requested_provider,
             "provider": run.provider, "model": run.model, "fallback_from": run.fallback_from, "attempts": run.attempts,
@@ -615,6 +639,13 @@ async def get_mascot_js():
     if os.path.exists("mascot.js"):
         return FileResponse("mascot.js", media_type="application/javascript")
     raise HTTPException(status_code=404, detail="mascot.js not found")
+
+@app.get("/render_mode.js", response_class=FileResponse)
+async def get_render_mode_js():
+    """Phase 22: the page's render mode (inert unless a server render opened the page)."""
+    if os.path.exists("render_mode.js"):
+        return FileResponse("render_mode.js", media_type="application/javascript")
+    raise HTTPException(status_code=404, detail="render_mode.js not found")
 
 @app.get("/export.js", response_class=FileResponse)
 async def get_export_js():

@@ -25,6 +25,13 @@ and the version of it that was recorded). It is kept at the start of the stored 
 the export's own lesson; listings return it as `lesson_fingerprint`, and latest_lesson_export() gives the
 Studio a lesson's newest export with it.
 
+Phase 22: a lesson can also be rendered on the server, frame by frame (renders.py: POST /api/exports/render). Such an
+export is RECORDING while its run (kind "lesson_render", request_hash = the export's id) works, then is finished through
+the same _complete_export as an MP4. Every export carries `render`: null for a recording, else the run's progress
+{run_id, phase, frames_done, frames_total, message, error_code, missing, recovered, notes}. The browser may only cancel a
+render export (PATCH status CANCELLED, which also stops the run); a render that its run ended without (recovery gave up,
+cancelled elsewhere) is closed in plain words when it is next listed or read, and by the render service's sweep.
+
 Files live under EXPORTS_DIR (default ./exports): uploads in progress in tmp/, finished videos in
 <user_id>/<export_id>.<ext>. Point EXPORTS_DIR at a persistent volume in production.
 """
@@ -40,6 +47,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+import ai_runs
 import export_outputs
 import models
 from access import authenticate_media_request, make_link_token
@@ -75,6 +83,12 @@ DOWNLOADABLE_OUTPUTS = ("mp4", "vtt", "chapters")
 LESSON_HEAD_BYTES = 1024  # the lesson link opens a timeline file (export_outputs.clean_timeline); only this much is read
 LESSON_OPENING = '{"lesson": '
 LESSON_READS = 50  # finished videos per listing whose lesson link is read (newest first)
+RENDER_KIND = "lesson_render"  # Phase 22: the run of a server-rendered export (renders.py)
+RENDER_PHASES = ("preparing", "capturing", "mixing", "finishing")
+RENDER_CANCELLED = "The render was cancelled. Your lesson is unchanged."
+RENDER_ONLY_CANCEL = "This video is being rendered on the server; it can only be cancelled."
+RENDER_GAVE_UP = ("The server was interrupted several times while this video was being rendered, so Aadhi stopped trying. "
+                  "Your lesson is unchanged; render it again.")
 
 _last_cleanup = {"at": None}
 
@@ -346,7 +360,77 @@ def latest_lesson_export(db, user_id, project_id, completed=False):
     return {"id": export.id, "status": status, "completed_at": _iso(export.completed_at), "fingerprint": fingerprint}
 
 
-def serialize(export, outputs=None, lesson_fingerprint=None):
+def render_runs(db, exports_list):
+    """{export_id: the lesson_render run of that export} for the server-rendered ones among them (one indexed query)."""
+    ids = [e.id for e in exports_list if e.source == "lesson"]
+    if not ids:
+        return {}
+    scopes = {f"user:{e.user_id}" for e in exports_list}
+    rows = (db.query(models.AIGenerationRun).filter(models.AIGenerationRun.scope_key.in_(list(scopes)),
+                                                    models.AIGenerationRun.request_hash.in_(ids),
+                                                    models.AIGenerationRun.kind == RENDER_KIND).all())
+    return {run.request_hash: run for run in rows}
+
+
+def render_view(run):
+    """A render's progress for the page (plain words; never a path or a token)."""
+    if run is None:
+        return None
+    try:
+        detail = json.loads(run.detail or "{}")
+    except ValueError:
+        detail = {}
+    phase = detail.get("phase") if detail.get("phase") in RENDER_PHASES else "preparing"
+    error_code = None
+    if run.status == ai_runs.RunState.COMPLETED:
+        phase = "done"
+    elif run.status == ai_runs.RunState.CANCELLED:
+        phase, error_code = "cancelled", detail.get("error_code") or "cancelled"
+    elif run.status in (ai_runs.RunState.FAILED, ai_runs.RunState.NEEDS_ATTENTION):
+        phase, error_code = "failed", detail.get("error_code") or ("interrupted" if run.status == ai_runs.RunState.NEEDS_ATTENTION
+                                                                  else run.error_category or "render_failed")
+    frames_total = detail.get("frames_total")
+    return {"run_id": run.id, "phase": phase, "frames_done": int(detail.get("frames_done") or 0),
+            "frames_total": int(frames_total) if isinstance(frames_total, (int, float)) else None,
+            "message": detail.get("stage") or None, "error_code": error_code,
+            "missing": detail.get("missing") if isinstance(detail.get("missing"), list) else [],
+            "recovered": run.recovery_count or 0, "notes": detail.get("notes") if isinstance(detail.get("notes"), list) else []}
+
+
+def settle_render(db, export, run):
+    """Closes a render export that its run ended without (recovery gave up after repeated interruptions, or the run was
+    cancelled or failed elsewhere), so it never stays "Recording" until the stale-export cleanup. True when it changed it."""
+    if export.status not in ACTIVE or run.status in ai_runs.ACTIVE or run.status == ai_runs.RunState.COMPLETED:
+        return False
+    status, message = "FAILED", run.error_message or "The video could not be rendered. Your lesson is unchanged; try again."
+    if run.status == ai_runs.RunState.CANCELLED:
+        status, message = "CANCELLED", RENDER_CANCELLED
+    elif run.status == ai_runs.RunState.NEEDS_ATTENTION:
+        message = RENDER_GAVE_UP  # nothing for a person to decide on the run: the export is retried from the Videos panel
+        try:
+            detail = json.loads(run.detail or "{}")
+        except ValueError:
+            detail = {}
+        detail.update(phase="failed", error_code="interrupted", stage=RENDER_GAVE_UP)
+        ai_runs.transition(db, run.id, ai_runs.RunState.CANCELLED, from_states=(ai_runs.RunState.NEEDS_ATTENTION,),
+                           error_category="interrupted", error_message=RENDER_GAVE_UP, detail=json.dumps(detail))
+        db.refresh(run)
+    export.status, export.error_message, export.stage, export.progress = status, message, None, None
+    export.completed_at = _now()
+    db.commit()
+    return True
+
+
+def settle_renders(db, exports_list, runs=None):
+    runs = render_runs(db, exports_list) if runs is None else runs
+    for export in exports_list:
+        run = runs.get(export.id)
+        if run is not None and export.status in ACTIVE:
+            settle_render(db, export, run)
+    return runs
+
+
+def serialize(export, outputs=None, lesson_fingerprint=None, render=None):
     return {
         "id": export.id,
         "project_id": export.project_id,
@@ -370,14 +454,17 @@ def serialize(export, outputs=None, lesson_fingerprint=None):
         "completed_at": _iso(export.completed_at),
         "outputs": serialize_outputs(outputs),
         "lesson_fingerprint": lesson_fingerprint,  # Phase 20: the lesson version the video shows, when known
+        "render": render,  # Phase 22: a server render's progress (render_view), null for a recording
     }
 
 
 def serialize_finished(db, exports_list):
-    """serialize() of each export with its outputs (one query) and the lesson fingerprint it was recorded from."""
+    """serialize() of each export with its outputs (one query), the lesson fingerprint it was recorded from and, for a
+    server render, its progress (render exports whose run ended without them are settled first)."""
+    runs = settle_renders(db, exports_list)
     outputs = outputs_by_export(db, [e.id for e in exports_list])
     fingerprints = recorded_fingerprints(exports_list, outputs)
-    return [serialize(e, outputs.get(e.id), fingerprints.get(e.id)) for e in exports_list]
+    return [serialize(e, outputs.get(e.id), fingerprints.get(e.id), render_view(runs.get(e.id))) for e in exports_list]
 
 
 def _output(db, export_id, kind):
@@ -575,6 +662,22 @@ def create_exports_router(get_current_user, secret_key, algorithm="HS256", regis
         export = owned_export(export_id, user, db)
         if export.status not in ACTIVE:
             raise HTTPException(status_code=409, detail=f"This export has already finished ({export.status}).")
+        run = render_runs(db, [export]).get(export.id)
+        if run is not None:  # Phase 22: the server renders it; the page may only stop it
+            if body.status != "CANCELLED":
+                raise HTTPException(status_code=409, detail=RENDER_ONLY_CANCEL)
+            export.status, export.error_message, export.stage, export.progress = "CANCELLED", RENDER_CANCELLED, None, None
+            export.completed_at = _now()
+            db.commit()
+            if run.status == ai_runs.RunState.QUEUED:
+                ai_runs.transition(db, run.id, ai_runs.RunState.CANCELLED, from_states=(ai_runs.RunState.QUEUED,),
+                                   finished_at=_now(), error_category="cancelled", error_message=RENDER_CANCELLED)
+            elif run.status in (ai_runs.RunState.RUNNING, ai_runs.RunState.RECOVERING):
+                # its worker (here or in another server process) stops at its next progress write or heartbeat
+                ai_runs.transition(db, run.id, ai_runs.RunState.CANCEL_REQUESTED,
+                                   from_states=(ai_runs.RunState.RUNNING, ai_runs.RunState.RECOVERING), cancel_requested_at=_now())
+            db.refresh(run)
+            return serialize(export, render=render_view(run))
         if body.status and body.status != export.status:
             if body.status not in CLIENT_TRANSITIONS.get(export.status, set()):
                 raise HTTPException(status_code=409, detail=f"An export cannot go from {export.status} to {body.status}.")

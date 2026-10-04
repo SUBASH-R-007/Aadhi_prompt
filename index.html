@@ -12,6 +12,9 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@300;400;700;900&family=Montserrat:wght@900&family=League+Gothic&family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap"
         rel="stylesheet">
 
+    <!-- Phase 22: the server's rendered export (render_mode.js). First script of the page: it does nothing unless the render
+         worker set window.__AADHI_RENDER__ -->
+    <script src="render_mode.js"></script>
     <script>
         window.MathJax = {
             tex: {
@@ -125,6 +128,54 @@
         .mascot-layer.active-layer {
             opacity: 1;
             visibility: visible;
+        }
+
+        /* Phase 22: aadhi_left.mp4 and its poster carry black pillars baked into the picture (measured: clean picture from
+           column 50 to 1227 of its 1280, so 52 px are masked on each side; ffmpeg's cropdetect says 48 = 3.75 %, without the
+           ringing at their edges) and a dark line along the top (3 of its 720 rows). They are masked, never scaled away: the clip keeps its size, so mascot.js's measured cue
+           positions stay exact. --mascot-bar / --mascot-top are their size on screen under object-fit: cover (less where cover
+           crops), in whole pixels (a fractional edge would let the black page show through a seam). Behind the masked strips
+           the same clip's studio still is drawn from the two pixel columns just inside its clean edge, stretched across the
+           strip: the wall, its shade and the floor line run straight on (no Aadhi: he never reaches the edge). Behind the top
+           line, the wall's own shade. A frame-set image drawn over the clip in a render copies its clip-path. */
+        #mascot-bg {
+            --mascot-frame-w: max(100vw, calc(100vh * 16 / 9));
+            --mascot-frame-h: calc(var(--mascot-frame-w) * 9 / 16);
+            --mascot-frame-x: calc((100vw - var(--mascot-frame-w)) / 2);
+            --mascot-frame-y: calc((100vh - var(--mascot-frame-h)) / 2);
+            --mascot-bar: round(up, max(0px, calc(var(--mascot-frame-x) + var(--mascot-frame-w) * 52 / 1280)), 1px);
+            --mascot-top: round(up, max(0px, calc(var(--mascot-frame-y) + var(--mascot-frame-h) * 3 / 720)), 1px);
+            background: linear-gradient(to right, #e5e5e5, #ebebeb 12%, #eeeeee 28%, #f1f1f1 50%, #efefef 70%, #e9e9e9 86%, #dedede)
+                top left / 100% var(--mascot-top) no-repeat;
+        }
+
+        #mascot-bg::before,
+        #mascot-bg::after {
+            content: '';
+            position: absolute;
+            top: var(--mascot-top);
+            bottom: 0;
+            width: calc(var(--mascot-bar) + 1px); /* (1 px under the clip's edge) */
+            z-index: -1;
+            pointer-events: none;
+            background: url('video_template/posters/aadhi_left.jpg') no-repeat;
+            /* two of the still's 1280 columns as wide as the strip */
+            background-size: calc(var(--mascot-bar) * 640) var(--mascot-frame-h);
+        }
+
+        #mascot-bg::before {
+            left: 0;
+            background-position: calc(var(--mascot-bar) * -26) calc(var(--mascot-frame-y) - var(--mascot-top)); /* columns 52-53 */
+        }
+
+        #mascot-bg::after {
+            right: 0;
+            background-position: calc(var(--mascot-bar) * -612.5 + 1px) calc(var(--mascot-frame-y) - var(--mascot-top)); /* columns 1225-1226 */
+        }
+
+        .mascot-layer.layer-left,
+        .mascot-fallback-frame[data-for*="aadhi_left"] {
+            clip-path: inset(var(--mascot-top) var(--mascot-bar) 0 var(--mascot-bar));
         }
 
         /* Mascot fallback (mascot.js): the clip's poster frame with gentle breathing and
@@ -2577,10 +2628,12 @@
         /* While recording: the glass blur behind the board and panels is recomputed for every frame of
            the moving studio video, which halves the frame rate of a 1080p page and, with the tab being
            captured and encoded, starves Aadhi's video decoder (Phase 7 measurements). The panels are
-           82-90% opaque, so the recording keeps their look without the blur. Normal playback keeps it. */
-        body[data-recording] *,
-        body[data-recording] *::before,
-        body[data-recording] *::after {
+           82-90% opaque, so the recording keeps their look without the blur. Normal playback keeps it, and so does the
+           server's rendered export (Phase 22, body[data-render]): its frames are captured one at a time, never against the
+           clock. */
+        body[data-recording]:not([data-render]) *,
+        body[data-recording]:not([data-render]) *::before,
+        body[data-recording]:not([data-render]) *::after {
             backdrop-filter: none !important;
             -webkit-backdrop-filter: none !important;
         }
@@ -4765,6 +4818,12 @@
         function renderConceptMap(activeConceptId) {
             const canvas = document.getElementById('concept-map-canvas');
             if (!conceptMapData || conceptMapData.length === 0) {
+                // (Phase 22: a recording shows no card: the skill tree stays empty and the recording's timeline says why)
+                if (isRecordingVideo()) {
+                    canvas.innerHTML = '';
+                    noteRecording(null, 'The lesson has no skill tree: its panel is left empty.');
+                    return;
+                }
                 // the one plain placeholder card (it can be recorded: the detail only with ?visualDebug, never while recording)
                 canvas.innerHTML = visualNotice("This visual isn't ready yet", 'This lesson has no skill tree.', '',
                     [['Concept map', conceptMapData === null ? 'null' : (conceptMapData === undefined ? 'undefined' : 'empty list')]]);
@@ -5204,6 +5263,12 @@
             } else {
                 imgEl.removeAttribute('src');
                 const [title, text] = (source && source.notice) || ['No image for this scene', ''];
+                if (isRecordingVideo()) { // (Phase 22: a recording shows no card, only the empty panel)
+                    loaderEl.innerHTML = '';
+                    loaderEl.style.opacity = '0';
+                    noteRecording(currentSlide, `Scene ${currentSlide + 1}'s side image is left out: ${title.toLowerCase()}.`);
+                    return;
+                }
                 loaderEl.innerHTML = visualNotice(title, text);
             }
         }
@@ -5522,6 +5587,10 @@
                 }).catch(err => {
                     spinner.style.display = 'none';
                     console.error("Side Panel Manim Error:", err);
+                    if (isRecordingVideo()) { // (Phase 22: a recording shows no card, only the empty panel)
+                        noteRecording(currentSlide, `Scene ${currentSlide + 1}'s side animation is left out: it could not be rendered.`);
+                        return;
+                    }
                     // Phase 21: the one plain placeholder card over the panel (the panel's own player stays for the next scene)
                     const container = document.getElementById('side-video-panel');
                     const notice = document.createElement('div');
@@ -5857,6 +5926,7 @@
                 });
                 exportFlow.sceneStarted(nav.rank, nav.total);
             }
+            if (window.renderMode) window.renderMode.sceneBegan(index); // Phase 22: the rendered export's range and chapters
 
             // Phase 19: a scene whose narration is muted in the editor plays without speaking (an AI video carrying the
             // narration plays muted, as a video narrated over); a minimum duration is held on the scene's own clock
@@ -5898,6 +5968,7 @@
                             ttsState.isPlaying = false;
                             updateTTSButtons();
                             // Last scene done: an export in progress stops recording (after a short tail)
+                            if (window.renderMode) window.renderMode.lessonEnded(); // (Phase 22: the rendered export's end)
                             if (isAutoExporting) exportFlow.lessonFinished();
                         }
                     };
@@ -6125,7 +6196,11 @@
                         };
 
                         const mode = AadhiVisuals.getMode(localStorage);
-                        if (mainPlan && mainPlan.selection === 'removed') {
+                        // Phase 22: a recording never shows the cards below for a missing video (nor generates one): no visual
+                        const missingVideo = isRecordingVideo() ? missingSceneVisual(slide, mode) : null;
+                        if (missingVideo) {
+                            omitVisualWhileRecording(index, thisSlideRenderId, missingVideo);
+                        } else if (mainPlan && mainPlan.selection === 'removed') {
                             visualContainer.innerHTML = ''; // removed in Visual Review: no visual for this scene
                         } else if (mainPlan && mainPlan.error) {
                             // The asset the lesson names cannot be used: say so, never swap in another one
@@ -6224,7 +6299,11 @@
                             }
                         };
 
-                        if (mainPlan && mainPlan.selection === 'removed') {
+                        // Phase 22: a recording never shows the cards below for a missing animation (nor renders one): no visual
+                        const missingAnimation = isRecordingVideo() ? missingSceneVisual(slide, AadhiVisuals.getMode(localStorage)) : null;
+                        if (missingAnimation) {
+                            omitVisualWhileRecording(index, thisSlideRenderId, missingAnimation);
+                        } else if (mainPlan && mainPlan.selection === 'removed') {
                             visualContainer.innerHTML = ''; // removed in Visual Review: no visual for this scene
                         } else if (mainPlan && mainPlan.error) {
                             // The animation the lesson names cannot be used: say so, never swap in another one
@@ -6773,6 +6852,7 @@
                     // every scene is hidden: nothing plays, the lesson ends at once (as after its last scene)
                     ttsState.isPlaying = false;
                     updateTTSButtons();
+                    if (window.renderMode) window.renderMode.lessonEnded(); // (Phase 22: the rendered export's end)
                     if (isAutoExporting) exportFlow.lessonFinished();
                     return;
                 }
@@ -7248,8 +7328,12 @@
                 if (syncElements && syncElements.length > 0) {
                     syncElements.forEach((el, index) => {
                         setTimeout(() => {
+                            const shown = el.classList.contains('cascade-visible');
                             el.classList.remove('cascade-hidden');
                             el.classList.add('cascade-visible');
+                            // (Phase 22: an item still hidden when the narration ends: in the rendered export's timeline when it shows)
+                            if (window.renderMode && !shown) window.renderMode.noteSync('cascade_reveal', { item: index,
+                                text: el.textContent.trim().slice(0, 80) }, { leftover: true });
                         }, index * 400 + 200);
                     });
                 }
@@ -7433,8 +7517,12 @@
                 const revealSegmentElements = () => {
                     elements.forEach((el, index) => {
                         setTimeout(() => {
+                            const shown = el.classList.contains('cascade-visible');
                             el.classList.remove('cascade-hidden');
                             el.classList.add('cascade-visible');
+                            // (Phase 22: an item shown here, at its segment's end, is in the rendered export's timeline when it shows)
+                            if (window.renderMode && !shown) window.renderMode.noteSync('cascade_reveal', { segment: segIdx, item: index,
+                                text: el.textContent.trim().slice(0, 80) }, { leftover: true });
                         }, index * 400 + 200);
                     });
                 };
@@ -7590,10 +7678,15 @@
 
                                 // Reveal the corresponding DOM element and move the narration highlight to it
                                 if (elements && i < elements.length) {
+                                    const shown = elements[i].classList.contains('cascade-visible');
                                     elements[i].classList.remove('cascade-hidden');
                                     elements[i].classList.add('cascade-visible');
                                     setNarrationActiveItem(elements[i]);
                                     mascot.narrationEvent('sync');
+                                    // (Phase 22: the rendered export's timeline: which item, when it was due in the audio; an item the
+                                    // segment's end showed already is in the timeline from then)
+                                    if (window.renderMode && !shown) window.renderMode.noteSync('cascade_reveal', { segment: segIdx, item: i,
+                                        text: elements[i].textContent.trim().slice(0, 80) }, { due: sync.targetTime, heard: ct, rate: audio.playbackRate });
                                 }
                             }
                         }
@@ -9425,6 +9518,58 @@
         function isRecordingVideo() {
             return document.body.hasAttribute('data-recording') || (typeof isAutoExporting !== 'undefined' && !!isAutoExporting);
         }
+        // Phase 22: why a scene's main visual is missing now (null: it has one, or none by the user's choice in Visual Review).
+        // The same rule as renderSlide's notice branches: the export's preflight lists these scenes, a recording omits them.
+        function missingSceneVisual(slide, mode) {
+            if (!slide) return null;
+            const plan = slide.visual_plan && slide.visual_plan.main;
+            if (plan && plan.selection === 'removed') return null;
+            if (slide.type === 'ai_video') {
+                if (plan && plan.error) return 'its video is no longer available';
+                if (plan ? plan.url : slide.video_url) return null;
+                if (!slide.prompt) return "it doesn't say what its video should show";
+                if (mode === 'off' || (plan && plan.would_require)) return 'AI visuals are off and nothing in your library matches it';
+                return 'no AI video has been made for it yet';
+            }
+            if (slide.type === 'simulation' || slide.type === 'visual') {
+                if (plan && plan.error) return 'its animation is no longer available';
+                if (plan ? plan.url : slide.manim_video_url) return null;
+                if (slide.manim_code || slide.simulation_code || slide.code) return 'its animation could not be rendered';
+                if (slide.visual_svg || slide.svg) return null;
+                return 'it has no animation yet';
+            }
+            return null;
+        }
+        // Phase 22: while a video is recorded (the tab capture or the rendered export), a scene whose visual is missing shows no
+        // visual, as Visual Review's "removed" does, never the notice card; the recording's timeline notes it. The scene still
+        // moves on: a clip it waited for counts as played (a scene whose only voice was that clip holds 5 s, as a silent one).
+        function omitVisualWhileRecording(index, renderId, reason) {
+            const visualContainer = document.getElementById('slide-visual-container');
+            if (visualContainer) visualContainer.innerHTML = '';
+            noteRecording(index, `Scene ${index + 1} is recorded without its visual: ${reason}.`);
+            const sync = window.slideSyncState;
+            if (!sync || !sync.hasVideo) return;
+            if (sync.hasAudio) {
+                sync.videoFinished = true;
+                return;
+            }
+            setTimeout(() => {
+                if (window.currentSlideRenderId !== renderId) return;
+                sync.videoFinished = true;
+                window.checkAndAdvanceSlide();
+            }, 5000);
+        }
+        // A note in the recording's timeline (what the video leaves out), once per scene and text
+        function noteRecording(index, text) {
+            const key = `${index}|${text}`;
+            window.recordingNoteKeys = window.recordingNoteKeys || new Set();
+            if (window.recordingNoteKeys.has(key)) return;
+            window.recordingNoteKeys.add(key);
+            if (window.renderMode) window.renderMode.note(index, text);
+            else if (isAutoExporting && window.exportStartTime) {
+                (window.exportNotes = window.exportNotes || []).push({ t: Math.round(captionClock() * 1000) / 1000, scene: index, text });
+            }
+        }
         // the stage may show technical details: only in the debug view (?visualDebug), and never in a recording
         function stageShowsDebug() {
             return new URLSearchParams(window.location.search).has('visualDebug') && !isRecordingVideo();
@@ -9767,7 +9912,15 @@
             } catch (e) {
                 console.warn('The lesson quality could not be checked before the export:', e); // optional: the export goes on
             }
-            return { warnings, quality };
+            // Phase 22: the scenes that would show no visual (the rule renderSlide uses while recording): the export offers to
+            // record them without it, and the rendered export refuses or omits them as asked
+            const missing = [];
+            slides.forEach((s, i) => {
+                if (sceneHidden(s)) return;
+                const reason = missingSceneVisual(s, mode);
+                if (reason) missing.push({ index: i, title: s.title || `Scene ${i + 1}`, reason });
+            });
+            return { warnings, quality, missing };
         }
 
         // Measurement runs only (tests / debugging): a recording frame rate or bitrate other than the
@@ -9783,6 +9936,17 @@
                 if (maxHeight >= 360 && maxHeight <= 2160) options.maxCapture = { width: Math.round(maxHeight * 16 / 9), height: maxHeight };
             } catch (e) { /* storage unavailable: defaults */ }
             return options;
+        }
+
+        // Phase 20: the recording names the lesson as it is (its fingerprint, computed on the server from the saved lesson after any
+        // pending edit is saved), so its video can say whether it still matches the lesson later (Phase 22: the render too)
+        async function exportLessonLink() {
+            if (!currentProjectId) return null;
+            try {
+                if (typeof lessonEditorSession !== 'undefined' && lessonEditorSession && lessonEditorSession.autosave) await lessonEditorSession.autosave.flush();
+                const state = await studioFetch('GET', `/api/studio/lessons/${currentProjectId}`);
+                return state && state.fingerprint ? { project_id: currentProjectId, fingerprint: state.fingerprint, revision: String(state.revision || '').slice(0, 40) } : null;
+            } catch (e) { return null; }
         }
 
         const exportFlow = new AadhiExport.ExportFlow({
@@ -9803,16 +9967,14 @@
                 }),
                 ensureProject: ensureExportProject,
                 prepare: prepareLessonForExport,
-                // Phase 20: the recording names the lesson as it is (its fingerprint, computed on the server from the saved lesson
-                // after any pending edit is saved), so its video can say whether it still matches the lesson later
-                lessonLink: async () => {
-                    if (!currentProjectId) return null;
-                    try {
-                        if (typeof lessonEditorSession !== 'undefined' && lessonEditorSession && lessonEditorSession.autosave) await lessonEditorSession.autosave.flush();
-                        const state = await studioFetch('GET', `/api/studio/lessons/${currentProjectId}`);
-                        return state && state.fingerprint ? { project_id: currentProjectId, fingerprint: state.fingerprint, revision: String(state.revision || '').slice(0, 40) } : null;
-                    } catch (e) { return null; }
-                },
+                lessonLink: exportLessonLink, // (Phase 20, above)
+                // Phase 22: the narration voice this page plays with, for the server's rendered export (it plays with the same)
+                renderSettings: () => ({
+                    tts_engine: ttsEngineSelect ? ttsEngineSelect.value : 'default',
+                    voice: document.getElementById('voice-select').value,
+                    gemini_voice: document.getElementById('gemini-voice-select').value,
+                    rate: ttsState.rate
+                }),
                 lessonFingerprint: async () => {
                     if (!currentProjectId) return null;
                     try { return (await studioFetch('GET', `/api/studio/lessons/${currentProjectId}`)).fingerprint || null; } catch (e) { return null; }
@@ -9840,7 +10002,8 @@
                     stopCaptionLog();
                     return {
                         scenes: (window.exportSceneLog || []).map(s => ({ t: s.t, title: s.title, type: s.type })),
-                        cues: (window.exportCaptionLog || []).slice()
+                        cues: (window.exportCaptionLog || []).slice(),
+                        notes: (window.exportNotes || []).slice() // (Phase 22: what the recording left out, e.g. a missing visual)
                     };
                 },
                 // Starts the lesson for the recording and resolves once it is visibly playing (the intro's
@@ -9853,6 +10016,8 @@
                     ttsState.isMuted = false;
                     window.exportSceneLog = [];
                     window.exportCaptionLog = [];
+                    window.exportNotes = [];
+                    window.recordingNoteKeys = new Set();
                     window.exportStartTime = Date.now(); // replaced by the recording's own start (recordingStarted)
                     startPresentationSequence(true);
                     return new Promise(resolve => {
@@ -9907,6 +10072,279 @@
 
         document.getElementById('auto-export-btn').addEventListener('click', () => exportFlow.open());
         document.getElementById('record-btn').addEventListener('click', () => exportFlow.toggleManualRecording());
+
+        // --- Phase 22: the server's rendered export (render_mode.js, render_worker.mjs) ---
+        // The worker opens this page with window.__AADHI_RENDER__: the lesson plays on a virtual clock and every frame is
+        // captured on its own. window.renderMode is the worker's handle on the page: it loads and prepares the lesson as the
+        // tab-capture export does (prepareLessonForExport), plays it like the export's play() hook (from the start, or from a
+        // scene with the scene before it played first, uncaptured), and answers what the server needs: the frames' range, the
+        // subtitles, chapters, sounds and notes. Without __AADHI_RENDER__ there is no window.renderMode: nothing here runs.
+        const renderRuntime = window.AadhiRenderMode && window.AadhiRenderMode.runtime;
+
+        // The narration voice the teacher previews with (the worker passes it), set before any narration is requested. A
+        // value this page does not list (another AI writer's voices) is added: the server decides by its name.
+        function applyRenderVoice(tts) {
+            if (!tts) return;
+            const choose = (select, value) => {
+                if (!select || !value) return false;
+                if (!Array.from(select.options).some(o => o.value === value)) {
+                    const option = document.createElement('option');
+                    option.value = value;
+                    option.textContent = value;
+                    select.appendChild(option);
+                }
+                select.value = value;
+                return true;
+            };
+            if (choose(ttsEngineSelect, tts.engine)) ttsEngineSelect.dispatchEvent(new Event('change'));
+            choose(document.getElementById('voice-select'), tts.voice);
+            choose(document.getElementById('gemini-voice-select'), tts.geminiVoice);
+            if (tts.rate) {
+                ttsRateSlider.value = String(tts.rate);
+                ttsRateSlider.dispatchEvent(new Event('input'));
+            }
+        }
+
+        // Every clip the render may show, for its frame sets: { key, kind, src (absolute), loop, hasAudio }. Aadhi's clips are
+        // keyed by their file name (aadhi_left: assets/mascot_frames/<key> may hold a ready-made set)
+        function renderMediaList(fromScene) {
+            const list = [];
+            const seen = new Set();
+            const add = (key, kind, url, loop, hasAudio) => {
+                if (!url || typeof url !== 'string') return;
+                let src;
+                try { src = new URL(url.startsWith('/') ? (window.API_BASE_URL || '') + url : url, window.location.href).href; } catch (e) { return; }
+                const id = src.split('#')[0].split('?')[0];
+                if (seen.has(id)) return;
+                seen.add(id);
+                list.push({ key, kind, src, loop: !!loop, hasAudio: !!hasAudio });
+            };
+            const stem = url => String(url).split('?')[0].split('/').pop().replace(/\.[^.]+$/, '');
+            const keys = AadhiMascot.requiredAssetKeys(playedScenes());
+            document.querySelectorAll('#mascot-bg .mascot-layer').forEach(layer => {
+                const src = layer.getAttribute('data-src');
+                if (src && keys.includes(layer.getAttribute('data-asset'))) add(stem(src), 'mascot', src, true, false);
+            });
+            if (!fromScene) add('logo_animation', 'logo', document.getElementById('intro-logo-video').getAttribute('src'), false, true);
+            slides.forEach((s, i) => {
+                if (sceneHidden(s)) return;
+                const main = s.visual_plan && s.visual_plan.main;
+                const side = s.visual_plan && s.visual_plan.side;
+                if (!(main && main.selection === 'removed')) {
+                    if (s.type === 'ai_video') {
+                        const voice = s.ai_audio_source === 'video' && !sceneNarrationMuted(s);
+                        add(`scene-${i}`, 'video', main ? main.url : s.video_url, !voice, voice);
+                    } else if (s.type === 'simulation' || s.type === 'visual') {
+                        add(`scene-${i}`, 'video', main ? main.url : s.manim_video_url, false, false);
+                    } else if (s.type === 'p5_simulation' && main && (main.selection === 'reviewed' || main.selection === 'approved')) {
+                        add(`scene-${i}`, 'video', main.url, true, false);
+                    }
+                }
+                if (side && side.url && side.selection !== 'removed' && side.media !== 'STATIC_IMAGE') add(`scene-${i}-side`, 'video', side.url, true, false);
+                else if (s.side_panel && s.side_panel.type === 'manim' && s.side_panel.video_url) add(`scene-${i}-side`, 'video', s.side_panel.video_url, true, false);
+                const presenter = presenterStage.planFor(s);
+                if (presenter && presenter.enabled && presenter.media && presenter.media.kind === 'video') add(`scene-${i}-presenter`, 'presenter', presenter.media.url, false, false);
+                const cine = cinematicStage.planFor(s);
+                if (cine && cine.background && cine.background.type === 'video') add(`scene-${i}-background`, 'video', cine.background.url, true, false);
+            });
+            return list;
+        }
+
+        // A scene's expected length in seconds, roughly: its narration at about 15 characters a second at the voice's rate, its
+        // [PAUSE] beats, a quiz's countdown, the editor's minimum duration and the 0.8 s step to the next scene (the worker
+        // splits a long lesson into ranges of similar length with it). null for a hidden scene.
+        function renderSceneEstimate(s) {
+            if (!s || sceneHidden(s)) return null;
+            const rate = ttsState.rate || 1;
+            const speech = text => parseNarrationSegments(String(text || ''))
+                .reduce((sum, seg) => sum + seg.text.replace(/\[SYNC\]/g, '').trim().length / 15 / rate + (seg.pauseAfter || 0), 0);
+            let seconds;
+            if (s.type === 'quiz_checkpoint') {
+                const muted = sceneNarrationMuted(s);
+                const reveal = muted ? '' : (s.reveal_narration || s.explanation || '');
+                seconds = (muted ? 0 : speech(s.narration)) + Math.max(3, parseFloat(s.countdown_seconds) || 8) + (reveal ? speech(reveal) : 4);
+            } else {
+                const said = sceneNarration(s);
+                seconds = said ? speech(said) : 5; // (a silent scene holds 5 s)
+            }
+            return Math.round((Math.max(seconds, sceneHoldMs(s) / 1000) + 0.8) * 10) / 10;
+        }
+
+        // May a render range start at scene `index`, so that the cut between two pages cannot be seen? The page rendering a range
+        // plays only the scene before it first (uncaptured), so whatever runs on through the lesson would jump at the cut:
+        // Aadhi's studio clip (always on screen, an empty studio when he steps aside), the floating particles, the side panel's
+        // float, a presenter, a cinematic background. Safe: the first scene that plays, and a scene after a Classic full-screen
+        // animation scene, whose black board (z-index above all of these) covers the whole stage when it ends; what runs on is
+        // seen again only after the cut, with nothing on the other side to differ from. Anything else: not safe (one page).
+        function renderSeamSafe(index) {
+            const s = slides[index];
+            if (!s || sceneHidden(s)) return false;
+            const prev = nextPlayableScene(index, -1);
+            if (prev === -1) return true;
+            const before = slides[prev];
+            return (before.type === 'visual' || before.type === 'simulation') && !cinematicStage.planFor(before) && !cinematicStage.planFor(s);
+        }
+
+        // The lesson from scene `index`, as startPresentationSequence(true) starts it, without the intro
+        function startLessonAt(index) {
+            currentIsExporting = true;
+            [introTimeout1, introTimeout2, introTimeout3, introTimeout4, introTimeout5].forEach(clearTimeout);
+            isIntroRunning = false;
+            document.getElementById('intro-sequence-container').style.display = 'none';
+            if (window.currentAudio) window.currentAudio.pause();
+            mascot.reset();
+            mascot.preload(AadhiMascot.requiredAssetKeys(playedScenes()));
+            document.body.classList.add('presentation-active', 'lesson-playing');
+            document.getElementById('presentation-board').classList.add('hidden');
+            currentSlide = index;
+            startMainPresentation();
+        }
+
+        if (renderRuntime) {
+            let prepared = null;
+            let preparing = null;
+            const config = renderRuntime.config;
+            // The lesson loaded and prepared as the tab-capture export prepares it (step: the progress callback)
+            async function prepareRenderLesson(step, progress) {
+                const linked = new URLSearchParams(window.location.search).get('project_id');
+                if (linked && config.projectId && Number(linked) !== config.projectId) {
+                    throw new Error(`This page opened lesson ${linked}, but the render is for lesson ${config.projectId}.`);
+                }
+                const projectId = Number(linked || config.projectId);
+                if (!Number.isInteger(projectId) || projectId <= 0) throw new Error('The render needs a saved lesson (?project_id=N).');
+                if (!localStorage.getItem('jwt_token')) throw new Error('The render page is not signed in.');
+                applyRenderVoice(config.tts);
+                // the page's own link opens the lesson (loadInitialProject); it is opened here if that did not happen
+                for (let i = 0; i < 300 && !(currentProjectId === projectId && slides.length); i++) await renderRuntime.realDelay(100);
+                if (currentProjectId !== projectId || !slides.length) await openLessonById(projectId);
+                // the recording's look (export.js setRecordingUi): no menus, no player bar, Aadhi never paused
+                if (window.appShell) window.appShell.closeAll();
+                document.getElementById('voice-control-bar').classList.add('hidden-force');
+                document.body.setAttribute('data-recording', '');
+                document.body.setAttribute('data-render', '');
+                mascot.setRecording(true);
+                step(0, 0, 'Loading lesson assets');
+                const report = await prepareLessonForExport(step);
+                // formulas and fonts are ready before the first frame
+                step(progress.total, progress.total, 'Loading formulas and fonts');
+                for (let i = 0; i < 150 && !(window.MathJax && MathJax.startup && MathJax.startup.promise); i++) await renderRuntime.realDelay(100);
+                if (window.MathJax && MathJax.startup && MathJax.startup.promise) await Promise.race([MathJax.startup.promise.catch(() => {}), renderRuntime.realDelay(15000)]);
+                if (document.fonts && document.fonts.ready) await Promise.race([document.fonts.ready, renderRuntime.realDelay(10000)]);
+                const missing = report.missing || [];
+                return {
+                    title: exportTitle(),
+                    scenes: slides.map((s, i) => ({ index: i, title: s.title || `Scene ${i + 1}`, type: s.type || null, hidden: sceneHidden(s),
+                        estimate: renderSceneEstimate(s), seamSafe: renderSeamSafe(i) })),
+                    preflight: { missing, warnings: report.warnings || [], quality: report.quality || [], refused: config.missingVisuals === 'refuse' && missing.length > 0 },
+                    media: renderMediaList(config.fromScene)
+                };
+            }
+            window.renderMode = {
+                // { phase: idle | preparing | ready | failed, done, total, label, changes }: what prepare() is doing, read by the
+                // worker while it runs (the export's own progress steps: "Narration" 12 of 140)
+                progress: window.AadhiRenderMode.createProgress(),
+                // The lesson of the page's link (?project_id=N; __AADHI_RENDER__.projectId must agree), loaded and prepared;
+                // nothing plays yet. Resolves { title, scenes, preflight: { missing, warnings, quality, refused }, media }.
+                async prepare() {
+                    if (prepared) return prepared;
+                    if (preparing) return preparing; // (one preparation, however often it is asked for)
+                    const progress = this.progress;
+                    const step = (done, total, label) => window.AadhiRenderMode.setProgress(progress, 'preparing', done, total, label);
+                    preparing = (async () => {
+                        try {
+                            step(0, 0, 'Opening the lesson');
+                            prepared = await prepareRenderLesson(step, progress);
+                        } catch (e) {
+                            window.AadhiRenderMode.setProgress(progress, 'failed', progress.done, progress.total, String((e && e.message) || 'The lesson could not be prepared.'));
+                            throw e;
+                        } finally {
+                            preparing = null;
+                        }
+                        window.AadhiRenderMode.setProgress(progress, 'ready', progress.total, progress.total, 'Ready to render');
+                        return prepared;
+                    })();
+                    return preparing;
+                },
+                // { [src]: { base: '/__render_frames/<setId>/', manifest } }: those clips show their frame set's images
+                useFrames(map) {
+                    return renderRuntime.useFrames(map);
+                },
+                // (between frames the page hears of the server's answer only while the render pumps it)
+                lessonLink: () => renderRuntime.pump(exportLessonLink()),
+                // Plays the lesson for the render (virtual t = 0 now), like the export's play() hook: the intro only from scene 0.
+                // With captureFromScene (whole-lesson pre-roll) it plays from fromScene, normally 0, exactly as every other page of
+                // the render does, and the capture starts when scene captureFromScene begins: with the render deterministic, the
+                // pages meet frame for frame. Without it, a later range plays the scene before it first (uncaptured).
+                start() {
+                    if (!prepared) return Promise.reject(new Error('Call renderMode.prepare() first.'));
+                    if (prepared.preflight.refused) {
+                        return Promise.reject(new Error(`${prepared.preflight.missing.length} scene(s) would have no visual: ${prepared.preflight.missing.map(m => `Scene ${m.index + 1} "${m.title}"`).join(', ')}.`));
+                    }
+                    if (renderRuntime.started) return Promise.reject(new Error('This page has already started its render.'));
+                    renderRuntime.markStart();
+                    // a whole-lesson pre-roll draws the clips' images from the scene before the range's first one (cheaper frames
+                    // until then; the transition into the range then snapshots exactly what the page before it captured)
+                    if (config.captureFromScene !== null && config.captureFromScene > config.fromScene) {
+                        const firstOfRange = sceneHidden(slides[config.captureFromScene]) ? nextPlayableScene(config.captureFromScene, 1) : config.captureFromScene;
+                        const before = firstOfRange === -1 ? -1 : nextPlayableScene(firstOfRange, -1);
+                        renderRuntime.presentFrom(before >= config.fromScene ? before : null);
+                    }
+                    isAutoExporting = true;
+                    document.body.dataset.mode = 'exporting';
+                    startOverlay.style.display = 'none';
+                    ttsState.isMuted = false;
+                    window.exportSceneLog = [];
+                    window.exportCaptionLog = [];
+                    window.exportNotes = [];
+                    window.recordingNoteKeys = new Set();
+                    window.exportStartTime = Date.now();
+                    const track = document.getElementById('subtitle-track');
+                    if (track) { track.classList.remove('active'); track.textContent = ''; }
+                    startCaptionLog();
+                    mascot.resetMetrics();
+                    const from = config.fromScene;
+                    if (!from) {
+                        startPresentationSequence(true);
+                    } else if (config.captureFromScene !== null) {
+                        const first = sceneHidden(slides[from]) ? nextPlayableScene(from, 1) : from;
+                        startLessonAt(first !== -1 ? first : from);
+                    } else {
+                        const first = sceneHidden(slides[from]) ? nextPlayableScene(from, 1) : from;
+                        const before = config.preroll ? nextPlayableScene(from, -1) : -1;
+                        startLessonAt(before !== -1 ? before : (first !== -1 ? first : from));
+                    }
+                    return Promise.resolve();
+                },
+                // Applies the frame at virtual time tMs (ms from start()): { scene, done, captureFrom, waitedMs }
+                frameReady(tMs) {
+                    return renderRuntime.frameReady(tMs);
+                },
+                // Seconds from the range's first captured frame: { scenes, cues, audio, sync, notes, fps }
+                timeline() {
+                    const cues = (window.exportCaptionLog || []).map(c => ({ start: c.start, end: c.end, text: c.text }));
+                    const open = cues[cues.length - 1];
+                    if (open && open.end === null) open.end = Math.round(captionClock() * 1000) / 1000; // a caption still on screen
+                    return renderRuntime.timeline(cues);
+                },
+                // (the page's own calls: renderSlide, the lesson's end, what a recording leaves out, [SYNC] reveals)
+                sceneBegan(index) {
+                    const s = slides[index] || {};
+                    renderRuntime.sceneBegan(index, s.title || `Scene ${index + 1}`, s.type || null);
+                },
+                lessonEnded() { renderRuntime.lessonEnded(); },
+                note(index, text) { renderRuntime.note(index, text); },
+                noteSync(kind, target, extra) { renderRuntime.noteSync(null, kind, target, extra); }
+            };
+            // a synchronized cinematic scene's moments (reveals, labels, emphasis, camera) go into the timeline too
+            const fireSync = cinematicStage.fireSync.bind(cinematicStage);
+            cinematicStage.fireSync = rec => {
+                try {
+                    const ev = (rec && rec.ev) || {};
+                    renderRuntime.noteSync(null, ev.type, ev.target === undefined ? null : ev.target, rec && rec.pos ? { pos: rec.pos } : null);
+                } catch (e) { /* the timeline never stops a moment */ }
+                return fireSync(rec);
+            };
+        }
 
 
         // --- Publishing Companion: Practice Sheet ---

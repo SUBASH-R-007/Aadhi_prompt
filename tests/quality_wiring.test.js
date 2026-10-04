@@ -35,13 +35,13 @@ test('the stale key covers everything the checks read, without what changes on i
 
 test('before an export the findings have their own heading; the export is never blocked by an optional check', () => {
     const start = page.indexOf('async function prepareLessonForExport(');
-    const prep = page.slice(start, page.indexOf('return { warnings, quality };', start) + 40);
+    const prep = page.slice(start, page.indexOf('return { warnings, quality, missing };', start) + 40);
     assert.match(prep, /const key = lessonQualityKey\(\);\s*rememberQualityInputs\(\);\s*const report = await cinematicApi\.quality\(slides, cinematicPlanSettings\(\), currentProjectId \|\| null, lessonConceptMap\(\)\);/);
     assert.match(prep, /\['blocking', 'error', 'warning'\]\.includes\(f\.severity\)/);
     assert.match(prep, /const listed = new Set\(\['media\.missing', 'style\.background_fallback'\]\);/, 'what the warnings already list is not repeated');
     assert.match(prep, /\} catch \(e\) \{\s*console\.warn\('The lesson quality could not be checked before the export:', e\);/);
-    assert.ok(prep.includes('return { warnings, quality };'));
-    assert.match(exporter, /const \{ warnings, quality = \[\] \} = await this\.hooks\.prepare\(/);
+    assert.ok(prep.includes('return { warnings, quality, missing };')); // (Phase 22: and the scenes that would have no visual)
+    assert.match(exporter, /const prepared = await this\.hooks\.prepare\(/); // (Phase 22: the result also lists missing visuals)
     assert.match(exporter, /The quality check found things to review \(Visual Review → Quality\):/);
-    assert.match(exporter, /if \(warnings\.length \|\| notes\.length\) \{/);
+    assert.match(exporter, /if \(missing\.length \|\| warnings\.length \|\| notes\.length\) \{/);
 });

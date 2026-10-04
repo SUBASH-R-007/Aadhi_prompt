@@ -80,6 +80,40 @@ test('the panel is "Your videos": the finished export comes first, Download is t
     assert.equal(panel.startButton.className, 'btn-gold export-start-btn ui-focusable');
 });
 
+test('with the server render: "Render video (recommended)" comes first and "Record the screen" second (Phase 22)', () => {
+    const { panel } = realPanel();
+    let rendered = 0;
+    let recorded = 0;
+    panel.setLesson({ title: 'Stress — Lesson 1', canExport: true }, () => recorded++, () => rendered++);
+    assert.equal(panel.renderButton.hidden, false);
+    assert.equal(panel.renderButton.textContent, 'Render video (recommended)');
+    assert.equal(panel.renderButton.className, 'btn-gold export-render-btn ui-focusable');
+    assert.equal(panel.startButton.textContent, 'Record the screen');
+    assert.equal(panel.startButton.className, 'export-action export-action-secondary export-start-btn ui-focusable');
+    assert.match(panel.startHint.textContent, /^Render video makes a 1080p MP4 on the server, frame by frame; it keeps going if you close this page\./);
+    const buttons = panel.startSection.querySelectorAll('button');
+    assert.deepEqual(buttons.map(b => b.textContent), ['Render video (recommended)', 'Record the screen']); // the recommended one first
+    panel.renderButton.onclick();
+    panel.startButton.onclick();
+    assert.deepEqual([rendered, recorded], [1, 1]);
+    panel.setBusy(true);
+    assert.ok(panel.renderButton.disabled && panel.startButton.disabled);
+    panel.setBusy(false);
+
+    // once a rendered video is shown, Download is the main action and "Render again" the second
+    panel.showReady({ ...VIDEO, format: 'mp4', height: 1080 }, [{ label: '⬇ Download Video (MP4)', primary: true, onClick: noop }], null, { finished: true });
+    assert.equal(panel.renderButton.textContent, 'Render again');
+    assert.equal(panel.renderButton.className, 'export-action export-action-secondary export-render-btn ui-focusable');
+    assert.equal(panel.startButton.textContent, 'Record the screen');
+    assert.equal(panel.startHint.hidden, true);
+    assert.match(panel.readyMeta.textContent, /MP4 video · 1080p/);
+
+    // without the render (no render action given): the one recording button, as before
+    panel.setLesson({ title: 'Stress — Lesson 1', canExport: true }, noop);
+    assert.equal(panel.renderButton.hidden, true);
+    assert.equal(panel.startButton.textContent, '● Export again');
+});
+
 test('progress steps say their state in words, and the preview shows its first frame', () => {
     const { panel } = realPanel();
     panel.beginRun([['prepare', 'Preparing lesson'], ['upload', 'Uploading video']]);

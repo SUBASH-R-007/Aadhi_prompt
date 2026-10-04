@@ -26,7 +26,7 @@ function between(start, end, from = 0) {
 const renderSlide = between('function renderSlide(index) {', 'document.addEventListener(\'keydown\'');
 const checkAndAdvance = between('window.checkAndAdvanceSlide = () => {', '// Instantly kill any currently playing');
 const finalize = between('const finalizeSlideAnimations = () => {', '}; // End of finalizeSlideAnimations');
-const prepare = between('async function prepareLessonForExport(', 'return { warnings, quality };');
+const prepare = between('async function prepareLessonForExport(', 'return { warnings, quality, missing };');
 const helpersSource = between('function sceneEditOf(scene) {', '// The caption line follows the editor');
 const captionsSource = between('function applySceneCaptions(scene, clearLine) {', '// The scene\'s own clock');
 const clockSource = between('const sceneClock = {', '// Scene dots and progress lines');
@@ -279,7 +279,8 @@ test('an export loads, reports and records nothing for a hidden scene', () => {
     // a library asset only a hidden scene uses is not reported missing (old lessons: nothing is filtered)
     assert.match(prepare, /const playedAssetIds = new Set\(AadhiAssets\.collectAssetIds\(playedScenes\(\)\)\);\s*const hiddenOnlyIds = new Set\(AadhiAssets\.collectAssetIds\(slides\.filter\(sceneHidden\)\)\.filter\(id => !playedAssetIds\.has\(id\)\)\);\s*assetCheck\.missing\.filter\(id => !hiddenOnlyIds\.has\(id\)\)\.forEach\(id => \{/);
     assert.match(prepare, /run: \(\) => mascot\.preload\(AadhiMascot\.requiredAssetKeys\(playedScenes\(\)\)\)/);
-    assert.equal((prepare.match(/slides\.forEach\(\(s, i\) => \{\s*if \(sceneHidden\(s\)\) return;/g) || []).length, 2, 'backgrounds and every scene asset');
+    assert.equal((prepare.match(/slides\.forEach\(\(s, i\) => \{\s*if \(sceneHidden\(s\)\) return;/g) || []).length, 3,
+        'backgrounds, every scene asset and (Phase 22) the scenes that would have no visual');
     assert.match(prepare, /const hiddenNeedsAiVideo = slides\.some\(\(s, i\) => sceneHidden\(s\) && needsAiVideo\(s, i\)\);\s*if \(currentProjectId && mode === 'all' && !hiddenNeedsAiVideo && slides\.some\(needsAiVideo\)\) \{/);
     assert.match(page, /\.filter\(f => !\(Number\.isInteger\(f\.scene\) && sceneHidden\(slides\[f\.scene\]\)\)\)/, 'no quality note about a hidden scene');
     // the chapters come from the scenes drawn (renderSlide), so a scene never played is never logged

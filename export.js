@@ -10,6 +10,13 @@
  * goes the recording's timeline (scene starts, narration lines as shown) for the server's
  * subtitles, chapters and MP4 copy.
  *
+ * Phase 22: "Render video (recommended)" asks the server to render the saved lesson frame by frame
+ * (POST /api/exports/render, renders.py): a 1080p MP4 that does not depend on this tab, so it keeps
+ * going if the panel or the page is closed; the panel follows it through the export's `render`
+ * progress and picks it up again when it is opened later. "Record the screen" is the tab recording
+ * above, kept as it was. Scenes without a visual are never recorded or rendered silently: the
+ * teacher chooses to go on without those visuals, or cancels.
+ *
  * Loaded as a classic <script> (window.AadhiExport) and as a CommonJS module by the Node
  * unit tests in tests/export.test.js.
  */
@@ -45,6 +52,18 @@
     const TAIL_MS = 1500;       // keep recording briefly after the last scene so its final words and frame are kept
     const CHUNK_BYTES = 8 * 1024 * 1024;
     const REPORT_EVERY_MS = 2000;
+    const RENDER_POLL_MS = 2000;     // how often a server render's progress is read
+    const RENDER_POLL_FAILURES = 30; // reads in a row that may fail (the server restarting) before the panel gives up following
+    const ACTIVE_STATUSES = ['QUEUED', 'PREPARING', 'RECORDING', 'UPLOADING', 'PROCESSING'];
+    const RENDER_STEPS = [
+        ['prepare', 'Preparing the lesson'],
+        ['render', 'Rendering the video'],
+        ['mix', 'Mixing the sound'],
+        ['save', 'Saving the video']
+    ];
+    const RENDER_PHASE_STEPS = { preparing: 'prepare', capturing: 'render', mixing: 'mix', finishing: 'save' };
+    const RENDER_SETTINGS_KEYS = ['aadhi.cinematic', 'aadhi.presenter']; // the teacher's playback settings a render page restores
+    const AI_VISUALS_MODES = ['images', 'all', 'off'];
 
     class ExportError extends Error {
         // status: the export status to record (FAILED or CANCELLED).
@@ -214,6 +233,9 @@
         complete(id, body) { return this.request('POST', `/api/exports/${id}/complete`, body); }
         retryMp4(id) { return this.request('POST', `/api/exports/${id}/outputs/mp4`); }
         received(id) { return this.request('GET', `/api/exports/${id}/upload`).then(data => data.received); }
+        // Phase 22: a server render ({project_id, missing_visuals, page_settings, retry_of_id}); cancelled like any export
+        render(body) { return this.request('POST', '/api/exports/render', body); }
+        cancel(id) { return this.update(id, { status: 'CANCELLED' }); }
 
         // XHR rather than fetch: only XHR reports upload progress
         sendChunk(id, offset, chunk, total, onProgress) {
@@ -487,9 +509,12 @@
             doc.querySelectorAll('[data-export-runtime]').forEach(node => node.remove());
 
             this.lessonTitle = h('div', { class: 'export-lesson-title' });
+            // Phase 22: "Render video (recommended)" (the server renders it) and "Record the screen" (this tab is recorded);
+            // without a render action (setLesson), the one button records as before
+            this.renderButton = h('button', { type: 'button', class: 'btn-gold export-render-btn ui-focusable', text: 'Render video (recommended)', hidden: true });
             this.startButton = h('button', { type: 'button', class: 'btn-gold export-start-btn ui-focusable', text: '● Export video' });
             this.startHint = h('p', { class: 'export-hint', text: 'The lesson plays from the start while this tab is recorded (it takes as long as the lesson), then the video is saved to your account.' });
-            this.startSection = h('section', { class: 'export-start', 'aria-label': 'Export this lesson' }, this.lessonTitle, this.startButton, this.startHint);
+            this.startSection = h('section', { class: 'export-start', 'aria-label': 'Export this lesson' }, this.lessonTitle, this.renderButton, this.startButton, this.startHint);
 
             this.stepsEl = h('ol', { class: 'export-steps', 'aria-label': 'Export progress' });
             this.messageEl = h('div', { class: 'export-message', role: 'status', 'aria-live': 'polite' });
@@ -590,24 +615,42 @@
             if (this.root) this.root.classList.remove('recording-hidden');
         }
 
-        setLesson(info, onStart) {
+        // onRender (Phase 22): the server render, offered first as the recommended way; onStart records the screen
+        setLesson(info, onStart, onRender = null) {
             this.build();
             this.startSection.hidden = !info.canExport;
             this.lessonTitle.textContent = info.title || '';
             this.startButton.onclick = onStart;
+            this.renderButton.onclick = onRender;
+            this.canRender = typeof onRender === 'function';
             this.updateStart();
         }
 
         setBusy(busy) {
             this.build();
             this.startButton.disabled = busy;
+            this.renderButton.disabled = busy;
         }
 
-        // The start button is the panel's main action until a video is shown; then Download is, and this one is secondary
+        // The start button is the panel's main action until a video is shown; then Download is, and this one is secondary.
+        // With the server render, "Render video (recommended)" is the main start action and "Record the screen" the second.
         updateStart(again = this.exported) {
             const videoShown = !!this.videoShown;
-            this.startButton.className = videoShown ? 'export-action export-action-secondary export-start-btn ui-focusable' : 'btn-gold export-start-btn ui-focusable';
-            this.startButton.textContent = videoShown && again ? '● Export again' : '● Export video';
+            const main = 'btn-gold';
+            const second = 'export-action export-action-secondary';
+            this.renderButton.hidden = !this.canRender;
+            if (this.canRender) {
+                this.renderButton.className = `${videoShown ? second : main} export-render-btn ui-focusable`;
+                this.renderButton.textContent = videoShown && again ? 'Render again' : 'Render video (recommended)';
+                this.startButton.className = `${second} export-start-btn ui-focusable`;
+                this.startButton.textContent = 'Record the screen';
+                this.startHint.textContent = 'Render video makes a 1080p MP4 on the server, frame by frame; it keeps going if you close this page. '
+                    + 'Record the screen plays the lesson in this tab and records it (it takes as long as the lesson).';
+            } else {
+                this.startButton.className = `${videoShown ? second : main} export-start-btn ui-focusable`;
+                this.startButton.textContent = videoShown && again ? '● Export again' : '● Export video';
+                this.startHint.textContent = 'The lesson plays from the start while this tab is recorded (it takes as long as the lesson), then the video is saved to your account.';
+            }
             this.startHint.hidden = videoShown;
         }
 
@@ -822,6 +865,10 @@
     //                         version a lesson export records; sent with the timeline, kept by the server with the video
     //   lessonFingerprint()   optional (Phase 20) -> the open lesson's current fingerprint | null (may be async): the history
     //                         then says which of its videos match the lesson as it is now
+    //   renderSettings()      optional (Phase 22) -> { tts_engine, voice, gemini_voice, rate }: the voice settings the page
+    //                         plays with, sent with a server render (with the 'aadhi.cinematic', 'aadhi.presenter' and
+    //                         'aadhi_ai_visuals' settings this browser keeps) so the render sounds and looks like the preview
+    // prepare() may also give missing: [{ index, title, reason }] (or plain strings): scenes that have no visual yet
     // Frames the page actually painted while recording (requestAnimationFrame), to tell a busy page
     // (long gaps between frames) from a clip that stalls on its own
     function watchFrames(win) {
@@ -849,6 +896,19 @@
                 return Object.assign(stats, { seconds, fps: seconds ? Math.round(stats.frames / seconds * 10) / 10 : 0 });
             }
         };
+    }
+
+    // Scenes without a visual, in words ('Scene 4 "Loads in the real world": no AI video yet')
+    function missingList(missing) {
+        if (!Array.isArray(missing)) return [];
+        return missing.map(item => {
+            if (typeof item === 'string') return item.trim();
+            if (!item || typeof item !== 'object') return '';
+            const name = Number.isInteger(item.index) ? `Scene ${item.index + 1}` : 'A scene';
+            const title = typeof item.title === 'string' && item.title.trim() ? ` "${item.title.trim()}"` : '';
+            const reason = typeof item.reason === 'string' && item.reason.trim() ? `: ${item.reason.trim()}` : '';
+            return `${name}${title}${reason}`;
+        }).filter(Boolean);
     }
 
     class ExportFlow {
@@ -899,7 +959,8 @@
 
         open() {
             this.panel.open();
-            this.panel.setLesson(this.hooks.lessonInfo(), () => this.startLessonExport());
+            this.panel.setLesson(this.hooks.lessonInfo(), () => this.startLessonExport(),
+                typeof this.api.render === 'function' ? () => this.startRender() : null);
             this.panel.setBusy(this.busy);
             return this.refreshHistory();
         }
@@ -935,20 +996,30 @@
                 const projectId = await this.hooks.ensureProject();
                 this.job = await this.api.create({ project_id: projectId, title: info.title, source: 'lesson', retry_of_id: retryOf || null });
                 await this.report({ status: 'PREPARING', stage: 'Loading lesson assets', progress: 0 });
-                const { warnings, quality = [] } = await this.hooks.prepare((done, total, label) => {
+                const prepared = await this.hooks.prepare((done, total, label) => {
                     const progress = total ? done / total : null;
                     panel.step('prepare', 'active', `${label} (${done} of ${total})`, progress);
                     this.reportSoon({ stage: `Loading lesson assets (${done} of ${total})`, progress });
                 });
+                const missing = missingList(prepared.missing);
+                // the older warning about a scene without its video is not repeated next to the missing-visual list
+                const missingScenes = (Array.isArray(prepared.missing) ? prepared.missing : []).map(m => m && Number.isInteger(m.index) ? `Scene ${m.index + 1}` : null).filter(Boolean);
+                const warnings = (prepared.warnings || []).filter(w => !(typeof w === 'string' && /no (ai )?(video|visual|animation)/i.test(w)
+                    && missingScenes.some(name => w.startsWith(`${name} `) || w.startsWith(`${name}:`))));
+                const { quality = [] } = prepared;
                 panel.step('prepare', 'done', warnings.length ? `${warnings.length} item(s) could not be prepared` : 'Everything the lesson needs is loaded');
                 // Phase 18: what the lesson's quality check found, under its own heading (it never stops the export)
                 const notes = Array.isArray(quality) ? quality.filter(q => typeof q === 'string' && q).slice(0, 12) : [];
-                if (warnings.length || notes.length) {
-                    const parts = [];
-                    if (warnings.length) parts.push('Some parts of the lesson could not be prepared. They will look the same as they do when you play the lesson:\n• ' + warnings.join('\n• '));
-                    if (notes.length) parts.push('The quality check found things to review (Visual Review → Quality):\n• ' + notes.join('\n• '));
-                    const go = await panel.ask(parts.join('\n\n'),
-                        [{ label: 'Record anyway', value: true, primary: true }, { label: 'Cancel', value: false }]);
+                const parts = [];
+                if (missing.length) parts.push('These scenes have no visual yet. If you go on, they are recorded without one (the rest of each scene stays as it is):\n• ' + missing.join('\n• '));
+                if (warnings.length) parts.push('Some parts of the lesson could not be prepared. They will look the same as they do when you play the lesson:\n• ' + warnings.join('\n• '));
+                if (notes.length) parts.push('The quality check found things to review (Visual Review → Quality):\n• ' + notes.join('\n• '));
+                if (missing.length || warnings.length || notes.length) {
+                    // Phase 22: a missing visual is the teacher's decision, never a default ("Record anyway" only for the rest)
+                    const buttons = missing.length
+                        ? [{ label: 'Record without these visuals', value: true }, { label: 'Cancel', value: false, primary: true }]
+                        : [{ label: 'Record anyway', value: true, primary: true }, { label: 'Cancel', value: false }];
+                    const go = await panel.ask(parts.join('\n\n'), buttons);
                     if (!go) throw new ExportError('The export was cancelled before recording.', { status: 'CANCELLED' });
                 }
                 this.lessonLink = await this.readLessonLink(); // the lesson as it is about to be recorded
@@ -970,6 +1041,160 @@
             } finally {
                 this.end();
             }
+        }
+
+        // ---- Phase 22: the server render ----
+
+        // "Render video (recommended)": the server renders the saved lesson; the panel follows its progress. missingVisuals:
+        // 'refuse' (scenes without a visual stop it, and the teacher is asked) or 'omit' (they are rendered without one)
+        async startRender(retryOf = null, missingVisuals = 'refuse') {
+            if (this.busy) return this.panel.open();
+            this.begin('render', RENDER_STEPS);
+            try {
+                const info = this.hooks.lessonInfo();
+                if (!info.sceneCount) throw new ExportError('Open a lesson before exporting it.');
+                this.panel.step('prepare', 'active', 'Saving the lesson', null);
+                const projectId = await this.hooks.ensureProject();
+                // the editor's pending changes are saved first, as for a recording (lessonLink flushes the autosave), so the
+                // server renders the lesson exactly as it is on screen
+                await this.readLessonLink();
+                let missing = missingVisuals;
+                let retry = retryOf || null;
+                for (;;) {
+                    this.job = await this.api.render({ project_id: projectId, missing_visuals: missing, page_settings: this.pageSettings(), retry_of_id: retry });
+                    const outcome = await this.followRender(this.job);
+                    if (outcome !== 'omit') break;
+                    missing = 'omit'; // the teacher chose to render without the missing visuals: a new render, linked to the refused one
+                    retry = this.job.id;
+                    this.panel.beginRun(RENDER_STEPS);
+                }
+            } catch (err) {
+                await this.fail(err);
+            } finally {
+                this.end();
+            }
+        }
+
+        // A render still running on the server (the page was closed or reloaded meanwhile): followed again
+        async resumeRender(exp) {
+            if (this.busy) return;
+            this.begin('render', RENDER_STEPS);
+            this.job = exp;
+            let outcome = null;
+            try {
+                outcome = await this.followRender(exp);
+            } catch (err) {
+                await this.fail(err);
+            } finally {
+                this.end();
+            }
+            if (outcome === 'omit') return this.startRender(exp.id, 'omit');
+            return outcome;
+        }
+
+        // Follows a render until it ends: 'done' (the video is shown), 'omit' (it stopped at scenes without a visual and the
+        // teacher chose to render without them), null (another follow replaced this one); a failure or cancel is thrown
+        async followRender(job) {
+            const watch = this._renderWatch = (this._renderWatch || 0) + 1;
+            this.panel.setActions([{ label: 'Cancel render', onClick: () => this.cancelRender(job.id) },
+                { label: 'Close', onClick: () => this.panel.close() }]);
+            this.panel.message('The video is rendered on the server. You can close this panel or this page: it keeps going, and the video appears in your list when it is ready.');
+            let latest = job;
+            let failures = 0;
+            for (;;) {
+                this.showRenderProgress(latest);
+                if (!ACTIVE_STATUSES.includes(latest.status)) break;
+                await this.wait(RENDER_POLL_MS);
+                if (watch !== this._renderWatch) return null;
+                try {
+                    latest = await this.api.get(job.id);
+                    failures = 0;
+                } catch (err) {
+                    if (++failures >= RENDER_POLL_FAILURES) {
+                        throw new ExportError(['The progress of the render could not be read.', plainReason(err),
+                            'The server keeps rendering; open Your videos again later to see it.'].filter(Boolean).join(' '), { detail: err });
+                    }
+                }
+            }
+            this.job = latest;
+            this._renderEnded = this._renderEnded || new Set();
+            this._renderEnded.add(job.id); // a listing read before it ended must not start following it again
+            const render = latest.render || {};
+            if (latest.status === 'COMPLETED') {
+                RENDER_STEPS.forEach(([key]) => this.panel.step(key, 'done'));
+                this.panel.message('');
+                this.showReady(latest);
+                this.refreshHistory();
+                return 'done';
+            }
+            if (render.error_code === 'missing_visuals') {
+                const scenes = missingList(render.missing);
+                this.panel.step('prepare', 'failed');
+                const go = await this.panel.ask(['These scenes have no visual yet, so the video was not rendered:', ...scenes.map(s => `• ${s}`),
+                    '', 'Render without these visuals (the rest of each scene stays as it is), or cancel and add the visuals first.'].join('\n'),
+                [{ label: 'Render without these visuals', value: true }, { label: 'Cancel', value: false, primary: true }]);
+                if (go) return 'omit';
+                throw new ExportError('The render was cancelled before it started. Your lesson is unchanged.', { status: 'CANCELLED' });
+            }
+            if (latest.status === 'CANCELLED') {
+                throw new ExportError(latest.error_message || 'The render was cancelled. Your lesson is unchanged.', { status: 'CANCELLED' });
+            }
+            throw new ExportError(latest.error_message || 'The video could not be rendered. Your lesson is unchanged; try again.');
+        }
+
+        // The render's phase on the steps, in words (phase: preparing → capturing → mixing → finishing)
+        showRenderProgress(exp) {
+            const render = exp.render || {};
+            const current = RENDER_PHASE_STEPS[render.phase] || (exp.status === 'COMPLETED' ? null : 'prepare');
+            const at = RENDER_STEPS.findIndex(([key]) => key === current);
+            RENDER_STEPS.forEach(([key], i) => {
+                if (current === null || i < at) this.panel.step(key, 'done');
+                else if (i === at) this.panel.step(key, 'active', render.message || exp.stage || '', key === 'render' && typeof exp.progress === 'number' ? exp.progress : null);
+                else this.panel.step(key, 'pending');
+            });
+        }
+
+        async cancelRender(id) {
+            try {
+                const job = await this.api.cancel(id);
+                if (job) this.job = job;
+                this.panel.message('Cancelling the render…');
+            } catch (err) {
+                this.notify(this.explain('The render could not be cancelled.', err, 'Try again in a moment.'));
+            }
+        }
+
+        // What the render page restores so the video looks and sounds like this browser's preview: the cinematic and
+        // presenter settings, the AI-visuals mode, and the voice settings (renderSettings hook). Nothing else.
+        pageSettings() {
+            const out = {};
+            let storage = null;
+            try { storage = this.win && this.win.localStorage; } catch (e) { storage = null; }
+            if (storage) {
+                RENDER_SETTINGS_KEYS.forEach(key => {
+                    try {
+                        const value = JSON.parse(storage.getItem(key) || 'null');
+                        if (value && typeof value === 'object' && !Array.isArray(value)) out[key] = value;
+                    } catch (e) { /* unreadable: the defaults */ }
+                });
+                try {
+                    const mode = storage.getItem('aadhi_ai_visuals');
+                    if (AI_VISUALS_MODES.includes(mode)) out.aadhi_ai_visuals = mode;
+                } catch (e) { /* blocked */ }
+            }
+            if (typeof this.hooks.renderSettings === 'function') {
+                try {
+                    const s = this.hooks.renderSettings() || {};
+                    ['tts_engine', 'voice', 'gemini_voice'].forEach(key => {
+                        if (typeof s[key] === 'string' && s[key]) out[key] = s[key];
+                    });
+                    if (typeof s.rate === 'number' && Number.isFinite(s.rate)) out.rate = Math.min(1.5, Math.max(0.5, s.rate));
+                } catch (e) { /* the page's defaults */ }
+            }
+            // never more than the server takes (16 KB of compact UTF-8 JSON, measured the same way there)
+            const size = value => (typeof TextEncoder === 'function' ? new TextEncoder().encode(JSON.stringify(value)).length : JSON.stringify(value).length * 3);
+            if (size(out) > 15000) RENDER_SETTINGS_KEYS.forEach(key => { delete out[key]; });
+            return out;
         }
 
         // The ● button: record whatever happens on screen until it is pressed again
@@ -1176,14 +1401,19 @@
                 : new ExportError(['Something went wrong during the export.', plainReason(err), 'Your lesson is still saved; you can retry.'].filter(Boolean).join(' '), { detail: err });
             if (error.status === 'CANCELLED') console.info('[export]', error.message); // the user's own choice, not a fault
             else console.error('[export]', error.message, error.detail || '');
-            if (this.job && !error.retryUpload) {
-                // Already final on the server when it rejected the file itself
+            if (this.job && !error.retryUpload && this.mode !== 'render') {
+                // Already final on the server when it rejected the file itself (a server render is always settled by the server)
                 await this.api.update(this.job.id, { status: error.status, error_message: error.message }).catch(() => {});
             }
             this.panel.failActive(this.isDebug() && error.detail ? `${error.message}\n\nDetails: ${technicalDetail(error.detail)}` : error.message);
             const actions = [];
             if (error.retryUpload) actions.push({ label: 'Retry upload', primary: true, onClick: () => this.retryUpload() });
-            actions.push({ label: this.mode === 'manual' ? 'Record again' : 'Retry export', primary: !error.retryUpload, onClick: () => this.retry() });
+            if (this.mode === 'render') {
+                actions.push({ label: 'Render again', primary: true, onClick: () => this.retry() });
+                actions.push({ label: 'Record the screen', onClick: () => this.startLessonExport() });
+            } else {
+                actions.push({ label: this.mode === 'manual' ? 'Record again' : 'Retry export', primary: !error.retryUpload, onClick: () => this.retry() });
+            }
             actions.push({ label: 'Close', onClick: () => this.panel.close() });
             this.panel.setActions(actions);
             this.refreshHistory();
@@ -1192,6 +1422,7 @@
         retry() {
             const previous = this.job && this.job.id;
             if (this.mode === 'manual') return this.toggleManualRecording();
+            if (this.mode === 'render') return this.startRender(previous);
             return this.startLessonExport(previous);
         }
 
@@ -1226,7 +1457,7 @@
 
         outputNote(exp) {
             const mp4 = (exp.outputs || {}).mp4;
-            if (!mp4 || mp4.status === 'ready') return null;
+            if (!mp4 || mp4.status === 'ready' || exp.format === 'mp4') return null; // a rendered video is an MP4 itself
             if (mp4.status === 'pending' || mp4.status === 'processing') return { text: 'Making an MP4 copy… (the video above is already saved)' };
             // The server's reason (e.g. what ffmpeg said) only in debug mode
             const detail = this.isDebug() && mp4.error ? ` (${mp4.error})` : '';
@@ -1235,7 +1466,7 @@
         }
 
         showReady(exp) {
-            const withExtras = this.mode === 'lesson' && exp.id === (this.job && this.job.id);
+            const withExtras = (this.mode === 'lesson' || this.mode === 'render') && exp.id === (this.job && this.job.id);
             this.panel.showReady(exp, this.readyActions(exp, withExtras), this.outputNote(exp), { finished: true });
             this.loadPreview(exp);
             this.watchOutputs(exp, withExtras);
@@ -1330,6 +1561,10 @@
                 const lessonOnly = !!projectId && this.historyScope === 'lesson';
                 const [data, fingerprint] = await Promise.all([lessonOnly ? this.api.list(projectId) : this.api.list(), this.currentFingerprint()]);
                 if (seq !== this._historySeq) return; // a newer refresh (or a switch) replaces this one
+                // Phase 22: a render still running on the server (started before this page was opened) is followed again
+                const ended = this._renderEnded || new Set();
+                const running = !this.busy && (data.exports || []).find(e => e.render && ACTIVE_STATUSES.includes(e.status) && !ended.has(e.id));
+                if (running) this.resumeRender(running);
                 this.panel.renderHistory(data.exports, {
                     onRefresh: () => this.refreshHistory(),
                     onPreview: exp => this.preview(exp),
@@ -1386,6 +1621,8 @@
         retryFor(exp) {
             const info = this.hooks.lessonInfo();
             if (exp.source === 'lesson' && exp.project_id && exp.project_id === info.projectId && info.canExport) {
+                // a server render is retried as a render (Phase 22), a recording as a recording
+                if (exp.render && typeof this.api.render === 'function') return { label: 'Render again', run: () => this.startRender(exp.id) };
                 return { label: 'Retry', run: () => this.startLessonExport(exp.id) };
             }
             if (exp.project_id) {
@@ -1413,6 +1650,8 @@
         formatName,
         plainReason,
         formatBytes,
+        missingList,
+        RENDER_STEPS,
         TAIL_MS,
         TIMESLICE_MS
     };

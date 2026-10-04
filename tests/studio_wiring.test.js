@@ -88,7 +88,10 @@ test('a still preview never outlives a pause (a silent or muted scene cannot swa
 });
 
 test('an export names the lesson as it is (the server fingerprint after pending edits are saved); history can say if it matches', () => {
-    assert.match(page, /lessonLink: async \(\) => \{\s*if \(!currentProjectId\) return null;/);
+    // (Phase 22: one function, shared by the tab capture's hook and the rendered export's renderMode.lessonLink)
+    assert.match(page, /async function exportLessonLink\(\) \{\s*if \(!currentProjectId\) return null;/);
+    assert.match(page, /lessonLink: exportLessonLink, \/\/ \(Phase 20, above\)/);
+    assert.match(page, /lessonLink: \(\) => renderRuntime\.pump\(exportLessonLink\(\)\),\n\s*\/\/ Plays the lesson for the render/);
     assert.match(page, /await lessonEditorSession\.autosave\.flush\(\);\s*const state = await studioFetch\('GET', `\/api\/studio\/lessons\/\$\{currentProjectId\}`\);/);
     assert.match(page, /\{ project_id: currentProjectId, fingerprint: state\.fingerprint, revision: String\(state\.revision \|\| ''\)\.slice\(0, 40\) \}/);
     assert.match(page, /lessonFingerprint: async \(\) => \{/);

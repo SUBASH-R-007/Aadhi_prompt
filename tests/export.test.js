@@ -574,3 +574,178 @@ test('MP4, subtitles and chapters are offered as they become ready', async () =>
     assert.deepEqual(shown.pop(), ['⬇ Download Video (WebM)', '⬇ MP4 copy', 'Subtitles (.vtt)', 'Chapters (.txt)']);
     assert.equal(notes.pop(), null);
 });
+
+// ---- Phase 22: the server render, and missing visuals as the teacher's choice ----------------------------------------
+
+// A fake server render: render() starts one; get() walks it through the given states (the last one stays)
+function withRender(setup, scripts) {
+    const { api, jobs, calls } = setup;
+    const runs = [];
+    api.render = async body => {
+        calls.push(['render', body]);
+        const job = { id: `render${runs.length + 1}`, status: 'RECORDING', source: 'lesson', project_id: body.project_id,
+            render: { phase: 'preparing', message: 'Preparing the lesson for rendering' } };
+        jobs[job.id] = job;
+        runs.push({ job, states: (scripts[runs.length] || []).slice() });
+        return { ...job };
+    };
+    const plainGet = api.get;
+    api.get = async id => {
+        const run = runs.find(r => r.job.id === id);
+        if (!run) return plainGet(id);
+        if (run.states.length) Object.assign(run.job, run.states.shift());
+        return { ...run.job };
+    };
+    api.cancel = async id => {
+        calls.push(['cancel', id]);
+        const run = runs.find(r => r.job.id === id);
+        run.states = [{ status: 'CANCELLED', error_message: 'The render was cancelled. Your lesson is unchanged.', render: { phase: 'cancelled', error_code: 'cancelled' } }];
+        return { ...run.job };
+    };
+    return runs;
+}
+
+function recordAsks(panel) {
+    const asks = [];
+    const ask = panel.ask;
+    panel.ask = (text, buttons) => { asks.push({ text, buttons }); return ask(text, buttons); };
+    return asks;
+}
+
+async function quietlyRun(run) {
+    const error = console.error;
+    console.error = () => {};
+    try { return await run(); } finally { console.error = error; }
+}
+
+const RENDERED = { status: 'COMPLETED', format: 'mp4', has_audio: true, render: { phase: 'done' }, outputs: { mp4: { status: 'unavailable' }, vtt: { status: 'ready' } } };
+
+test('render: the server renders the saved lesson and the panel follows it in words until the video is ready', async () => {
+    const setup = setupFlow();
+    const { flow, calls, panel } = setup;
+    withRender(setup, [[
+        { render: { phase: 'capturing', message: 'Rendering the video: scene 2 of 5, 0:41 of video so far', frames_done: 1230 }, progress: 0.4 },
+        { render: { phase: 'mixing', message: 'Mixing the narration and sound' } },
+        RENDERED]]);
+    await flow.startRender();
+    const render = calls.find(c => c[0] === 'render');
+    assert.deepEqual(render[1], { project_id: 7, missing_visuals: 'refuse', page_settings: {}, retry_of_id: null });
+    assert.ok(!calls.some(c => c[0] === 'update')); // the server settles a render; the page never reports its status
+    const steps = panel.calls.filter(c => c[0] === 'step');
+    assert.ok(steps.some(c => c[1] === 'render' && c[2] === 'active' && c[3] === 'Rendering the video: scene 2 of 5, 0:41 of video so far'));
+    assert.ok(steps.some(c => c[1] === 'mix' && c[2] === 'active'));
+    assert.deepEqual(['prepare', 'render', 'mix', 'save'].map(k => panel.steps[k]), ['done', 'done', 'done', 'done']);
+    assert.equal(panel.ready.id, 'render1');
+    assert.equal(flow.busy, false);
+    assert.equal(flow.outputNote(panel.ready), null); // the rendered video is an MP4 itself: no "MP4 copy" note
+    assert.equal(flow.readyActions(panel.ready, false)[0].label, '⬇ Download Video (MP4)');
+});
+
+test('render: scenes without a visual stop it, and rendering without them is the teacher\'s choice', async () => {
+    const missing = { status: 'FAILED', error_message: 'Not rendered: 1 scene has no visual yet.',
+        render: { phase: 'failed', error_code: 'missing_visuals', missing: [{ index: 3, title: 'Loads in the real world', reason: 'no AI video has been made for it yet' }] } };
+    const setup = setupFlow({ answers: [true] });
+    const runs = withRender(setup, [[missing], [RENDERED]]);
+    const asks = recordAsks(setup.panel);
+    await setup.flow.startRender();
+    assert.equal(asks.length, 1);
+    assert.match(asks[0].text, /Scene 4 "Loads in the real world": no AI video has been made for it yet/);
+    assert.deepEqual(asks[0].buttons.map(b => [b.label, !!b.primary]), [['Render without these visuals', false], ['Cancel', true]]);
+    const renders = setup.calls.filter(c => c[0] === 'render').map(c => c[1]);
+    assert.deepEqual(renders.map(r => [r.missing_visuals, r.retry_of_id]), [['refuse', null], ['omit', 'render1']]);
+    assert.equal(runs[1].job.status, 'COMPLETED');
+    assert.equal(setup.panel.ready.id, 'render2');
+
+    // Cancel (the safe answer) ends it plainly, with the other ways to go on
+    const declined = setupFlow({ answers: [false] });
+    withRender(declined, [[missing]]);
+    await declined.flow.startRender();
+    assert.equal(declined.calls.filter(c => c[0] === 'render').length, 1);
+    assert.equal(declined.panel.error, 'The render was cancelled before it started. Your lesson is unchanged.');
+    assert.deepEqual(declined.panel.actions.map(a => a.label), ['Render again', 'Record the screen', 'Close']);
+});
+
+test('render: a failed render says why in plain words; Render again is linked to it; Cancel render stops it on the server', async () => {
+    const setup = setupFlow();
+    withRender(setup, [[{ status: 'FAILED', error_message: 'The lesson page failed while it was being rendered. Your lesson is unchanged; try again.',
+        render: { phase: 'failed', error_code: 'page_error' } }], [RENDERED]]);
+    await quietlyRun(() => setup.flow.startRender());
+    assert.equal(setup.panel.error, 'The lesson page failed while it was being rendered. Your lesson is unchanged; try again.');
+    assert.deepEqual(setup.panel.actions.map(a => a.label), ['Render again', 'Record the screen', 'Close']);
+    await setup.panel.actions[0].onClick();
+    assert.equal(setup.calls.filter(c => c[0] === 'render')[1][1].retry_of_id, 'render1');
+    assert.equal(setup.panel.ready.id, 'render2');
+
+    const stopping = setupFlow();
+    withRender(stopping, [[{ render: { phase: 'capturing', message: 'Rendering the video' } }, { render: { phase: 'capturing', message: 'Rendering the video' } }]]);
+    stopping.panel.setActions = actions => {
+        stopping.panel.actions = actions;
+        const cancel = actions.find(a => a.label === 'Cancel render');
+        if (cancel && !stopping.clicked) { stopping.clicked = true; cancel.onClick(); }
+    };
+    await stopping.flow.startRender();
+    assert.deepEqual(stopping.calls.find(c => c[0] === 'cancel'), ['cancel', 'render1']);
+    assert.equal(stopping.panel.error, 'The render was cancelled. Your lesson is unchanged.');
+});
+
+test('render: a render still running when the panel is opened (the page was closed meanwhile) is followed again', async () => {
+    const setup = setupFlow();
+    withRender(setup, []);
+    setup.jobs.old = { id: 'old', status: 'RECORDING', source: 'lesson', project_id: 7, render: { phase: 'capturing', message: 'Rendering the video' } };
+    let reads = 0;
+    const plainGet = setup.api.get;
+    setup.api.get = async id => (id === 'old' ? (++reads < 2 ? { ...setup.jobs.old } : { ...setup.jobs.old, ...RENDERED }) : plainGet(id));
+    await setup.flow.open();
+    for (let i = 0; i < 20 && !setup.panel.ready; i++) await tick();
+    assert.equal(setup.panel.ready.id, 'old');
+    assert.equal(setup.flow.busy, false);
+    assert.equal(setup.calls.filter(c => c[0] === 'render').length, 0); // nothing started again
+    assert.equal(setup.flow.retryFor({ source: 'lesson', project_id: 7, status: 'FAILED', render: { phase: 'failed' } }).label, 'Render again');
+    assert.equal(setup.flow.retryFor({ source: 'lesson', project_id: 7, status: 'FAILED', render: null }).label, 'Retry');
+});
+
+test('render: the editor\'s pending changes are saved before the server renders the lesson', async () => {
+    const setup = setupFlow();
+    withRender(setup, [[RENDERED]]);
+    const order = [];
+    setup.flow.hooks.lessonLink = async () => { order.push('flush'); return { project_id: 7, fingerprint: 'c'.repeat(64), revision: 'r' }; };
+    const render = setup.api.render;
+    setup.api.render = async body => { order.push('render'); return render(body); };
+    await setup.flow.startRender();
+    assert.deepEqual(order, ['flush', 'render']);
+});
+
+test('render: only the whitelisted playback settings go with it (never the login or other keys)', () => {
+    const store = { jwt_token: 'secret', 'aadhi.cinematic': '{"family":"chalk","camera":"calm"}', 'aadhi.presenter': 'not json',
+        aadhi_ai_visuals: 'all', 'aadhi.studio.run': '{"x":1}' };
+    const win = { ...fakeWindow(() => {}), localStorage: { getItem: key => (key in store ? store[key] : null) } };
+    const { flow } = setupFlow({ win });
+    flow.hooks.renderSettings = () => ({ tts_engine: 'default', voice: 'en-US-GuyNeural', gemini_voice: 'Puck', rate: 3, extra: 'x' });
+    assert.deepEqual(flow.pageSettings(), { 'aadhi.cinematic': { family: 'chalk', camera: 'calm' }, aadhi_ai_visuals: 'all',
+        tts_engine: 'default', voice: 'en-US-GuyNeural', gemini_voice: 'Puck', rate: 1.5 });
+    const bare = setupFlow();
+    assert.deepEqual(bare.flow.pageSettings(), {}); // no storage, no hook: the server's defaults
+});
+
+test('tab capture: scenes without a visual are a choice too, and the older duplicate warning is not repeated', async () => {
+    const setup = setupFlow({ answers: [false] });
+    const asks = recordAsks(setup.panel);
+    setup.flow.hooks.prepare = async () => ({
+        warnings: ['Scene 4 "Loads": no video yet — generate its AI video in the preview first, or allow AI videos in the settings.',
+            'Scene 2 "Stress": the narration could not be prepared.'],
+        quality: [], missing: [{ index: 3, title: 'Loads', reason: 'no AI video has been made for it yet' }, 'Scene 6 "Wrap up": its animation could not be rendered']
+    });
+    await setup.flow.startLessonExport();
+    assert.equal(asks.length, 1);
+    assert.match(asks[0].text, /These scenes have no visual yet\. If you go on, they are recorded without one/);
+    assert.match(asks[0].text, /• Scene 4 "Loads": no AI video has been made for it yet\n• Scene 6 "Wrap up": its animation could not be rendered/);
+    assert.match(asks[0].text, /Scene 2 "Stress": the narration could not be prepared/);
+    assert.doesNotMatch(asks[0].text, /no video yet — generate/);
+    assert.deepEqual(asks[0].buttons.map(b => [b.label, !!b.primary]), [['Record without these visuals', false], ['Cancel', true]]);
+    assert.equal(setup.jobs.job1.status, 'CANCELLED');
+    // without missing visuals the other findings keep today's prompt
+    const plain = setupFlow({ warnings: ['Scene 2: the narration could not be prepared.'] });
+    const plainAsks = recordAsks(plain.panel);
+    await plain.flow.startLessonExport();
+    assert.deepEqual(plainAsks[0].buttons.map(b => b.label), ['Record anyway', 'Cancel']);
+});

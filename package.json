@@ -1,0 +1,8 @@
+{
+  "name": "aadhi-eduengine",
+  "private": true,
+  "description": "Node tooling for Aadhi EduEngine: the server-side render worker (Phase 22) and the browser checks.",
+  "dependencies": {
+    "playwright-core": "1.63.0"
+  }
+}

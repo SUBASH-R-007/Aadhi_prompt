@@ -376,5 +376,141 @@ class ExportOutputsApiTest(unittest.TestCase):
         self.assertLess(len(queries), 10)
 
 
+class RenderMixTest(unittest.TestCase):
+    """Phase 22: the sound of a server-rendered lesson, rebuilt from the sounds its page logged (export_outputs.mix_render)."""
+
+    NARRATION = {"t": 0.5, "kind": "narration", "src": "/static/a.wav?t=1", "rate": 0.9, "offset": 0}
+    TICK = {"t": 1.0, "kind": "sfx", "synth": {"type": "sine", "freq": 880, "gain": 0.15, "attack": 0.02, "floor": 0.0067, "duration": 0.15}}
+
+    def test_only_sounds_that_can_be_mixed_are_kept_with_their_length(self):
+        sounds = E.clean_sounds([
+            {"t": 1, "kind": "beep", "src": "/static/x.wav"}, {"t": -1, "kind": "narration", "src": "/static/x.wav"},
+            {"t": 9, "kind": "narration", "src": "/static/x.wav"}, {"t": 2, "kind": "narration"}, {"t": 2, "kind": "sfx"},
+            {"t": 0.2, "kind": "logo", "src": "/video_template/logo_animation.mp4", "end": 5.7},
+            {"t": 3, "kind": "video-voice", "src": "/static/v.mp4", "duration": 2, "offset": 1.5},
+            {"t": 4, "kind": "narration", "src": "/static/n.wav", "clipDuration": 2.5, "offset": 0.5, "rate": 0.8},
+            {"t": 1, "kind": "music", "src": "/video_template/bgm.mp3", "volume": 0.01},
+            {"t": 1, "kind": "narration", "src": "/static/r.wav", "rate": 9, "volume": -2}, self.TICK], 8.0)
+        self.assertEqual([(s["kind"], s["t"]) for s in sounds],
+                         [("logo", 0.2), ("narration", 1.0), ("music", 1.0), ("sfx", 1.0), ("video-voice", 3.0), ("narration", 4.0)])
+        logo, fast, music, tick, voice, narration = sounds
+        self.assertAlmostEqual(logo["length"], 5.5)
+        self.assertEqual((fast["rate"], fast["volume"], fast["length"]), (4.0, 0.0, None))  # clamped; plays until the next one
+        self.assertEqual((music["loop"], music["volume"], music["length"]), (True, 0.01, None))
+        self.assertEqual((tick["src"], tick["length"]), (None, 0.15))
+        self.assertEqual((voice["offset"], voice["length"]), (1.5, 2.0))
+        self.assertAlmostEqual(narration["length"], 2.5)  # (2.5 s clip - 0.5 s offset) at 0.8
+
+    def test_sounds_of_one_kind_follow_each_other_and_effects_that_overlap_get_their_own_lane(self):
+        narration = [{"t": 1.0, "kind": "narration", "src": "/static/a.wav"}, {"t": 3.0, "kind": "narration", "src": "/static/b.wav", "end": 4.0}]
+        effects = [{"t": 1.0, "kind": "sfx", "synth": {"freq": 440, "duration": 1.0}}, {"t": 1.5, "kind": "sfx", "synth": {"freq": 660, "duration": 0.5}},
+                   {"t": 2.5, "kind": "sfx", "synth": {"freq": 880, "duration": 0.2}}]
+        lanes = E.sound_lanes(E.clean_sounds(narration + effects, 5.0), 240000)
+        self.assertEqual([[(p["start"], p["length"]) for p in lane] for lane in lanes],
+                         [[(48000, 96000), (144000, 48000)],          # the first narration stops where the next begins
+                          [(48000, 48000), (120000, 9600)],           # the effects that do not overlap share a lane
+                          [(72000, 24000)]])
+
+    def test_the_mix_graph_is_exact_and_deterministic(self):
+        lanes = E.sound_lanes(E.clean_sounds([self.NARRATION, self.TICK], 2.0), 96000)
+        graph = E.mix_graph(lanes, 96000, {"/static/a.wav?t=1": "mix/s1.wav"})
+        fmt = "aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo"
+        silence = "anullsrc=r=48000:cl=stereo,atrim=end_sample={},aformat=sample_fmts=fltp:channel_layouts=stereo[{}]"
+        expected = ";\n".join([
+            silence.format(96000, "bed"),
+            silence.format(24000, "l0g0"),
+            f"amovie=mix/s1.wav,asetpts=PTS-STARTPTS,atempo=0.9,{fmt},apad=whole_len=72000,atrim=end_sample=72000,asetpts=N/SR/TB[l0p0]",
+            "[l0g0][l0p0]concat=n=2:v=0:a=1[lane0]",
+            silence.format(48000, "l1g0"),
+            "aevalsrc=exprs='if(lt(t,0.02),0.15*t/0.02,0.15*pow(0.0067,(t-0.02)/0.13))*sin(2*PI*(880*t))':s=48000:c=stereo:d=0.15,"
+            f"{fmt},apad=whole_len=7200,atrim=end_sample=7200,asetpts=N/SR/TB[l1p0]",
+            silence.format(40800, "l1end"),
+            "[l1g0][l1p0][l1end]concat=n=3:v=0:a=1[lane1]",
+            "[bed][lane0][lane1]amix=inputs=3:duration=first:dropout_transition=0:normalize=0,atrim=end_sample=96000[aout]"]) + "\n"
+        self.assertEqual(graph, expected)
+        self.assertEqual(E.mix_graph(lanes, 96000, {"/static/a.wav?t=1": "mix/s1.wav"}), graph)
+        # a sound whose file is not on the server is left out; nothing at all is just the silent bed
+        self.assertNotIn("amovie", E.mix_graph(lanes, 96000, {}))
+        self.assertEqual(E.mix_graph([], 30, {}), silence.format(30, "bed") + ";\n[bed]anull[aout]\n")
+
+    def test_looped_music_at_its_volume_and_slow_or_fast_speeds(self):
+        music = E.clean_sounds([{"t": 0, "kind": "music", "src": "/m.mp3", "volume": 0.01, "offset": 2}], 4.0)
+        graph = E.mix_graph(E.sound_lanes(music, 192000), 192000, {"/m.mp3": "mix/s1.mp3"})
+        self.assertIn("amovie=mix/s1.mp3,aloop=loop=-1:size=2147483647,atrim=start=2,asetpts=PTS-STARTPTS,volume=0.01,", graph)
+        self.assertEqual(E._atempo(0.3), ["atempo=0.5", "atempo=0.6"])
+        self.assertEqual(E._atempo(3.0), ["atempo=2", "atempo=1.5"])
+        self.assertEqual(E._atempo(1.0), [])
+
+    def test_sound_effects_are_synthesised_from_the_page_oscillators(self):
+        ding = E.clean_synth({"type": "sine", "freq": 1200, "gain": 0.3, "attack": 0.05, "floor": 0.033, "duration": 1.0})
+        self.assertEqual(E.synth_expression(ding), "if(lt(t,0.05),0.3*t/0.05,0.3*pow(0.033,(t-0.05)/0.95))*sin(2*PI*(1200*t))")
+        whoosh = E.clean_synth({"type": "sine", "freq": 800, "freqEnd": 100, "sweep": 0.3, "gain": 0.5, "attack": 0.1, "floor": 0.02, "duration": 0.4})
+        self.assertEqual(E.synth_expression(whoosh), "if(lt(t,0.1),0.5*t/0.1,0.5*pow(0.02,(t-0.1)/0.3))*sin(2*PI*(if(lt(t,0.3),"
+                                                     "-115.415603*(exp(-6.931472*t)-1),100.988653+100*(t-0.3))))")
+        square = E.clean_synth({"type": "square", "freq": 440, "duration": 0.2})
+        self.assertEqual(E.synth_expression(square), "if(lt(t,0.01),0.3*t/0.01,0.3*pow(0.01,(t-0.01)/0.19))*if(gte(sin(2*PI*(440*t)),0),1,-1)")
+        # the whoosh's lowpass sweep (2000 to 200 Hz) as one filter at the sweep's middle
+        whoosh_filtered = E.clean_synth({"type": "sine", "freq": 800, "freqEnd": 100, "duration": 0.4,
+                                         "filter": {"type": "lowpass", "freq": 2000, "freqEnd": 200}})
+        self.assertEqual(whoosh_filtered["filter"], {"type": "lowpass", "freq": 632.4555320336759})
+        graph = E.mix_graph(E.sound_lanes(E.clean_sounds([{"t": 0, "kind": "sfx", "synth": {"type": "sine", "freq": 800, "freqEnd": 100,
+                                                                                          "duration": 0.4, "filter": {"type": "lowpass", "freq": 2000, "freqEnd": 200}}}], 1.0), 48000), 48000, {})
+        self.assertIn(":d=0.4,lowpass=f=632.455532,aresample=48000", graph)
+        self.assertNotIn("filter", E.clean_synth({"freq": 100, "duration": 1, "filter": {"type": "notch", "freq": 50}}))
+        self.assertIsNone(E.clean_synth({"type": "sine", "freq": 0, "duration": 1}))
+        self.assertEqual(E.clean_synth({"type": "noise", "freq": 100, "duration": 99})["type"], "sine")
+        self.assertEqual(E.clean_synth({"freq": 100, "duration": 99})["duration"], 10.0)
+
+    @unittest.skipUnless(FFMPEG and E.h264_encoder(), "needs ffmpeg with libx264")
+    def test_the_final_video_has_the_frames_the_sound_subtitles_and_chapters(self):
+        work = os.path.join(TMP, "render-mix")
+        os.makedirs(work, exist_ok=True)
+        video = os.path.join(work, "video.mp4")
+        tone = os.path.join(work, "tone.wav")
+        subprocess.run([FFMPEG, "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc=size=320x180:rate=30", "-frames:v", "60",
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "30", "-an", video], check=True)
+        subprocess.run([FFMPEG, "-v", "error", "-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=0.5", tone], check=True)
+        timeline = {"frames": 60, "scenes": [{"t": 0, "title": "Stress"}, {"t": 1.2, "title": "Strain"}],
+                    "cues": [{"start": 1.0, "end": 1.5, "text": "Force over area."}],
+                    "audio": [{"t": 1.0, "kind": "narration", "src": "/static/tone.wav", "rate": 1, "offset": 0},
+                              {"t": 0.1, "kind": "narration", "src": "/static/gone.wav"}]}
+        out = os.path.join(work, "final.mp4")
+        result = E.mix_render(video, timeline, out, lambda src: tone if src == "/static/tone.wav" else None, work)
+        self.assertEqual((result["frames"], result["sounds"], result["skipped"], result["has_subtitles"]), (60, 2, ["/static/gone.wav"], True))
+        self.assertEqual(E.video_frames(out), 60)
+        probe = json.loads(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type,codec_name,sample_rate:format=duration",
+                                           "-show_chapters", "-of", "json", out], capture_output=True, text=True).stdout)
+        kinds = {s["codec_type"]: s["codec_name"] for s in probe["streams"]}
+        self.assertEqual((kinds["video"], kinds["audio"], kinds["subtitle"]), ("h264", "aac", "mov_text"))
+        self.assertAlmostEqual(float(probe["format"]["duration"]), 2.0, delta=0.03)
+        self.assertEqual([c["tags"]["title"] for c in probe["chapters"]], ["Stress", "Strain"])
+
+        def loudness(start):
+            res = subprocess.run([FFMPEG, "-hide_banner", "-ss", str(start), "-t", "0.2", "-i", out, "-map", "0:a", "-af", "volumedetect",
+                                  "-f", "null", "-"], capture_output=True, text=True)
+            return float(re.search(r"mean_volume: (-?[\d.]+) dB", res.stderr).group(1))
+        self.assertLess(loudness(0.3), -60)   # silence before the narration (the missing file is left out)
+        self.assertGreater(loudness(1.1), -30)  # the narration exactly where the page started it
+        self.assertLess(loudness(1.7), -60)
+        self.assertFalse(os.path.exists(os.path.join(work, "mix")))
+        # one source without sound (a clip with no audio track, a damaged narration file) is left out, never the whole mix
+        silent_clip = os.path.join(work, "silent.mp4")
+        broken = os.path.join(work, "broken.wav")
+        subprocess.run([FFMPEG, "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc=size=64x36:rate=30", "-frames:v", "10", "-an", silent_clip], check=True)
+        with open(broken, "wb") as f:
+            f.write(b"RIFF\x00\x00\x00\x00WAVEnot really")
+        files = {"/static/tone.wav": tone, "/static/silent.mp4": silent_clip, "/static/broken.wav": broken}
+        voiced = {**timeline, "audio": [{"t": 0.2, "kind": "video-voice", "src": "/static/silent.mp4"},
+                                        {"t": 0.6, "kind": "narration", "src": "/static/broken.wav"},
+                                        {"t": 1.0, "kind": "narration", "src": "/static/tone.wav"}]}
+        kept = E.mix_render(video, voiced, os.path.join(work, "voiced.mp4"), files.get, work)
+        self.assertEqual(sorted(kept["skipped"]), ["/static/broken.wav", "/static/silent.mp4"])
+        self.assertGreater(loudness(1.1), -30)
+        # a video that does not match its timeline is refused
+        with self.assertRaises(E.MixError):
+            E.mix_render(video, {**timeline, "frames": 90}, os.path.join(work, "bad.mp4"), lambda src: tone, work)
+        self.assertFalse(os.path.exists(os.path.join(work, "bad.mp4")))
+
+
 if __name__ == "__main__":
     unittest.main()
