@@ -1,0 +1,13 @@
+Notes on computers
+
+Computers process data very fast and the CPU does the calculations while memory holds the data and programs, and the operating system manages everything, the kernel is the core of it and it schedules processes somehow so that every program gets a turn, and there is also virtual memory which lets programs use more memory than the RAM has by swapping pages to the disk, which is slower, and caches sit between the CPU and RAM to make access faster, L1 is the smallest and fastest, L2 and L3 are bigger, etc. The bus connects the parts together and carries addresses, data and control signals between the CPU, memory and the input and output devices, and the clock sets the pace of the whole system, measured in gigahertz for modern processors which can run billions of cycles every second, and pipelining lets the CPU start the next instruction before the previous one has finished, which improves throughput but brings hazards that must be handled by stalling or forwarding, and branch prediction guesses which way a branch will go so the pipeline stays full, and a wrong guess means the work must be thrown away and the pipeline refilled, which costs time, so good prediction matters for performance in real programs.
+
+RAM is volatile memory. ROM keeps its contents without power.
+
+As shown in Figure 3, the memory hierarchy has several levels.
+
+Photosynthesis happens in leaves and needs sunlight.
+
+The kernel manages processes and memory for all the programs that run on the computer at the same time.
+
+The kernel manages processes and memory for all the programs that run on the computer at the same time.

@@ -1,0 +1,86 @@
+# Keep the build context small and free of secrets / local data. The Dockerfile copies an explicit
+# allow-list (aadhi/, alembic/, alembic.ini, server.py, web/, docker/app/, branding clips); these
+# rules additionally keep everything else out of the context sent to the builder.
+# Patterns are relative to the repository root ("index.html" is the v1 root page, not web/index.html).
+.git
+.github
+.claude
+.venv
+venv
+env
+node_modules
+web/vendor
+**/__pycache__
+**/*.py[cod]
+.pytest_cache
+.ruff_cache
+.mypy_cache
+
+# secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# runtime data, databases, media
+data
+*.db
+*.db-*
+*.sqlite3
+media
+static_videos
+final_videos
+images
+models
+evals/results
+*.log
+
+# not shipped in the image
+tests
+web/tests
+docs
+evals
+
+# v1 leftovers at the repository root (none of them is part of v2; handoff.md and app_test.js
+# carried leaked credentials, see docs/SECURITY.md section 5)
+handoff.md
+Aadhi_EduEngine_Full_Context.md
+Digital_System_Design_*.html
+vercel.json
+old_index.html
+index.html
+index2.html
+app.js
+app_test.js
+main_script.js
+speak.js
+check_inline.js
+extractor.py
+fix.py
+fix_*.py
+patch_index*.py
+rewrite_sync.py
+safe_escape.py
+update.py
+upgrade_history.py
+run_tts.py
+test_*.py
+database.py
+models.py
+sample_template.docx
+showcase_ohms_law.json
+video_template/video_template*.mp4
+
+# v1 scratch files at the repository root
+temp*
+test*.js
+test*.mp3
+test*.wav
+output.wav
+error_script*.js
+diff.txt
+out.txt
+extracted.txt
+debug_failed_json.txt
+
+# compose / CI files are not needed inside the image
+docker-compose*.yml

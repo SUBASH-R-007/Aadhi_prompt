@@ -1,0 +1,10 @@
+# Development / CI tools; versions pinned by requirements.lock (a constraints file):
+#   pip install -c requirements.lock -r requirements.txt -r requirements-dev.txt
+# The Docker image never installs these.
+pytest>=8.3,<10
+pytest-asyncio>=0.24,<2
+respx>=0.21,<1
+ruff>=0.8,<1
+# used by tests/evals/test_tooling.py (also transitive runtime deps, pinned in requirements.lock)
+PyYAML>=6.0,<7
+packaging>=24.0

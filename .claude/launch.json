@@ -3,9 +3,27 @@
   "configurations": [
     {
       "name": "aadhi-server",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["server.py"],
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": [
+        "server.py"
+      ],
       "port": 8000
+    },
+    {
+      "name": "aadhi-worker",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": [
+        "-m",
+        "aadhi.worker"
+      ]
+    },
+    {
+      "name": "aadhi-demo",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": [
+        "scripts/dev_demo.py"
+      ],
+      "port": 8010
     }
   ]
 }

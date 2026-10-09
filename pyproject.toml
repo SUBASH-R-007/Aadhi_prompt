@@ -1,0 +1,98 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aadhi-eduengine"
+version = "2.0.0"
+description = "REC - Aadhi EduEngine: AI lecture-video generator (plan, screenplay, pre-rendered assets, timeline, web player, MP4)."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Rajalakshmi Engineering College" }]
+classifiers = [
+    "Private :: Do Not Upload",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Framework :: FastAPI",
+    "Topic :: Education",
+]
+# Runtime dependencies live in requirements.txt (ranges); requirements.lock pins exact versions.
+dynamic = ["dependencies"]
+
+[project.optional-dependencies]
+s3 = ["boto3>=1.35,<2"]
+dev = ["pytest>=8.3,<10", "pytest-asyncio>=0.24,<2", "respx>=0.21,<1", "ruff>=0.8,<1", "PyYAML>=6.0,<7", "packaging>=24.0"]
+
+[project.scripts]
+aadhi-evals = "aadhi.evals.cli:main"
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[tool.setuptools.packages.find]
+include = ["aadhi", "aadhi.*"]
+
+[tool.setuptools.package-data]
+aadhi = ["**/*.md", "**/*.json", "**/*.txt", "**/*.mako"]
+
+# --- pytest ---------------------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["-p", "no:cacheprovider", "-ra"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "slow: renders real manim/ffmpeg/playwright output (deselect with -m 'not slow')",
+    "network: talks to real external services; runs only with AADHI_NETWORK_TESTS=1",
+]
+
+# --- ruff -----------------------------------------------------------------------------------------
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["web/vendor", "node_modules", "data", "evals/results", "media", "static_videos"]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "F",      # pyflakes
+    "W",      # pycodestyle warnings
+    "I",      # import sorting
+    "B",      # bugbear
+    "UP",     # pyupgrade (py311)
+    "ASYNC",  # blocking calls inside async def
+    "S",      # bandit security checks
+]
+ignore = [
+    "E501",     # long prompt strings/URLs; `ruff format` (line-length 120) handles code layout
+    "B008",     # FastAPI Depends()/Query()/File() in argument defaults is the framework idiom
+    "B905",     # zip(strict=...) is opinionated; equal-length invariants are validated by pydantic
+    "S101",     # asserts narrow types / guard invariants; production never runs with -O
+    "S110",     # try/except/pass in best-effort cleanup (temp files, process trees) is intended
+    "S112",     # ... same for try/except/continue in tolerant parsers
+    "S311",     # `random` is used for deterministic shuffles and jitter, never for secrets
+    "S603",     # subprocess with a fixed argv list (ffmpeg, ffprobe, manim, docker, git) is core functionality
+    "S607",     # ... binaries resolved from PATH / FFMPEG_PATH by design
+    "ASYNC109", # explicit `timeout` parameters on async helpers are part of their API
+    "UP007",    # Optional/Union spellings are left to the author (contract files use both)
+    "UP017",    # datetime.timezone.utc vs datetime.UTC: equivalent
+    "UP034",    # cosmetic
+    "UP037",    # quoted annotations are harmless and used by the contract files
+    "UP041",    # asyncio.TimeoutError is an alias of TimeoutError on 3.11
+    "UP042",    # (str, Enum) keeps pydantic/JSON behaviour explicit
+    "UP045",    # see UP007
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S105", "S106", "S107", "S108", "S113", "S310", "S324", "B011", "B017", "ASYNC"]
+# Frozen contract files (owned by the lead; changes go through contract requests).
+"aadhi/config.py" = ["B007"]
+"aadhi/schemas/screenplay.py" = ["S324"]
+# Reviewed false positives.
+"aadhi/api/routers/auth.py" = ["S105"]      # token_type = "bearer"
+"aadhi/auth/bootstrap.py" = ["S105"]        # INITIAL_PASSWORD_FILE is a file name
+"aadhi/manim/sandbox.py" = ["S108"]         # `--tmpfs /tmp` argument for the container
+"alembic/**" = ["I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["aadhi", "tests"]

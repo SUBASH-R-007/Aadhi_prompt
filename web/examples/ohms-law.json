@@ -1,0 +1,249 @@
+{
+  "schema_version": 2,
+  "subject_name": "Basic Electrical Engineering",
+  "unit_name": "DC circuits",
+  "session_number": "Example lecture",
+  "session_title": "Ohm's law",
+  "language": "en-IN",
+  "board_language": null,
+  "learning_objectives": [
+    { "id": "obj-1", "text": "State Ohm's law and name each quantity with its unit", "bloom": "remember", "concept_ids": ["ohms-law"] },
+    { "id": "obj-2", "text": "Use V = I R to find the current through a resistor", "bloom": "apply", "concept_ids": ["ohms-law"] }
+  ],
+  "concept_map": [
+    { "id": "voltage", "title": "Voltage", "summary": "The electrical push that drives charge around a circuit.", "depends_on": [], "kind": "prerequisite" },
+    { "id": "current", "title": "Current", "summary": "The rate at which charge flows past a point.", "depends_on": [], "kind": "prerequisite" },
+    { "id": "resistance", "title": "Resistance", "summary": "How strongly a component opposes the flow of charge.", "depends_on": [], "kind": "prerequisite" },
+    { "id": "ohms-law", "title": "Ohm's law", "summary": "For a fixed resistor, voltage equals current times resistance.", "depends_on": ["voltage", "current", "resistance"], "kind": "core" }
+  ],
+  "misconceptions": [
+    {
+      "id": "m1",
+      "concept_id": "ohms-law",
+      "statement": "A resistor uses up current, so less current comes out than goes in.",
+      "correction": "The same current flows into and out of a resistor. What drops across it is the voltage: the resistor turns electrical energy into heat."
+    },
+    {
+      "id": "m2",
+      "concept_id": "ohms-law",
+      "statement": "A bigger resistance lets more current through.",
+      "correction": "For the same voltage, a bigger resistance means a smaller current, because I = V / R."
+    }
+  ],
+  "chapters": [
+    { "id": "ch1", "title": "The law", "scene_ids": ["s1", "s2"] },
+    { "id": "ch2", "title": "Using the law", "scene_ids": ["s3", "q1", "s5"] }
+  ],
+  "lexicon": [],
+  "scenes": [
+    {
+      "id": "s1",
+      "type": "title",
+      "concept_id": null,
+      "chapter_id": "ch1",
+      "title": "Ohm's law",
+      "subtitle": "How voltage, current and resistance are linked",
+      "mascot_position": "center",
+      "beats": [
+        { "id": "s1-b1", "narration": "Welcome! In this short lecture we look at Ohm's law, the rule that links voltage, current and resistance in a circuit.", "pause_after": 0.5 },
+        { "id": "s1-b2", "narration": "By the end, you will be able to state the law, use it to find a current, and read a resistance from a graph." }
+      ],
+      "objective_ids": [],
+      "intent": { "goal": "Open the lecture and set out what students will be able to do.", "key_points": [], "narrative_role": "hook" },
+      "board": []
+    },
+    {
+      "id": "s2",
+      "type": "content",
+      "concept_id": "ohms-law",
+      "chapter_id": "ch1",
+      "title": "Three quantities, one law",
+      "subtitle": null,
+      "mascot_position": "left",
+      "beats": [
+        { "id": "s2-b1", "narration": "A simple circuit has three quantities that work together. Voltage is the push that drives charge around the circuit, and it is measured in volts.", "board_item_id": "s2-i1" },
+        { "id": "s2-b2", "narration": "Current is how much charge flows past a point each second. It is measured in amperes.", "board_item_id": "s2-i2" },
+        { "id": "s2-b3", "narration": "Resistance tells us how strongly a part opposes that flow. It is measured in ohms.", "board_item_id": "s2-i3" },
+        { "id": "s2-b4", "narration": "Ohm's law links all three: voltage equals current times resistance.", "board_item_id": "s2-i4", "pause_after": 1.0 },
+        { "id": "s2-b5", "narration": "So for a fixed resistor, if you double the voltage, the current doubles as well. A graph of voltage against current is a straight line, and its slope is the resistance.", "board_item_id": "s2-i5", "highlight_item_ids": ["s2-i4"] }
+      ],
+      "side_panel": {
+        "kind": "graph",
+        "title": "Voltage against current, 4 Ω resistor",
+        "rationale": "A straight line through the origin shows that current is proportional to voltage; its slope is the resistance.",
+        "show_from_beat_id": "s2-b5",
+        "graph": {
+          "functions": [{ "expr": "4*x", "label": "V = 4 I" }],
+          "points": [{ "x": 1, "y": 4, "label": "1 A, 4 V" }, { "x": 2.5, "y": 10, "label": "2.5 A, 10 V" }],
+          "x_range": [0, 3],
+          "y_range": [0, 12],
+          "x_label": "Current I (A)",
+          "y_label": "Voltage V (V)"
+        }
+      },
+      "objective_ids": ["obj-1"],
+      "intent": {
+        "goal": "Define voltage, current and resistance and state Ohm's law.",
+        "key_points": ["Voltage is measured in volts", "Current is measured in amperes", "Resistance is measured in ohms", "V = I R"],
+        "narrative_role": "concept"
+      },
+      "board": [
+        { "id": "s2-i1", "kind": "definition", "term": "Voltage (V)", "text": "The electrical [[push]] that drives charge, in volts." },
+        { "id": "s2-i2", "kind": "definition", "term": "Current (I)", "text": "The [[flow]] of charge, in amperes." },
+        { "id": "s2-i3", "kind": "definition", "term": "Resistance (R)", "text": "How strongly a part [[opposes]] the flow, in ohms (Ω)." },
+        {
+          "id": "s2-i4",
+          "kind": "formula",
+          "text": "Ohm's law",
+          "latex": "V = I R",
+          "variables": [
+            { "symbol_latex": "V", "meaning": "voltage", "unit": "V" },
+            { "symbol_latex": "I", "meaning": "current", "unit": "A" },
+            { "symbol_latex": "R", "meaning": "resistance", "unit": "Ω" }
+          ]
+        },
+        { "id": "s2-i5", "kind": "takeaway", "text": "Double the voltage and the current doubles too." }
+      ]
+    },
+    {
+      "id": "s3",
+      "type": "example",
+      "concept_id": "ohms-law",
+      "chapter_id": "ch2",
+      "title": "Worked example: a room heater",
+      "subtitle": null,
+      "mascot_position": "left",
+      "beats": [
+        { "id": "s3-b1", "narration": "Let's use the law. A room heater is connected to a 230 volt supply, and its element has a resistance of 46 ohms. What current does it draw?", "board_item_id": "s3-i1" },
+        { "id": "s3-b2", "narration": "We want the current, so we rearrange the formula: current equals voltage divided by resistance.", "board_item_id": "s3-i2" },
+        { "id": "s3-b3", "narration": "Now put in the values. Pause here and try the division yourself.", "board_item_id": "s3-i3", "pause_after": 3.0 },
+        { "id": "s3-b4", "narration": "230 divided by 46 is 5, so the heater draws 5 amperes.", "fill_item_id": "s3-i3", "highlight_item_ids": ["s3-i2"] },
+        { "id": "s3-b5", "narration": "Always check the units: volts divided by ohms gives amperes, so the answer makes sense.", "board_item_id": "s3-i4" }
+      ],
+      "objective_ids": ["obj-2"],
+      "intent": {
+        "goal": "Model how to rearrange V = I R and find a current.",
+        "key_points": ["Rearrange to I = V / R", "Substitute with units", "Check the units of the answer"],
+        "narrative_role": "example"
+      },
+      "board": [
+        { "id": "s3-i1", "kind": "example_step", "text": "Given: V = 230 V and R = 46 Ω", "justification": "Read the values from the question" },
+        { "id": "s3-i2", "kind": "example_step", "text": "Rearrange: I = V / R", "justification": "Divide both sides of V = I R by R" },
+        { "id": "s3-i3", "kind": "example_step", "text": "I = 230 / 46 = 5 A", "justification": "Substitute and calculate", "blank": true },
+        { "id": "s3-i4", "kind": "callout_tip", "text": "Check the units: volts ÷ ohms = amperes." }
+      ]
+    },
+    {
+      "id": "q1",
+      "type": "quiz_checkpoint",
+      "concept_id": "ohms-law",
+      "chapter_id": "ch2",
+      "title": "Your turn",
+      "subtitle": null,
+      "mascot_position": "left",
+      "beats": [
+        { "id": "q1-b1", "narration": "Your turn. A 12 volt battery is connected across a 3 ohm resistor. What current flows? Choose an answer before the timer runs out." }
+      ],
+      "objective_ids": ["obj-1", "obj-2"],
+      "intent": { "goal": "Check that students can recall the law and apply I = V / R.", "key_points": [], "narrative_role": "check" },
+      "question": "A 12 V battery is connected across a 3 Ω resistor. What current flows?",
+      "options": ["4 A", "36 A", "0.25 A", "15 A"],
+      "correct_index": 0,
+      "feedback_wrong": [
+        "",
+        "That is voltage times resistance, as if a bigger resistance let more current through. Current is voltage divided by resistance.",
+        "That is resistance divided by voltage. Turn the fraction the other way up.",
+        "Adding the numbers does not give a current. Use I = V / R."
+      ],
+      "option_misconception_ids": [null, "m2", null, null],
+      "explanation": "I = V / R = 12 V / 3 Ω = 4 A.",
+      "bloom": "apply",
+      "countdown_seconds": 10,
+      "reveal_beats": [
+        { "id": "q1-b2", "narration": "The answer is 4 amperes. Current equals voltage divided by resistance, and 12 divided by 3 is 4." }
+      ]
+    },
+    {
+      "id": "s5",
+      "type": "key_takeaway",
+      "concept_id": "ohms-law",
+      "chapter_id": "ch2",
+      "title": "Key points",
+      "subtitle": null,
+      "mascot_position": "left",
+      "beats": [
+        { "id": "s5-b1", "narration": "Let's sum up. Voltage pushes, current flows, and resistance opposes the flow.", "board_item_id": "s5-i1" },
+        { "id": "s5-b2", "narration": "Ohm's law says voltage equals current times resistance, so current is voltage divided by resistance.", "board_item_id": "s5-i2" },
+        { "id": "s5-b3", "narration": "For a fixed resistor, the current is proportional to the voltage.", "board_item_id": "s5-i3" },
+        { "id": "s5-b4", "narration": "And remember: a resistor does not use up current. The same current flows in and out; the voltage drops across it as energy turns into heat.", "board_item_id": "s5-i4" }
+      ],
+      "side_panel": {
+        "kind": "skill_tree",
+        "title": "What you learned",
+        "rationale": "Shows how Ohm's law builds on voltage, current and resistance.",
+        "show_from_beat_id": null
+      },
+      "objective_ids": ["obj-1", "obj-2"],
+      "intent": { "goal": "Summarise the law and correct the most common misconception.", "key_points": [], "narrative_role": "synthesis" },
+      "board": [
+        { "id": "s5-i1", "kind": "takeaway", "text": "Voltage [[pushes]], current [[flows]], resistance [[opposes]]." },
+        { "id": "s5-i2", "kind": "takeaway", "text": "Ohm's law: V = I R, so I = V / R." },
+        { "id": "s5-i3", "kind": "takeaway", "text": "For a fixed resistor, current is proportional to voltage." },
+        {
+          "id": "s5-i4",
+          "kind": "misconception",
+          "text": "A resistor uses up current.",
+          "justification": "The same current flows in and out; the voltage drops across the resistor as energy turns into heat.",
+          "misconception_id": "m1"
+        }
+      ]
+    }
+  ],
+  "companion_sheet": {
+    "key_formulas": [
+      {
+        "name": "Ohm's law",
+        "latex": "V = I R",
+        "description": "Voltage across a resistor equals the current through it times its resistance.",
+        "variables": [
+          { "symbol_latex": "V", "meaning": "voltage", "unit": "V" },
+          { "symbol_latex": "I", "meaning": "current", "unit": "A" },
+          { "symbol_latex": "R", "meaning": "resistance", "unit": "Ω" }
+        ],
+        "source_item_id": "s2/s2-i4"
+      }
+    ],
+    "definitions": [
+      { "term": "Voltage", "definition": "The electrical push that drives charge around a circuit, measured in volts (V).", "source_item_id": "s2/s2-i1" },
+      { "term": "Current", "definition": "The rate at which charge flows past a point, measured in amperes (A).", "source_item_id": "s2/s2-i2" },
+      { "term": "Resistance", "definition": "How strongly a component opposes the flow of charge, measured in ohms (Ω).", "source_item_id": "s2/s2-i3" }
+    ],
+    "misconceptions": [
+      { "misconception": "A resistor uses up current.", "correction": "The same current flows into and out of a resistor; the voltage drops across it as electrical energy turns into heat." },
+      { "misconception": "A bigger resistance lets more current through.", "correction": "For the same voltage, a bigger resistance gives a smaller current, because I = V / R." }
+    ],
+    "practice_problems": [
+      {
+        "id": "p1",
+        "question": "A torch bulb has a resistance of 6 Ω and is connected to a 3 V battery. Find the current through the bulb.",
+        "steps": ["Write the law for current: I = V / R", "Substitute: I = 3 V / 6 Ω", "Calculate: I = 0.5 A"],
+        "final_answer": "0.5 A",
+        "hints": ["Current is voltage divided by resistance."],
+        "difficulty": "easy",
+        "objective_ids": ["obj-2"]
+      },
+      {
+        "id": "p2",
+        "question": "A current of 2 A flows through a resistor when 10 V is applied across it. What is its resistance, and what current flows if the voltage is raised to 15 V?",
+        "steps": ["Rearrange the law: R = V / I", "R = 10 V / 2 A = 5 Ω", "With 15 V: I = 15 V / 5 Ω = 3 A"],
+        "final_answer": "R = 5 Ω; the current becomes 3 A.",
+        "hints": ["Find the resistance first; it does not change.", "Then use I = V / R with the new voltage."],
+        "difficulty": "medium",
+        "objective_ids": ["obj-2"]
+      }
+    ],
+    "legacy_markdown": null
+  },
+  "figures": [],
+  "source": { "filename": "", "mime": "", "pages": null, "sha256": null }
+}

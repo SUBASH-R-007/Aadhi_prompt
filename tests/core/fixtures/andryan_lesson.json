@@ -1,0 +1,82 @@
+{
+    "subject_name": "Mascot Reliability Check",
+    "unit_name": "Unit 1",
+    "session_number": "Session 1",
+    "session_title": "Stress in One Minute",
+    "concept_map": [
+        { "id": "stress", "title": "Stress", "depends_on": [] }
+    ],
+    "companion_sheet": "# Key Formulas & Definitions\nStress = Force / Area",
+    "source_document": { "document_id": "0123456789abcdef0123456789abcdef", "analysis_id": "fedcba9876543210fedcba9876543210" },
+    "cinematic_style": { "style": "classroom", "style_version": 1, "style_overrides": {} },
+    "editor": { "version": 1, "captions": { "visible": true }, "generated_order": ["s-0a1b2c3d4e5f", "s-111111111111", "s-222222222222", "s-333333333333", "s-444444444444"] },
+    "studio": { "version": 1, "generated": { "run_id": "00112233445566778899aabbccddeeff", "provider": "gemini", "model": "gemini-2.5-flash", "at": "2026-09-30T10:00:00", "source": null }, "checkpoints": {} },
+    "scenes": [
+        {
+            "scene_id": "s-0a1b2c3d4e5f",
+            "type": "title",
+            "concept_id": "stress",
+            "title": "WHAT IS STRESS?",
+            "subtitle": "A one minute check",
+            "aadhi_position": "left",
+            "narration": "Welcome back. Today we look at stress.",
+            "edit": { "min_seconds": 6 },
+            "visual_direction": { "focus": "title" },
+            "source": { "chunk_ids": ["b1"] }
+        },
+        {
+            "scene_id": "s-111111111111",
+            "type": "content",
+            "concept_id": "stress",
+            "title": "DEFINITION",
+            "aadhi_position": "right",
+            "side_panel": { "type": "skill_tree" },
+            "html": "<p>Stress is force per unit area.</p><p>It is measured in pascals.</p><img src=\"asset:0123456789abcdef0123456789abcdef\">",
+            "narration": "[SYNC] Stress is the force acting on each unit of area. [PAUSE:1] [SYNC] We measure it in pascals.",
+            "edit": { "original": { "title": "Definition of stress" } },
+            "video_asset_id": "0123456789abcdef0123456789abcdef",
+            "presenter_plan": { "behaviour": "explaining" }
+        },
+        {
+            "scene_id": "s-222222222222",
+            "type": "content",
+            "concept_id": "stress",
+            "title": "WORKED STEP",
+            "aadhi_position": "center",
+            "mascot_state": "explaining",
+            "side_panel": { "type": "skill_tree" },
+            "html": "<p>Divide the force by the area.</p>",
+            "narration": "[SYNC] Divide the force by the area and you have the stress.",
+            "edit": { "hidden": true, "origin": "inserted" }
+        },
+        {
+            "scene_id": "s-333333333333",
+            "type": "quiz_checkpoint",
+            "concept_id": "stress",
+            "title": "CHECKPOINT",
+            "aadhi_position": "popup",
+            "question": "What is the unit of stress?",
+            "options": ["Pascal", "Newton", "Joule", "Watt"],
+            "correct_index": 0,
+            "feedback_wrong": ["", "That is a force.", "That is energy.", "That is power."],
+            "countdown_seconds": 3,
+            "narration": "Quick check. What is the unit of stress?",
+            "reveal_narration": "It is the pascal. Nicely done.",
+            "explanation": "One pascal is one newton per square metre.",
+            "edit": { "narration_muted": true, "captions": "off", "min_seconds": 0.5 }
+        },
+        {
+            "scene_id": "s-444444444444",
+            "type": "content",
+            "concept_id": "stress",
+            "title": "WRAP UP",
+            "aadhi_position": "hidden",
+            "side_panel": { "type": "manim", "manim_code": "from manim import *\n\nclass Wrap(Scene):\n    def construct(self):\n        self.play(Create(Square()))\n", "video_asset_id": "abcdefabcdefabcdefabcdefabcdefab" },
+            "html": "<p>Stress equals force over area.</p>",
+            "narration": "That is stress in one line.",
+            "uploaded_image_assets": ["0123456789abcdef0123456789abcdef"],
+            "cinematic_plan": { "camera": "push_in" },
+            "visual_review": { "side_panel": { "state": "approved" } }
+        }
+    ]
+}

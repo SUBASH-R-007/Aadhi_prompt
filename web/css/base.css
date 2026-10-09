@@ -1,0 +1,262 @@
+/* Base styles (requires tokens.css): reset, typography, focus, buttons, spinner.
+   Shared by the watch/preview page; safe for other pages to include. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+figure,
+blockquote {
+  margin: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: var(--c-gold);
+  text-underline-offset: 3px;
+}
+
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--c-focus);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: rgba(176, 38, 255, 0.45);
+  color: #fff;
+}
+
+.sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0.05em 0.4em;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--c-text-dim);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+}
+
+/* ---- Buttons ---------------------------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  padding: 0.7em 1.4em;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    transform 0.2s var(--ease),
+    box-shadow 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-gold {
+  color: #1a0f00;
+  background: linear-gradient(135deg, #ffd700 0%, #d4af37 100%);
+  box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+}
+
+.btn-gold:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px rgba(255, 215, 0, 0.5);
+}
+
+.btn-outline {
+  color: #fff;
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.btn-outline:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: #fff;
+}
+
+/* ---- Glass panel ------------------------------------------------------------------------- */
+
+.glass {
+  background: var(--c-surface);
+  -webkit-backdrop-filter: blur(var(--blur));
+  backdrop-filter: blur(var(--blur));
+  border: 1px solid var(--c-glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+
+/* ---- MathJax SVG output (shared/libs.js renderTex) ---------------------------------------
+   renderTex() converts TeX without typesetting the page, so MathJax never installs its own
+   stylesheet. These are the rules of MathJax.svgStylesheet() the app needs (static CSS, no runtime
+   <style> injection). Without them Chromium renders the hidden assistive MathML natively and every
+   formula appears twice. */
+
+mjx-container[jax='SVG'] {
+  direction: ltr;
+}
+
+mjx-container[jax='SVG'] > svg {
+  overflow: visible;
+  min-height: 1px;
+  min-width: 1px;
+}
+
+mjx-container[jax='SVG'][display='true'] {
+  display: block;
+  margin: 0.4em 0;
+  text-align: center;
+}
+
+mjx-container[jax='SVG'][justify='left'] {
+  text-align: left;
+}
+
+mjx-container[jax='SVG'][justify='right'] {
+  text-align: right;
+}
+
+mjx-assistive-mml {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  display: block !important;
+  width: auto !important;
+  padding: 1px 0 0 0 !important;
+  overflow: hidden !important;
+  clip: rect(1px, 1px, 1px, 1px);
+  border: 0 !important;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+mjx-assistive-mml[display='block'] {
+  width: 100% !important;
+}
+
+mjx-container[jax='SVG'] path[data-c],
+mjx-container[jax='SVG'] use[data-c] {
+  stroke-width: 3;
+}
+
+g[data-mml-node='merror'] > g {
+  fill: var(--c-red);
+  stroke: var(--c-red);
+}
+
+g[data-mml-node='merror'] > rect[data-background] {
+  fill: transparent;
+  stroke: none;
+}
+
+g[data-mml-node='mtable'] > line[data-line],
+svg[data-table] > g > line[data-line],
+g[data-mml-node='mtable'] > rect[data-frame],
+svg[data-table] > g > rect[data-frame] {
+  stroke-width: 70px;
+  fill: none;
+}
+
+g[data-mml-node='mtable'] > .mjx-dashed,
+svg[data-table] > g > .mjx-dashed {
+  stroke-dasharray: 140;
+}
+
+g[data-mml-node='mtable'] > .mjx-dotted,
+svg[data-table] > g > .mjx-dotted {
+  stroke-linecap: round;
+  stroke-dasharray: 0, 140;
+}
+
+g[data-mml-node='mtable'] > g > svg {
+  overflow: visible;
+}
+
+/* ---- Spinner ----------------------------------------------------------------------------- */
+
+.spinner {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 4px solid rgba(255, 255, 255, 0.12);
+  border-top-color: var(--c-gold);
+  border-right-color: var(--c-purple);
+  animation: base-spin 0.9s linear infinite;
+}
+
+@keyframes base-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2.4s;
+  }
+}

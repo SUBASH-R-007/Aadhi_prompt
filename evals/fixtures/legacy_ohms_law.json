@@ -1,0 +1,171 @@
+{
+    "subject_name": "Basic Electrical Engineering",
+    "unit_name": "Electric Circuits",
+    "session_number": "Session 2",
+    "session_title": "Ohm's Law - The Rule That Runs Every Circuit",
+    "concept_map": [
+        { "id": "intro", "title": "The Mystery", "depends_on": [] },
+        { "id": "voltage_current", "title": "Voltage & Current", "depends_on": ["intro"] },
+        { "id": "resistance", "title": "Resistance", "depends_on": ["voltage_current"] },
+        { "id": "ohms_law", "title": "Ohm's Law", "depends_on": ["voltage_current", "resistance"] },
+        { "id": "applications", "title": "Real-World Circuits", "depends_on": ["ohms_law"] }
+    ],
+    "companion_sheet": "# Key Formulas & Definitions\n\n- **Voltage (V):** The electrical pressure that pushes charge through a circuit. Unit: volt (V).\n- **Current (I):** The rate of flow of electric charge. Unit: ampere (A).\n- **Resistance (R):** The opposition a material offers to current flow. Unit: ohm (Ω).\n- **Ohm's Law:** V = I × R  (equivalently I = V/R and R = V/I).\n- Water analogy: Voltage = pump pressure, Current = water flow, Resistance = narrow pipe.\n\n# Common Misconceptions\n\n1. **\"Current gets used up as it goes around the circuit.\"** False — the same current returns to the source. Charge is conserved; it is *energy* that gets delivered.\n2. **\"Doubling voltage halves the current.\"** False — that is the inverse trap. Current is *directly* proportional to voltage (I = V/R). Halving happens when *resistance* doubles.\n3. **\"Thick wires have high resistance.\"** False — thicker conductors have *lower* resistance. Thin, long, hot conductors resist more.\n\n# Practice Problems\n\n1. A 230 V supply drives a heater of resistance 46 Ω. Find the current.\n2. A torch bulb draws 0.5 A from a 3 V cell. What is its resistance?\n3. An LED circuit needs exactly 0.02 A from a 5 V source. What resistance must you add?\n4. The current through a 12 Ω resistor is 1.5 A. What voltage appears across it?\n5. Challenge: A geyser draws 15 A at 230 V. If the supply drops to 207 V, what is the new current (same resistance)?\n\n# Answer Key\n\n1. I = 230/46 = **5 A**\n2. R = 3/0.5 = **6 Ω**\n3. R = 5/0.02 = **250 Ω**\n4. V = 1.5 × 12 = **18 V**\n5. R = 230/15 ≈ 15.33 Ω, so I = 207/15.33 = **13.5 A**\n",
+    "scenes": [
+        {
+            "type": "ai_video",
+            "concept_id": "intro",
+            "title": "THE INVISIBLE RIVER",
+            "subtitle": "Something is flowing inside your walls",
+            "aadhi_position": "left",
+            "prompt": "A cinematic dolly shot of a deer/blackbuck mascot wearing a purple jacket, purple pants, and goggles, standing in a dim cozy living room at night, plugging a glowing smartphone charger into a wall socket, then the camera slowly pushes in toward the socket as a faint warm golden light glows from within the outlet, soft blue and golden rim lighting, shallow depth of field, shot on 35mm film, highly detailed, photorealistic, 4k.",
+            "narration": "Vanakkam, future engineers! [PAUSE] Tonight, like every night, millions of phones across Tamil Nadu will quietly drink power from a simple wall socket. [PAUSE] But have you ever wondered what is actually flowing behind that wall - and what rule commands it? [PAUSE] Follow me inside the wire."
+        },
+        {
+            "type": "content",
+            "concept_id": "intro",
+            "title": "THE MYSTERY OF THE WARM CHARGER",
+            "subtitle": "One rule runs every circuit on Earth",
+            "aadhi_position": "right",
+            "side_panel": { "type": "skill_tree" },
+            "html": "<p>Every day, you plug in a charger and it simply works.</p><p>Behind that socket hides an invisible river, obeying one elegant rule.</p><div class=\"info-callout\">One formula runs every device you own - from your phone to the Chennai Metro.</div>",
+            "narration": "And here is the answer waiting for us. [SYNC] Every day you plug in, and it just works. [PAUSE] [SYNC] Because behind that socket flows an invisible river of charge, obeying one simple rule. [SYNC] One formula runs everything - your phone, your fan, even the Chennai Metro. [PAUSE] Here is our roadmap beside me - by the end of this session, that rule, Ohm's Law, will be yours!"
+        },
+        {
+            "type": "recap",
+            "concept_id": "intro",
+            "title": "PREVIOUSLY IN ELECTRIC CIRCUITS",
+            "aadhi_position": "popup_bottom_right",
+            "side_panel": { "type": "image", "prompt": "hyper-realistic macro photograph of glowing copper wires and electrons flowing inside a transparent electric cable, blue energy streaks, dark background, photography, 8k resolution, highly detailed" },
+            "html": "<ul><li>Electric charge is carried by electrons.</li><li>Current is the flow of charge, measured in amperes.</li><li>Current flows only around a complete, closed loop.</li></ul>",
+            "narration": "First, a lightning recap of Session One. [SYNC] Charge is carried by tiny electrons. [SYNC] Current is the flow of that charge, measured in amperes. [SYNC] And it flows only around a complete, closed loop. [PAUSE] Ready? Let's open the tap!"
+        },
+        {
+            "type": "chapter_card",
+            "concept_id": "voltage_current",
+            "chapter_label": "Part 1",
+            "title": "The River of Charge",
+            "subtitle": "What pushes electricity - and what holds it back?",
+            "aadhi_position": "center",
+            "narration": "Part One - The River of Charge! What pushes electricity forward, and what holds it back?"
+        },
+        {
+            "type": "content",
+            "concept_id": "voltage_current",
+            "title": "VOLTAGE AND CURRENT",
+            "subtitle": "The push and the flow",
+            "aadhi_position": "left",
+            "side_panel": { "type": "image", "prompt": "hyper-realistic photograph of a large water pump station pushing water through wide transparent pipes with pressure gauges, industrial setting, dramatic lighting, photography, 8k resolution, highly detailed" },
+            "html": "<div class=\"definition\"><strong>Voltage (V):</strong> The electrical pressure that pushes charge through a circuit, measured in volts.</div><div class=\"definition\"><strong>Current (I):</strong> The rate of flow of charge, measured in amperes.</div><div class=\"warning-callout\">Common Misconception: Students often think current gets \"used up\" as it flows around a circuit - but actually the SAME current returns to the source, because charge is conserved. It is ENERGY that gets delivered.</div>",
+            "narration": "So what pushes current around that loop? [SYNC] Voltage - electrical pressure, measured in volts. [PAUSE] [SYNC] The resulting flow is current, in amperes. See the pump beside me - pressure pushes, flow follows! [PAUSE] [SYNC] And careful - current is NOT used up around the circuit. The same current comes home; energy is what gets delivered. [PAUSE] Now - what happens when something squeezes this flow? Predict! [PAUSE:2]"
+        },
+        {
+            "type": "ai_video",
+            "concept_id": "voltage_current",
+            "title": "THE WATER PARK OF ELECTRICITY",
+            "subtitle": "Pressure, flow, and the narrow pipe",
+            "aadhi_position": "left",
+            "prompt": "A cinematic tracking shot of a deer/blackbuck mascot wearing a purple jacket, purple pants, and goggles, standing beside a large transparent water pipe system at a sunny water park, pointing excitedly as water rushes fast through a wide pipe and slows to a trickle through a narrow pinched section, bright sunlight, splashing water droplets, shot on 35mm film, highly detailed, photorealistic, 4k.",
+            "narration": "Watch! The pump pressure is voltage. The rushing water is current. And that narrow pinch choking the flow - that is resistance. [PAUSE] More pressure, more flow. Tighter pipe, less flow. Electricity works exactly the same way!"
+        },
+        {
+            "type": "content",
+            "concept_id": "resistance",
+            "title": "RESISTANCE - THE NARROW PIPE",
+            "subtitle": "The opposition every circuit feels",
+            "aadhi_position": "popup_bottom_left",
+            "side_panel": { "type": "3d_model", "model_name": "atom" },
+            "html": "<div class=\"definition\"><strong>Resistance (R):</strong> The opposition a material offers to the flow of current, measured in ohms (Ω).</div><p>Example: A bulb's thin tungsten filament has HIGH resistance - the struggle makes it glow.</p><p>Non-example: A thick copper wire has almost NO resistance - it stays cool and simply carries the flow.</p><div class=\"tip-callout\">Rule of thumb: thin, long and hot means MORE resistance; thick, short and cool means LESS.</div>",
+            "narration": "Resistance is the narrow pipe of circuits. [SYNC] Formally - opposition to current flow, measured in ohms. [PAUSE] [SYNC] A bulb's thin filament resists strongly - that struggle makes it glow! [SYNC] A thick copper wire barely resists - it stays cool. [SYNC] Rule of thumb - thin, long and hot resists more. [PAUSE] Electrons bumping through atoms like the one beside me - that IS resistance! Now predict - double the voltage, what happens to the flow? [PAUSE:2]"
+        },
+        {
+            "type": "simulation",
+            "concept_id": "ohms_law",
+            "title": "VISUALIZING OHM'S LAW",
+            "aadhi_position": "hidden",
+            "visual_reasoning": "The animation writes the law V = I x R with color-coded meaning labels, morphs it into I = V/R to answer the prediction question from the previous scene, then plots current against voltage as a straight line through the origin with two marked points (4V,2A) and (8V,4A), visually proving direct proportionality - double the voltage, double the current.",
+            "manim_code": "from manim import *\n\nclass OhmsLawScene(Scene):\n    def construct(self):\n        title = Text(\"Ohm's Law\", font_size=42, color=YELLOW).to_edge(UP)\n        self.play(Write(title))\n        eq = MathTex(r\"V = I \\times R\", font_size=72)\n        self.play(Write(eq))\n        self.wait(1)\n        box = SurroundingRectangle(eq, color=YELLOW, buff=0.2)\n        self.play(Create(box))\n        labels = VGroup(\n            Text(\"V : Voltage (volts) - the push\", font_size=26),\n            Text(\"I : Current (amperes) - the flow\", font_size=26),\n            Text(\"R : Resistance (ohms) - the opposition\", font_size=26)\n        ).arrange(DOWN, aligned_edge=LEFT).next_to(eq, DOWN, buff=0.7)\n        self.play(FadeIn(labels, shift=UP * 0.3))\n        self.wait(2)\n        self.play(FadeOut(labels), FadeOut(box))\n        eq2 = MathTex(r\"I = \\frac{V}{R}\", font_size=72).move_to(eq)\n        self.play(TransformMatchingTex(eq, eq2))\n        self.wait(1)\n        self.play(eq2.animate.scale(0.55).next_to(title, DOWN, buff=0.25))\n        axes = Axes(x_range=[0, 10, 2], y_range=[0, 5, 1], x_length=7, y_length=3.0).shift(DOWN * 1.4)\n        x_lab = Text(\"Voltage (V)\", font_size=24).next_to(axes, DOWN, buff=0.15)\n        y_lab = Text(\"Current (A)\", font_size=24).rotate(PI / 2).next_to(axes, LEFT, buff=0.15)\n        self.play(Create(axes), FadeIn(x_lab), FadeIn(y_lab))\n        line = axes.plot(lambda x: x / 2.0, x_range=[0, 10], color=YELLOW)\n        self.play(Create(line), run_time=2)\n        dot1 = Dot(axes.coords_to_point(4, 2), color=RED)\n        dot2 = Dot(axes.coords_to_point(8, 4), color=RED)\n        note = Text(\"Double V  ->  Double I\", font_size=26, color=YELLOW).next_to(axes, UP, buff=0.1)\n        self.play(FadeIn(dot1, scale=2))\n        self.play(FadeIn(dot2, scale=2), Write(note))\n        self.wait(2)",
+            "narration": "The crown jewel! [PAUSE] Voltage equals current times resistance - the push, the flow, and the opposition, tied together. [PAUSE] Now watch it rearrange - current equals voltage over resistance. [PAUSE] And here is your prediction, proven - a perfect straight line. Four volts gives two amperes. Eight volts, exactly four. Double the voltage - double the current!"
+        },
+        {
+            "type": "quiz_checkpoint",
+            "concept_id": "ohms_law",
+            "title": "CHECKPOINT",
+            "question": "A circuit runs on a 12 V battery. We swap it for a 24 V battery, keeping the same resistance. What happens to the current?",
+            "options": ["It stays the same", "It doubles", "It halves", "It gets used up faster"],
+            "correct_index": 1,
+            "feedback_wrong": ["Tempting - but current depends directly on voltage. Change the push, and the flow must change.", "", "That is the inverse trap! Halving happens when RESISTANCE doubles - not voltage.", "Current is never used up - that is the classic misconception. Charge always returns to the source."],
+            "explanation": "Ohm's Law says I = V / R. Doubling V while R stays constant exactly doubles I.",
+            "countdown_seconds": 8,
+            "aadhi_position": "hidden",
+            "narration": "Checkpoint! [PAUSE] Twelve volts drives a circuit. We swap in twenty four volts, same resistance. What happens to the current? Pause the video and try it!",
+            "reveal_narration": "It doubles! Double the voltage, double the current - I equals V over R. And if you said 'used up faster' - remember, current always comes home. That trap catches thousands of students - but not you!"
+        },
+        {
+            "type": "chapter_card",
+            "concept_id": "applications",
+            "chapter_label": "Part 2",
+            "title": "Ohm's Law at Work",
+            "subtitle": "Solving real circuits like a real engineer",
+            "aadhi_position": "center",
+            "narration": "Part Two - Ohm's Law at work! Let's solve real problems like real engineers."
+        },
+        {
+            "type": "example",
+            "concept_id": "applications",
+            "title": "WORKED EXAMPLE - THE CEILING FAN",
+            "subtitle": "From supply to current, step by step",
+            "aadhi_position": "right",
+            "side_panel": { "type": "graph", "title": "I = V / R (straight line!)", "function": "x/2" },
+            "html": "<h2 class=\"section-heading\">A ceiling fan runs on a 230 V supply and has a resistance of 115 Ω. Find the current.</h2><p>Step 1: Choose the form I = V / R - because we want the flow, from a known push and opposition.</p><p>Step 2: Substitute the values - I = 230 / 115, keeping volts and ohms consistent.</p><p>Step 3: Solve - I = 2 amperes flowing through the fan.</p>",
+            "narration": "The exact calculation electricians do every day! [SYNC] A ceiling fan - two hundred thirty volts, one hundred fifteen ohms. [SYNC] Step one - I equals V over R, since we want the flow. [PAUSE] [SYNC] Step two - substitute: two thirty over one fifteen. [SYNC] Step three - exactly two amperes! [PAUSE] Our fan is one point on the straight line beside me."
+        },
+        {
+            "type": "example",
+            "concept_id": "applications",
+            "title": "YOUR TURN - FILL THE BLANKS",
+            "subtitle": "The torch bulb challenge",
+            "aadhi_position": "popup_bottom_right",
+            "side_panel": { "type": "terminal", "command": "python circuit_check.py --v 6 --r 3", "output": "Solving I = V / R\nI = 6 / 3\nI = 2.0 A   [VERIFIED]" },
+            "html": "<h2 class=\"section-heading\">A 6 V torch bulb has a resistance of 3 Ω. Find the current.</h2><p>Step 1: I = V / R</p><p>Step 2: I = ______ / ______</p><p>Step 3: I = ______ amperes</p>",
+            "narration": "Now YOU are the engineer! [SYNC] A six volt bulb, three ohms. [SYNC] The law is ready. [SYNC] Pause and fill in the blanks yourself! [PAUSE:5] [SYNC] Six by three - two amperes! The terminal beside me confirms it. Brilliant!"
+        },
+        {
+            "type": "content",
+            "concept_id": "applications",
+            "title": "THE LAW THAT POWERS TAMIL NADU",
+            "subtitle": "From one formula to an entire grid",
+            "aadhi_position": "left",
+            "side_panel": { "type": "chart", "chart_type": "bar", "title": "Typical Current Draw (Amperes)", "data": { "labels": ["LED Bulb", "Fan", "Fridge", "AC", "Geyser"], "datasets": [{ "label": "Current (A)", "data": [0.04, 0.3, 1.5, 7, 15], "backgroundColor": "rgba(176,38,255,0.5)", "borderColor": "rgba(255,215,0,1)" }] } },
+            "html": "<p>Every appliance in your home is a live Ohm's Law calculation.</p><p>Engineers size every wire, fuse and breaker in the grid using this one rule.</p><div class=\"info-callout\">Tamil Nadu's grid delivers thousands of megawatts every day - and every single ampere of it is routed by V = IR.</div>",
+            "narration": "Zoom out. [SYNC] Every appliance around you is a live Ohm's Law calculation. [SYNC] Engineers size every wire and fuse in our grid with this one rule. [SYNC] And see the chart - from a tiny LED to a fifteen ampere geyser - that spread is why your home needs different fuses! [PAUSE]"
+        },
+        {
+            "type": "ai_video",
+            "concept_id": "applications",
+            "title": "ENGINEERS OF TOMORROW",
+            "subtitle": "One formula, one glowing city",
+            "aadhi_position": "left",
+            "prompt": "A sweeping cinematic drone shot of a deer/blackbuck mascot wearing a purple jacket, purple pants, and goggles, standing proudly on a rooftop overlooking a vast glowing city skyline at dusk as streetlights and building windows light up district by district, warm golden lights reflecting off glass towers, shot on 35mm film, highly detailed, photorealistic, 4k.",
+            "narration": "From one small formula - to an entire glowing city. [PAUSE] Every light you see obeys the law you just mastered. That is thinking like an engineer."
+        },
+        {
+            "type": "key-takeaway",
+            "concept_id": "applications",
+            "title": "WHAT WE LEARNED",
+            "aadhi_position": "right",
+            "side_panel": { "type": "skill_tree" },
+            "html": "<ul class=\"takeaway-list\"><li>Voltage is the push, current is the flow, resistance is the opposition.</li><li>Ohm's Law connects them: V = I × R.</li><li>Current is never used up - energy is what gets delivered.</li></ul>",
+            "narration": "Before the summary - pause and recall our three big ideas yourself! [PAUSE:3] Here they come. [SYNC] Voltage pushes, current flows, resistance opposes. [PAUSE] [SYNC] One law ties them - V equals I times R. [PAUSE] [SYNC] Current is never used up - energy is delivered. [PAUSE] Every node on the map beside me - conquered!"
+        },
+        {
+            "type": "summary",
+            "concept_id": "applications",
+            "title": "OHM'S LAW AT A GLANCE",
+            "aadhi_position": "popup_bottom_left",
+            "side_panel": { "type": "gif", "query": "celebration high five excited", "title": "You did it!" },
+            "html": "<table><thead><tr><th>Quantity</th><th>Symbol</th><th>Unit</th><th>Water Analogy</th></tr></thead><tbody><tr><td>Voltage</td><td>V</td><td>Volt (V)</td><td>Pump pressure</td></tr><tr><td>Current</td><td>I</td><td>Ampere (A)</td><td>Water flow</td></tr><tr><td>Resistance</td><td>R</td><td>Ohm (Ω)</td><td>Narrow pipe</td></tr></tbody></table><p>Next session: series and parallel circuits - where resistances start teaming up!</p>",
+            "narration": "Your pocket summary - three quantities, one water park to remember them by. [PAUSE] [SYNC] Next session - series and parallel circuits, where resistors start teaming up! Until then, keep the current flowing. This is Aadhi, signing off. Vanakkam!"
+        }
+    ]
+}

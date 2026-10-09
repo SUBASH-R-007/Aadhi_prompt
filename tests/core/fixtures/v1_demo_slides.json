@@ -1,0 +1,32 @@
+[
+  {
+    "type": "title",
+    "title": "WHAT IS STRESS?",
+    "subtitle": "THE INVISIBLE FORCE",
+    "narration": "Welcome. Today we explore one of the most fundamental concepts in engineering: Stress. It is the invisible force that keeps our bridges standing and our skyscrapers from crumbling."
+  },
+  {
+    "type": "content",
+    "title": "DEFINITION",
+    "html": "\n                    <div class='definition'><strong>Stress:</strong> The internal force of resistance offered by a body per unit area against external deformation.</div>\n                    <div class='formula-block'>\\[\\sigma = \\frac{F}{A}\\]</div>\n                    <ul>\n                        <li><strong>F:</strong> Applied Force (N)</li>\n                        <li><strong>A:</strong> Cross-sectional Area (m²)</li>\n                        <li><strong>SI Unit:</strong> Pascal (Pa) or N/m²</li>\n                    </ul>\n                ",
+    "narration": "At its core, stress is the internal resistance of a material when it is pushed or pulled. Imagine pressing down on a heavy spring. The harder you press, the more the spring pushes back. That internal pushback, spread over the cross-sectional area of the material, is what we call stress. Mathematically, it is defined as Force divided by Area, and it is measured in Pascals."
+  },
+  {
+    "type": "content",
+    "title": "TYPES OF STRESS",
+    "html": "\n                    <h2 class='section-heading'>Direct Stresses</h2>\n                    <ul>\n                        <li><span class=\"keyword\">Tensile (+ve):</span> Tends to elongate the member (e.g., pulling a rope).</li>\n                        <li><span class=\"keyword\">Compressive (-ve):</span> Tends to shorten the member (e.g., a building pillar).</li>\n                        <li><span class=\"keyword\">Shear:</span> Acts parallel to the cross-section (e.g., scissors cutting paper).</li>\n                    </ul>\n                ",
+    "narration": "We categorize stress based on how the force is applied. Tensile stress occurs when materials are pulled apart, naturally trying to elongate them. We consider this positive stress. Compressive stress happens when materials are crushed together, like pillars under a heavy building, and is considered negative. Finally, shear stress is a sliding force acting parallel to the surface, exactly like a pair of scissors cutting through paper."
+  },
+  {
+    "type": "ai_video",
+    "title": "TENSION IN ACTION",
+    "prompt": "Cinematic slow motion extreme close up of a thick steel suspension bridge cable pulling taut under massive tension, hyperrealistic, 4k",
+    "narration": "Consider the massive steel cables of a suspension bridge. Millions of tons of steel and concrete hang in the air, pulling downward. These cables are in a constant state of extreme tensile stress, fighting gravity every single second."
+  },
+  {
+    "type": "content",
+    "title": "KEY TAKEAWAY",
+    "html": "\n                    <p style=\"font-size: 1.8rem; text-align:center; font-style: italic; margin-top: 2rem;\">\n                        \"Stress dictates the survival of any structure.\"\n                    </p>\n                    <ul class='takeaway-list' style=\"margin-top: 2rem;\">\n                        <li>Stress = Internal Resistance</li>\n                        <li>Depends heavily on Cross-Sectional Area</li>\n                        <li>Understanding it is the foundation of civil engineering</li>\n                    </ul>\n                ",
+    "narration": "If there's one thing to remember, it is this: Stress dictates the survival of every structure around us. It is all about managing that internal resistance. Understanding how to calculate these internal forces based on geometry and load is the absolute foundation of all mechanical and civil engineering. Thank you for watching."
+  }
+]
