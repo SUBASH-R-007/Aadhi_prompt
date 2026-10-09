@@ -1,0 +1,40 @@
+Title: Motion and Algorithms
+
+## Newton's Second Law
+Force is defined as the product of mass and acceleration.
+
+F = m × a
+
+where F is the force in newtons and m is the mass in kilograms.
+
+Example: a 2 kg ball pushed with a force of 10 N accelerates at 5 m/s².
+
+## Kinetic Energy
+Kinetic energy is the energy an object has because of its motion.
+
+KE = ½ m v²
+
+## Computing the Area of a Circle
+The following Python function returns the area of a circle for a given radius.
+
+```python
+def area(r):
+    return 3.14159 * r * r
+
+print(area(2))
+```
+
+Output: 12.56636
+
+```javascript
+const square = x => x * x;
+console.log(square(4));
+```
+
+## Binary Search
+Binary search is an algorithm that finds a value in a sorted list by repeatedly halving the search range.
+1. Compare the target with the middle element.
+2. If they are equal, the search ends.
+3. Otherwise continue in the half that can contain the target.
+
+Table 1: Comparisons needed for lists of different sizes

@@ -1,0 +1,798 @@
+/* Side panels (web/js/player/panels). Sizes are logical stage pixels (1920x1080 stage, scaled by
+   the player with a CSS transform). The card fills the side-panel rect given by the player.
+   Render mode (`data-mode="render"`) is static and opaque: no blur, no transitions, no animation. */
+
+.ap-panel {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px 22px 20px;
+  color: var(--c-text);
+  font-family: var(--font-sans);
+  font-size: 20px;
+  line-height: 1.35;
+  overflow: hidden;
+  isolation: isolate;
+  transition:
+    opacity 0.5s var(--ease),
+    transform 0.6s var(--ease),
+    filter 0.5s var(--ease);
+}
+
+.ap-panel *,
+.ap-panel *::before,
+.ap-panel *::after {
+  box-sizing: border-box;
+}
+
+/* The glass card is a separate layer so render mode can clip a media hole out of it. */
+.ap-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: var(--radius-lg);
+  background: var(--c-surface);
+  border: 1px solid var(--c-glass-border);
+  box-shadow:
+    0 0 30px rgba(176, 38, 255, 0.2),
+    inset 0 0 15px rgba(255, 215, 0, 0.08);
+  backdrop-filter: blur(var(--blur));
+  -webkit-backdrop-filter: blur(var(--blur));
+}
+
+.ap-panel[data-visible='false'] {
+  opacity: 0;
+  transform: translateY(14px) scale(0.98);
+  filter: blur(6px);
+  pointer-events: none;
+}
+
+/* Focus: the narration points at the visual ("look at the graph": a 'focus' sync cue). A soft cyan
+   pulse inside the card in live mode; a static outline in render mode and with reduced motion (both
+   switch animations off below). Inset, so the card's overflow never clips it. */
+.ap-panel.is-focus .ap-backdrop {
+  border-color: rgba(0, 229, 255, 0.85);
+  box-shadow:
+    inset 0 0 0 2px rgba(0, 229, 255, 0.7),
+    inset 0 0 26px rgba(0, 229, 255, 0.22),
+    0 0 30px rgba(176, 38, 255, 0.2);
+  animation: ap-panel-focus 1.6s ease-in-out 1;
+}
+
+@keyframes ap-panel-focus {
+  50% {
+    box-shadow:
+      inset 0 0 0 3px rgba(0, 229, 255, 0.95),
+      inset 0 0 38px rgba(0, 229, 255, 0.34),
+      0 0 30px rgba(176, 38, 255, 0.2);
+  }
+}
+
+.ap-head {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ap-kicker {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--c-text-faint);
+}
+
+.ap-title {
+  margin: 0;
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 26px;
+  line-height: 1.15;
+  color: var(--c-gold);
+  letter-spacing: 0.01em;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ap-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ap-notice {
+  margin: auto;
+  padding: 14px 16px;
+  max-width: 100%;
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--c-text-dim);
+  font-size: 18px;
+  text-align: center;
+}
+
+.ap-notice--warn {
+  color: #ffd27a;
+  background: rgba(255, 85, 85, 0.12);
+}
+
+/* ---------- skill tree ---------- */
+
+.ap-tree-canvas {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Fills the canvas; drawTree sets max-width/max-height so a small map is enlarged at most
+   MAX_UPSCALE times (the viewBox keeps the aspect ratio, centred). */
+.ap-tree-svg {
+  display: block;
+  flex: 0 1 auto;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.ap-tree-edge {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.28);
+  stroke-width: 2;
+  stroke-dasharray: 5 6;
+}
+
+.ap-tree-edge[data-state='done'] {
+  stroke: rgba(255, 215, 0, 0.75);
+  stroke-dasharray: none;
+}
+
+.ap-tree-edge[data-state='active'] {
+  stroke: var(--c-purple);
+  stroke-width: 3;
+  stroke-dasharray: none;
+  filter: drop-shadow(0 0 4px rgba(176, 38, 255, 0.8));
+}
+
+.ap-tree-edge[data-prereq='true'] {
+  stroke-dasharray: 2 5;
+}
+
+.ap-tree-arrow {
+  fill: rgba(255, 255, 255, 0.35);
+}
+
+.ap-tree-arrow[data-state='done'] {
+  fill: rgba(255, 215, 0, 0.85);
+}
+
+.ap-tree-arrow[data-state='active'] {
+  fill: var(--c-purple);
+}
+
+.ap-tree-box {
+  fill: rgba(255, 255, 255, 0.05);
+  stroke: rgba(255, 255, 255, 0.25);
+  stroke-width: 1.5;
+}
+
+.ap-tree-label {
+  fill: var(--c-text-dim);
+  font-family: var(--font-sans);
+  font-weight: 600;
+}
+
+.ap-tree-node[data-state='done'] .ap-tree-box {
+  fill: rgba(255, 215, 0, 0.14);
+  stroke: rgba(255, 215, 0, 0.7);
+}
+
+.ap-tree-node[data-state='done'] .ap-tree-label {
+  fill: var(--c-gold);
+}
+
+.ap-tree-node[data-state='active'] .ap-tree-box {
+  fill: #8a1fd0;
+  stroke: var(--c-gold);
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 10px rgba(176, 38, 255, 0.85)) drop-shadow(0 0 4px rgba(255, 215, 0, 0.45));
+}
+
+.ap-tree-node[data-state='active'] .ap-tree-label {
+  fill: #ffffff;
+  font-weight: 700;
+}
+
+.ap-tree-node[data-kind='prerequisite'] .ap-tree-box {
+  stroke-dasharray: 6 4;
+}
+
+.ap-tree-node[data-kind='prerequisite'][data-state='todo'] .ap-tree-box {
+  fill: rgba(0, 229, 255, 0.06);
+  stroke: rgba(0, 229, 255, 0.55);
+}
+
+.ap-tree-prereq-tag {
+  fill: var(--c-cyan);
+  opacity: 0.85;
+}
+
+.ap-tree-badge circle {
+  fill: var(--c-gold);
+}
+
+.ap-tree-badge path {
+  fill: none;
+  stroke: #241036;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ap-panel[data-mode='live'] .ap-tree-node[data-state='active'] .ap-tree-box {
+  animation: ap-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes ap-pulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 8px rgba(176, 38, 255, 0.7)) drop-shadow(0 0 3px rgba(255, 215, 0, 0.35));
+  }
+  50% {
+    filter: drop-shadow(0 0 16px rgba(176, 38, 255, 1)) drop-shadow(0 0 6px rgba(255, 215, 0, 0.6));
+  }
+}
+
+.ap-tree-legend {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 14px;
+  color: var(--c-text-dim);
+}
+
+.ap-tree-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ap-tree-key i {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.ap-tree-key.is-done i {
+  border-color: rgba(255, 215, 0, 0.7);
+  background: rgba(255, 215, 0, 0.25);
+}
+
+.ap-tree-key.is-active i {
+  border-color: var(--c-gold);
+  background: #8a1fd0;
+}
+
+.ap-tree-key.is-prereq i {
+  border-style: dashed;
+  border-color: rgba(0, 229, 255, 0.7);
+  background: rgba(0, 229, 255, 0.08);
+}
+
+.ap-tree-focus {
+  flex-basis: 100%;
+  color: var(--c-text-faint);
+  font-size: 13px;
+}
+
+/* ---------- figure / image / gif ---------- */
+
+.ap-figure {
+  margin: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ap-media-box {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.ap-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius);
+}
+
+.ap-img.is-cover {
+  object-fit: cover;
+}
+
+.ap-figure.is-broken .ap-media-box {
+  display: none;
+}
+
+.ap-caption {
+  flex: 0 0 auto;
+  font-size: 15px;
+  color: var(--c-text-dim);
+  text-align: center;
+}
+
+.ap-gif-credit {
+  color: var(--c-text-dim);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+a.ap-gif-credit:hover,
+a.ap-gif-credit:focus-visible {
+  color: var(--c-gold);
+  text-decoration: underline;
+}
+
+.ap-panel--title-only .ap-body {
+  display: none;
+}
+
+/* ---------- chart / graph ---------- */
+
+.ap-chart-wrap,
+.ap-graph-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+.ap-chart-canvas,
+.ap-graph-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.ap-graph-legend {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 15px;
+  color: var(--c-text-dim);
+}
+
+.ap-graph-legend:empty {
+  display: none;
+}
+
+.ap-graph-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ap-graph-key i {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 4px;
+  border-radius: 2px;
+}
+
+.ap-graph-key.is-error {
+  color: #ffd27a;
+  text-decoration: line-through;
+}
+
+/* ---------- 3D ---------- */
+
+.ap-3d-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.ap-3d-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+
+.ap-3d-canvas:active {
+  cursor: grabbing;
+}
+
+.ap-3d-canvas:focus-visible {
+  outline: 2px solid var(--c-focus);
+  outline-offset: -2px;
+}
+
+.ap-3d-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.ap-3d-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(7, 5, 13, 0.72);
+  border: 1px solid rgba(255, 215, 0, 0.35);
+  color: var(--c-text);
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ap-3d-lost {
+  position: absolute;
+  inset: auto 12px 12px;
+}
+
+.ap-3d-hint {
+  flex: 0 0 auto;
+  margin: 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--c-text-faint);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ---------- video (manim) ---------- */
+
+.ap-video-box {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.ap-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.ap-video.is-cover {
+  object-fit: cover;
+}
+
+/* ---------- terminal ---------- */
+
+.ap-panel--terminal-skin .ap-backdrop {
+  background: rgba(14, 10, 22, 0.94);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 0 24px rgba(0, 0, 0, 0.6),
+    inset 0 0 22px rgba(0, 0, 0, 0.7);
+}
+
+.ap-panel--terminal-skin .ap-head {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
+.ap-panel--terminal-skin .ap-kicker {
+  display: none;
+}
+
+.ap-panel--terminal-skin .ap-title {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 400;
+  color: var(--c-text-dim);
+}
+
+.ap-term-dots {
+  display: inline-flex;
+  gap: 7px;
+  flex: 0 0 auto;
+}
+
+.ap-term-dots i {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #ff5f56;
+}
+
+.ap-term-dots i:nth-child(2) {
+  background: #ffbd2e;
+}
+
+.ap-term-dots i:nth-child(3) {
+  background: #27c93f;
+}
+
+.ap-term-screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 17px;
+  line-height: 1.5;
+  color: #b8ffd9;
+}
+
+/* Sized to its content while it fits (top-anchored); when taller than the screen it shrinks and
+   its flex-end alignment pushes the overflow out at the top, so the newest lines stay visible
+   without any scroll state (deterministic in render mode). */
+.ap-term-lines {
+  flex: 0 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+
+.ap-term-line {
+  flex: 0 0 auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.ap-term-line[hidden] {
+  display: none;
+}
+
+.ap-term-cmd {
+  color: #ffffff;
+}
+
+.ap-term-prompt {
+  color: var(--c-green);
+}
+
+.ap-term-out {
+  text-shadow: 0 0 6px rgba(0, 255, 136, 0.35);
+}
+
+.ap-term-more {
+  color: var(--c-text-faint);
+  font-style: italic;
+}
+
+.ap-term-cursor {
+  display: inline-block;
+  width: 0.6em;
+  height: 1.1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--c-green);
+  opacity: 0.8;
+}
+
+.ap-panel[data-mode='live'] .ap-term-cursor {
+  animation: ap-blink 1.05s steps(1) infinite;
+}
+
+@keyframes ap-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* ---------- quiz teaser ---------- */
+
+.ap-quiz-question {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.ap-quiz-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.ap-quiz-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--c-text);
+  font: inherit;
+  font-size: 19px;
+  text-align: left;
+  transition:
+    background 0.35s var(--ease),
+    border-color 0.35s var(--ease),
+    opacity 0.35s var(--ease);
+}
+
+button.ap-quiz-option {
+  cursor: pointer;
+}
+
+button.ap-quiz-option:hover:not(:disabled),
+button.ap-quiz-option:focus-visible {
+  border-color: rgba(255, 215, 0, 0.6);
+  outline: none;
+}
+
+button.ap-quiz-option:disabled {
+  cursor: default;
+}
+
+.ap-quiz-letter {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--c-gold-soft);
+  color: var(--c-gold);
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.ap-quiz-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ap-quiz-mark {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+}
+
+.ap-quiz-option.is-guess {
+  border-color: var(--c-cyan);
+  background: rgba(0, 229, 255, 0.1);
+}
+
+.ap-quiz-option.is-correct {
+  border-color: var(--c-green);
+  background: rgba(0, 255, 136, 0.16);
+}
+
+.ap-quiz-option.is-correct .ap-quiz-letter {
+  background: var(--c-green);
+  color: #07050d;
+}
+
+/* drawn check mark (no font glyph dependency) */
+.ap-quiz-option.is-correct .ap-quiz-mark {
+  position: relative;
+}
+
+.ap-quiz-option.is-correct .ap-quiz-mark::after {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 2px;
+  width: 7px;
+  height: 14px;
+  border: solid var(--c-green);
+  border-width: 0 3px 3px 0;
+  transform: rotate(45deg);
+}
+
+.ap-quiz-option.is-dim {
+  opacity: 0.45;
+}
+
+.ap-quiz-option.is-wrong {
+  border-color: var(--c-red);
+  background: rgba(255, 85, 85, 0.12);
+  opacity: 0.75;
+}
+
+.ap-quiz-status {
+  margin: 0;
+  font-size: 16px;
+  color: var(--c-text-dim);
+}
+
+.ap-body[data-revealed='true'] .ap-quiz-status {
+  color: var(--c-green);
+  font-weight: 600;
+}
+
+/* ---------- render mode: opaque, static, deterministic ---------- */
+
+.ap-panel[data-mode='render'],
+.ap-panel[data-mode='render'] * {
+  transition: none !important;
+  animation: none !important;
+}
+
+.ap-panel[data-mode='render'] .ap-backdrop {
+  background: var(--c-surface-solid);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.ap-panel[data-mode='render'].ap-panel--terminal-skin .ap-backdrop {
+  background: #0e0a16;
+}
+
+.ap-panel[data-mode='render'][data-visible='false'] {
+  visibility: hidden;
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+
+/* media hole: the compositor draws the video underneath, so nothing may paint in the box */
+.ap-panel[data-mode='render'].ap-panel--hole .ap-video-box {
+  background: transparent;
+}
+
+.ap-panel[data-mode='render'] .ap-video {
+  visibility: hidden;
+}
+
+.ap-panel[data-mode='render'] .ap-3d-canvas {
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ap-panel,
+  .ap-panel * {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  .ap-panel[data-visible='false'] {
+    transform: none;
+    filter: none;
+  }
+}

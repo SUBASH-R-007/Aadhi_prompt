@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en" data-aadhi-render="page">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=1920, height=1080, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Aadhi EduEngine render</title>
+    <link rel="stylesheet" href="/web/css/tokens.css" />
+    <link rel="stylesheet" href="/web/css/base.css" />
+    <link rel="stylesheet" href="/web/css/player.css" />
+    <link rel="stylesheet" href="/web/css/panels.css" />
+    <!-- Page-level layout only (style-src allows inline styles; no inline scripts anywhere). -->
+    <style>
+      html:root {
+        /* tokens.css sets a dark color-scheme on :root, which would paint an opaque dark canvas behind
+           the page; the render worker needs a transparent background (screenshots with alpha). */
+        color-scheme: normal;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: transparent !important;
+      }
+      [data-aadhi-render-root] {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: transparent;
+      }
+      /* Glass panels (RENDER_GLASS_PANELS, "#...&glass=1"): render mode keeps the live player's
+         translucent surface colours (player.css / panels.css; a test keeps them in sync) instead of
+         the solid ones, so ffmpeg composites them over the moving mascot like the preview. The
+         backdrop blur itself is not reproduced. */
+      html[data-render-glass] .render-mode .ap-board {
+        background: rgba(55, 15, 100, 0.86);
+      }
+      html[data-render-glass] .render-mode .ap-card,
+      html[data-render-glass] .render-mode .ap-quiz,
+      html[data-render-glass] .render-mode .ap-media-title {
+        background: rgba(55, 15, 100, 0.88);
+      }
+      html[data-render-glass] .render-mode .ap-media-subtitle {
+        background: rgba(20, 8, 35, 0.8);
+      }
+      html[data-render-glass] .render-mode .ap-media-missing {
+        background: rgba(55, 15, 100, 0.92);
+      }
+      html[data-render-glass] .ap-panel[data-mode='render']:not(.ap-panel--terminal-skin) .ap-backdrop {
+        background: var(--c-surface);
+      }
+    </style>
+    <script type="module" src="/web/js/render/render.js"></script>
+  </head>
+  <body>
+    <div data-aadhi-render-root></div>
+  </body>
+</html>

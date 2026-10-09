@@ -1,0 +1,41 @@
+<!doctype html>
+<!--
+  p5.js sandbox, served at /sandbox/p5?origin=<app origin> with its own CSP:
+    default-src 'none'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'unsafe-inline';
+    img-src data: blob:; connect-src 'none'; frame-ancestors 'self'
+  and embedded with sandbox="allow-scripts" only (opaque origin: no cookies, storage, DOM access to
+  the app). Sketch code arrives by postMessage from the parent window (see p5-runner.js).
+  Scripts are classic (not modules): module fetches from an opaque origin would need CORS.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Aadhi sandbox</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #07050d;
+        color: #fff;
+        font-family: system-ui, sans-serif;
+      }
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      canvas {
+        display: block;
+        touch-action: none;
+      }
+    </style>
+    <script src="/web/vendor/p5/p5.min.js"></script>
+    <script src="/web/sandbox/p5-runner.js"></script>
+  </head>
+  <body></body>
+</html>

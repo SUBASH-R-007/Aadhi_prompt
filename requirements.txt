@@ -1,15 +1,46 @@
-fastapi
-uvicorn
-manim
-pydantic
-google-genai
-edge-tts
-python-dotenv
-python-multipart
-openai>=1.12.0
-httpx
-sqlalchemy
-pyjwt
-passlib[bcrypt]
-bcrypt
-psycopg2-binary
+# Aadhi EduEngine v2 - direct runtime dependencies (compatible ranges).
+# Exact, tested versions live in requirements.lock, a constraints file (scripts/lock_requirements.py):
+#   pip install -c requirements.lock -r requirements.txt [-r requirements-dev.txt]
+# Floors are the major/minor versions the code was written and verified against.
+# Optional S3 / Cloudflare R2 / MinIO storage backend: pip install "boto3>=1.35,<2"  (or: pip install .[s3])
+
+# Web / API
+fastapi>=0.142,<1
+uvicorn[standard]>=0.30,<1
+python-multipart>=0.0.18,<0.1
+# pydantic 2.12+: Field(exclude_if=...) (aadhi.pipeline.base.Issue.data)
+pydantic>=2.12,<3
+pydantic-settings>=2.7,<3
+python-dotenv>=1.0,<2
+
+# Database
+sqlalchemy>=2.1,<3
+alembic>=1.14,<2
+psycopg[binary]>=3.2,<4
+
+# Auth
+bcrypt>=4.2,<6
+pyjwt>=2.9,<3
+cryptography>=43  # Fernet encryption of API keys saved in the Studio (aadhi.security.credentials_crypto)
+
+# Providers (LLM, TTS, images, video) and HTTP
+httpx>=0.27,<1
+aiohttp>=3.10,<4
+tenacity>=9.0,<10
+google-genai>=2.0,<3
+openai>=3.0,<4  # Responses API (client.responses)
+anthropic>=1.11,<2  # Claude: streamed beta Messages API (output_config, server-side refusal fallbacks)
+edge-tts>=7.0,<8
+
+# Ingest (PDF / DOCX)
+pymupdf>=1.25,<2
+python-docx>=1.1,<2
+mammoth>=1.8,<2
+beautifulsoup4>=4.12,<5
+pillow>=11.0,<13
+
+# Media: Manim animations, render worker, process control
+manim==0.21.*  # keep in step with MANIM_VERSION in docker/manim-sandbox/Dockerfile (cache keys)
+numpy>=2.0,<3
+playwright>=1.49,<2
+psutil>=6.0,<8

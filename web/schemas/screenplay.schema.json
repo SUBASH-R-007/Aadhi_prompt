@@ -1,0 +1,2814 @@
+{
+ "$defs": {
+  "AIVideoScene": {
+   "description": "Real-world footage. Narration plays over a looping clip.\n\nIf AI video is disabled, over budget or fails, the asset stage produces a still from\n``fallback_image_prompt`` (or uses ``fallback_figure_id``) shown with a Ken-Burns pan.",
+   "properties": {
+    "id": {
+     "maxLength": 64,
+     "minLength": 1,
+     "title": "Id",
+     "type": "string"
+    },
+    "concept_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Concept Id"
+    },
+    "chapter_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Chapter Id"
+    },
+    "title": {
+     "default": "",
+     "maxLength": 240,
+     "title": "Title",
+     "type": "string"
+    },
+    "subtitle": {
+     "anyOf": [
+      {
+       "maxLength": 320,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Subtitle"
+    },
+    "mascot_position": {
+     "default": "left",
+     "enum": [
+      "left",
+      "right",
+      "center",
+      "popup_bottom_left",
+      "popup_bottom_right",
+      "hidden"
+     ],
+     "title": "Mascot Position",
+     "type": "string"
+    },
+    "beats": {
+     "items": {
+      "$ref": "#/$defs/Beat"
+     },
+     "maxItems": 40,
+     "minItems": 1,
+     "title": "Beats",
+     "type": "array"
+    },
+    "side_panel": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/SidePanel"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "objective_ids": {
+     "items": {
+      "maxLength": 64,
+      "minLength": 1,
+      "type": "string"
+     },
+     "maxItems": 10,
+     "title": "Objective Ids",
+     "type": "array"
+    },
+    "intent": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/SceneIntent"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "notes": {
+     "default": "",
+     "maxLength": 4000,
+     "title": "Notes",
+     "type": "string"
+    },
+    "hidden": {
+     "default": false,
+     "title": "Hidden",
+     "type": "boolean"
+    },
+    "min_seconds": {
+     "anyOf": [
+      {
+       "maximum": 600.0,
+       "minimum": 1.0,
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Min Seconds"
+    },
+    "type": {
+     "const": "ai_video",
+     "title": "Type",
+     "type": "string"
+    },
+    "video_prompt": {
+     "maxLength": 1200,
+     "minLength": 1,
+     "title": "Video Prompt",
+     "type": "string"
+    },
+    "rationale": {
+     "default": "",
+     "maxLength": 400,
+     "title": "Rationale",
+     "type": "string"
+    },
+    "fallback_image_prompt": {
+     "anyOf": [
+      {
+       "maxLength": 800,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Fallback Image Prompt"
+    },
+    "fallback_figure_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Fallback Figure Id"
+    },
+    "override_asset_key": {
+     "anyOf": [
+      {
+       "maxLength": 128,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Override Asset Key"
+    },
+    "variant": {
+     "default": 0,
+     "maximum": 99,
+     "minimum": 0,
+     "title": "Variant",
+     "type": "integer"
+    }
+   },
+   "required": [
+    "id",
+    "beats",
+    "type",
+    "video_prompt"
+   ],
+   "title": "AIVideoScene",
+   "type": "object"
+  },
+  "Beat": {
+   "properties": {
+    "id": {
+     "maxLength": 64,
+     "minLength": 1,
+     "title": "Id",
+     "type": "string"
+    },
+    "narration": {
+     "maxLength": 1500,
+     "minLength": 1,
+     "title": "Narration",
+     "type": "string"
+    },
+    "spoken": {
+     "anyOf": [
+      {
+       "maxLength": 2000,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Spoken"
+    },
+    "board_item_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Board Item Id"
+    },
+    "fill_item_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Fill Item Id"
+    },
+    "highlight_item_ids": {
+     "items": {
+      "maxLength": 64,
+      "minLength": 1,
+      "type": "string"
+     },
+     "maxItems": 2,
+     "title": "Highlight Item Ids",
+     "type": "array"
+    },
+    "pause_after": {
+     "default": 0.0,
+     "maximum": 8.0,
+     "minimum": 0.0,
+     "title": "Pause After",
+     "type": "number"
+    },
+    "visual_cue": {
+     "anyOf": [
+      {
+       "maxLength": 600,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Visual Cue"
+    },
+    "source_refs": {
+     "items": {
+      "type": "string"
+     },
+     "maxItems": 10,
+     "title": "Source Refs",
+     "type": "array"
+    }
+   },
+   "required": [
+    "id",
+    "narration"
+   ],
+   "title": "Beat",
+   "type": "object"
+  },
+  "BoardItem": {
+   "properties": {
+    "id": {
+     "maxLength": 64,
+     "minLength": 1,
+     "title": "Id",
+     "type": "string"
+    },
+    "kind": {
+     "$ref": "#/$defs/BoardItemKind"
+    },
+    "text": {
+     "default": "",
+     "maxLength": 1200,
+     "title": "Text",
+     "type": "string"
+    },
+    "term": {
+     "anyOf": [
+      {
+       "maxLength": 240,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Term"
+    },
+    "latex": {
+     "anyOf": [
+      {
+       "maxLength": 1200,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Latex"
+    },
+    "variables": {
+     "items": {
+      "$ref": "#/$defs/FormulaVariable"
+     },
+     "maxItems": 8,
+     "title": "Variables",
+     "type": "array"
+    },
+    "language": {
+     "anyOf": [
+      {
+       "pattern": "^[a-z0-9+#-]{1,20}$",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Language"
+    },
+    "code": {
+     "anyOf": [
+      {
+       "maxLength": 4000,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Code"
+    },
+    "headers": {
+     "anyOf": [
+      {
+       "items": {
+        "type": "string"
+       },
+       "maxItems": 8,
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Headers"
+    },
+    "rows": {
+     "anyOf": [
+      {
+       "items": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "maxItems": 20,
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Rows"
+    },
+    "figure_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Figure Id"
+    },
+    "caption": {
+     "anyOf": [
+      {
+       "maxLength": 600,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Caption"
+    },
+    "justification": {
+     "anyOf": [
+      {
+       "maxLength": 800,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Justification"
+    },
+    "blank": {
+     "default": false,
+     "title": "Blank",
+     "type": "boolean"
+    },
+    "misconception_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Misconception Id"
+    },
+    "source_refs": {
+     "items": {
+      "type": "string"
+     },
+     "maxItems": 10,
+     "title": "Source Refs",
+     "type": "array"
+    }
+   },
+   "required": [
+    "id",
+    "kind"
+   ],
+   "title": "BoardItem",
+   "type": "object"
+  },
+  "BoardItemKind": {
+   "enum": [
+    "heading",
+    "bullet",
+    "paragraph",
+    "definition",
+    "formula",
+    "callout_info",
+    "callout_tip",
+    "callout_warning",
+    "misconception",
+    "code",
+    "table",
+    "figure",
+    "example_step",
+    "takeaway"
+   ],
+   "title": "BoardItemKind",
+   "type": "string"
+  },
+  "BoardScene": {
+   "description": "Board-driven scenes. Items without a revealing beat are visible from scene start;\nlayout always follows list order regardless of reveal order.",
+   "properties": {
+    "id": {
+     "maxLength": 64,
+     "minLength": 1,
+     "title": "Id",
+     "type": "string"
+    },
+    "concept_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Concept Id"
+    },
+    "chapter_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Chapter Id"
+    },
+    "title": {
+     "default": "",
+     "maxLength": 240,
+     "title": "Title",
+     "type": "string"
+    },
+    "subtitle": {
+     "anyOf": [
+      {
+       "maxLength": 320,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Subtitle"
+    },
+    "mascot_position": {
+     "default": "left",
+     "enum": [
+      "left",
+      "right",
+      "center",
+      "popup_bottom_left",
+      "popup_bottom_right",
+      "hidden"
+     ],
+     "title": "Mascot Position",
+     "type": "string"
+    },
+    "beats": {
+     "items": {
+      "$ref": "#/$defs/Beat"
+     },
+     "maxItems": 40,
+     "minItems": 1,
+     "title": "Beats",
+     "type": "array"
+    },
+    "side_panel": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/SidePanel"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "objective_ids": {
+     "items": {
+      "maxLength": 64,
+      "minLength": 1,
+      "type": "string"
+     },
+     "maxItems": 10,
+     "title": "Objective Ids",
+     "type": "array"
+    },
+    "intent": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/SceneIntent"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "notes": {
+     "default": "",
+     "maxLength": 4000,
+     "title": "Notes",
+     "type": "string"
+    },
+    "hidden": {
+     "default": false,
+     "title": "Hidden",
+     "type": "boolean"
+    },
+    "min_seconds": {
+     "anyOf": [
+      {
+       "maximum": 600.0,
+       "minimum": 1.0,
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Min Seconds"
+    },
+    "type": {
+     "enum": [
+      "content",
+      "example",
+      "summary",
+      "key_takeaway",
+      "recap",
+      "title"
+     ],
+     "title": "Type",
+     "type": "string"
+    },
+    "board": {
+     "items": {
+      "$ref": "#/$defs/BoardItem"
+     },
+     "maxItems": 12,
+     "title": "Board",
+     "type": "array"
+    }
+   },
+   "required": [
+    "id",
+    "beats",
+    "type"
+   ],
+   "title": "BoardScene",
+   "type": "object"
+  },
+  "ChapterCardScene": {
+   "properties": {
+    "id": {
+     "maxLength": 64,
+     "minLength": 1,
+     "title": "Id",
+     "type": "string"
+    },
+    "concept_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Concept Id"
+    },
+    "chapter_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Chapter Id"
+    },
+    "title": {
+     "default": "",
+     "maxLength": 240,
+     "title": "Title",
+     "type": "string"
+    },
+    "subtitle": {
+     "anyOf": [
+      {
+       "maxLength": 320,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Subtitle"
+    },
+    "mascot_position": {
+     "default": "left",
+     "enum": [
+      "left",
+      "right",
+      "center",
+      "popup_bottom_left",
+      "popup_bottom_right",
+      "hidden"
+     ],
+     "title": "Mascot Position",
+     "type": "string"
+    },
+    "beats": {
+     "items": {
+      "$ref": "#/$defs/Beat"
+     },
+     "maxItems": 4,
+     "title": "Beats",
+     "type": "array"
+    },
+    "side_panel": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/SidePanel"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "objective_ids": {
+     "items": {
+      "maxLength": 64,
+      "minLength": 1,
+      "type": "string"
+     },
+     "maxItems": 10,
+     "title": "Objective Ids",
+     "type": "array"
+    },
+    "intent": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/SceneIntent"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "notes": {
+     "default": "",
+     "maxLength": 4000,
+     "title": "Notes",
+     "type": "string"
+    },
+    "hidden": {
+     "default": false,
+     "title": "Hidden",
+     "type": "boolean"
+    },
+    "min_seconds": {
+     "anyOf": [
+      {
+       "maximum": 600.0,
+       "minimum": 1.0,
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Min Seconds"
+    },
+    "type": {
+     "const": "chapter_card",
+     "title": "Type",
+     "type": "string"
+    },
+    "chapter_label": {
+     "default": "Part 1",
+     "maxLength": 60,
+     "title": "Chapter Label",
+     "type": "string"
+    }
+   },
+   "required": [
+    "id",
+    "type"
+   ],
+   "title": "ChapterCardScene",
+   "type": "object"
+  },
+  "ChapterRef": {
+   "properties": {
+    "id": {
+     "maxLength": 64,
+     "minLength": 1,
+     "title": "Id",
+     "type": "string"
+    },
+    "title": {
+     "maxLength": 160,
+     "minLength": 1,
+     "title": "Title",
+     "type": "string"
+    },
+    "scene_ids": {
+     "items": {
+      "maxLength": 64,
+      "minLength": 1,
+      "type": "string"
+     },
+     "maxItems": 200,
+     "title": "Scene Ids",
+     "type": "array"
+    }
+   },
+   "required": [
+    "id",
+    "title"
+   ],
+   "title": "ChapterRef",
+   "type": "object"
+  },
+  "ChartDataset": {
+   "properties": {
+    "label": {
+     "default": "",
+     "maxLength": 120,
+     "title": "Label",
+     "type": "string"
+    },
+    "data": {
+     "items": {
+      "type": "number"
+     },
+     "maxItems": 64,
+     "minItems": 1,
+     "title": "Data",
+     "type": "array"
+    }
+   },
+   "required": [
+    "data"
+   ],
+   "title": "ChartDataset",
+   "type": "object"
+  },
+  "ChartSpec": {
+   "properties": {
+    "chart_type": {
+     "default": "bar",
+     "enum": [
+      "bar",
+      "line",
+      "pie",
+      "doughnut",
+      "radar"
+     ],
+     "title": "Chart Type",
+     "type": "string"
+    },
+    "labels": {
+     "items": {
+      "type": "string"
+     },
+     "maxItems": 64,
+     "minItems": 1,
+     "title": "Labels",
+     "type": "array"
+    },
+    "datasets": {
+     "items": {
+      "$ref": "#/$defs/ChartDataset"
+     },
+     "maxItems": 6,
+     "minItems": 1,
+     "title": "Datasets",
+     "type": "array"
+    },
+    "x_label": {
+     "anyOf": [
+      {
+       "maxLength": 120,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "X Label"
+    },
+    "y_label": {
+     "anyOf": [
+      {
+       "maxLength": 120,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Y Label"
+    }
+   },
+   "required": [
+    "labels",
+    "datasets"
+   ],
+   "title": "ChartSpec",
+   "type": "object"
+  },
+  "CompanionSheet": {
+   "description": "Formulas/definitions/misconceptions are derived from the board and Screenplay.misconceptions\nby ``aadhi.pipeline.companion``; only practice problems are model-generated.",
+   "properties": {
+    "key_formulas": {
+     "items": {
+      "$ref": "#/$defs/FormulaEntry"
+     },
+     "maxItems": 50,
+     "title": "Key Formulas",
+     "type": "array"
+    },
+    "definitions": {
+     "items": {
+      "$ref": "#/$defs/DefinitionEntry"
+     },
+     "maxItems": 50,
+     "title": "Definitions",
+     "type": "array"
+    },
+    "misconceptions": {
+     "items": {
+      "$ref": "#/$defs/MisconceptionEntry"
+     },
+     "maxItems": 50,
+     "title": "Misconceptions",
+     "type": "array"
+    },
+    "practice_problems": {
+     "items": {
+      "$ref": "#/$defs/PracticeProblem"
+     },
+     "maxItems": 20,
+     "title": "Practice Problems",
+     "type": "array"
+    },
+    "legacy_markdown": {
+     "anyOf": [
+      {
+       "maxLength": 60000,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Legacy Markdown"
+    }
+   },
+   "title": "CompanionSheet",
+   "type": "object"
+  },
+  "ConceptNode": {
+   "properties": {
+    "id": {
+     "maxLength": 64,
+     "minLength": 1,
+     "title": "Id",
+     "type": "string"
+    },
+    "title": {
+     "maxLength": 160,
+     "minLength": 1,
+     "title": "Title",
+     "type": "string"
+    },
+    "summary": {
+     "default": "",
+     "maxLength": 600,
+     "title": "Summary",
+     "type": "string"
+    },
+    "depends_on": {
+     "items": {
+      "maxLength": 64,
+      "minLength": 1,
+      "type": "string"
+     },
+     "maxItems": 20,
+     "title": "Depends On",
+     "type": "array"
+    },
+    "kind": {
+     "default": "core",
+     "enum": [
+      "prerequisite",
+      "core"
+     ],
+     "title": "Kind",
+     "type": "string"
+    }
+   },
+   "required": [
+    "id",
+    "title"
+   ],
+   "title": "ConceptNode",
+   "type": "object"
+  },
+  "DefinitionEntry": {
+   "properties": {
+    "term": {
+     "maxLength": 240,
+     "title": "Term",
+     "type": "string"
+    },
+    "definition": {
+     "maxLength": 1200,
+     "title": "Definition",
+     "type": "string"
+    },
+    "source_item_id": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Source Item Id"
+    }
+   },
+   "required": [
+    "term",
+    "definition"
+   ],
+   "title": "DefinitionEntry",
+   "type": "object"
+  },
+  "FormulaEntry": {
+   "properties": {
+    "name": {
+     "maxLength": 240,
+     "title": "Name",
+     "type": "string"
+    },
+    "latex": {
+     "anyOf": [
+      {
+       "maxLength": 1200,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Latex"
+    },
+    "description": {
+     "default": "",
+     "maxLength": 800,
+     "title": "Description",
+     "type": "string"
+    },
+    "variables": {
+     "items": {
+      "$ref": "#/$defs/FormulaVariable"
+     },
+     "maxItems": 8,
+     "title": "Variables",
+     "type": "array"
+    },
+    "source_item_id": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Source Item Id"
+    }
+   },
+   "required": [
+    "name"
+   ],
+   "title": "FormulaEntry",
+   "type": "object"
+  },
+  "FormulaVariable": {
+   "properties": {
+    "symbol_latex": {
+     "maxLength": 60,
+     "minLength": 1,
+     "title": "Symbol Latex",
+     "type": "string"
+    },
+    "meaning": {
+     "maxLength": 160,
+     "minLength": 1,
+     "title": "Meaning",
+     "type": "string"
+    },
+    "unit": {
+     "default": "",
+     "maxLength": 40,
+     "title": "Unit",
+     "type": "string"
+    },
+    "beat_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Beat Id"
+    }
+   },
+   "required": [
+    "symbol_latex",
+    "meaning"
+   ],
+   "title": "FormulaVariable",
+   "type": "object"
+  },
+  "GraphFunction": {
+   "properties": {
+    "expr": {
+     "maxLength": 200,
+     "minLength": 1,
+     "title": "Expr",
+     "type": "string"
+    },
+    "label": {
+     "anyOf": [
+      {
+       "maxLength": 80,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Label"
+    }
+   },
+   "required": [
+    "expr"
+   ],
+   "title": "GraphFunction",
+   "type": "object"
+  },
+  "GraphPoint": {
+   "properties": {
+    "x": {
+     "title": "X",
+     "type": "number"
+    },
+    "y": {
+     "title": "Y",
+     "type": "number"
+    },
+    "label": {
+     "anyOf": [
+      {
+       "maxLength": 60,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Label"
+    }
+   },
+   "required": [
+    "x",
+    "y"
+   ],
+   "title": "GraphPoint",
+   "type": "object"
+  },
+  "GraphSpec": {
+   "properties": {
+    "functions": {
+     "items": {
+      "$ref": "#/$defs/GraphFunction"
+     },
+     "maxItems": 4,
+     "title": "Functions",
+     "type": "array"
+    },
+    "points": {
+     "items": {
+      "$ref": "#/$defs/GraphPoint"
+     },
+     "maxItems": 20,
+     "title": "Points",
+     "type": "array"
+    },
+    "x_range": {
+     "default": [
+      -5.0,
+      5.0
+     ],
+     "maxItems": 2,
+     "minItems": 2,
+     "prefixItems": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "number"
+      }
+     ],
+     "title": "X Range",
+     "type": "array"
+    },
+    "y_range": {
+     "anyOf": [
+      {
+       "maxItems": 2,
+       "minItems": 2,
+       "prefixItems": [
+        {
+         "type": "number"
+        },
+        {
+         "type": "number"
+        }
+       ],
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Y Range"
+    },
+    "x_label": {
+     "anyOf": [
+      {
+       "maxLength": 60,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "X Label"
+    },
+    "y_label": {
+     "anyOf": [
+      {
+       "maxLength": 60,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Y Label"
+    }
+   },
+   "title": "GraphSpec",
+   "type": "object"
+  },
+  "InteractiveScene": {
+   "description": "p5.js sketch executed ONLY inside the sandboxed iframe (web/sandbox/p5.html).",
+   "properties": {
+    "id": {
+     "maxLength": 64,
+     "minLength": 1,
+     "title": "Id",
+     "type": "string"
+    },
+    "concept_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Concept Id"
+    },
+    "chapter_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Chapter Id"
+    },
+    "title": {
+     "default": "",
+     "maxLength": 240,
+     "title": "Title",
+     "type": "string"
+    },
+    "subtitle": {
+     "anyOf": [
+      {
+       "maxLength": 320,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Subtitle"
+    },
+    "mascot_position": {
+     "default": "left",
+     "enum": [
+      "left",
+      "right",
+      "center",
+      "popup_bottom_left",
+      "popup_bottom_right",
+      "hidden"
+     ],
+     "title": "Mascot Position",
+     "type": "string"
+    },
+    "beats": {
+     "items": {
+      "$ref": "#/$defs/Beat"
+     },
+     "maxItems": 40,
+     "minItems": 1,
+     "title": "Beats",
+     "type": "array"
+    },
+    "side_panel": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/SidePanel"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "objective_ids": {
+     "items": {
+      "maxLength": 64,
+      "minLength": 1,
+      "type": "string"
+     },
+     "maxItems": 10,
+     "title": "Objective Ids",
+     "type": "array"
+    },
+    "intent": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/SceneIntent"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "notes": {
+     "default": "",
+     "maxLength": 4000,
+     "title": "Notes",
+     "type": "string"
+    },
+    "hidden": {
+     "default": false,
+     "title": "Hidden",
+     "type": "boolean"
+    },
+    "min_seconds": {
+     "anyOf": [
+      {
+       "maximum": 600.0,
+       "minimum": 1.0,
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Min Seconds"
+    },
+    "type": {
+     "const": "interactive",
+     "title": "Type",
+     "type": "string"
+    },
+    "p5_code": {
+     "maxLength": 20000,
+     "minLength": 1,
+     "title": "P5 Code",
+     "type": "string"
+    },
+    "poster_override_asset_key": {
+     "anyOf": [
+      {
+       "maxLength": 128,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Poster Override Asset Key"
+    }
+   },
+   "required": [
+    "id",
+    "beats",
+    "type",
+    "p5_code"
+   ],
+   "title": "InteractiveScene",
+   "type": "object"
+  },
+  "LearningObjective": {
+   "properties": {
+    "id": {
+     "maxLength": 64,
+     "minLength": 1,
+     "title": "Id",
+     "type": "string"
+    },
+    "text": {
+     "maxLength": 400,
+     "minLength": 1,
+     "title": "Text",
+     "type": "string"
+    },
+    "bloom": {
+     "default": "understand",
+     "enum": [
+      "remember",
+      "understand",
+      "apply",
+      "analyze",
+      "evaluate",
+      "create"
+     ],
+     "title": "Bloom",
+     "type": "string"
+    },
+    "concept_ids": {
+     "items": {
+      "maxLength": 64,
+      "minLength": 1,
+      "type": "string"
+     },
+     "maxItems": 10,
+     "title": "Concept Ids",
+     "type": "array"
+    }
+   },
+   "required": [
+    "id",
+    "text"
+   ],
+   "title": "LearningObjective",
+   "type": "object"
+  },
+  "LexiconEntry": {
+   "description": "Pronunciation rule applied to TTS input only (captions keep the written form).",
+   "properties": {
+    "written": {
+     "maxLength": 60,
+     "minLength": 1,
+     "title": "Written",
+     "type": "string"
+    },
+    "spoken": {
+     "maxLength": 120,
+     "minLength": 1,
+     "title": "Spoken",
+     "type": "string"
+    },
+    "language": {
+     "anyOf": [
+      {
+       "maxLength": 16,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Language"
+    },
+    "keep_in_english": {
+     "default": false,
+     "title": "Keep In English",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "written",
+    "spoken"
+   ],
+   "title": "LexiconEntry",
+   "type": "object"
+  },
+  "ManimSpec": {
+   "description": "Either a library template with typed params (preferred) or free-form code.\n\nFree-form code must define exactly one ``class <Name>(AadhiScene)`` and call\n``self.wait_until_beat(i)`` before the animation step that belongs to beat ``i``.\n``AadhiScene`` and ``BEAT_TIMES`` are injected by ``aadhi.manim``.",
+   "properties": {
+    "template": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Template"
+    },
+    "params": {
+     "additionalProperties": true,
+     "title": "Params",
+     "type": "object"
+    },
+    "code": {
+     "anyOf": [
+      {
+       "maxLength": 20000,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Code"
+    }
+   },
+   "title": "ManimSpec",
+   "type": "object"
+  },
+  "Misconception": {
+   "properties": {
+    "id": {
+     "maxLength": 64,
+     "minLength": 1,
+     "title": "Id",
+     "type": "string"
+    },
+    "concept_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Concept Id"
+    },
+    "statement": {
+     "maxLength": 600,
+     "minLength": 1,
+     "title": "Statement",
+     "type": "string"
+    },
+    "correction": {
+     "maxLength": 800,
+     "minLength": 1,
+     "title": "Correction",
+     "type": "string"
+    }
+   },
+   "required": [
+    "id",
+    "statement",
+    "correction"
+   ],
+   "title": "Misconception",
+   "type": "object"
+  },
+  "MisconceptionEntry": {
+   "properties": {
+    "misconception": {
+     "maxLength": 800,
+     "title": "Misconception",
+     "type": "string"
+    },
+    "correction": {
+     "maxLength": 1200,
+     "title": "Correction",
+     "type": "string"
+    }
+   },
+   "required": [
+    "misconception",
+    "correction"
+   ],
+   "title": "MisconceptionEntry",
+   "type": "object"
+  },
+  "Model3DSpec": {
+   "properties": {
+    "primitives": {
+     "items": {
+      "$ref": "#/$defs/Primitive3D"
+     },
+     "maxItems": 40,
+     "minItems": 1,
+     "title": "Primitives",
+     "type": "array"
+    },
+    "auto_rotate": {
+     "default": true,
+     "title": "Auto Rotate",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "primitives"
+   ],
+   "title": "Model3DSpec",
+   "type": "object"
+  },
+  "PracticeProblem": {
+   "properties": {
+    "id": {
+     "maxLength": 64,
+     "minLength": 1,
+     "title": "Id",
+     "type": "string"
+    },
+    "question": {
+     "maxLength": 2400,
+     "title": "Question",
+     "type": "string"
+    },
+    "steps": {
+     "items": {
+      "type": "string"
+     },
+     "maxItems": 12,
+     "title": "Steps",
+     "type": "array"
+    },
+    "final_answer": {
+     "maxLength": 1200,
+     "title": "Final Answer",
+     "type": "string"
+    },
+    "hints": {
+     "items": {
+      "type": "string"
+     },
+     "maxItems": 4,
+     "title": "Hints",
+     "type": "array"
+    },
+    "difficulty": {
+     "default": "medium",
+     "enum": [
+      "easy",
+      "medium",
+      "hard"
+     ],
+     "title": "Difficulty",
+     "type": "string"
+    },
+    "objective_ids": {
+     "items": {
+      "maxLength": 64,
+      "minLength": 1,
+      "type": "string"
+     },
+     "maxItems": 6,
+     "title": "Objective Ids",
+     "type": "array"
+    },
+    "source_refs": {
+     "items": {
+      "type": "string"
+     },
+     "maxItems": 10,
+     "title": "Source Refs",
+     "type": "array"
+    }
+   },
+   "required": [
+    "id",
+    "question",
+    "final_answer"
+   ],
+   "title": "PracticeProblem",
+   "type": "object"
+  },
+  "Primitive3D": {
+   "properties": {
+    "shape": {
+     "enum": [
+      "sphere",
+      "box",
+      "cylinder",
+      "cone",
+      "torus",
+      "arrow"
+     ],
+     "title": "Shape",
+     "type": "string"
+    },
+    "position": {
+     "default": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "maxItems": 3,
+     "minItems": 3,
+     "prefixItems": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "number"
+      },
+      {
+       "type": "number"
+      }
+     ],
+     "title": "Position",
+     "type": "array"
+    },
+    "size": {
+     "items": {
+      "type": "number"
+     },
+     "maxItems": 3,
+     "minItems": 1,
+     "title": "Size",
+     "type": "array"
+    },
+    "color": {
+     "default": "#b026ff",
+     "pattern": "^#[0-9a-fA-F]{6}$",
+     "title": "Color",
+     "type": "string"
+    },
+    "label": {
+     "anyOf": [
+      {
+       "maxLength": 60,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Label"
+    }
+   },
+   "required": [
+    "shape"
+   ],
+   "title": "Primitive3D",
+   "type": "object"
+  },
+  "QuizScene": {
+   "description": "Retrieval-practice checkpoint: ``beats`` (question) -> countdown -> ``reveal_beats``.\n\nOptions are shuffled deterministically by the canonicaliser (the model never chooses the\nanswer position).",
+   "properties": {
+    "id": {
+     "maxLength": 64,
+     "minLength": 1,
+     "title": "Id",
+     "type": "string"
+    },
+    "concept_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Concept Id"
+    },
+    "chapter_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Chapter Id"
+    },
+    "title": {
+     "default": "",
+     "maxLength": 240,
+     "title": "Title",
+     "type": "string"
+    },
+    "subtitle": {
+     "anyOf": [
+      {
+       "maxLength": 320,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Subtitle"
+    },
+    "mascot_position": {
+     "default": "left",
+     "enum": [
+      "left",
+      "right",
+      "center",
+      "popup_bottom_left",
+      "popup_bottom_right",
+      "hidden"
+     ],
+     "title": "Mascot Position",
+     "type": "string"
+    },
+    "beats": {
+     "items": {
+      "$ref": "#/$defs/Beat"
+     },
+     "maxItems": 40,
+     "minItems": 1,
+     "title": "Beats",
+     "type": "array"
+    },
+    "side_panel": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/SidePanel"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "objective_ids": {
+     "items": {
+      "maxLength": 64,
+      "minLength": 1,
+      "type": "string"
+     },
+     "maxItems": 10,
+     "title": "Objective Ids",
+     "type": "array"
+    },
+    "intent": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/SceneIntent"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "notes": {
+     "default": "",
+     "maxLength": 4000,
+     "title": "Notes",
+     "type": "string"
+    },
+    "hidden": {
+     "default": false,
+     "title": "Hidden",
+     "type": "boolean"
+    },
+    "min_seconds": {
+     "anyOf": [
+      {
+       "maximum": 600.0,
+       "minimum": 1.0,
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Min Seconds"
+    },
+    "type": {
+     "const": "quiz_checkpoint",
+     "title": "Type",
+     "type": "string"
+    },
+    "question": {
+     "maxLength": 600,
+     "minLength": 1,
+     "title": "Question",
+     "type": "string"
+    },
+    "options": {
+     "items": {
+      "maxLength": 240,
+      "minLength": 1,
+      "type": "string"
+     },
+     "maxItems": 5,
+     "minItems": 2,
+     "title": "Options",
+     "type": "array"
+    },
+    "correct_index": {
+     "minimum": 0,
+     "title": "Correct Index",
+     "type": "integer"
+    },
+    "feedback_wrong": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Feedback Wrong",
+     "type": "array"
+    },
+    "option_misconception_ids": {
+     "items": {
+      "anyOf": [
+       {
+        "maxLength": 64,
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "title": "Option Misconception Ids",
+     "type": "array"
+    },
+    "explanation": {
+     "default": "",
+     "maxLength": 900,
+     "title": "Explanation",
+     "type": "string"
+    },
+    "bloom": {
+     "default": "understand",
+     "enum": [
+      "remember",
+      "understand",
+      "apply",
+      "analyze",
+      "evaluate",
+      "create"
+     ],
+     "title": "Bloom",
+     "type": "string"
+    },
+    "countdown_seconds": {
+     "default": 8,
+     "maximum": 30,
+     "minimum": 3,
+     "title": "Countdown Seconds",
+     "type": "integer"
+    },
+    "reveal_beats": {
+     "items": {
+      "$ref": "#/$defs/Beat"
+     },
+     "maxItems": 10,
+     "minItems": 1,
+     "title": "Reveal Beats",
+     "type": "array"
+    },
+    "source_refs": {
+     "items": {
+      "type": "string"
+     },
+     "maxItems": 10,
+     "title": "Source Refs",
+     "type": "array"
+    }
+   },
+   "required": [
+    "id",
+    "beats",
+    "type",
+    "question",
+    "options",
+    "correct_index",
+    "reveal_beats"
+   ],
+   "title": "QuizScene",
+   "type": "object"
+  },
+  "QuizTeaserSpec": {
+   "properties": {
+    "question": {
+     "maxLength": 400,
+     "title": "Question",
+     "type": "string"
+    },
+    "options": {
+     "items": {
+      "type": "string"
+     },
+     "maxItems": 5,
+     "minItems": 2,
+     "title": "Options",
+     "type": "array"
+    },
+    "correct_index": {
+     "minimum": 0,
+     "title": "Correct Index",
+     "type": "integer"
+    }
+   },
+   "required": [
+    "question",
+    "options",
+    "correct_index"
+   ],
+   "title": "QuizTeaserSpec",
+   "type": "object"
+  },
+  "SceneIntent": {
+   "description": "What the scene is for (copied from the plan; teacher-facing, never shown to students).\n\n``narrative_role`` and ``bridge_in`` keep the lecture's flow when a single scene is repaired or\nregenerated later (the plan itself is not stored with the screenplay).",
+   "properties": {
+    "goal": {
+     "default": "",
+     "maxLength": 600,
+     "title": "Goal",
+     "type": "string"
+    },
+    "key_points": {
+     "items": {
+      "type": "string"
+     },
+     "maxItems": 12,
+     "title": "Key Points",
+     "type": "array"
+    },
+    "source_refs": {
+     "items": {
+      "type": "string"
+     },
+     "maxItems": 20,
+     "title": "Source Refs",
+     "type": "array"
+    },
+    "narrative_role": {
+     "anyOf": [
+      {
+       "enum": [
+        "hook",
+        "context",
+        "prerequisite",
+        "concept",
+        "example",
+        "practice",
+        "check",
+        "application",
+        "synthesis",
+        "transition"
+       ],
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Narrative Role"
+    },
+    "bridge_in": {
+     "default": "",
+     "maxLength": 300,
+     "title": "Bridge In",
+     "type": "string"
+    }
+   },
+   "title": "SceneIntent",
+   "type": "object"
+  },
+  "SidePanel": {
+   "properties": {
+    "kind": {
+     "enum": [
+      "skill_tree",
+      "figure",
+      "image",
+      "chart",
+      "graph",
+      "model_3d",
+      "manim",
+      "terminal",
+      "quiz",
+      "gif"
+     ],
+     "title": "Kind",
+     "type": "string"
+    },
+    "title": {
+     "anyOf": [
+      {
+       "maxLength": 160,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Title"
+    },
+    "rationale": {
+     "default": "",
+     "maxLength": 400,
+     "title": "Rationale",
+     "type": "string"
+    },
+    "show_from_beat_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Show From Beat Id"
+    },
+    "figure_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Figure Id"
+    },
+    "image_prompt": {
+     "anyOf": [
+      {
+       "maxLength": 800,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Image Prompt"
+    },
+    "chart": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/ChartSpec"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "graph": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/GraphSpec"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "model_3d": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/Model3DSpec"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "manim": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/ManimSpec"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "terminal": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/TerminalSpec"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "quiz": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/QuizTeaserSpec"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "gif_query": {
+     "anyOf": [
+      {
+       "maxLength": 80,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Gif Query"
+    },
+    "override_asset_key": {
+     "anyOf": [
+      {
+       "maxLength": 128,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Override Asset Key"
+    },
+    "variant": {
+     "default": 0,
+     "maximum": 99,
+     "minimum": 0,
+     "title": "Variant",
+     "type": "integer"
+    }
+   },
+   "required": [
+    "kind"
+   ],
+   "title": "SidePanel",
+   "type": "object"
+  },
+  "SimulationScene": {
+   "description": "Full-width Manim animation; beat i <-> animation step i.",
+   "properties": {
+    "id": {
+     "maxLength": 64,
+     "minLength": 1,
+     "title": "Id",
+     "type": "string"
+    },
+    "concept_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Concept Id"
+    },
+    "chapter_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Chapter Id"
+    },
+    "title": {
+     "default": "",
+     "maxLength": 240,
+     "title": "Title",
+     "type": "string"
+    },
+    "subtitle": {
+     "anyOf": [
+      {
+       "maxLength": 320,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Subtitle"
+    },
+    "mascot_position": {
+     "default": "left",
+     "enum": [
+      "left",
+      "right",
+      "center",
+      "popup_bottom_left",
+      "popup_bottom_right",
+      "hidden"
+     ],
+     "title": "Mascot Position",
+     "type": "string"
+    },
+    "beats": {
+     "items": {
+      "$ref": "#/$defs/Beat"
+     },
+     "maxItems": 40,
+     "minItems": 1,
+     "title": "Beats",
+     "type": "array"
+    },
+    "side_panel": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/SidePanel"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "objective_ids": {
+     "items": {
+      "maxLength": 64,
+      "minLength": 1,
+      "type": "string"
+     },
+     "maxItems": 10,
+     "title": "Objective Ids",
+     "type": "array"
+    },
+    "intent": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/SceneIntent"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "notes": {
+     "default": "",
+     "maxLength": 4000,
+     "title": "Notes",
+     "type": "string"
+    },
+    "hidden": {
+     "default": false,
+     "title": "Hidden",
+     "type": "boolean"
+    },
+    "min_seconds": {
+     "anyOf": [
+      {
+       "maximum": 600.0,
+       "minimum": 1.0,
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Min Seconds"
+    },
+    "type": {
+     "const": "simulation",
+     "title": "Type",
+     "type": "string"
+    },
+    "manim": {
+     "$ref": "#/$defs/ManimSpec"
+    },
+    "override_asset_key": {
+     "anyOf": [
+      {
+       "maxLength": 128,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Override Asset Key"
+    }
+   },
+   "required": [
+    "id",
+    "beats",
+    "type",
+    "manim"
+   ],
+   "title": "SimulationScene",
+   "type": "object"
+  },
+  "SourceFigure": {
+   "properties": {
+    "id": {
+     "maxLength": 64,
+     "minLength": 1,
+     "title": "Id",
+     "type": "string"
+    },
+    "caption": {
+     "default": "",
+     "maxLength": 600,
+     "title": "Caption",
+     "type": "string"
+    },
+    "page": {
+     "anyOf": [
+      {
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Page"
+    },
+    "asset_key": {
+     "anyOf": [
+      {
+       "maxLength": 128,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Asset Key"
+    },
+    "width": {
+     "anyOf": [
+      {
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Width"
+    },
+    "height": {
+     "anyOf": [
+      {
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Height"
+    }
+   },
+   "required": [
+    "id"
+   ],
+   "title": "SourceFigure",
+   "type": "object"
+  },
+  "SourceInfo": {
+   "properties": {
+    "filename": {
+     "default": "",
+     "maxLength": 255,
+     "title": "Filename",
+     "type": "string"
+    },
+    "mime": {
+     "default": "",
+     "maxLength": 128,
+     "title": "Mime",
+     "type": "string"
+    },
+    "pages": {
+     "anyOf": [
+      {
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Pages"
+    },
+    "sha256": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Sha256"
+    }
+   },
+   "title": "SourceInfo",
+   "type": "object"
+  },
+  "TerminalSpec": {
+   "properties": {
+    "command": {
+     "maxLength": 300,
+     "title": "Command",
+     "type": "string"
+    },
+    "output": {
+     "default": "",
+     "maxLength": 3000,
+     "title": "Output",
+     "type": "string"
+    }
+   },
+   "required": [
+    "command"
+   ],
+   "title": "TerminalSpec",
+   "type": "object"
+  }
+ },
+ "properties": {
+  "schema_version": {
+   "default": 2,
+   "title": "Schema Version",
+   "type": "integer"
+  },
+  "subject_name": {
+   "default": "",
+   "maxLength": 240,
+   "title": "Subject Name",
+   "type": "string"
+  },
+  "unit_name": {
+   "default": "",
+   "maxLength": 240,
+   "title": "Unit Name",
+   "type": "string"
+  },
+  "session_number": {
+   "default": "Session 1",
+   "maxLength": 60,
+   "title": "Session Number",
+   "type": "string"
+  },
+  "session_title": {
+   "default": "",
+   "maxLength": 300,
+   "title": "Session Title",
+   "type": "string"
+  },
+  "language": {
+   "default": "en-IN",
+   "maxLength": 16,
+   "title": "Language",
+   "type": "string"
+  },
+  "board_language": {
+   "anyOf": [
+    {
+     "maxLength": 16,
+     "type": "string"
+    },
+    {
+     "type": "null"
+    }
+   ],
+   "default": null,
+   "title": "Board Language"
+  },
+  "learning_objectives": {
+   "items": {
+    "$ref": "#/$defs/LearningObjective"
+   },
+   "maxItems": 12,
+   "title": "Learning Objectives",
+   "type": "array"
+  },
+  "concept_map": {
+   "items": {
+    "$ref": "#/$defs/ConceptNode"
+   },
+   "maxItems": 150,
+   "title": "Concept Map",
+   "type": "array"
+  },
+  "misconceptions": {
+   "items": {
+    "$ref": "#/$defs/Misconception"
+   },
+   "maxItems": 60,
+   "title": "Misconceptions",
+   "type": "array"
+  },
+  "chapters": {
+   "items": {
+    "$ref": "#/$defs/ChapterRef"
+   },
+   "maxItems": 40,
+   "title": "Chapters",
+   "type": "array"
+  },
+  "lexicon": {
+   "items": {
+    "$ref": "#/$defs/LexiconEntry"
+   },
+   "maxItems": 200,
+   "title": "Lexicon",
+   "type": "array"
+  },
+  "scenes": {
+   "items": {
+    "discriminator": {
+     "mapping": {
+      "ai_video": "#/$defs/AIVideoScene",
+      "chapter_card": "#/$defs/ChapterCardScene",
+      "content": "#/$defs/BoardScene",
+      "example": "#/$defs/BoardScene",
+      "interactive": "#/$defs/InteractiveScene",
+      "key_takeaway": "#/$defs/BoardScene",
+      "quiz_checkpoint": "#/$defs/QuizScene",
+      "recap": "#/$defs/BoardScene",
+      "simulation": "#/$defs/SimulationScene",
+      "summary": "#/$defs/BoardScene",
+      "title": "#/$defs/BoardScene"
+     },
+     "propertyName": "type"
+    },
+    "oneOf": [
+     {
+      "$ref": "#/$defs/BoardScene"
+     },
+     {
+      "$ref": "#/$defs/ChapterCardScene"
+     },
+     {
+      "$ref": "#/$defs/SimulationScene"
+     },
+     {
+      "$ref": "#/$defs/AIVideoScene"
+     },
+     {
+      "$ref": "#/$defs/InteractiveScene"
+     },
+     {
+      "$ref": "#/$defs/QuizScene"
+     }
+    ]
+   },
+   "maxItems": 200,
+   "title": "Scenes",
+   "type": "array"
+  },
+  "companion_sheet": {
+   "$ref": "#/$defs/CompanionSheet"
+  },
+  "figures": {
+   "items": {
+    "$ref": "#/$defs/SourceFigure"
+   },
+   "maxItems": 200,
+   "title": "Figures",
+   "type": "array"
+  },
+  "source": {
+   "$ref": "#/$defs/SourceInfo"
+  }
+ },
+ "title": "Screenplay",
+ "type": "object"
+}

@@ -1,0 +1,234 @@
+# Aadhi EduEngine v2 - production-style stack (see docs/OPERATIONS.md).
+#
+#   cp .env.example .env    # then set POSTGRES_PASSWORD, JWT_SECRET, BASE_URL, ADMIN_PASSWORD, provider keys
+#   docker compose build
+#   docker compose up -d                          # postgres + api + worker + render-worker
+#   docker compose --profile s3 up -d             # + MinIO for testing STORAGE_BACKEND=s3
+#   docker compose --profile sandbox build manim-sandbox            # image for MANIM_SANDBOX=docker
+#   docker compose --profile docker-sandbox up -d manim-worker      # optional free-form Manim worker
+#
+# Values below are defaults; every application setting can also come from .env (env_file).
+# The API listens on 127.0.0.1:${AADHI_PORT:-8000}: put a TLS reverse proxy (Caddy, nginx, a cloud LB)
+# in front and set BASE_URL to the public https origin. Requests from the host reach the containers
+# through the bridge gateway (AADHI_GATEWAY, default 172.30.0.1), which is therefore the default
+# trusted proxy for X-Forwarded-For / X-Forwarded-Proto (uvicorn and the app's rate limiting).
+
+name: aadhi
+
+x-app-env: &app-env
+  APP_ENV: production
+  WORKER_MODE: external
+  BASE_URL: ${BASE_URL:?set BASE_URL to the public https origin, e.g. https://lectures.rec.edu.in}
+  DATABASE_URL: postgresql://${POSTGRES_USER:-aadhi}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-aadhi}
+  JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET (at least 32 random characters)}
+  DATA_DIR: /data/app
+  STORAGE_LOCAL_DIR: /data/storage
+  STORAGE_BACKEND: ${STORAGE_BACKEND:-local}
+  # Templates-only Manim inside containers; see the docker-sandbox profile for free-form code.
+  MANIM_SANDBOX: ${MANIM_SANDBOX:-subprocess}
+  MANIM_ALLOW_FREEFORM: ${MANIM_ALLOW_FREEFORM:-false}
+  # Client IPs for rate limits/audit come from X-Forwarded-For only when the peer is listed here.
+  TRUSTED_PROXIES: ${TRUSTED_PROXIES:-${AADHI_GATEWAY:-172.30.0.1}}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+x-app: &app
+  build:
+    context: .
+    target: app
+  image: ${AADHI_IMAGE:-aadhi-eduengine:latest}
+  restart: unless-stopped
+  env_file:
+    - path: .env
+      required: false
+  volumes:
+    - appdata:/data
+  depends_on:
+    postgres:
+      condition: service_healthy
+  logging:
+    driver: json-file
+    options:
+      max-size: "20m"
+      max-file: "5"
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-aadhi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-aadhi}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    shm_size: 256mb
+
+  api:
+    <<: *app
+    environment:
+      <<: *app-env
+      RUN_MIGRATIONS: "1"
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      # Only used to create the first admin. Production refuses to start without it while no admin
+      # exists, so the first `up` still fails loudly; remove it from .env after the first login.
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      # uvicorn --proxy-headers trusts X-Forwarded-* only from these addresses (your reverse proxy).
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-${AADHI_GATEWAY:-172.30.0.1}}
+    command: ["uvicorn", "aadhi.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers",
+              "--timeout-graceful-shutdown", "30"]
+    ports:
+      - "127.0.0.1:${AADHI_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=4).status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+
+  worker:
+    <<: *app
+    environment:
+      <<: *app-env
+      # Override in .env, e.g. WORKER_KINDS=import_legacy,cleanup while the manim-worker
+      # (docker-sandbox profile) handles generation. Never add render_video here without also
+      # giving this service the render-worker's security_opt.
+      WORKER_KINDS: ${WORKER_KINDS:-generate_lecture,regenerate_scene,build_assets,translate,import_legacy,cleanup}
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-2}
+    command: ["python", "-m", "aadhi.worker"]
+    healthcheck:
+      disable: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_healthy  # migrations ran
+    stop_grace_period: 90s
+
+  render-worker:
+    <<: *app
+    environment:
+      <<: *app-env
+      WORKER_KINDS: render_video
+      WORKER_CONCURRENCY: ${RENDER_WORKER_CONCURRENCY:-1}
+      RENDER_CONCURRENCY: ${RENDER_CONCURRENCY:-3}
+    command: ["python", "-m", "aadhi.worker"]
+    healthcheck:
+      disable: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    shm_size: 1gb  # Chromium uses /dev/shm for render-mode screenshots
+    # Chromium keeps its sandbox (ARCHITECTURE section 9). As non-root it needs user namespaces,
+    # which Docker's default seccomp profile denies: this profile is Docker's default plus
+    # clone/setns/unshare (scripts/gen_chromium_seccomp.py). tini (the image ENTRYPOINT) is PID 1
+    # and reaps Chromium's zombie processes, so `init: true` is not needed.
+    # Verify: docker compose run --rm --no-deps render-worker python /app/docker/app/check_chromium.py
+    security_opt:
+      - seccomp=./docker/app/chromium-seccomp.json
+    stop_grace_period: 120s
+    deploy:
+      resources:
+        limits:
+          cpus: "${RENDER_WORKER_CPUS:-4}"
+          memory: ${RENDER_WORKER_MEMORY:-6g}
+
+  # --- optional: S3-compatible storage for testing STORAGE_BACKEND=s3 ------------------------------
+  minio:
+    profiles: ["s3"]
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-aadhi-minio}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-change-me-minio-secret}
+    volumes:
+      - miniodata:/data
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  minio-init:
+    profiles: ["s3"]
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-aadhi-minio}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-change-me-minio-secret}
+      S3_BUCKET: ${S3_BUCKET:-aadhi}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
+        && mc mb --ignore-existing "local/$$S3_BUCKET"
+
+  # --- optional: Manim sandbox image (built only; workers start it per render) ---------------------
+  manim-sandbox:
+    profiles: ["sandbox"]
+    build:
+      context: .
+      dockerfile: docker/manim-sandbox/Dockerfile
+    image: ${MANIM_DOCKER_IMAGE:-aadhi-manim-sandbox:latest}
+    network_mode: none
+    entrypoint: ["true"]
+
+  # --- optional: worker allowed to run free-form Manim in sibling sandbox containers ----------------
+  # Mounting the Docker socket gives this container root-equivalent access to the host: run it on a
+  # dedicated host/VM. The sandbox bind-mounts its work directory, so that directory must exist at the
+  # same path on the host, owned by uid 1000 (`install -d -o 1000 -g 1000 /var/lib/aadhi/manim-tmp`;
+  # the entrypoint refuses to start otherwise). Set WORKER_KINDS=import_legacy,cleanup in .env so the
+  # regular worker stops claiming generation jobs (docs/OPERATIONS.md section 4.3).
+  manim-worker:
+    <<: *app
+    profiles: ["docker-sandbox"]
+    build:
+      context: .
+      target: worker-docker
+    image: ${AADHI_IMAGE_DOCKER:-aadhi-eduengine:docker-cli}
+    environment:
+      <<: *app-env
+      MANIM_SANDBOX: docker
+      MANIM_ALLOW_FREEFORM: "true"
+      MANIM_DOCKER_IMAGE: ${MANIM_DOCKER_IMAGE:-aadhi-manim-sandbox:latest}
+      WORKER_KINDS: generate_lecture,regenerate_scene,build_assets,translate
+      TMPDIR: ${MANIM_HOST_TMP:-/var/lib/aadhi/manim-tmp}
+    command: ["python", "-m", "aadhi.worker"]
+    group_add:
+      - "${DOCKER_GID:-999}"
+    volumes:
+      - appdata:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${MANIM_HOST_TMP:-/var/lib/aadhi/manim-tmp}:${MANIM_HOST_TMP:-/var/lib/aadhi/manim-tmp}
+    healthcheck:
+      disable: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+
+networks:
+  default:
+    # Fixed subnet so the bridge gateway (the address the host's reverse proxy appears from) is known.
+    # Change AADHI_SUBNET/AADHI_GATEWAY together if 172.30.0.0/24 collides with a local network.
+    ipam:
+      config:
+        - subnet: ${AADHI_SUBNET:-172.30.0.0/24}
+          gateway: ${AADHI_GATEWAY:-172.30.0.1}
+
+volumes:
+  pgdata:
+  appdata:
+  miniodata:

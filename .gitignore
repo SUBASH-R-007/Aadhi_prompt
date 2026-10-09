@@ -1,58 +1,74 @@
-# Environment and configuration
+# --- Secrets / local configuration -------------------------------------------------------------
 .env
+.env.*
+!.env.example
+
+# --- OS / editors --------------------------------------------------------------------------------
 .DS_Store
 Thumbs.db
 *.log
+.vscode/
+.idea/
+*.swp
 
-# Python
+# --- Python ----------------------------------------------------------------------------------------
 __pycache__/
 *.py[cod]
 *$py.class
 venv/
 .venv/
 env/
+*.egg-info/
+build/
+dist/
 .pytest_cache/
+.ruff_cache/
+.mypy_cache/
 .coverage
 htmlcov/
+
+# --- Node / frontend (package-lock.json IS committed: `npm ci` needs it) ------------------------
+node_modules/
+web/vendor/
+
+# --- Runtime data (v2 keeps everything under DATA_DIR) -------------------------------------------
+data/
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
 *.sqlite3
 projects.db
 
-# Node / JS
-node_modules/
-package-lock.json
-
-# Project specific media and build folders
+# --- v1 media / build folders --------------------------------------------------------------------
 media/
 static_videos/
 final_videos/
 images/
 
-# Temporary and Test files
-temp_*.py
-temp.html
-temp.js
-temp_log.txt
-test*.js
-test*.mp3
-test*.wav
-error_script*.js
-diff.txt
-out.txt
-extracted.txt
-debug_failed_json.txt
+# --- Eval harness output (python -m aadhi.evals run) ---------------------------------------------
+evals/results/
 
-# Editor / IDE
-.vscode/
-.idea/
-*.swp
+# --- v1 scratch files (root only: never hide real tests under web/tests or tests/) ----------------
+/temp_*.py
+/temp.html
+/temp.js
+/temp.mp3
+/temp_log.txt
+/test*.js
+/test*.mp3
+/test*.wav
+/error_script*.js
+/diff.txt
+/out.txt
+/extracted.txt
+/debug_failed_json.txt
+/output.wav
 
-# ML Models and Weights
-models/
+# --- ML models and weights (v1 local TTS experiments) --------------------------------------------
+/models/
 *.onnx
 *.bin
 *.pt
 *.pth
-
-# Generated Audio
-output.wav
-temp.mp3
+data-demo/

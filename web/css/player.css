@@ -1,0 +1,2398 @@
+/* Aadhi lecture player. Requires tokens.css (+ base.css on pages).
+   Everything inside .ap-stage is in STAGE PIXELS (fixed 1920x1080 logical stage scaled by a CSS
+   transform), so live playback and the MP4 render wrap text identically. The controls and the
+   watch page chrome outside the stage use real CSS pixels.
+   Visual language ported from v1: deep purple glass board, gold borders and titles (Outfit),
+   Inter body text, glowing keywords, cyan/green/red callouts, gold narration-active highlight. */
+
+/* ===========================================================================================
+   1. Player root, viewport, stage, layers
+   =========================================================================================== */
+
+.aadhi-player {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  color: var(--c-text);
+  font-family: var(--font-sans);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.ap-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.ap-stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: hidden;
+  transform-origin: 0 0;
+  contain: layout paint style;
+  font-size: 30px;
+  line-height: 1.45;
+}
+
+.ap-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.ap-layer--bg {
+  background: #e9e8ee; /* the branding clips' light wall, shown until a clip has loaded */
+}
+
+.ap-layer--captions,
+.ap-layer--intro {
+  pointer-events: none;
+}
+
+/* Buffering: the narration is waiting for data (the clock waits with it). Shown after a short
+   delay so brief stalls do not flicker. */
+.aadhi-player::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 3;
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
+  border: 4px solid rgba(255, 255, 255, 0.18);
+  border-top-color: var(--c-gold);
+  border-right-color: var(--c-purple);
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.aadhi-player.is-buffering::after {
+  animation:
+    base-spin 0.9s linear infinite,
+    ap-show 0.2s ease 0.5s forwards;
+}
+
+@keyframes ap-show {
+  to {
+    opacity: 1;
+  }
+}
+
+.ap-layer--intro > .ap-intro {
+  pointer-events: auto;
+}
+
+/* ===========================================================================================
+   2. Mascot (background clips)
+   =========================================================================================== */
+
+.ap-mascot {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.ap-mascot.is-hidden {
+  visibility: hidden;
+}
+
+.ap-mascot-motion {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 88%;
+  will-change: transform;
+}
+
+.ap-mascot-clip,
+.ap-mascot-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.6s ease-in-out;
+  pointer-events: none;
+}
+
+.ap-mascot-clip.is-active,
+.ap-mascot-bg.is-active {
+  opacity: 1;
+}
+
+/* Fallback (mascot.js): the active clip's poster while the clip retries, stalls, is blocked or is
+   broken, breathing gently about Aadhi's feet. Scale only (never below 1), so the full-frame poster
+   never uncovers the stage; the speech bob of .ap-mascot-motion still applies on top. */
+.ap-mascot-fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transform-origin: var(--ap-mascot-origin, 50% 88%);
+  transition: opacity 0.5s ease-in-out;
+  pointer-events: none;
+}
+
+.ap-mascot.is-fallback .ap-mascot-fallback.is-current {
+  opacity: 1;
+  animation: ap-mascot-breathe 4.8s ease-in-out infinite;
+}
+
+/* the empty studio (hidden position, static background) does not breathe */
+.ap-mascot[data-position='hidden'] .ap-mascot-fallback,
+.ap-mascot .ap-mascot-fallback.is-still,
+.aadhi-player.reduced-motion .ap-mascot-fallback {
+  animation: none !important;
+}
+
+/* a paused lecture holds still (same specificity as the rule above, so it must stay after it) */
+.ap-mascot.is-paused .ap-mascot-fallback.is-current {
+  animation-play-state: paused;
+}
+
+@keyframes ap-mascot-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.012);
+  }
+}
+
+/* Cue bubble beside Aadhi's head (mascot.js mountCue; the cue comes from mascot-state.js): thinking
+   dots (a long pause, the quiz countdown), '?' (asking the quiz question), a gold check (answer
+   revealed). It sits in the scene root at fixed stage pixels (CUE_ANCHORS, 72x56 = CUE_SIZE), so
+   render-mode screenshots carry exactly this bubble into the MP4. The resting style is the fully
+   shown bubble with solid dots: render mode and reduced motion drop only the pop-in and the dots'
+   pulse. */
+.ap-mascot-cue {
+  position: absolute;
+  z-index: 2;
+  width: 72px;
+  height: 56px;
+  margin: -28px 0 0 -36px;
+  opacity: 0;
+  transform: scale(0.6);
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+}
+
+.ap-mascot-cue.is-shown {
+  opacity: 1;
+  transform: none;
+}
+
+.ap-mascot-cue-bubble {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  border: 3px solid var(--c-purple-deep);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 6px 18px rgba(108, 21, 158, 0.25);
+  color: var(--c-purple-deep);
+  font: 800 34px/1 var(--font-title);
+}
+
+.ap-mascot-cue-bubble i {
+  display: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.ap-mascot-cue[data-cue='dots'] .ap-mascot-cue-bubble i {
+  display: block;
+  animation: ap-mascot-cue-dot 1.2s ease-in-out infinite;
+}
+
+.ap-mascot-cue[data-cue='dots'] .ap-mascot-cue-bubble i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.ap-mascot-cue[data-cue='dots'] .ap-mascot-cue-bubble i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.ap-mascot-cue[data-cue='question'] .ap-mascot-cue-bubble::before {
+  content: '?';
+}
+
+/* the check is drawn (two borders), not a glyph: identical whatever fonts the renderer has */
+.ap-mascot-cue[data-cue='success'] .ap-mascot-cue-bubble {
+  border-color: var(--c-gold);
+  background: var(--c-purple-deep);
+}
+
+.ap-mascot-cue[data-cue='success'] .ap-mascot-cue-bubble::before {
+  content: '';
+  width: 11px;
+  height: 22px;
+  margin-top: -6px;
+  border: solid var(--c-gold);
+  border-width: 0 5px 5px 0;
+  transform: rotate(45deg);
+}
+
+.ap-mascot-cue.is-paused .ap-mascot-cue-bubble i {
+  animation-play-state: paused;
+}
+
+.aadhi-player.reduced-motion .ap-mascot-cue,
+.aadhi-player.reduced-motion .ap-mascot-cue-bubble i {
+  transition: none;
+  animation: none;
+}
+
+@keyframes ap-mascot-cue-dot {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+/* ===========================================================================================
+   3. Scene root and zones (positions come from layout.js as CSS custom properties)
+   =========================================================================================== */
+
+.ap-scene {
+  position: absolute;
+  inset: 0;
+}
+
+.ap-zone {
+  position: absolute;
+}
+
+.ap-zone--board {
+  left: var(--board-x);
+  top: var(--board-y);
+  width: var(--board-w);
+  height: var(--board-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  container-type: inline-size;
+}
+
+.ap-zone--side {
+  left: var(--side-x);
+  top: var(--side-y);
+  width: var(--side-w);
+  height: var(--side-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(18px) scale(0.98);
+  transition:
+    opacity 0.7s var(--ease),
+    transform 0.7s var(--ease),
+    visibility 0s linear 0.7s;
+}
+
+.ap-zone--side.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition:
+    opacity 0.7s var(--ease),
+    transform 0.7s var(--ease),
+    visibility 0s;
+}
+
+.ap-zone--side.is-empty {
+  display: none;
+}
+
+.ap-zone--title {
+  left: var(--title-x);
+  top: var(--title-y);
+  width: var(--title-w);
+  height: var(--title-h);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.ap-zone--media {
+  left: var(--media-x);
+  top: var(--media-y);
+  width: var(--media-w);
+  height: var(--media-h);
+}
+
+/* ===========================================================================================
+   4. The board (deep purple glass, gold edge)
+   =========================================================================================== */
+
+.ap-board {
+  --board-font: 30px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: 100%;
+  /* padding shrinks with the fit scale, so a crowded board gives the space to its content */
+  padding: calc(34px * var(--fit, 1)) calc(44px * var(--fit, 1)) calc(38px * var(--fit, 1));
+  overflow: hidden;
+  font-size: calc(var(--board-font) * var(--fit, 1));
+  line-height: 1.45;
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.96);
+  background: rgba(55, 15, 100, 0.86);
+  -webkit-backdrop-filter: blur(16px) saturate(1.15);
+  backdrop-filter: blur(16px) saturate(1.15);
+  border: 1px solid var(--c-glass-border);
+  border-radius: 28px;
+  box-shadow:
+    0 0 30px rgba(255, 215, 0, 0.18),
+    0 24px 60px rgba(0, 0, 0, 0.5),
+    inset 0 0 50px rgba(130, 40, 200, 0.25);
+}
+
+.ap-board::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 55%);
+  pointer-events: none;
+}
+
+.ap-board-head {
+  position: relative;
+  flex: none;
+  margin-bottom: 0.65em;
+}
+
+.ap-board.is-empty .ap-board-head {
+  margin-bottom: 0;
+}
+
+.ap-badge {
+  display: inline-block;
+  margin-bottom: 0.55em;
+  padding: 0.3em 1.1em;
+  font: 700 0.55em/1.2 var(--font-title);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--c-gold);
+  background: rgba(255, 215, 0, 0.08);
+  border: 1px solid rgba(255, 215, 0, 0.65);
+  border-radius: 999px;
+  box-shadow: 0 0 18px rgba(255, 215, 0, 0.2);
+}
+
+.ap-board-title {
+  font: 700 1.42em/1.15 var(--font-title);
+  letter-spacing: -0.005em;
+  text-transform: uppercase;
+  color: var(--c-gold);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.55);
+  overflow-wrap: anywhere;
+}
+
+.ap-board-subtitle {
+  margin-top: 0.3em;
+  font-size: 0.8em;
+  font-weight: 400;
+  color: var(--c-text-dim);
+}
+
+.ap-board-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.48em;
+  overflow: hidden;
+}
+
+/* Items never shrink below their content (items with overflow:hidden would otherwise be clipped);
+   a crowded board is handled by BoardView.fit(), which scales the font down instead. */
+.ap-board-body > .bi {
+  flex: none;
+}
+
+/* Title scenes: big centred title card */
+.ap-board--title {
+  padding: 56px 60px;
+  text-align: center;
+}
+
+.ap-board--title .ap-board-title {
+  font-size: 2.2em;
+  font-weight: 900;
+  line-height: 1.08;
+}
+
+.ap-board--title .ap-board-subtitle {
+  margin-top: 0.5em;
+  font-size: 1em;
+}
+
+.ap-board--title .ap-board-body {
+  margin-top: 0.6em;
+  text-align: left;
+}
+
+/* ===========================================================================================
+   5. Board items: reveal, highlight (signalling), narration-active, fill
+   =========================================================================================== */
+
+.bi {
+  position: relative;
+  border-radius: 10px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(14px);
+  transition:
+    opacity 0.6s var(--ease),
+    transform 0.6s var(--ease),
+    visibility 0s linear 0.6s,
+    background 0.45s ease,
+    box-shadow 0.45s ease,
+    text-shadow 0.45s ease;
+}
+
+.bi.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition:
+    opacity 0.6s var(--ease),
+    transform 0.6s var(--ease),
+    visibility 0s,
+    background 0.45s ease,
+    box-shadow 0.45s ease,
+    text-shadow 0.45s ease;
+}
+
+/* Narration-active: the item the current beat is about glows gold (v1 .narration-active) */
+.bi.is-active {
+  box-shadow:
+    0 0 0 2px rgba(255, 215, 0, 0.78),
+    0 0 26px rgba(255, 215, 0, 0.28);
+}
+
+.bi-heading.is-active,
+.bi-bullet.is-active,
+.bi-paragraph.is-active {
+  background: linear-gradient(90deg, rgba(255, 215, 0, 0.16), rgba(255, 215, 0, 0.03) 70%, transparent);
+  box-shadow: inset 4px 0 0 rgba(255, 215, 0, 0.9);
+  text-shadow:
+    0 0 18px rgba(255, 215, 0, 0.45),
+    0 2px 10px rgba(0, 0, 0, 0.8);
+}
+
+/* Highlight: an earlier item re-emphasised by the current beat */
+.bi.is-highlight {
+  box-shadow:
+    0 0 0 2px rgba(0, 229, 255, 0.85),
+    0 0 26px rgba(0, 229, 255, 0.32);
+  animation: ap-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes ap-pulse {
+  50% {
+    box-shadow:
+      0 0 0 3px rgba(0, 229, 255, 1),
+      0 0 38px rgba(0, 229, 255, 0.45);
+  }
+}
+
+/* text-like items get a little room for the highlight background */
+.bi-heading,
+.bi-bullet,
+.bi-paragraph {
+  margin: 0 -0.4em;
+  padding: 0.08em 0.4em;
+}
+
+.bi-heading {
+  margin-top: 0.15em;
+  font: 700 1.02em/1.25 var(--font-title);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--c-gold);
+}
+
+.bi-bullet {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6em;
+}
+
+.bi-dot {
+  flex: none;
+  width: 0.4em;
+  height: 0.4em;
+  margin-top: 0.56em;
+  border-radius: 50%;
+  background: var(--c-gold);
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+}
+
+.bi-text,
+.bi-paragraph,
+.bi-def-text,
+.bi-callout-text,
+.bi-mis-text,
+.bi-step-text {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+/* definition */
+.bi-definition {
+  padding: 0.55em 0.9em;
+  background: rgba(255, 255, 255, 0.05);
+  border-left: 4px solid var(--c-gold);
+  border-radius: 0 14px 14px 0;
+}
+
+.bi-term {
+  display: block;
+  margin-bottom: 0.1em;
+  font: 700 0.95em/1.3 var(--font-title);
+  color: var(--c-gold);
+}
+
+.bi-def-text {
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* formula */
+.bi-formula {
+  padding: 0.55em 0.9em 0.6em;
+  text-align: center;
+  background: rgba(255, 215, 0, 0.07);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 14px;
+}
+
+.bi-formula-tex {
+  font-size: 1.25em;
+  color: #fff;
+  overflow: hidden;
+}
+
+.bi-formula-tex mjx-container[display='true'] {
+  margin: 0.15em 0 !important;
+}
+
+.bi-formula-text {
+  margin-top: 0.25em;
+  font-size: 0.78em;
+  font-style: italic;
+  color: var(--c-text-dim);
+}
+
+.bi-vars {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35em 0.7em;
+  margin-top: 0.45em;
+  font-size: 0.7em;
+  font-weight: 400;
+}
+
+.bi-var {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45em;
+  padding: 0.12em 0.7em;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 215, 0, 0.22);
+  border-radius: 999px;
+}
+
+.bi-var-sym {
+  color: var(--c-gold);
+}
+
+.bi-var-unit {
+  color: var(--c-text-faint);
+}
+
+.bi-var-unit::before {
+  content: '(';
+}
+
+.bi-var-unit::after {
+  content: ')';
+}
+
+/* Word-anchored sync (aadhi/compose/sync.py, schedule.js): a legend row waits, its space kept, until
+   the narration names it; a named table column or definition term glows cyan like a highlight. */
+.bi-var {
+  transition:
+    opacity 0.45s var(--ease),
+    visibility 0s;
+}
+
+.bi-var.is-unsaid {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.45s var(--ease),
+    visibility 0s linear 0.45s;
+}
+
+.bi-table th.is-emph,
+.bi-table td.is-emph {
+  background: rgba(0, 229, 255, 0.14);
+  box-shadow:
+    inset 2px 0 0 rgba(0, 229, 255, 0.75),
+    inset -2px 0 0 rgba(0, 229, 255, 0.75);
+  transition: background 0.35s ease, box-shadow 0.35s ease;
+}
+
+.bi-term.is-emph {
+  text-shadow:
+    0 0 16px rgba(0, 229, 255, 0.6),
+    0 2px 10px rgba(0, 0, 0, 0.8);
+  transition: text-shadow 0.35s ease;
+}
+
+/* callouts (v1 info / tip / warning) */
+.bi-callout {
+  --tone: var(--c-cyan);
+  padding: 0.55em 0.9em 0.6em;
+  font-weight: 400;
+  background: rgba(10, 10, 20, 0.55);
+  border-left: 5px solid var(--tone);
+  border-radius: 14px;
+  box-shadow: inset 2px 0 12px color-mix(in srgb, var(--tone) 14%, transparent);
+}
+
+.bi-callout--tip {
+  --tone: var(--c-green);
+}
+
+.bi-callout--warning {
+  --tone: var(--c-red);
+}
+
+.bi-callout-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  margin-bottom: 0.2em;
+  font: 700 0.56em/1.2 var(--font-sans);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tone);
+}
+
+.bi-callout-icon {
+  width: 1.5em;
+  height: 1.5em;
+}
+
+/* misconception card: what students wrongly believe -> what is true */
+.bi-misconception {
+  overflow: hidden;
+  border: 1px solid rgba(255, 85, 85, 0.35);
+  border-radius: 14px;
+}
+
+.bi-mis-row {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: baseline;
+  gap: 0.5em;
+  padding: 0.45em 0.85em;
+  font-weight: 400;
+}
+
+.bi-mis-wrong {
+  background: rgba(255, 85, 85, 0.13);
+}
+
+.bi-mis-right {
+  background: rgba(0, 255, 136, 0.1);
+}
+
+.bi-mis-icon {
+  width: 0.95em;
+  height: 0.95em;
+  align-self: center;
+}
+
+.bi-mis-wrong .bi-mis-icon,
+.bi-mis-wrong .bi-mis-label {
+  color: var(--c-red);
+}
+
+.bi-mis-right .bi-mis-icon,
+.bi-mis-right .bi-mis-label {
+  color: var(--c-green);
+}
+
+.bi-mis-label {
+  font: 700 0.52em/1.2 var(--font-sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.bi-mis-wrong .bi-mis-text {
+  text-decoration: line-through;
+  text-decoration-color: rgba(255, 85, 85, 0.65);
+  text-decoration-thickness: 2px;
+}
+
+/* code */
+.bi-code {
+  overflow: hidden;
+  background: #0d0614;
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 14px;
+}
+
+.bi-code-lang {
+  padding: 0.6em 1.3em 0;
+  font: 700 0.5em/1 var(--font-mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--c-text-faint);
+}
+
+.bi-code-pre {
+  margin: 0;
+  padding: 0.35em 0.9em 0.65em;
+  overflow: hidden;
+  font: 400 0.72em/1.5 var(--font-mono);
+  white-space: pre;
+  tab-size: 4;
+  color: #ece6f6;
+}
+
+.bi-code-pre code {
+  font: inherit;
+}
+
+/* table */
+.bi-table table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  font-size: 0.76em;
+  font-weight: 400;
+  background: rgba(20, 10, 30, 0.45);
+  border: 1px solid rgba(255, 215, 0, 0.22);
+  border-radius: 12px;
+}
+
+.bi-table th {
+  padding: 0.45em 0.8em;
+  font-weight: 600;
+  text-align: left;
+  color: var(--c-gold);
+  background: rgba(255, 215, 0, 0.14);
+  border-bottom: 2px solid rgba(255, 215, 0, 0.3);
+}
+
+.bi-table td {
+  padding: 0.4em 0.8em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.bi-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.bi-table tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* figure */
+.bi-figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3em;
+}
+
+.bi-figure-frame {
+  max-width: 100%;
+  padding: 0.22em;
+  background: rgba(255, 255, 255, 0.94);
+  border: 2px solid rgba(255, 215, 0, 0.55);
+  border-radius: 12px;
+}
+
+.bi-figure-img {
+  display: block;
+  max-width: 100%;
+  max-height: 8.5em;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.bi-figure-img.is-broken {
+  visibility: hidden;
+}
+
+.bi-figcaption {
+  font-size: 0.64em;
+  font-style: italic;
+  text-align: center;
+  color: rgba(255, 215, 0, 0.85);
+}
+
+.bi-figure-missing {
+  padding: 1.2em 2em;
+  font-size: 0.7em;
+  color: rgba(255, 215, 0, 0.7);
+  border: 2px dashed rgba(255, 215, 0, 0.4);
+  border-radius: 12px;
+}
+
+/* worked-example step (faded examples: blank until a beat fills it) */
+.bi-step {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 0.2em 0.7em;
+  padding: 0.4em 0.75em;
+  font-weight: 400;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 12px;
+}
+
+.bi-step.is-blank:not(.is-filled) {
+  border-style: dashed;
+  border-color: rgba(255, 215, 0, 0.5);
+}
+
+.bi-step-num {
+  margin-top: 0.42em;
+  padding: 0.3em 0.75em;
+  font: 700 0.54em/1.1 var(--font-title);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--c-gold);
+  background: rgba(255, 215, 0, 0.12);
+  border: 1px solid rgba(255, 215, 0, 0.42);
+  border-radius: 999px;
+}
+
+.bi-step-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1em;
+  min-width: 0;
+}
+
+.bi-step-blank {
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--c-gold);
+}
+
+.bi-step-why {
+  font-size: 0.7em;
+  font-style: italic;
+  color: var(--c-text-dim);
+}
+
+.bi-step-why::before {
+  content: '— ';
+}
+
+.bi-step.is-blank:not(.is-filled) .bi-step-text,
+.bi-step.is-blank:not(.is-filled) .bi-step-why,
+.bi-step.is-filled .bi-step-blank {
+  display: none;
+}
+
+.bi-step.is-blank.is-filled .bi-step-text {
+  animation: ap-fill 0.9s var(--ease) both;
+}
+
+@keyframes ap-fill {
+  from {
+    clip-path: inset(0 100% 0 0);
+    text-shadow: 0 0 24px var(--c-gold);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+    text-shadow: none;
+  }
+}
+
+/* key takeaway */
+.bi-takeaway {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6em;
+  padding: 0.55em 0.9em;
+  font-weight: 600;
+  background: linear-gradient(90deg, rgba(255, 215, 0, 0.16), rgba(176, 38, 255, 0.14));
+  border: 1px solid rgba(255, 215, 0, 0.55);
+  border-radius: 14px;
+}
+
+.bi-takeaway-icon {
+  flex: none;
+  width: 1em;
+  height: 1em;
+  margin-top: 0.2em;
+  color: var(--c-gold);
+  filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
+}
+
+/* ===========================================================================================
+   6. Rich text (rich-lite) and TeX
+   =========================================================================================== */
+
+/* [[keyword]] (rich-lite; not Prism's .token.keyword in code blocks) */
+.rt-k {
+  color: var(--c-gold);
+  font-weight: 600;
+  text-shadow: 0 0 15px rgba(255, 215, 0, 0.45);
+}
+
+.rt-b {
+  font-weight: 700;
+  color: #fff;
+}
+
+.rt-i {
+  font-style: italic;
+}
+
+.rt-code {
+  padding: 0.04em 0.3em;
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  background: rgba(255, 215, 0, 0.14);
+  border-radius: 5px;
+}
+
+.rt-math.is-pending {
+  visibility: hidden;
+}
+
+.rt-math.is-error {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  color: var(--c-text-dim);
+}
+
+mjx-container {
+  color: inherit;
+}
+
+.ap-icon {
+  display: inline-block;
+  flex: none;
+  vertical-align: middle;
+}
+
+/* Prism tokens tuned for the purple board */
+.bi-code .token.comment,
+.bi-code .token.prolog,
+.bi-code .token.doctype,
+.bi-code .token.cdata {
+  color: #9a8fb8;
+  font-style: italic;
+}
+
+.bi-code .token.punctuation {
+  color: #cfc8de;
+}
+
+.bi-code .token.property,
+.bi-code .token.tag,
+.bi-code .token.boolean,
+.bi-code .token.number,
+.bi-code .token.constant,
+.bi-code .token.symbol {
+  color: #ffb86c;
+}
+
+.bi-code .token.selector,
+.bi-code .token.attr-name,
+.bi-code .token.string,
+.bi-code .token.char,
+.bi-code .token.builtin {
+  color: #7ee787;
+}
+
+.bi-code .token.operator,
+.bi-code .token.entity,
+.bi-code .token.url {
+  color: #ffd700;
+}
+
+.bi-code .token.atrule,
+.bi-code .token.attr-value,
+.bi-code .token.keyword {
+  color: #d39bff;
+}
+
+.bi-code .token.function,
+.bi-code .token.class-name {
+  color: #00e5ff;
+}
+
+.bi-code .token.regex,
+.bi-code .token.important,
+.bi-code .token.variable {
+  color: #ff9e64;
+}
+
+/* ===========================================================================================
+   7. Chapter card
+   =========================================================================================== */
+
+.ap-card {
+  width: 100%;
+  padding: 64px 56px;
+  text-align: center;
+  background: rgba(55, 15, 100, 0.88);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--c-glass-border);
+  border-radius: 32px;
+  box-shadow:
+    0 0 40px rgba(255, 215, 0, 0.2),
+    0 24px 60px rgba(0, 0, 0, 0.5),
+    inset 0 0 60px rgba(130, 40, 200, 0.3);
+}
+
+.ap-card-badge {
+  display: inline-block;
+  margin-bottom: 28px;
+  padding: 8px 30px;
+  font: 700 22px/1.3 var(--font-title);
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: var(--c-gold);
+  background: rgba(255, 215, 0, 0.08);
+  border: 1px solid rgba(255, 215, 0, 0.7);
+  border-radius: 999px;
+  box-shadow: 0 0 25px rgba(255, 215, 0, 0.25);
+}
+
+.ap-card-title {
+  font: 900 72px/1.08 var(--font-title);
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 0 0 30px rgba(176, 38, 255, 0.65);
+  overflow-wrap: anywhere;
+}
+
+.ap-card-subtitle {
+  margin-top: 18px;
+  font-size: 32px;
+  color: var(--c-text-dim);
+}
+
+.ap-card-rule {
+  width: 180px;
+  height: 4px;
+  margin: 32px auto 0;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--c-gold), transparent);
+}
+
+@container (max-width: 800px) {
+  .ap-card {
+    padding: 48px 36px;
+  }
+
+  .ap-card-title {
+    font-size: 52px;
+  }
+
+  .ap-card-subtitle {
+    font-size: 26px;
+  }
+}
+
+/* ===========================================================================================
+   8. Media scenes (simulation, ai_video, gif) and interactive sketches
+   =========================================================================================== */
+
+.ap-scene-media {
+  position: absolute;
+  inset: 0;
+}
+
+.ap-media-title {
+  display: inline-block;
+  max-width: 100%;
+  padding: 10px 26px;
+  overflow: hidden;
+  font: 700 40px/1.2 var(--font-title);
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--c-gold);
+  background: rgba(55, 15, 100, 0.88);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--c-glass-border);
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+/* A title too long for one line at full size (scenes/media.js titleFitsOneLine): smaller, wraps
+   onto at most two lines (2 x 34px + padding fits the 96px title band). */
+.ap-zone--title.is-long .ap-media-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  padding: 8px 22px;
+  font-size: 28px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.ap-media-subtitle {
+  display: inline-block;
+  max-width: 100%;
+  padding: 3px 16px;
+  overflow: hidden;
+  font-size: 20px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--c-text-dim);
+  background: rgba(20, 8, 35, 0.8);
+  border-radius: 10px;
+}
+
+/* Placed by scenes/media.js placeMediaBox() (inline left/top/width/height in stage pixels, sized to
+   the media's aspect ratio); inset 0 is only the fallback before placement. */
+.ap-media-box {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #05030a;
+  outline: 2px solid rgba(255, 215, 0, 0.55);
+  outline-offset: 6px;
+  box-shadow:
+    0 0 0 6px rgba(55, 15, 100, 0.55),
+    0 0 34px rgba(255, 215, 0, 0.2),
+    0 24px 60px rgba(0, 0, 0, 0.5);
+}
+
+.ap-media-el,
+.ap-poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.fit-cover .ap-media-el,
+.fit-cover .ap-poster {
+  object-fit: cover;
+}
+
+.ap-media-el.has-kenburns {
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.ap-media-missing {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  font: 700 44px/1.2 var(--font-title);
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--c-gold);
+  background: rgba(55, 15, 100, 0.92);
+}
+
+.ap-media-attribution {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 1;
+  padding: 3px 10px;
+  font-size: 16px;
+  color: #fff;
+  text-decoration: none;
+  background: rgba(0, 0, 0, 0.65);
+  border-radius: 6px;
+}
+
+.ap-interactive-content {
+  position: absolute;
+  inset: 0;
+}
+
+.ap-sandbox {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #0b0614;
+}
+
+.ap-interactive-msg {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  z-index: 1;
+  max-width: calc(100% - 36px);
+  padding: 6px 16px;
+  font-size: 22px;
+  text-align: center;
+  color: #fff;
+  background: rgba(8, 4, 16, 0.78);
+  border-radius: 10px;
+  transform: translateX(-50%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ap-interactive-msg.has-text {
+  opacity: 1;
+}
+
+/* ===========================================================================================
+   9. Quiz checkpoint
+   =========================================================================================== */
+
+.ap-quiz {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  max-height: 100%;
+  padding: 32px 40px 36px;
+  overflow: hidden;
+  background: rgba(55, 15, 100, 0.88);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--c-glass-border);
+  border-radius: 28px;
+  box-shadow:
+    0 0 30px rgba(255, 215, 0, 0.18),
+    0 24px 60px rgba(0, 0, 0, 0.5),
+    inset 0 0 50px rgba(130, 40, 200, 0.25);
+}
+
+.ap-quiz .ap-badge {
+  margin-bottom: 0;
+  font-size: 17px;
+}
+
+.ap-quiz-q {
+  font: 700 40px/1.25 var(--font-title);
+  text-align: center;
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
+  overflow-wrap: anywhere;
+}
+
+.ap-quiz-options {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  width: 100%;
+}
+
+.ap-quiz-options.is-two-col {
+  grid-template-columns: 1fr 1fr;
+}
+
+@container (max-width: 900px) {
+  .ap-quiz-options.is-two-col {
+    grid-template-columns: 1fr;
+  }
+
+  .ap-quiz-q {
+    font-size: 34px;
+  }
+
+  .ap-quiz {
+    padding: 26px 26px 30px;
+    gap: 16px;
+  }
+}
+
+.ap-quiz-opt {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 4px 14px;
+  width: 100%;
+  margin: 0;
+  padding: 12px 18px;
+  font: 400 28px/1.3 var(--font-sans);
+  text-align: left;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.42);
+  border: 1.5px solid rgba(255, 215, 0, 0.35);
+  border-radius: 16px;
+  transition:
+    background 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.3s ease,
+    opacity 0.3s ease;
+}
+
+button.ap-quiz-opt {
+  cursor: pointer;
+}
+
+button.ap-quiz-opt:hover:not(:disabled) {
+  background: rgba(255, 215, 0, 0.09);
+  border-color: var(--c-gold);
+}
+
+button.ap-quiz-opt:disabled {
+  cursor: default;
+}
+
+.ap-quiz-letter {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  font: 700 22px/1 var(--font-title);
+  color: var(--c-gold);
+  background: rgba(176, 38, 255, 0.45);
+  border: 1px solid rgba(255, 215, 0, 0.5);
+  border-radius: 50%;
+}
+
+.ap-quiz-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ap-quiz-why {
+  display: none;
+  grid-column: 2 / 4;
+  font-size: 20px;
+  font-style: italic;
+  color: rgba(255, 205, 205, 0.95);
+}
+
+.ap-quiz-mark {
+  display: none;
+  width: 34px;
+  height: 34px;
+}
+
+.ap-quiz-mark .ap-icon {
+  width: 100%;
+  height: 100%;
+}
+
+.ap-quiz-mark-no {
+  display: none;
+}
+
+.ap-quiz-opt.is-chosen {
+  border-color: var(--c-cyan);
+  box-shadow:
+    0 0 0 2px rgba(0, 229, 255, 0.55),
+    0 0 22px rgba(0, 229, 255, 0.3);
+}
+
+.ap-quiz-opt.is-correct {
+  background: rgba(40, 180, 40, 0.42);
+  border-color: rgba(80, 255, 80, 0.9);
+  box-shadow: 0 0 22px rgba(60, 255, 60, 0.35);
+}
+
+.ap-quiz-opt.is-correct .ap-quiz-mark {
+  display: block;
+  color: var(--c-green);
+}
+
+.ap-quiz-opt.is-wrong {
+  background: rgba(120, 30, 30, 0.32);
+  border-color: rgba(255, 80, 80, 0.5);
+  opacity: 0.9;
+}
+
+.ap-quiz-opt.is-wrong .ap-quiz-why {
+  display: block;
+}
+
+.ap-quiz-opt.is-wrong.is-chosen {
+  opacity: 1;
+  box-shadow: 0 0 0 2px rgba(255, 85, 85, 0.75);
+}
+
+.ap-quiz-opt.is-wrong.is-chosen .ap-quiz-mark {
+  display: block;
+  color: var(--c-red);
+}
+
+.ap-quiz-opt.is-wrong .ap-quiz-mark-ok {
+  display: none;
+}
+
+.ap-quiz-opt.is-wrong .ap-quiz-mark-no {
+  display: block;
+}
+
+.ap-quiz-countdown {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.ap-quiz-countdown.is-active {
+  display: flex;
+}
+
+.ap-ring {
+  --p: 1;
+  display: grid;
+  place-items: center;
+  width: 124px;
+  height: 124px;
+  border-radius: 50%;
+  background: conic-gradient(var(--c-gold) calc(var(--p) * 1turn), rgba(255, 255, 255, 0.12) 0);
+  box-shadow: 0 0 25px rgba(255, 215, 0, 0.35);
+}
+
+.ap-ring-inner {
+  display: grid;
+  place-items: center;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: rgba(30, 5, 60, 0.96);
+}
+
+.ap-ring-num {
+  font: 900 54px/1 var(--font-title);
+  color: var(--c-gold);
+  font-variant-numeric: tabular-nums;
+}
+
+.ap-quiz-countdown-label {
+  font-size: 18px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(255, 215, 0, 0.85);
+}
+
+.ap-quiz-explanation {
+  display: none;
+  width: 100%;
+  padding: 14px 22px;
+  font-size: 26px;
+  line-height: 1.45;
+  color: rgba(230, 255, 235, 0.98);
+  background: rgba(40, 140, 60, 0.2);
+  border: 1px solid rgba(80, 255, 120, 0.45);
+  border-radius: 14px;
+}
+
+.ap-quiz.is-revealed .ap-quiz-explanation {
+  display: block;
+  animation: ap-rise 0.7s var(--ease) both;
+}
+
+.ap-quiz-explanation-label {
+  display: block;
+  margin-bottom: 4px;
+  font: 700 16px/1.2 var(--font-sans);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--c-green);
+}
+
+@keyframes ap-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ===========================================================================================
+   10. Captions
+   =========================================================================================== */
+
+/* --caption-lift (stage px) is set by Player.setCaptionLift() while the control bar is shown. */
+.ap-captions {
+  position: absolute;
+  left: 260px;
+  bottom: 40px;
+  width: 1400px;
+  display: flex;
+  justify-content: center;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(calc(-1 * var(--caption-lift, 0px)));
+  transition:
+    opacity 0.25s ease,
+    transform 0.3s ease;
+}
+
+.ap-captions.has-text:not(.is-off) {
+  opacity: 1;
+}
+
+.ap-caption-text {
+  padding: 6px 22px;
+  font: 600 40px/1.32 var(--font-title);
+  white-space: pre-line;
+  color: #fff;
+  background: rgba(8, 4, 16, 0.78);
+  border-radius: 12px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.ap-captions[data-size='s'] .ap-caption-text {
+  font-size: 32px;
+}
+
+.ap-captions[data-size='l'] .ap-caption-text {
+  font-size: 50px;
+}
+
+/* ===========================================================================================
+   11. Intro (logo animation, title cards)
+   =========================================================================================== */
+
+.ap-intro {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #000;
+}
+
+.ap-intro.is-hidden {
+  display: none;
+}
+
+.ap-intro-bg,
+.ap-intro-logo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ap-intro-logo {
+  opacity: 0;
+}
+
+.ap-intro.is-logo .ap-intro-logo {
+  opacity: 1;
+}
+
+.ap-intro.is-logo .ap-intro-bg {
+  opacity: 0;
+}
+
+.ap-intro-card {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 140px;
+  font: 900 92px/1.15 var(--font-title);
+  letter-spacing: 4px;
+  text-align: center;
+  text-transform: uppercase;
+  color: #6c159e;
+  text-shadow: 0 0 20px rgba(176, 38, 255, 0.4);
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.3));
+  overflow-wrap: anywhere;
+}
+
+.ap-intro-line2 {
+  margin-top: 18px;
+  font-size: 0.58em;
+  opacity: 0.85;
+}
+
+/* ===========================================================================================
+   12. Controls, scrubber, big play, scene drawer (real CSS pixels)
+   =========================================================================================== */
+
+.ap-host {
+  position: relative;
+}
+
+.ap-host.is-idle {
+  cursor: none;
+}
+
+.ap-controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  padding: 30px 16px 10px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0.45) 62%, transparent);
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
+}
+
+.ap-host.is-idle .ap-controls {
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+}
+
+.ap-scrubber {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 18px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.ap-scrub-track {
+  position: relative;
+  width: 100%;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 3px;
+  transition: height 0.15s ease;
+}
+
+.ap-scrubber:hover .ap-scrub-track,
+.ap-scrubber:focus-visible .ap-scrub-track {
+  height: 8px;
+}
+
+.ap-scrub-hover,
+.ap-scrub-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: inherit;
+}
+
+.ap-scrub-hover {
+  width: 0;
+  background: rgba(255, 255, 255, 0.22);
+  opacity: 0;
+}
+
+.ap-scrubber.is-hover .ap-scrub-hover {
+  opacity: 1;
+}
+
+.ap-scrub-fill {
+  width: 0;
+  background: var(--c-gold);
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.ap-scrub-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.ap-scrub-chapter {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  z-index: 1;
+  width: 4px;
+  margin-left: -2px;
+  background: var(--c-purple);
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgba(176, 38, 255, 0.85);
+}
+
+.ap-scrub-thumb {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.6);
+  transform: scale(0);
+  transition: transform 0.15s ease;
+}
+
+.ap-scrubber:hover .ap-scrub-thumb,
+.ap-scrubber:focus-visible .ap-scrub-thumb,
+.ap-host:not(.is-playing) .ap-scrub-thumb {
+  transform: scale(1);
+}
+
+.ap-scrub-tooltip {
+  position: absolute;
+  bottom: 24px;
+  left: 0;
+  padding: 4px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--c-gold);
+  background: rgba(10, 10, 15, 0.92);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 6px;
+  transform: translateX(-50%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ap-scrubber.is-hover .ap-scrub-tooltip {
+  opacity: 1;
+}
+
+.ap-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ap-controls-left,
+.ap-controls-right {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+}
+
+.ap-controls-center {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: center;
+}
+
+.ap-now {
+  display: block;
+  overflow: hidden;
+  font-size: 13px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--c-text-dim);
+}
+
+.ap-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.86);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.ap-btn:hover:not(:disabled) {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.16);
+  transform: translateY(-1px);
+}
+
+.ap-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.ap-btn .ap-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.ap-btn--text {
+  width: auto;
+  padding: 0 11px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  border-radius: 19px;
+}
+
+.ap-btn.is-on {
+  color: var(--c-gold);
+  background: rgba(255, 215, 0, 0.12);
+  border-color: rgba(255, 215, 0, 0.6);
+}
+
+.ap-vol {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ap-volume {
+  width: 84px;
+  accent-color: var(--c-gold);
+  cursor: pointer;
+}
+
+.ap-time {
+  margin-left: 6px;
+  font: 500 13px/1 var(--font-mono);
+  white-space: nowrap;
+  color: var(--c-text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.ap-speed {
+  height: 32px;
+  padding: 0 8px;
+  font-size: 12px;
+  color: #fff;
+  background: rgba(20, 10, 30, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  cursor: pointer;
+}
+
+.ap-bigplay {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+  margin: -48px 0 0 -48px;
+  color: var(--c-gold);
+  background: rgba(55, 15, 100, 0.78);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 2px solid rgba(255, 215, 0, 0.75);
+  border-radius: 50%;
+  box-shadow: 0 0 40px rgba(255, 215, 0, 0.35);
+  cursor: pointer;
+  transition:
+    transform 0.25s var(--ease),
+    opacity 0.25s ease;
+}
+
+.ap-bigplay .ap-icon {
+  width: 44px;
+  height: 44px;
+}
+
+.ap-bigplay .ap-icon--play {
+  margin-left: 6px;
+}
+
+.ap-bigplay:hover {
+  transform: scale(1.06);
+}
+
+.ap-host.is-playing .ap-bigplay {
+  opacity: 0;
+  transform: scale(0.9);
+  pointer-events: none;
+}
+
+.ap-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  width: min(360px, 86%);
+  visibility: hidden;
+  background: rgba(20, 8, 35, 0.95);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border-left: 1px solid var(--c-glass-border);
+  transform: translateX(105%);
+  transition:
+    transform 0.35s var(--ease),
+    visibility 0s linear 0.35s;
+}
+
+.ap-host.drawer-open .ap-drawer {
+  visibility: visible;
+  transform: none;
+  transition:
+    transform 0.35s var(--ease),
+    visibility 0s;
+}
+
+.ap-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 12px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ap-drawer-heading {
+  font: 700 14px/1 var(--font-title);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--c-gold);
+}
+
+.ap-drawer-list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 8px;
+  scrollbar-color: rgba(255, 215, 0, 0.4) transparent;
+}
+
+.ap-drawer-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+  color: #fff;
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.ap-drawer-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ap-drawer-item.is-current {
+  background: rgba(176, 38, 255, 0.25);
+  box-shadow: inset 3px 0 0 var(--c-gold);
+}
+
+.ap-drawer-num {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  font: 700 12px/1 var(--font-title);
+  color: var(--c-gold);
+  background: rgba(255, 215, 0, 0.12);
+  border-radius: 50%;
+}
+
+.ap-drawer-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ap-drawer-title {
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.ap-drawer-meta {
+  font-size: 12px;
+  color: var(--c-text-faint);
+}
+
+@media (max-width: 640px) {
+  .ap-controls {
+    padding: 24px 8px 6px;
+  }
+
+  .ap-volume,
+  .ap-controls-center,
+  .ap-btn--text,
+  .ap-controls-left .ap-btn:nth-child(2),
+  .ap-controls-left .ap-btn:nth-child(3) {
+    display: none;
+  }
+
+  .ap-btn {
+    width: 34px;
+    height: 34px;
+  }
+
+  .ap-bigplay {
+    width: 72px;
+    height: 72px;
+    margin: -36px 0 0 -36px;
+  }
+}
+
+/* ===========================================================================================
+   13. Watch / preview page chrome
+   =========================================================================================== */
+
+.watch-page {
+  background:
+    radial-gradient(1200px 600px at 15% -10%, rgba(176, 38, 255, 0.25), transparent 60%),
+    radial-gradient(900px 500px at 110% 10%, rgba(255, 215, 0, 0.08), transparent 60%),
+    var(--c-bg);
+}
+
+.watch {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: 0 16px;
+}
+
+.watch-header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 14px 0;
+}
+
+.brand {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  font: 900 16px/1 var(--font-title);
+  letter-spacing: 0.06em;
+  color: #1a0f00;
+  background: linear-gradient(135deg, #ffd700, #d4af37);
+  border-radius: 12px;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.35);
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.brand-name {
+  font: 700 18px/1.2 var(--font-title);
+  color: #fff;
+}
+
+.brand-college {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--c-text-faint);
+}
+
+.watch-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-left: 24px;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.watch-title:empty {
+  border-left: 0;
+}
+
+.watch-title-main {
+  overflow: hidden;
+  font: 700 20px/1.25 var(--font-title);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--c-gold);
+}
+
+.watch-title-sub {
+  overflow: hidden;
+  font-size: 13px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--c-text-dim);
+}
+
+.watch-badge {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--c-cyan);
+  border: 1px solid rgba(0, 229, 255, 0.5);
+  border-radius: 999px;
+}
+
+.watch-main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding-bottom: 8px;
+}
+
+.watch-player {
+  position: relative;
+  width: min(100%, 1400px, calc((100vh - 160px) * 16 / 9));
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: #000;
+  border-radius: 16px;
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 215, 0, 0.18);
+}
+
+.watch-player:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  aspect-ratio: auto;
+  border-radius: 0;
+}
+
+.watch-player > .aadhi-player {
+  position: absolute;
+  inset: 0;
+}
+
+.watch-status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px;
+  text-align: center;
+  background: radial-gradient(circle at 50% 40%, rgba(108, 21, 158, 0.45), rgba(7, 5, 13, 0.96));
+}
+
+.watch-status-title {
+  font: 700 20px/1.3 var(--font-title);
+  color: #fff;
+}
+
+.watch-status-detail {
+  max-width: 460px;
+  color: var(--c-text-dim);
+}
+
+.watch-status-mark {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  font: 900 28px/1 var(--font-title);
+  color: #1a0f00;
+  background: var(--c-gold);
+  border-radius: 50%;
+}
+
+.watch-status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.watch-hint {
+  padding: 0 16px;
+  font-size: 12px;
+  text-align: center;
+  color: var(--c-text-faint);
+}
+
+.watch-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 0 16px;
+  font-size: 12px;
+  color: var(--c-text-faint);
+}
+
+.noscript {
+  padding: 24px;
+  text-align: center;
+}
+
+@media (hover: none) {
+  .watch-hint {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .watch {
+    padding: 0;
+  }
+
+  .watch-hint {
+    display: none;
+  }
+
+  .watch-footer {
+    padding-left: 16px;
+    padding-right: 16px;
+    text-align: center;
+  }
+
+  .watch-header {
+    gap: 12px;
+    padding: 10px 16px;
+  }
+
+  .brand-text {
+    display: none;
+  }
+
+  .watch-title {
+    padding-left: 12px;
+  }
+
+  .watch-player {
+    width: 100%;
+    border-radius: 0;
+  }
+}
+
+/* ===========================================================================================
+   14. Render mode: transparent stage, solid surfaces, no motion, media/mascot/captions as holes
+   =========================================================================================== */
+
+.aadhi-player.render-mode,
+.render-mode .ap-layer--bg,
+.render-mode .ap-intro,
+.render-mode .ap-media-box {
+  background: transparent;
+}
+
+.render-mode,
+.render-mode *,
+.render-mode *::before,
+.render-mode *::after {
+  transition: none !important;
+  animation: none !important;
+}
+
+.render-mode .ap-board,
+.render-mode .ap-card,
+.render-mode .ap-quiz,
+.render-mode .ap-media-title,
+.render-mode .ap-media-subtitle,
+.render-mode .ap-media-missing {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  background: var(--c-surface-solid);
+}
+
+.render-mode .ap-mascot,
+.render-mode .ap-media-el,
+.render-mode video,
+.render-mode .ap-captions,
+.render-mode .ap-intro-bg,
+.render-mode .ap-intro-logo {
+  visibility: hidden !important;
+}
+
+.render-mode .ap-zone--side,
+.render-mode .bi {
+  transform: none;
+}
+
+/* ===========================================================================================
+   15. Reduced motion (live)
+   =========================================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .aadhi-player .bi,
+  .aadhi-player .ap-zone--side {
+    transform: none !important;
+  }
+
+  .aadhi-player .bi.is-highlight,
+  .aadhi-player .bi-step.is-filled .bi-step-text,
+  .aadhi-player .ap-quiz-explanation,
+  .aadhi-player .ap-mascot-fallback {
+    animation: none !important;
+  }
+
+  .aadhi-player .ap-mascot-cue,
+  .aadhi-player .ap-mascot-cue-bubble i {
+    transition: none !important;
+    animation: none !important;
+  }
+}

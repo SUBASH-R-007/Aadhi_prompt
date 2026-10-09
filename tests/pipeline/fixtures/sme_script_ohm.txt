@@ -1,0 +1,88 @@
+SME Name: Dr. Kavitha Raman
+Designation: Associate Professor
+Department: Electrical and Electronics Engineering
+Course Code: EE3301
+Regulation: R2021
+Semester: III
+Video Duration: 6 minutes
+Prepared by: Dr. Kavitha Raman
+Reviewed by: Prof. S. Anand
+Date: 12/03/2024
+Version: 2.1
+
+SUBJECT NAME : BASIC ELECTRICAL ENGINEERING
+UNIT NAME : DC CIRCUITS
+SESSION 4 - Ohm's Law and Electrical Power
+
+CLIP 1 SCRIPT - OHM'S LAW
+Estimated duration: 3 minutes
+
+SEGMENT 1 - WHAT THIS VIDEO WILL COVER [0:00 - 0:30]
+BOARD Title: LEARNING OBJECTIVES
+BOARD displays (one by one):
+- State Ohm's law
+- Calculate current, voltage and resistance
+- Calculate electrical power
+Aadhi speaks:
+In this video, we will learn how voltage, current and resistance are related, and how to calculate power.
+ANIMATION: Bullets appear one by one with a soft glow.
+
+SCENE 1 - TITLE CARD [0:30 - 0:40]
+ON SCREEN - full screen, no board, no Aadhi:
+OHM'S LAW AND ELECTRICAL POWER
+ANIMATION: Title fades in over a glowing circuit board.
+
+SEGMENT 2 - OHM'S LAW [0:40 - 1:50]
+BOARD Title: OHM'S LAW
+Aadhi speaks:
+Ohm's law states that the current through a conductor is directly proportional to the voltage across it, provided the temperature stays constant.
+In symbols, V = I x R, where V is the voltage in volts, I is the current in amperes and R is the resistance in ohms.
+The law was published by Georg Simon Ohm in 1827.
+BOARD displays - formula / expression block:
+V = I x R
+ANIMATION: A battery pushes glowing charges through a resistor; doubling the battery doubles the flow.
+DETAILED ANIMATION / VISUAL:
+Show a simple circuit with a cell and a resistor. Increase the voltage in two steps and show the ammeter reading rise in proportion.
+
+SEGMENT 3 - WORKED EXAMPLE (1:50 - 2:40)
+Aadhi speaks:
+A 12 V battery is connected across a 4 ohm resistor. The current is I = V / R = 12 / 4 = 3 A.
+The duration of the pulse in the next experiment is 2 ms, so the charge delivered is only 6 mC.
+
+SEGMENT 4 - BRIDGE TO NEXT PART [2:40 - 2:50]
+BOARD Title: COMING UP NEXT
+BOARD displays: ELECTRICAL POWER
+Aadhi speaks:
+Next, we will see how much energy the resistor converts every second.
+NOTE: No farewell. Clean fade to black.
+
+CLIP 2 SCRIPT - ELECTRICAL POWER
+Estimated duration: 3 minutes
+
+SCENE 1 - TITLE CARD [0:00 - 0:10]
+ON SCREEN - full screen, no board, no Aadhi:
+ELECTRICAL POWER
+ANIMATION: Title appears with a lightning icon.
+
+SEGMENT 1 - WHAT THIS VIDEO WILL COVER [0:10 - 0:20]
+BOARD displays (one by one):
+- Power formula
+- Power in a resistor
+
+SEGMENT 2 - ELECTRICAL POWER [0:20 - 1:30]
+Aadhi speaks:
+Electrical power is the rate at which electrical energy is converted. It is measured in watts.
+For any device, P = V x I. Using Ohm's law, P = I^2 x R = V^2 / R.
+ANIMATION: A geyser and an LED lamp side by side; the geyser's power meter spins much faster.
+
+SEGMENT 3 - QUICK QUIZ [1:30 - 2:10]
+Aadhi speaks:
+Question 1: What is the current through a 10 ohm resistor connected to a 5 V supply?
+Answer: 0.5 A.
+Question 2: What is the power used by a 230 V heater drawing 4 A?
+Answer: 920 W.
+
+SEGMENT 4 - SUMMARY [2:10 - 2:40]
+Aadhi speaks:
+Ohm's law links voltage, current and resistance: V = I x R. Power is P = V x I.
+Thank you for watching.

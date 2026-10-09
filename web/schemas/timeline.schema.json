@@ -1,0 +1,2016 @@
+{
+ "$defs": {
+  "BoardItem": {
+   "properties": {
+    "id": {
+     "maxLength": 64,
+     "minLength": 1,
+     "title": "Id",
+     "type": "string"
+    },
+    "kind": {
+     "$ref": "#/$defs/BoardItemKind"
+    },
+    "text": {
+     "default": "",
+     "maxLength": 1200,
+     "title": "Text",
+     "type": "string"
+    },
+    "term": {
+     "anyOf": [
+      {
+       "maxLength": 240,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Term"
+    },
+    "latex": {
+     "anyOf": [
+      {
+       "maxLength": 1200,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Latex"
+    },
+    "variables": {
+     "items": {
+      "$ref": "#/$defs/FormulaVariable"
+     },
+     "maxItems": 8,
+     "title": "Variables",
+     "type": "array"
+    },
+    "language": {
+     "anyOf": [
+      {
+       "pattern": "^[a-z0-9+#-]{1,20}$",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Language"
+    },
+    "code": {
+     "anyOf": [
+      {
+       "maxLength": 4000,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Code"
+    },
+    "headers": {
+     "anyOf": [
+      {
+       "items": {
+        "type": "string"
+       },
+       "maxItems": 8,
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Headers"
+    },
+    "rows": {
+     "anyOf": [
+      {
+       "items": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "maxItems": 20,
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Rows"
+    },
+    "figure_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Figure Id"
+    },
+    "caption": {
+     "anyOf": [
+      {
+       "maxLength": 600,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Caption"
+    },
+    "justification": {
+     "anyOf": [
+      {
+       "maxLength": 800,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Justification"
+    },
+    "blank": {
+     "default": false,
+     "title": "Blank",
+     "type": "boolean"
+    },
+    "misconception_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Misconception Id"
+    },
+    "source_refs": {
+     "items": {
+      "type": "string"
+     },
+     "maxItems": 10,
+     "title": "Source Refs",
+     "type": "array"
+    }
+   },
+   "required": [
+    "id",
+    "kind"
+   ],
+   "title": "BoardItem",
+   "type": "object"
+  },
+  "BoardItemKind": {
+   "enum": [
+    "heading",
+    "bullet",
+    "paragraph",
+    "definition",
+    "formula",
+    "callout_info",
+    "callout_tip",
+    "callout_warning",
+    "misconception",
+    "code",
+    "table",
+    "figure",
+    "example_step",
+    "takeaway"
+   ],
+   "title": "BoardItemKind",
+   "type": "string"
+  },
+  "Branding": {
+   "properties": {
+    "mascot_clips": {
+     "additionalProperties": {
+      "type": "string"
+     },
+     "title": "Mascot Clips",
+     "type": "object"
+    },
+    "static_background_url": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Static Background Url"
+    },
+    "bgm_url": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Bgm Url"
+    },
+    "bgm_volume": {
+     "default": 0.06,
+     "title": "Bgm Volume",
+     "type": "number"
+    },
+    "tick_url": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Tick Url"
+    },
+    "ding_url": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Ding Url"
+    },
+    "mascot_rig_url": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Mascot Rig Url"
+    }
+   },
+   "title": "Branding",
+   "type": "object"
+  },
+  "CaptionCue": {
+   "properties": {
+    "start": {
+     "title": "Start",
+     "type": "number"
+    },
+    "end": {
+     "title": "End",
+     "type": "number"
+    },
+    "text": {
+     "title": "Text",
+     "type": "string"
+    }
+   },
+   "required": [
+    "start",
+    "end",
+    "text"
+   ],
+   "title": "CaptionCue",
+   "type": "object"
+  },
+  "Chapter": {
+   "properties": {
+    "start": {
+     "title": "Start",
+     "type": "number"
+    },
+    "title": {
+     "title": "Title",
+     "type": "string"
+    }
+   },
+   "required": [
+    "start",
+    "title"
+   ],
+   "title": "Chapter",
+   "type": "object"
+  },
+  "ChartDataset": {
+   "properties": {
+    "label": {
+     "default": "",
+     "maxLength": 120,
+     "title": "Label",
+     "type": "string"
+    },
+    "data": {
+     "items": {
+      "type": "number"
+     },
+     "maxItems": 64,
+     "minItems": 1,
+     "title": "Data",
+     "type": "array"
+    }
+   },
+   "required": [
+    "data"
+   ],
+   "title": "ChartDataset",
+   "type": "object"
+  },
+  "ChartSpec": {
+   "properties": {
+    "chart_type": {
+     "default": "bar",
+     "enum": [
+      "bar",
+      "line",
+      "pie",
+      "doughnut",
+      "radar"
+     ],
+     "title": "Chart Type",
+     "type": "string"
+    },
+    "labels": {
+     "items": {
+      "type": "string"
+     },
+     "maxItems": 64,
+     "minItems": 1,
+     "title": "Labels",
+     "type": "array"
+    },
+    "datasets": {
+     "items": {
+      "$ref": "#/$defs/ChartDataset"
+     },
+     "maxItems": 6,
+     "minItems": 1,
+     "title": "Datasets",
+     "type": "array"
+    },
+    "x_label": {
+     "anyOf": [
+      {
+       "maxLength": 120,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "X Label"
+    },
+    "y_label": {
+     "anyOf": [
+      {
+       "maxLength": 120,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Y Label"
+    }
+   },
+   "required": [
+    "labels",
+    "datasets"
+   ],
+   "title": "ChartSpec",
+   "type": "object"
+  },
+  "ConceptNode": {
+   "properties": {
+    "id": {
+     "maxLength": 64,
+     "minLength": 1,
+     "title": "Id",
+     "type": "string"
+    },
+    "title": {
+     "maxLength": 160,
+     "minLength": 1,
+     "title": "Title",
+     "type": "string"
+    },
+    "summary": {
+     "default": "",
+     "maxLength": 600,
+     "title": "Summary",
+     "type": "string"
+    },
+    "depends_on": {
+     "items": {
+      "maxLength": 64,
+      "minLength": 1,
+      "type": "string"
+     },
+     "maxItems": 20,
+     "title": "Depends On",
+     "type": "array"
+    },
+    "kind": {
+     "default": "core",
+     "enum": [
+      "prerequisite",
+      "core"
+     ],
+     "title": "Kind",
+     "type": "string"
+    }
+   },
+   "required": [
+    "id",
+    "title"
+   ],
+   "title": "ConceptNode",
+   "type": "object"
+  },
+  "FormulaVariable": {
+   "properties": {
+    "symbol_latex": {
+     "maxLength": 60,
+     "minLength": 1,
+     "title": "Symbol Latex",
+     "type": "string"
+    },
+    "meaning": {
+     "maxLength": 160,
+     "minLength": 1,
+     "title": "Meaning",
+     "type": "string"
+    },
+    "unit": {
+     "default": "",
+     "maxLength": 40,
+     "title": "Unit",
+     "type": "string"
+    },
+    "beat_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Beat Id"
+    }
+   },
+   "required": [
+    "symbol_latex",
+    "meaning"
+   ],
+   "title": "FormulaVariable",
+   "type": "object"
+  },
+  "GraphFunction": {
+   "properties": {
+    "expr": {
+     "maxLength": 200,
+     "minLength": 1,
+     "title": "Expr",
+     "type": "string"
+    },
+    "label": {
+     "anyOf": [
+      {
+       "maxLength": 80,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Label"
+    }
+   },
+   "required": [
+    "expr"
+   ],
+   "title": "GraphFunction",
+   "type": "object"
+  },
+  "GraphPoint": {
+   "properties": {
+    "x": {
+     "title": "X",
+     "type": "number"
+    },
+    "y": {
+     "title": "Y",
+     "type": "number"
+    },
+    "label": {
+     "anyOf": [
+      {
+       "maxLength": 60,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Label"
+    }
+   },
+   "required": [
+    "x",
+    "y"
+   ],
+   "title": "GraphPoint",
+   "type": "object"
+  },
+  "GraphSpec": {
+   "properties": {
+    "functions": {
+     "items": {
+      "$ref": "#/$defs/GraphFunction"
+     },
+     "maxItems": 4,
+     "title": "Functions",
+     "type": "array"
+    },
+    "points": {
+     "items": {
+      "$ref": "#/$defs/GraphPoint"
+     },
+     "maxItems": 20,
+     "title": "Points",
+     "type": "array"
+    },
+    "x_range": {
+     "default": [
+      -5.0,
+      5.0
+     ],
+     "maxItems": 2,
+     "minItems": 2,
+     "prefixItems": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "number"
+      }
+     ],
+     "title": "X Range",
+     "type": "array"
+    },
+    "y_range": {
+     "anyOf": [
+      {
+       "maxItems": 2,
+       "minItems": 2,
+       "prefixItems": [
+        {
+         "type": "number"
+        },
+        {
+         "type": "number"
+        }
+       ],
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Y Range"
+    },
+    "x_label": {
+     "anyOf": [
+      {
+       "maxLength": 60,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "X Label"
+    },
+    "y_label": {
+     "anyOf": [
+      {
+       "maxLength": 60,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Y Label"
+    }
+   },
+   "title": "GraphSpec",
+   "type": "object"
+  },
+  "IntroSpec": {
+   "properties": {
+    "logo_video_url": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Logo Video Url"
+    },
+    "logo_duration": {
+     "default": 0.0,
+     "title": "Logo Duration",
+     "type": "number"
+    },
+    "background_url": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Background Url"
+    },
+    "cards": {
+     "items": {
+      "$ref": "#/$defs/TitleCard"
+     },
+     "title": "Cards",
+     "type": "array"
+    },
+    "duration": {
+     "default": 0.0,
+     "title": "Duration",
+     "type": "number"
+    }
+   },
+   "title": "IntroSpec",
+   "type": "object"
+  },
+  "KenBurns": {
+   "description": "Linear pan/zoom over [0, scene.duration]; the CSS player and ffmpeg zoompan both read this.",
+   "properties": {
+    "start": {
+     "$ref": "#/$defs/KenBurnsPoint"
+    },
+    "end": {
+     "$ref": "#/$defs/KenBurnsPoint"
+    }
+   },
+   "title": "KenBurns",
+   "type": "object"
+  },
+  "KenBurnsPoint": {
+   "properties": {
+    "cx": {
+     "default": 0.5,
+     "title": "Cx",
+     "type": "number"
+    },
+    "cy": {
+     "default": 0.5,
+     "title": "Cy",
+     "type": "number"
+    },
+    "scale": {
+     "default": 1.0,
+     "title": "Scale",
+     "type": "number"
+    }
+   },
+   "title": "KenBurnsPoint",
+   "type": "object"
+  },
+  "Layout": {
+   "properties": {
+    "mascot_position": {
+     "default": "left",
+     "enum": [
+      "left",
+      "right",
+      "center",
+      "popup_bottom_left",
+      "popup_bottom_right",
+      "hidden"
+     ],
+     "title": "Mascot Position",
+     "type": "string"
+    },
+    "show_side_panel": {
+     "default": true,
+     "title": "Show Side Panel",
+     "type": "boolean"
+    },
+    "fullscreen_media": {
+     "default": false,
+     "title": "Fullscreen Media",
+     "type": "boolean"
+    },
+    "mascot_cues": {
+     "default": true,
+     "title": "Mascot Cues",
+     "type": "boolean"
+    }
+   },
+   "title": "Layout",
+   "type": "object"
+  },
+  "LearningObjective": {
+   "properties": {
+    "id": {
+     "maxLength": 64,
+     "minLength": 1,
+     "title": "Id",
+     "type": "string"
+    },
+    "text": {
+     "maxLength": 400,
+     "minLength": 1,
+     "title": "Text",
+     "type": "string"
+    },
+    "bloom": {
+     "default": "understand",
+     "enum": [
+      "remember",
+      "understand",
+      "apply",
+      "analyze",
+      "evaluate",
+      "create"
+     ],
+     "title": "Bloom",
+     "type": "string"
+    },
+    "concept_ids": {
+     "items": {
+      "maxLength": 64,
+      "minLength": 1,
+      "type": "string"
+     },
+     "maxItems": 10,
+     "title": "Concept Ids",
+     "type": "array"
+    }
+   },
+   "required": [
+    "id",
+    "text"
+   ],
+   "title": "LearningObjective",
+   "type": "object"
+  },
+  "ManimSpec": {
+   "description": "Either a library template with typed params (preferred) or free-form code.\n\nFree-form code must define exactly one ``class <Name>(AadhiScene)`` and call\n``self.wait_until_beat(i)`` before the animation step that belongs to beat ``i``.\n``AadhiScene`` and ``BEAT_TIMES`` are injected by ``aadhi.manim``.",
+   "properties": {
+    "template": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Template"
+    },
+    "params": {
+     "additionalProperties": true,
+     "title": "Params",
+     "type": "object"
+    },
+    "code": {
+     "anyOf": [
+      {
+       "maxLength": 20000,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Code"
+    }
+   },
+   "title": "ManimSpec",
+   "type": "object"
+  },
+  "MediaRef": {
+   "properties": {
+    "kind": {
+     "enum": [
+      "video",
+      "image",
+      "gif"
+     ],
+     "title": "Kind",
+     "type": "string"
+    },
+    "asset_key": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Asset Key"
+    },
+    "url": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Url"
+    },
+    "mime": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Mime"
+    },
+    "duration": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Duration"
+    },
+    "width": {
+     "anyOf": [
+      {
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Width"
+    },
+    "height": {
+     "anyOf": [
+      {
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Height"
+    },
+    "fit": {
+     "default": "contain",
+     "enum": [
+      "contain",
+      "cover"
+     ],
+     "title": "Fit",
+     "type": "string"
+    },
+    "end_behavior": {
+     "default": "loop",
+     "enum": [
+      "loop",
+      "freeze"
+     ],
+     "title": "End Behavior",
+     "type": "string"
+    },
+    "ken_burns": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/KenBurns"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "attribution": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Attribution"
+    },
+    "link_url": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Link Url"
+    },
+    "render_in_mp4": {
+     "default": true,
+     "title": "Render In Mp4",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "kind"
+   ],
+   "title": "MediaRef",
+   "type": "object"
+  },
+  "Model3DSpec": {
+   "properties": {
+    "primitives": {
+     "items": {
+      "$ref": "#/$defs/Primitive3D"
+     },
+     "maxItems": 40,
+     "minItems": 1,
+     "title": "Primitives",
+     "type": "array"
+    },
+    "auto_rotate": {
+     "default": true,
+     "title": "Auto Rotate",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "primitives"
+   ],
+   "title": "Model3DSpec",
+   "type": "object"
+  },
+  "Primitive3D": {
+   "properties": {
+    "shape": {
+     "enum": [
+      "sphere",
+      "box",
+      "cylinder",
+      "cone",
+      "torus",
+      "arrow"
+     ],
+     "title": "Shape",
+     "type": "string"
+    },
+    "position": {
+     "default": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "maxItems": 3,
+     "minItems": 3,
+     "prefixItems": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "number"
+      },
+      {
+       "type": "number"
+      }
+     ],
+     "title": "Position",
+     "type": "array"
+    },
+    "size": {
+     "items": {
+      "type": "number"
+     },
+     "maxItems": 3,
+     "minItems": 1,
+     "title": "Size",
+     "type": "array"
+    },
+    "color": {
+     "default": "#b026ff",
+     "pattern": "^#[0-9a-fA-F]{6}$",
+     "title": "Color",
+     "type": "string"
+    },
+    "label": {
+     "anyOf": [
+      {
+       "maxLength": 60,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Label"
+    }
+   },
+   "required": [
+    "shape"
+   ],
+   "title": "Primitive3D",
+   "type": "object"
+  },
+  "QuizTeaserSpec": {
+   "properties": {
+    "question": {
+     "maxLength": 400,
+     "title": "Question",
+     "type": "string"
+    },
+    "options": {
+     "items": {
+      "type": "string"
+     },
+     "maxItems": 5,
+     "minItems": 2,
+     "title": "Options",
+     "type": "array"
+    },
+    "correct_index": {
+     "minimum": 0,
+     "title": "Correct Index",
+     "type": "integer"
+    }
+   },
+   "required": [
+    "question",
+    "options",
+    "correct_index"
+   ],
+   "title": "QuizTeaserSpec",
+   "type": "object"
+  },
+  "QuizTiming": {
+   "properties": {
+    "question": {
+     "title": "Question",
+     "type": "string"
+    },
+    "options": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Options",
+     "type": "array"
+    },
+    "correct_index": {
+     "title": "Correct Index",
+     "type": "integer"
+    },
+    "feedback_wrong": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Feedback Wrong",
+     "type": "array"
+    },
+    "explanation": {
+     "title": "Explanation",
+     "type": "string"
+    },
+    "countdown_start": {
+     "title": "Countdown Start",
+     "type": "number"
+    },
+    "countdown_seconds": {
+     "title": "Countdown Seconds",
+     "type": "integer"
+    },
+    "reveal_start": {
+     "title": "Reveal Start",
+     "type": "number"
+    }
+   },
+   "required": [
+    "question",
+    "options",
+    "correct_index",
+    "feedback_wrong",
+    "explanation",
+    "countdown_start",
+    "countdown_seconds",
+    "reveal_start"
+   ],
+   "title": "QuizTiming",
+   "type": "object"
+  },
+  "ResolvedSidePanel": {
+   "properties": {
+    "panel": {
+     "$ref": "#/$defs/SidePanel"
+    },
+    "media": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/MediaRef"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "show_at": {
+     "default": 0.0,
+     "title": "Show At",
+     "type": "number"
+    }
+   },
+   "required": [
+    "panel"
+   ],
+   "title": "ResolvedSidePanel",
+   "type": "object"
+  },
+  "SidePanel": {
+   "properties": {
+    "kind": {
+     "enum": [
+      "skill_tree",
+      "figure",
+      "image",
+      "chart",
+      "graph",
+      "model_3d",
+      "manim",
+      "terminal",
+      "quiz",
+      "gif"
+     ],
+     "title": "Kind",
+     "type": "string"
+    },
+    "title": {
+     "anyOf": [
+      {
+       "maxLength": 160,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Title"
+    },
+    "rationale": {
+     "default": "",
+     "maxLength": 400,
+     "title": "Rationale",
+     "type": "string"
+    },
+    "show_from_beat_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Show From Beat Id"
+    },
+    "figure_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Figure Id"
+    },
+    "image_prompt": {
+     "anyOf": [
+      {
+       "maxLength": 800,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Image Prompt"
+    },
+    "chart": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/ChartSpec"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "graph": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/GraphSpec"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "model_3d": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/Model3DSpec"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "manim": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/ManimSpec"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "terminal": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/TerminalSpec"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "quiz": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/QuizTeaserSpec"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "gif_query": {
+     "anyOf": [
+      {
+       "maxLength": 80,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Gif Query"
+    },
+    "override_asset_key": {
+     "anyOf": [
+      {
+       "maxLength": 128,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Override Asset Key"
+    },
+    "variant": {
+     "default": 0,
+     "maximum": 99,
+     "minimum": 0,
+     "title": "Variant",
+     "type": "integer"
+    }
+   },
+   "required": [
+    "kind"
+   ],
+   "title": "SidePanel",
+   "type": "object"
+  },
+  "SyncCue": {
+   "description": "A visual moment anchored to a spoken word (``aadhi.compose.sync``); scene-relative seconds.\n\n* ``var``: formula legend row ``part`` (``var:<n>``) of ``item_id`` appears at ``start``;\n* ``emphasis``: board item ``item_id`` is highlighted during ``[start, end)`` and its ``part``\n  (``column:<n>`` of a table, ``term`` of a definition, None = the whole item) emphasised; it\n  replaces the authored highlight of that item in beat ``beat_id``;\n* ``output``: the terminal side panel's output lines start at ``start``;\n* ``focus``: the side panel is pulsed during ``[start, end)``.\n\n``words`` are the spoken words that anchor the cue (shown in the Studio, never to students).",
+   "properties": {
+    "kind": {
+     "enum": [
+      "var",
+      "emphasis",
+      "output",
+      "focus"
+     ],
+     "title": "Kind",
+     "type": "string"
+    },
+    "start": {
+     "title": "Start",
+     "type": "number"
+    },
+    "end": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "End"
+    },
+    "item_id": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Item Id"
+    },
+    "part": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Part"
+    },
+    "beat_id": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Beat Id"
+    },
+    "words": {
+     "default": "",
+     "title": "Words",
+     "type": "string"
+    }
+   },
+   "required": [
+    "kind",
+    "start"
+   ],
+   "title": "SyncCue",
+   "type": "object"
+  },
+  "TerminalSpec": {
+   "properties": {
+    "command": {
+     "maxLength": 300,
+     "title": "Command",
+     "type": "string"
+    },
+    "output": {
+     "default": "",
+     "maxLength": 3000,
+     "title": "Output",
+     "type": "string"
+    }
+   },
+   "required": [
+    "command"
+   ],
+   "title": "TerminalSpec",
+   "type": "object"
+  },
+  "TimedBeat": {
+   "properties": {
+    "beat_id": {
+     "title": "Beat Id",
+     "type": "string"
+    },
+    "index": {
+     "title": "Index",
+     "type": "integer"
+    },
+    "phase": {
+     "default": "main",
+     "enum": [
+      "main",
+      "reveal"
+     ],
+     "title": "Phase",
+     "type": "string"
+    },
+    "start": {
+     "title": "Start",
+     "type": "number"
+    },
+    "speech_end": {
+     "title": "Speech End",
+     "type": "number"
+    },
+    "end": {
+     "title": "End",
+     "type": "number"
+    },
+    "narration": {
+     "title": "Narration",
+     "type": "string"
+    },
+    "board_item_id": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Board Item Id"
+    },
+    "fill_item_id": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Fill Item Id"
+    },
+    "highlight_item_ids": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Highlight Item Ids",
+     "type": "array"
+    },
+    "words": {
+     "items": {
+      "$ref": "#/$defs/TimedWord"
+     },
+     "title": "Words",
+     "type": "array"
+    },
+    "captions": {
+     "items": {
+      "$ref": "#/$defs/CaptionCue"
+     },
+     "title": "Captions",
+     "type": "array"
+    },
+    "visual_cue": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Visual Cue"
+    },
+    "estimated": {
+     "default": false,
+     "title": "Estimated",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "beat_id",
+    "index",
+    "start",
+    "speech_end",
+    "end",
+    "narration"
+   ],
+   "title": "TimedBeat",
+   "type": "object"
+  },
+  "TimedScene": {
+   "properties": {
+    "scene_id": {
+     "title": "Scene Id",
+     "type": "string"
+    },
+    "index": {
+     "title": "Index",
+     "type": "integer"
+    },
+    "type": {
+     "title": "Type",
+     "type": "string"
+    },
+    "concept_id": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Concept Id"
+    },
+    "chapter_id": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Chapter Id"
+    },
+    "title": {
+     "default": "",
+     "title": "Title",
+     "type": "string"
+    },
+    "subtitle": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Subtitle"
+    },
+    "chapter_label": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Chapter Label"
+    },
+    "start": {
+     "title": "Start",
+     "type": "number"
+    },
+    "duration": {
+     "title": "Duration",
+     "type": "number"
+    },
+    "audio_offset": {
+     "default": 0.0,
+     "title": "Audio Offset",
+     "type": "number"
+    },
+    "layout": {
+     "$ref": "#/$defs/Layout"
+    },
+    "audio_asset_key": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Audio Asset Key"
+    },
+    "audio_url": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Audio Url"
+    },
+    "audio_duration": {
+     "default": 0.0,
+     "title": "Audio Duration",
+     "type": "number"
+    },
+    "board": {
+     "items": {
+      "$ref": "#/$defs/BoardItem"
+     },
+     "title": "Board",
+     "type": "array"
+    },
+    "figures": {
+     "additionalProperties": {
+      "$ref": "#/$defs/MediaRef"
+     },
+     "title": "Figures",
+     "type": "object"
+    },
+    "beats": {
+     "items": {
+      "$ref": "#/$defs/TimedBeat"
+     },
+     "title": "Beats",
+     "type": "array"
+    },
+    "side_panel": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/ResolvedSidePanel"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "media": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/MediaRef"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "quiz": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/QuizTiming"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "p5_code": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "P5 Code"
+    },
+    "poster": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/MediaRef"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "objective_ids": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Objective Ids",
+     "type": "array"
+    },
+    "sync_cues": {
+     "items": {
+      "$ref": "#/$defs/SyncCue"
+     },
+     "title": "Sync Cues",
+     "type": "array"
+    },
+    "audio_envelope": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Audio Envelope"
+    },
+    "audio_envelope_fps": {
+     "default": 30,
+     "maximum": 100,
+     "minimum": 1,
+     "title": "Audio Envelope Fps",
+     "type": "integer"
+    },
+    "hold_seconds": {
+     "default": 0.0,
+     "minimum": 0.0,
+     "title": "Hold Seconds",
+     "type": "number"
+    }
+   },
+   "required": [
+    "scene_id",
+    "index",
+    "type",
+    "start",
+    "duration"
+   ],
+   "title": "TimedScene",
+   "type": "object"
+  },
+  "TimedWord": {
+   "properties": {
+    "text": {
+     "title": "Text",
+     "type": "string"
+    },
+    "start": {
+     "title": "Start",
+     "type": "number"
+    },
+    "end": {
+     "title": "End",
+     "type": "number"
+    }
+   },
+   "required": [
+    "text",
+    "start",
+    "end"
+   ],
+   "title": "TimedWord",
+   "type": "object"
+  },
+  "TitleCard": {
+   "properties": {
+    "line1": {
+     "title": "Line1",
+     "type": "string"
+    },
+    "line2": {
+     "default": "",
+     "title": "Line2",
+     "type": "string"
+    },
+    "start": {
+     "title": "Start",
+     "type": "number"
+    },
+    "duration": {
+     "title": "Duration",
+     "type": "number"
+    }
+   },
+   "required": [
+    "line1",
+    "start",
+    "duration"
+   ],
+   "title": "TitleCard",
+   "type": "object"
+  }
+ },
+ "properties": {
+  "schema_version": {
+   "default": 2,
+   "title": "Schema Version",
+   "type": "integer"
+  },
+  "version_id": {
+   "anyOf": [
+    {
+     "type": "integer"
+    },
+    {
+     "type": "null"
+    }
+   ],
+   "default": null,
+   "title": "Version Id"
+  },
+  "screenplay_revision": {
+   "anyOf": [
+    {
+     "type": "integer"
+    },
+    {
+     "type": "null"
+    }
+   ],
+   "default": null,
+   "title": "Screenplay Revision"
+  },
+  "language": {
+   "default": "en-IN",
+   "title": "Language",
+   "type": "string"
+  },
+  "board_language": {
+   "default": "en-IN",
+   "title": "Board Language",
+   "type": "string"
+  },
+  "fps": {
+   "default": 30,
+   "title": "Fps",
+   "type": "integer"
+  },
+  "width": {
+   "default": 1920,
+   "title": "Width",
+   "type": "integer"
+  },
+  "height": {
+   "default": 1080,
+   "title": "Height",
+   "type": "integer"
+  },
+  "meta": {
+   "additionalProperties": true,
+   "title": "Meta",
+   "type": "object"
+  },
+  "concept_map": {
+   "items": {
+    "$ref": "#/$defs/ConceptNode"
+   },
+   "title": "Concept Map",
+   "type": "array"
+  },
+  "learning_objectives": {
+   "items": {
+    "$ref": "#/$defs/LearningObjective"
+   },
+   "title": "Learning Objectives",
+   "type": "array"
+  },
+  "intro": {
+   "anyOf": [
+    {
+     "$ref": "#/$defs/IntroSpec"
+    },
+    {
+     "type": "null"
+    }
+   ],
+   "default": null
+  },
+  "scenes": {
+   "items": {
+    "$ref": "#/$defs/TimedScene"
+   },
+   "title": "Scenes",
+   "type": "array"
+  },
+  "total_duration": {
+   "default": 0.0,
+   "title": "Total Duration",
+   "type": "number"
+  },
+  "chapters": {
+   "items": {
+    "$ref": "#/$defs/Chapter"
+   },
+   "title": "Chapters",
+   "type": "array"
+  },
+  "captions": {
+   "items": {
+    "$ref": "#/$defs/CaptionCue"
+   },
+   "title": "Captions",
+   "type": "array"
+  },
+  "branding": {
+   "$ref": "#/$defs/Branding"
+  },
+  "transition_seconds": {
+   "default": 0.4,
+   "title": "Transition Seconds",
+   "type": "number"
+  },
+  "estimated": {
+   "default": false,
+   "title": "Estimated",
+   "type": "boolean"
+  }
+ },
+ "title": "Timeline",
+ "type": "object"
+}
