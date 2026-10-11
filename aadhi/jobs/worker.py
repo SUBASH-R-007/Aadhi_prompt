@@ -20,8 +20,10 @@
 * Outcome mapping: success -> succeeded; JobCancelled -> cancelled (lease_lost: nothing — the new
   owner owns the job; shutdown: released, attempt refunded — only when this worker really is
   stopping); AwaitingReview -> awaiting_review; BudgetExceeded -> failed/budget; FatalJobError ->
-  failed/<code>; anything else (including SystemExit and other BaseExceptions, and a CancelledError
-  nobody asked for) -> retry with exponential backoff while attempts remain, else failed (redacted
+  failed/<code>; NewerDocumentError (a document from a newer build; also checked before the handler
+  runs, ``reader_version``) -> failed/newer_document; anything else (including SystemExit and other
+  BaseExceptions, and a CancelledError nobody asked for) -> retry with exponential backoff while
+  attempts remain, else failed (redacted
   traceback tail stored in a JobEvent). A pending user cancel always wins over a retry. A provider
   refusing the job owner's *personal* API key (HTTP 401/403, possibly wrapped in a FatalJobError)
   fails the job at once with ``error_code='personal_key_rejected'`` and a message saying so: retrying
@@ -48,6 +50,7 @@ from ..credentials import personal_key_rejection
 from ..db import session_scope
 from ..models import VERSION_MUTATING_KINDS
 from ..providers._notify import provider_notices
+from ..schemas.features import NewerDocumentError
 from ..storage.assets import claim_owner
 from . import base
 from .base import AwaitingReview, BudgetExceeded, FatalJobError, JobCancelled, JobHandler, RetryableJobError
@@ -69,6 +72,7 @@ from .queue import (
     requeue_job,
     retry_delay_seconds,
 )
+from .reader_version import NEWER_DOCUMENT, newer_document_refusal
 from .runner import run_job_loop
 from .util import MAX_MESSAGE_CHARS, is_transient_db_error, jsonable, redact_text, short_error, traceback_tail
 
@@ -328,6 +332,10 @@ class Worker:
                 ctx=None,
             )
             return
+        refusal = self._newer_document_refusal(ctx)
+        if refusal is not None:  # a newer build wrote the version: never read it without the fields we do not know
+            self._persist(lease, _Outcome("failed", error=refusal, error_code=NEWER_DOCUMENT), ctx=None)
+            return
         with self._lock:
             self._active[lease.job_id] = ctx
         hb = heartbeat_service()
@@ -348,6 +356,19 @@ class Worker:
                 ctx.finalize()
                 with self._lock:
                     self._active.pop(lease.job_id, None)
+
+    @staticmethod
+    def _newer_document_refusal(ctx: DBJobContext) -> str | None:
+        """The refusal message when the job's version (or its translation source) holds a document from a newer
+        build (``reader_version``), else None."""
+        if ctx.version_id is None and not (ctx.payload or {}).get("source_version_id"):
+            return None
+        try:
+            with session_scope() as db:
+                return newer_document_refusal(db, ctx.version_id, ctx.payload)
+        except Exception as exc:  # noqa: BLE001 - best effort: the loaders still refuse newer documents
+            log.warning("job %s: could not check document versions: %s", ctx.job_id, type(exc).__name__)
+            return None
 
     def _open_failure(self, lease: Lease, exc: Exception) -> _Outcome:
         tb = traceback_tail(exc)
@@ -380,6 +401,8 @@ class Worker:
             )
         except BudgetExceeded as exc:
             return _Outcome("failed", error=str(exc) or "Budget exceeded", error_code="budget")
+        except NewerDocumentError as exc:  # a loader met a document from a newer build: retrying cannot help
+            return _Outcome("failed", error=str(exc), error_code=NEWER_DOCUMENT)
         except FatalJobError as exc:
             rejected = personal_key_rejection(exc, ctx.key_sources)
             if rejected:

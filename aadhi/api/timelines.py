@@ -9,6 +9,11 @@ document per poll): the version id, ``revision``, ``built_revision``, ``has_time
 ``updated_at`` (bumped by every write to the version row, ``onupdate``), plus the URL-shaping
 settings. Any write that can change the timeline therefore changes the tag; unrelated writes only
 cost a full response.
+
+``DYNAMIC_ENABLED`` applies when a timeline is served (:func:`current_timeline`), like ``MASCOT_CUES``: the render
+job rebuilds the timeline with the current flag, so a stored timeline built under the other value is served rebuilt
+the same way (the player never shows the other engine's look than the MP4, and turning the flag off stops the Dynamic
+stage at once, without rebuilding every lecture).
 """
 
 from __future__ import annotations
@@ -16,6 +21,7 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import time
+from collections.abc import Mapping
 from typing import Any
 
 from ..compose.base import RETIRED_BRANDING_FILES, RETIRED_MASCOT_CLIPS
@@ -57,8 +63,8 @@ def timeline_etag(version: ProjectVersion, settings: Settings, *, now: float | N
     ``hash12`` covers the version id, ``has_timeline``, ``updated_at``, the settings that shape
     resolved URLs, the serve-time branding substitutions (``RETIRED_MASCOT_CLIPS`` and
     ``RETIRED_BRANDING_FILES``: cached copies naming a retired file are refreshed) and ``MASCOT_CUES``
-    (applied when served, see :func:`resolve_timeline`); nothing here loads or serialises the (deferred)
-    timeline document.
+    (applied when served, see :func:`resolve_timeline`) and ``DYNAMIC_ENABLED`` (:func:`current_timeline`); nothing
+    here loads or serialises the (deferred) timeline document.
     """
     identity = "|".join(
         (
@@ -71,6 +77,7 @@ def timeline_etag(version: ProjectVersion, settings: Settings, *, now: float | N
             ",".join(f"{a}>{b}" for a, b in sorted(RETIRED_MASCOT_CLIPS.items())),
             ",".join(f"{a}>{b}" for a, b in sorted(RETIRED_BRANDING_FILES.items())),
             f"cues={settings.mascot_cues}",
+            f"dyn={bool(getattr(settings, 'dynamic_enabled', False))}",
         )
     )
     digest = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:12]
@@ -91,6 +98,44 @@ def etag_matches(if_none_match: str | None, etag: str) -> bool:
         if c == "*" or c.removeprefix("W/") == target:
             return True
     return False
+
+
+def built_dynamic(stored: Mapping[str, Any] | Timeline | None) -> bool:
+    """True when ``stored`` was built as a Dynamic timeline (``presentation.style == "dynamic"``)."""
+    pres = stored.get("presentation") if isinstance(stored, Mapping) else getattr(stored, "presentation", None)
+    style = pres.get("style") if isinstance(pres, Mapping) else getattr(pres, "style", None)
+    return style == "dynamic"
+
+
+def current_timeline(version: ProjectVersion, settings: Settings) -> dict[str, Any] | Timeline | None:
+    """The version's stored timeline, or the one the render job would build now when ``DYNAMIC_ENABLED`` changed
+    since the build (the MP4 always rebuilds with the current flag, so the player must not show the other engine).
+
+    A build of the current revision is rebuilt (``build_timeline`` is pure) only when its engine differs from what
+    the flag and the screenplay ask for now; a stale build is served as built, except a Dynamic one while the flag
+    is off (the flag is the kill switch of the Dynamic stage). The common classic case loads nothing more.
+    """
+    stored = version.timeline
+    if stored is None:
+        return None
+    flag = bool(getattr(settings, "dynamic_enabled", False))
+    was_dynamic = built_dynamic(stored)
+    if not was_dynamic and not flag:
+        return stored
+    if version.built_revision != version.revision and not (was_dynamic and not flag):
+        return stored
+    raw = version.screenplay
+    wanted = flag and isinstance(raw, Mapping) and raw.get("presentation") is not None
+    if wanted == was_dynamic:
+        return stored
+    from ..compose.timeline import build_timeline
+    from .routers.versions import safe_manifest, safe_screenplay
+
+    screenplay = safe_screenplay(version)
+    if screenplay is None:
+        return stored
+    return build_timeline(screenplay, safe_manifest(version), settings=settings, version_id=version.id,
+                          revision=version.revision)
 
 
 def resolve_timeline(stored: dict[str, Any] | Timeline, store: AssetStore, settings: Settings) -> dict[str, Any]:

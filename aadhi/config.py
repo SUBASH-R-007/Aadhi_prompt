@@ -22,7 +22,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Literal
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, PrivateAttr, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from .security.redaction import registered_secrets
@@ -135,10 +135,11 @@ class Settings(BaseSettings):
     llm_provider: Literal["gemini", "openai", "anthropic", "fake"] = "gemini"
     # Model per tier. These are the Gemini models; a GPT or Claude model name set here applies to
     # that engine instead (aadhi.providers.factory.llm_models), so pre-engine .env files keep working.
-    llm_model_plan: str = "gemini-2.5-pro"
-    llm_model_script: str = "gemini-2.5-flash"
-    llm_model_critic: str = "gemini-2.5-flash"
-    llm_model_fast: str = "gemini-2.5-flash"
+    # Gemini 2.5 models are served only to keys that used them before (Google, October 2026).
+    llm_model_plan: str = "gemini-3.8-flash"
+    llm_model_script: str = "gemini-3.8-flash"
+    llm_model_critic: str = "gemini-3.8-flash"
+    llm_model_fast: str = "gemini-3.8-flash"
     llm_model_allowlist: Annotated[list[str], NoDecode] = Field(default_factory=list)  # admin overrides; empty = configured models only
     llm_max_parallel: int = 6
     llm_timeout_seconds: int = 600
@@ -175,17 +176,17 @@ class Settings(BaseSettings):
     tts_max_parallel: int = 6
     elevenlabs_api_key: SecretStr = SecretStr("")
     elevenlabs_model: str = "eleven_multilingual_v2"
-    openai_tts_model: str = "tts-1-hd"
-    gemini_tts_model: str = "gemini-2.5-flash-preview-tts"
+    openai_tts_model: str = "gpt-4o-mini-tts"  # /v1/audio/speech model; every model this endpoint accepts (tts-1, tts-1-hd, the dated gpt-4o-mini-tts snapshots incl. -2025-12-15, this alias's default) shuts down on 2027-01-06: switch TTS_PROVIDER before then unless OpenAI ships a new speech model (docs/OPERATIONS.md 3.3)
+    gemini_tts_model: str = "gemini-3.8-flash-tts"  # or gemini-3.8-flash-lite-tts (cheaper); the 2.5 preview TTS models shut down on 2026-11-17
 
     # --- Images / video / gifs ----------------------------------------------
     image_provider: Literal["gemini", "pollinations", "none", "fake"] = "pollinations"
-    image_model: str = "gemini-2.5-flash-image"
+    image_model: str = "gemini-nano-banana-2.1"  # Gemini image model (Nano Banana); gemini-3.1-flash-lite-image is cheaper
     image_style_suffix: str = (
         "clean educational illustration, consistent soft lighting, purple and gold accent palette, no text"
     )
-    video_provider: Literal["veo", "none", "fake"] = "none"
-    veo_model: str = "veo-2.0-generate-001"
+    video_provider: Literal["veo", "omni", "none", "fake"] = "none"
+    veo_model: str = "veo-3.1-fast-generate-preview"  # veo-3.1-generate-preview = higher quality at 4x the price; Google lists 2026-10-22 as the earliest shutdown of the Veo 3.1 previews (docs/OPERATIONS.md)
     max_ai_videos_per_lecture: int = 2
     ai_video_timeout_seconds: int = 420
     giphy_api_key: SecretStr = SecretStr("")
@@ -198,19 +199,19 @@ class Settings(BaseSettings):
     # refusal or a refused personal API key. A paid backup (gemini, veo) bills the server key, or the
     # user's own key when they saved one: configure it deliberately.
     image_fallback_providers: Annotated[list[str], NoDecode] = Field(default_factory=list)  # backups for generated images in order, e.g. gemini (gemini | pollinations | fake); empty = no fallback
-    video_fallback_providers: Annotated[list[str], NoDecode] = Field(default_factory=list)  # backups for AI video in order (veo | fake); empty = no fallback
+    video_fallback_providers: Annotated[list[str], NoDecode] = Field(default_factory=list)  # backups for AI video in order (veo | omni | fake), tried after a failure that allows it; empty = no fallback (but see VIDEO_PROVIDERS: omni follows veo, used only while Veo is unavailable)
     media_provider_cooldown_seconds: int = Field(default=60, ge=0, le=3600)  # a provider that just hit a rate limit, outage, timeout or unusable output is tried after the others for this long (per worker process)
     media_provider_auth_cooldown_seconds: int = Field(default=600, ge=0, le=86400)  # same after a payment/account refusal (HTTP 401/402/403)
     ai_max_image_bytes: int = Field(default=20_000_000, ge=100_000)  # generated images above this size are rejected (downloads are streamed with this cap)
     ai_max_video_bytes: int = Field(default=500_000_000, ge=1_000_000)  # generated videos above this size are rejected
-    veo_duration_seconds: int | None = Field(default=None, ge=1, le=60)  # requested Veo clip length (billed per second; Veo 2 accepts 5-8); empty = the model's default (8 s)
+    veo_duration_seconds: int | None = Field(default=None, ge=1, le=60)  # requested Veo clip length (billed per second; Veo 3.x makes 4, 6 or 8 s clips, other values round up to the next, Veo 2 accepted 5-8); empty = the model's default (8 s)
     allow_fake_providers: bool = False  # let APP_ENV=production run with LLM/TTS/IMAGE/VIDEO_PROVIDER=fake (offline demos only)
 
     @field_validator("image_fallback_providers", "video_fallback_providers", mode="before")
     @classmethod
     def _media_fallbacks(cls, v, info):
         names = [str(x).strip().lower() for x in (_split(v) or [])]
-        allowed = ("gemini", "pollinations", "fake") if info.field_name == "image_fallback_providers" else ("veo", "fake")
+        allowed = ("gemini", "pollinations", "fake") if info.field_name == "image_fallback_providers" else ("veo", "omni", "fake")
         bad = [n for n in names if n not in allowed]
         if bad:
             raise ValueError(f"unknown {info.field_name.upper()} {bad}; use {', '.join(allowed)}")
@@ -223,6 +224,52 @@ class Settings(BaseSettings):
         out += [f"{name.upper()}_FALLBACK_PROVIDERS" for name in ("image", "video")
                 if "fake" in getattr(self, f"{name}_fallback_providers")]
         return out
+
+    # --- AI video: Gemini Omni and the provider order -------------------------
+    # (aadhi/providers/video/omni.py, factory.py) Google lists the Veo 3.1 previews (VEO_MODEL) for shutdown
+    # from 2026-10-22, with gemini-omni-1.1-flash (Gemini Interactions API) as their replacement. While
+    # VIDEO_PROVIDERS is empty, a video chain that has veo gets omni appended as its last backup (Veo's
+    # successor, ``auto_video_backup``), so clips keep coming once Veo is gone. That automatic successor is used
+    # only while Veo is unavailable: a Veo model Google no longer serves (404 / 410) or an account or payment
+    # refusal, after which Veo waits behind omni for MEDIA_PROVIDER_AUTH_COOLDOWN_SECONDS. A Veo timeout, rate
+    # limit, server error or bad output still falls back to a still image, as before (a Veo job that was accepted
+    # may still finish and bill, so a second paid clip is never started for it). To use omni after those
+    # failures too, name it: VIDEO_FALLBACK_PROVIDERS=omni or VIDEO_PROVIDERS=veo,omni. Omni bills the same Gemini
+    # key as Veo (the server's, or the user's own) per output token, about USD 0.10 per second of 720p video like
+    # Veo 3.1 Fast.
+    omni_model: str = "gemini-omni-1.1-flash"  # Gemini Omni video model (served through the Interactions API only)
+    video_providers: Annotated[list[str], NoDecode] = Field(default_factory=list)  # AI video providers in preference order, e.g. veo,omni (veo | omni | fake; none = off); when set it replaces VIDEO_PROVIDER + VIDEO_FALLBACK_PROVIDERS exactly; empty = those two settings, with omni added last when they name veo (Veo's successor, used only while Veo is unavailable: a model no longer served or an account refusal)
+
+    @field_validator("video_providers", mode="before")
+    @classmethod
+    def _video_providers(cls, v):
+        names = list(dict.fromkeys(n for n in (str(x).strip().lower() for x in (_split(v) or [])) if n))
+        if names == ["none"]:
+            return names
+        bad = [n for n in names if n not in ("veo", "omni", "fake")]
+        if bad:
+            raise ValueError(f"unknown VIDEO_PROVIDERS {bad}; use veo, omni, fake (or none alone)")
+        return names
+
+    _auto_video_backup: str = PrivateAttr(default="")  # "omni" when _video_order added it (Veo's successor)
+
+    @property
+    def auto_video_backup(self) -> str:
+        """The backup ``_video_order`` added on its own ("omni"; used only while Veo is unavailable), else ""."""
+        return self._auto_video_backup
+
+    @model_validator(mode="after")
+    def _video_order(self):
+        """VIDEO_PROVIDERS when set; else omni after the configured chain when it has veo (see above)."""
+        if self.video_providers:
+            self.video_provider, *rest = self.video_providers  # "none" switches AI video off
+            self.video_fallback_providers = list(rest)
+        elif self.video_provider != "none":
+            chain = (self.video_provider, *self.video_fallback_providers)
+            if "veo" in chain and "omni" not in chain:
+                self.video_fallback_providers = [*self.video_fallback_providers, "omni"]
+                self._auto_video_backup = "omni"
+        return self
 
     # --- Manim ---------------------------------------------------------------
     manim_sandbox: Literal["docker", "subprocess", "disabled"] = "subprocess"
@@ -310,6 +357,36 @@ class Settings(BaseSettings):
     default_language: str = "en-IN"
     max_source_chars: int = 400_000
     max_source_pages: int = 400
+
+    # --- Dynamic video: schema v3 write gates --------------------------------
+    # (aadhi/schemas/features.py; aadhi/api/screenplay_service.require_features) Every Dynamic-video field is read
+    # and kept from this release on (lectures saved with it carry schema_version 3), but saving or importing a
+    # lecture that uses a feature not listed here is refused (422 feature_unavailable). A lecture that already uses
+    # a feature can still be edited when it is switched off again.
+    dynamic_features: Annotated[list[str], NoDecode] = Field(default_factory=list)  # Dynamic-video features accepted in edits and imports (comma list of presentation, items_v3, cuts, overlays, clip, voice_override); empty = none
+
+    @field_validator("dynamic_features", mode="before")
+    @classmethod
+    def _dynamic_features(cls, v):
+        from .schemas.features import DYNAMIC_FEATURES
+
+        names = [str(x).strip().lower() for x in (_split(v) or [])]
+        bad = [n for n in names if n and n not in DYNAMIC_FEATURES]
+        if bad:
+            raise ValueError(f"unknown DYNAMIC_FEATURES {bad}; use {', '.join(DYNAMIC_FEATURES)}")
+        return list(dict.fromkeys(n for n in names if n))
+
+    # --- Dynamic video: the motion render engine -----------------------------
+    # (aadhi/compose/motion/, aadhi/compose/dynamic/preflight.py; DYNAMIC_VIDEO_DESIGN §7) A Dynamic lecture's MP4 is
+    # captured frame by frame from the /render-dynamic stage by parallel workers (one headless Chromium + one x264
+    # encoder each) in scene-aligned chunks, then joined and muxed once with the audio. Classic (Aadhi presenter)
+    # renders never use it.
+    dynamic_enabled: bool = False  # admin switch for Dynamic videos: on = a lecture with a presentation gets a Dynamic timeline, rendered by the motion engine (/render-dynamic); off = /render-dynamic is 404 and such a lecture is built, played and rendered as a classic one (applied when a timeline is served: no rebuild needed)
+    render_motion_workers: int = Field(default=0, ge=0, le=32)  # capture workers per motion render; 0 = auto: min(6, container CPU quota - 1, physical cores - 1), at least 1
+    render_cpu_slots: int = Field(default=0, ge=0, le=512)  # CPU slots shared by every motion render on the host (each worker holds one; a render waits for at least one); 0 = physical cores - 1
+    render_slot_dir: str = ""  # directory of the CPU slot lock files; mount the same host directory into every render container on the host; empty = <render work dir>/cpu-slots
+    motion_x264_preset: Literal["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow"] = "veryfast"  # x264 preset of the motion engine's chunks (encoding shares the cores with capture)
+    motion_x264_crf: int = Field(default=17, ge=0, le=51)  # x264 CRF of the motion engine's chunks (17 at veryfast is about medium at 18)
 
     # --- validators ----------------------------------------------------------
     @field_validator("storage_local_dir", "pricing_file", mode="before")

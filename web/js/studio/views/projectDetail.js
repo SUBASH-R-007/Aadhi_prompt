@@ -188,6 +188,7 @@ export function mount(container, { app, params, query }) {
     return nextStepCard({
       stage: found.stage,
       next,
+      stageAction: found.next.action, // a failed video of a built lecture keeps its strip under "Open the editor"
       note,
       canDo: (action) => !!v && PAGE_ACTIONS.has(action),
       onAction: (step, btn) => void runStep(step, btn),

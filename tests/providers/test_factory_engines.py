@@ -76,8 +76,7 @@ def test_fake_engine_only_in_tests_or_when_it_is_the_default(make_settings) -> N
 
 def test_llm_models_defaults_per_engine(make_settings) -> None:
     s = make_settings(llm_provider="gemini")
-    assert factory.llm_models(s, "gemini") == {"plan": "gemini-2.5-pro", "script": "gemini-2.5-flash",
-                                               "critic": "gemini-2.5-flash", "fast": "gemini-2.5-flash"}
+    assert factory.llm_models(s, "gemini") == dict.fromkeys(factory.LLM_TIERS, "gemini-3.8-flash")
     assert factory.llm_models(s) == factory.llm_models(s, "gemini")
     assert factory.llm_models(s, "openai") == {"plan": "gpt-4.1", "script": "gpt-4.1-mini", "critic": "gpt-4.1-mini",
                                                "fast": "gpt-4.1-mini"}
@@ -98,8 +97,8 @@ def test_llm_model_tier_settings_apply_to_the_engine_of_their_model(make_setting
     openai = factory.llm_models(s, "openai")
     assert openai == {"plan": "gpt-5", "script": "gpt-4.1-mini", "critic": "gpt-4.1-mini", "fast": "gpt-4.1-mini"}
     gemini = factory.llm_models(s, "gemini")
-    assert gemini == {"plan": "gemini-2.5-pro", "script": "gemini-2.5-flash", "critic": "gemini-2.5-pro",
-                      "fast": "gemini-2.5-flash"}
+    assert gemini == {"plan": "gemini-3.8-flash", "script": "gemini-3.8-flash", "critic": "gemini-2.5-pro",
+                      "fast": "gemini-3.8-flash"}  # a configured older Gemini model is kept
     claude = factory.llm_models(s, "anthropic")
     assert claude["script"] == "claude-sonnet-4-5" and claude["plan"] == "claude-opus-5-5"
     fake = factory.llm_models(s, "fake")  # the offline engine reports the tier settings unchanged
@@ -163,7 +162,7 @@ def test_available_llm_engines(make_settings) -> None:
     assert by_id["anthropic"]["label"] == "Anthropic Claude" and by_id["fake"]["label"] == "Offline test engine"
     assert {k: e["configured"] for k, e in by_id.items()} == {"fake": True, "gemini": False, "openai": False,
                                                               "anthropic": True}
-    assert by_id["openai"]["models"]["plan"] == "gpt-5" and by_id["gemini"]["models"]["plan"] == "gemini-2.5-pro"
+    assert by_id["openai"]["models"]["plan"] == "gpt-5" and by_id["gemini"]["models"]["plan"] == "gemini-3.8-flash"
     assert by_id["anthropic"]["models"] == factory.llm_models(s, "anthropic")
     dev = make_settings(app_env="development", llm_provider="gemini", gemini_api_key=KEYS["gemini_api_key"])
     listed = factory.available_llm_engines(dev)

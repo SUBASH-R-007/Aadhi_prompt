@@ -40,6 +40,10 @@ _FORCED_ENV = {
     "VIDEO_PROVIDER": "fake",
     "IMAGE_FALLBACK_PROVIDERS": "",
     "VIDEO_FALLBACK_PROVIDERS": "",
+    # VIDEO_PROVIDERS replaces the two video settings above when set: a developer .env must not switch the fake off.
+    "VIDEO_PROVIDERS": "",
+    # Dynamic-video write gates stay closed unless a test opens them on its settings (aadhi.schemas.features).
+    "DYNAMIC_FEATURES": "",
     # Production-mode tests opt in explicitly (Settings(allow_fake_providers=True)); a developer .env
     # must not switch the production fake-provider guard off for the whole suite.
     "ALLOW_FAKE_PROVIDERS": "false",

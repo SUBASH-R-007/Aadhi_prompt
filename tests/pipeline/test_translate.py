@@ -69,6 +69,21 @@ def test_field_collection_and_paths():
         set_path(doc, "board[3].text", "x")
 
 
+def test_v3_on_screen_fields_are_collected_with_the_board():
+    """Stat units, timeline dates and an inserted clip's captions are on-screen text (design §6.7); stat values,
+    icon hints and credits are protected."""
+    board = {"id": "s", "type": "content", "title": "Numbers", "beats": [{"id": "b", "narration": "Look."}],
+             "board": [{"id": "st", "kind": "stat", "value": "3.5", "unit": "million people", "text": "use it daily",
+                        "icon_hint": "users"},
+                       {"id": "sp", "kind": "step", "text": "Discovery", "date": "early spring"}]}
+    clip = {"id": "c", "type": "clip", "title": "Demo", "credit": "Lab footage, CC BY 4.0",
+            "captions": [{"start": 0.0, "end": 1.5, "text": "Watch the needle."}]}
+    paths = {f.path for f in scene_fields(board, True, [])} | {f.path for f in scene_fields(clip, True, [])}
+    assert {"board[0].unit", "board[1].date", "captions[0].text", "board[0].text"} <= paths
+    assert not {p for p in paths if p.endswith((".value", ".icon_hint", "credit"))}
+    assert {f.path for f in scene_fields(clip, False, [])} == set()  # narration only: no on-screen text
+
+
 def test_translate_narration_only(job_ctx, providers):
     sp = make_sp()
     res = asyncio.run(translate_screenplay(job_ctx, sp, "ta-IN"))

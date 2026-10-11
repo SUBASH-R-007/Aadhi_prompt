@@ -46,9 +46,12 @@ the still-wanted guard (``get_or_create(guarded=False)``) and the up-front budge
 
 Media identity: image / video prompts are normalised (``storage.assets.normalize_prompt``: NFC, whitespace
 collapsed) before they are keyed and sent; for already-normalised prompts the keys are unchanged, and the
-key an un-normalised prompt had before is still looked up, so nothing cached is paid for again. When
-generation is off or not configured at the server level (``IMAGE_PROVIDER`` / ``VIDEO_PROVIDER=none``, no
-key), media generated earlier for the same request by any known provider is still used (info issue
+key an un-normalised prompt had before is still looked up, so nothing cached is paid for again. Likewise,
+while ``IMAGE_MODEL`` / ``VEO_MODEL`` are left at their defaults, the keys media had under the defaults
+before the 2026-10 model refresh (``_EARLIER_DEFAULT_MODELS``) are looked up after the current ones (never
+made or stored under), so that media is reused rather than paid again; a model set to another value makes
+new media. When generation is off or not configured at the server level (``IMAGE_PROVIDER`` /
+``VIDEO_PROVIDER=none``, no key), media generated earlier for the same request by any known provider is still used (info issue
 ``assets.cached_media_used``); a lecture that opted out (``allow_generated_images`` / ``allow_ai_video``
 false) never gets any.
 
@@ -83,17 +86,19 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ..compose.base import SCENE_LEAD_SECONDS, SCENE_TAIL_SECONDS
+from ..config import Settings
 from ..credentials import billed_to, personal_key_rejection
 from ..jobs.base import BudgetExceeded, JobCancelled
 from ..providers.base import (
     ContentBlocked,
     OperationLost,
+    PaidSubmissionUncertain,
     ProviderNotConfigured,
     ProviderUnavailable,
     RateLimited,
     Usage,
 )
-from ..providers.health import classify_failure, fallback_allowed, provider_health
+from ..providers.health import UNAVAILABLE, classify_failure, fallback_allowed, provider_health
 from ..providers.operations import (
     ABANDONED,
     AMBIGUOUS,
@@ -134,7 +139,15 @@ SCENE_PARALLEL = 4
 _PASSTHROUGH = (JobCancelled, BudgetExceeded, RateLimited, asyncio.CancelledError)
 # Providers whose earlier results are looked up when generation is off at the server level (besides the
 # configured chain); the offline stand-in (fake) only counts when it is configured.
-_KNOWN_MEDIA_PROVIDERS = {"image": ("gemini", "pollinations"), "video": ("veo",)}
+_KNOWN_MEDIA_PROVIDERS = {"image": ("gemini", "pollinations"), "video": ("veo", "omni")}
+# Default models before the 2026-10 model refresh. While IMAGE_MODEL / VEO_MODEL are left at their defaults,
+# media made under these is still looked up (after the current model's keys; never made or stored under them),
+# so a rebuilt scene reuses it instead of paying again and it is still found when the medium is off.
+_EARLIER_DEFAULT_MODELS = {"image_model": ("gemini-2.5-flash-image",), "veo_model": ("veo-2.0-generate-001",),
+                           "omni_model": ()}
+# The model setting in a provider's clip keys: Gemini Omni clips are keyed by OMNI_MODEL (a new Omni model means a
+# new clip, as for Veo); every other provider keeps VEO_MODEL, so their existing keys are unchanged.
+_VIDEO_MODEL_FIELD = {"omni": "omni_model"}
 # Job payload: scenes whose possibly-billed (ambiguous) AI video the teacher confirmed generating again.
 CONFIRM_PAID_KEY = "confirm_paid_scene_ids"
 # Warnings of a missing teacher-chosen visual (override / poster key): reported as ``assets.override_missing``.
@@ -199,6 +212,12 @@ def relevant_lexicon(scene: Any, lexicon: list[LexiconEntry]) -> list[LexiconEnt
     return [e for e in lexicon if e.written.lower() in text]
 
 
+_HASH_EXCLUDE: dict[str, Any] = {
+    "notes": True, "intent": True, "hidden": True, "min_seconds": True, "look": True,
+    "beats": {"__all__": {"overlays"}}, "reveal_beats": {"__all__": {"overlays"}},
+}
+
+
 def scene_hash(scene: Any, lexicon: list[LexiconEntry] | None = None, voice: dict[str, Any] | None = None) -> str:
     """Content hash of a scene for asset staleness.
 
@@ -208,9 +227,11 @@ def scene_hash(scene: Any, lexicon: list[LexiconEntry] | None = None, voice: dic
     screenplay's lexicon (see ``stale_scene_ids``) to be exact. ``hidden`` and ``min_seconds`` are
     excluded too (they never change the narration or media; the timeline applies them), so hiding,
     showing or holding a scene keeps its assets. They are absent from the JSON at their defaults anyway,
-    so every earlier hash is unchanged.
+    so every earlier hash is unchanged. The Dynamic ``look`` and the beats' ``overlays`` are excluded the same way
+    (a look change or an overlay edit never forces a build); ``cuts``, ``speaker`` and
+    ``voice_override_asset_key`` change the audio and stay in the hash (design §6.7).
     """
-    data = scene.model_dump(mode="json", exclude={"notes", "intent", "hidden", "min_seconds"})
+    data = scene.model_dump(mode="json", exclude=_HASH_EXCLUDE)
     payload: dict[str, Any] = {"scene": data}
     rel = relevant_lexicon(scene, lexicon or [])
     if rel:
@@ -659,18 +680,33 @@ class _Builder:
     def _full_image_prompt(self, prompt: str) -> str:
         return f"{prompt.strip().rstrip('.')}. {self.settings.image_style_suffix}".strip()
 
-    def _image_keys(self, full: str, name: str, aspect: str, variant: int = 0) -> list[str]:
-        """Content keys of an image request: the canonical key (normalised prompt), then the key the
-        un-normalised prompt had before prompts were normalised (identical for normalised prompts).
+    def _key_models(self, field: str) -> list[str]:
+        """Models in the content keys of ``field``'s media (``image_model`` / ``veo_model``): the configured one,
+        then the earlier defaults (lookup only) while the setting is left at its default. An operator's own
+        model choice means new media, as before."""
+        current = str(getattr(self.settings, field))
+        if current != Settings.model_fields[field].default:
+            return [current]
+        return list(dict.fromkeys([current, *_EARLIER_DEFAULT_MODELS[field]]))
 
-        A new version (``variant`` above 0) adds ``"variant"`` to the inputs and has only the canonical key
-        (variants came after prompt normalisation); at 0 the keys are exactly the earlier ones."""
-        model = self.settings.image_model if name == "gemini" else ""
+    def _image_keys(self, full: str, name: str, aspect: str, variant: int = 0) -> list[str]:
+        """Content keys of an image request, per model (``_key_models``; only Gemini keys a model): the
+        canonical key (normalised prompt), then the key the un-normalised prompt had before prompts were
+        normalised (identical for normalised prompts). The first key, the configured model's canonical one,
+        is the one a new image is made under.
+
+        A new version (``variant`` above 0) adds ``"variant"`` to the inputs and has only the canonical key per
+        model (variants came after prompt normalisation); at 0 the keys are exactly the earlier ones."""
+        models = self._key_models("image_model") if name == "gemini" else [""]
         if variant > 0:
-            return [compute_key("image", {"prompt": normalize_prompt(full), "provider": name, "model": model,
-                                          "aspect": aspect, "variant": int(variant)})]
-        legacy = compute_key("image", {"prompt": full, "provider": name, "model": model, "aspect": aspect})
-        return list(dict.fromkeys([media_key("image", full, provider=name, model=model, aspect=aspect), legacy]))
+            return list(dict.fromkeys(
+                compute_key("image", {"prompt": normalize_prompt(full), "provider": name, "model": m,
+                                      "aspect": aspect, "variant": int(variant)}) for m in models))
+        keys: list[str] = []
+        for m in models:
+            keys += [media_key("image", full, provider=name, model=m, aspect=aspect),
+                     compute_key("image", {"prompt": full, "provider": name, "model": m, "aspect": aspect})]
+        return list(dict.fromkeys(keys))
 
     def _image_key(self, full: str, provider: Any, aspect: str, variant: int = 0) -> str:
         return self._image_keys(full, provider.name, aspect, variant)[0]
@@ -898,18 +934,24 @@ class _Builder:
                          duration=res.duration, width=res.width, height=res.height, source="manim")
 
     def _video_keys(self, scene: AIVideoScene, name: str) -> list[str]:
-        """Content keys of a clip request: canonical (normalised prompt) first, then the key of the
-        un-normalised prompt used before prompts were normalised (identical for normalised prompts).
-        A new version (``scene.variant`` above 0) adds ``"variant"`` and has only the canonical key."""
-        inputs: dict[str, Any] = {"provider": name, "model": self.settings.veo_model, "aspect": SCENE_IMAGE_ASPECT}
-        if name == "veo" and self.settings.veo_duration_seconds:  # part of the key only when set
-            inputs["duration"] = int(self.settings.veo_duration_seconds)
+        """Content keys of a clip request, per model (``_key_models``; ``OMNI_MODEL`` is in Gemini Omni's clip keys
+        and ``VEO_MODEL`` in every other provider's): canonical (normalised prompt) first, then the key of the
+        un-normalised prompt used before prompts were normalised (identical for normalised prompts). The first
+        key, the configured model's canonical one, is the one a new clip is made under.
+        A new version (``scene.variant`` above 0) adds ``"variant"`` and has only the canonical key per model."""
         variant = int(getattr(scene, "variant", 0) or 0)
-        if variant > 0:
-            return [compute_key("video", {**inputs, "prompt": normalize_prompt(scene.video_prompt),
-                                          "variant": variant})]
-        canonical = compute_key("video", {**inputs, "prompt": normalize_prompt(scene.video_prompt)})
-        return list(dict.fromkeys([canonical, compute_key("video", {**inputs, "prompt": scene.video_prompt})]))
+        keys: list[str] = []
+        for model in self._key_models(_VIDEO_MODEL_FIELD.get(name, "veo_model")):
+            inputs: dict[str, Any] = {"provider": name, "model": model, "aspect": SCENE_IMAGE_ASPECT}
+            if name == "veo" and self.settings.veo_duration_seconds:  # part of the key only when set
+                inputs["duration"] = int(self.settings.veo_duration_seconds)
+            if variant > 0:
+                keys.append(compute_key("video", {**inputs, "prompt": normalize_prompt(scene.video_prompt),
+                                                  "variant": variant}))
+                continue
+            keys += [compute_key("video", {**inputs, "prompt": normalize_prompt(scene.video_prompt)}),
+                     compute_key("video", {**inputs, "prompt": scene.video_prompt})]
+        return list(dict.fromkeys(keys))
 
     def _video_key(self, scene: AIVideoScene, provider: Any) -> str:
         return self._video_keys(scene, provider.name)[0]
@@ -937,7 +979,14 @@ class _Builder:
         self._media_suspect(scene.id, cached.meta)
         return self._video_info(cached)
 
+    def _video_model(self, provider: Any) -> str:
+        """The model a clip of ``provider`` is made with (``.model`` of Veo and Omni; else ``VEO_MODEL``)."""
+        return str(getattr(provider, "model", "") or self.settings.veo_model)
+
     def _video_seconds(self, provider: Any) -> float:
+        billed = getattr(provider, "billed_seconds", None)  # Veo: VEO_DURATION_SECONDS as the model accepts it
+        if callable(billed):
+            return float(billed())
         if provider.name == "veo" and self.settings.veo_duration_seconds:
             return float(self.settings.veo_duration_seconds)
         return float(DEFAULT_VIDEO_SECONDS)
@@ -950,6 +999,11 @@ class _Builder:
         (``VIDEO_FALLBACK_PROVIDERS``) are tried like image backups, each with its own budget estimate.
         A clip an earlier attempt of this job already submitted is collected without an estimate: its
         charge was counted then (the actual usage is still enforced by ``record_usage``).
+
+        The backup the settings added on their own (``Settings.auto_video_backup``: Omni, Veo's successor) is
+        tried only while Veo is unavailable (a 404 / 410 model or an account refusal, now or in its cooldown):
+        never after a Veo timeout, rate limit or bad output, where the accepted Veo job may still bill, and never
+        moved ahead of Veo by a short cooldown.
         """
         providers, skipped = self._media_providers("video")
         if not providers:
@@ -969,13 +1023,27 @@ class _Builder:
             self._media_suspect(scene.id, cached.meta)
             return self._video_info(cached)
         ordered = self._ordered(providers, SCENE_IMAGE_ASPECT)
+        successor = getattr(self.settings, "auto_video_backup", "")
+        has_veo = any(p.name == "veo" for p in ordered)
+        cooling = provider_health().cooling("veo", self._health_scope("veo")) if has_veo else None
+        veo_unavailable = cooling is not None and cooling.category == UNAVAILABLE
+
+        def eligible(p: Any) -> bool:  # the automatic successor only once Veo itself is unavailable
+            return (p.name != successor or not has_veo or veo_unavailable
+                    or self._collecting(p, keys[p.name][0]))  # (or to collect a clip an earlier attempt started)
+
+        def remaining_after(i: int) -> int:
+            return sum(1 for p in ordered[i + 1:] if eligible(p))
+
         errors: list[BaseException] = []
         failed: list[str] = []
         for i, provider in enumerate(ordered):
-            remaining = len(ordered) - i - 1
+            if not eligible(provider):
+                continue
+            remaining = remaining_after(i)
             if not self._collecting(provider, keys[provider.name][0]):
                 estimate = integrations.estimate_cost(
-                    Usage(provider=provider.name, model=self.settings.veo_model, operation="video",
+                    Usage(provider=provider.name, model=self._video_model(provider), operation="video",
                           seconds=self._video_seconds(provider), units=1), self.settings, default=2.0)
                 try:
                     self.ctx.ensure_budget(estimate, provider=provider.name)
@@ -999,7 +1067,9 @@ class _Builder:
                     raise  # storage / claim / database failure: the scene fails, no other provider is tried
                 if self._key_rejected(exc) or not fallback_allowed(classify_failure(exc)):
                     raise
-                failed.append(self._chain_failed("video", provider, exc, remaining, scene.id))
+                if provider.name == "veo" and classify_failure(exc) == UNAVAILABLE:
+                    veo_unavailable = True  # Veo is not served (or refused): its successor may take over now
+                failed.append(self._chain_failed("video", provider, exc, remaining_after(i), scene.id))
                 errors.append(exc)
                 continue
             provider_health().note_success(provider.name, self._health_scope(provider.name))
@@ -1046,7 +1116,7 @@ class _Builder:
                     except Exception as exc:
                         _provider_call_failed(exc)
                         raise
-            model = self.settings.veo_model if provider.name == "veo" else ""
+            model = self._video_model(provider) if provider.name in ("veo", "omni") else ""
             meta: dict[str, Any] = {"prompt": scene.video_prompt[:500],
                                     **self._provenance(provider, model, SCENE_IMAGE_ASPECT, requested, failed, started)}
             if scene.variant > 0:
@@ -1137,7 +1207,7 @@ class _Builder:
 
     async def _submit_video(self, scene: AIVideoScene, provider: Any, key: str, scope: str, timeout: int) -> Any:
         """Submit a new paid clip job with a checkpoint saved first (see ``_checkpointed_video``)."""
-        record = self.operations.new(key, scope, provider.name, self.settings.veo_model)
+        record = self.operations.new(key, scope, provider.name, self._video_model(provider))
         if getattr(provider, "reports_sending", False):  # it marks the record "submitting" around each request
             record.status = PENDING
         await self.operations.save(record)  # durable before the paid request is sent
@@ -1146,6 +1216,18 @@ class _Builder:
                                            timeout_s=timeout,
                                            on_usage=self.ctx.record_usage,
                                            checkpoint=self.operations.checkpoint(record))
+        except PaidSubmissionUncertain:
+            # The create request got no answer: the provider may have accepted and billed the clip. Never
+            # submitted again automatically, here or with another provider (a person decides).
+            record.status = AMBIGUOUS
+            await self._save_operation(record)
+            self.ctx.log("Not retrying the AI video: the request to create it got no answer and may already "
+                         "have been billed.", level="warning", scene_id=scene.id, provider=provider.name,
+                         asset_key=key)
+            raise VideoNeedsAttention(
+                "video.ambiguous_submission",
+                "The request to generate this AI video got no answer and may already have been billed, so it "
+                "was not sent again automatically. Rebuild this scene to generate it again.") from None
         except Exception as exc:
             _provider_call_failed(exc)
             # This process is alive and knows the outcome: not ambiguous. An accepted job given up on was

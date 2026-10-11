@@ -236,7 +236,15 @@ class ProjectVersion(TimestampMixin, Base):
 
 # Kinds served publicly from /media (capability URLs). Everything else lives under private/.
 # ``snapshot``: the screenplay as Aadhi wrote it (``aadhi.changes``); never collected by the cleanup GC.
-PUBLIC_ASSET_KINDS = ("upload", "figure", "tts", "scene_audio", "manim", "image", "video", "render", "captions", "poster")
+# Dynamic video (docs/DYNAMIC_VIDEO_DESIGN.md §6.7; reserved in B0, produced from B3/B6 on): ``music`` (generated,
+# library or uploaded beds), ``clip`` (normalised inserted clips) with their ``clip_proxy`` / ``clip_sprite`` /
+# ``waveform`` / ``thumbnail`` derivatives, ``voice_sample`` (persona previews) and ``narration_upload`` (the
+# teacher's own recorded narration). ``calibration`` (voice-rate calibration audio) stays private. Each kind joins
+# ``aadhi.jobs.cleanup.GC_ASSET_KINDS`` in the batch that starts producing it.
+PUBLIC_ASSET_KINDS = (
+    "upload", "figure", "tts", "scene_audio", "manim", "image", "video", "render", "captions", "poster",
+    "music", "clip", "clip_proxy", "clip_sprite", "waveform", "voice_sample", "thumbnail", "narration_upload",
+)
 PRIVATE_ASSET_KINDS = ("source", "extract", "screenshot", "intermediate", "snapshot")
 ASSET_KINDS = PUBLIC_ASSET_KINDS + PRIVATE_ASSET_KINDS
 
@@ -481,7 +489,7 @@ class UsageEvent(Base):
     job_id: Mapped[int | None] = mapped_column(ForeignKey("jobs.id", ondelete="SET NULL"), index=True, nullable=True)
     provider: Mapped[str] = mapped_column(String(32), nullable=False)
     model: Mapped[str] = mapped_column(String(128), default="", nullable=False)
-    operation: Mapped[str] = mapped_column(String(32), nullable=False)  # llm|vision|tts|image|video|gif
+    operation: Mapped[str] = mapped_column(String(32), nullable=False)  # llm|vision|tts|image|video|gif|music
     input_tokens: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     output_tokens: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     characters: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

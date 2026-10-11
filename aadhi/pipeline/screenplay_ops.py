@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..schemas.screenplay import Screenplay
+from ..schemas.screenplay import PLANNABLE_SCENE_TYPES, Screenplay
 from .base import ConceptBrief, GenerationOptions, IngestResult, LecturePlan, PlannedChapter
 from .canonicalize import planned_from_scene
 from .plan_rules import MAX_CHAPTER_SCENES, MAX_CHAPTERS
@@ -43,10 +43,12 @@ def plan_from_screenplay(screenplay: Screenplay) -> LecturePlan:
     (and the group of unchaptered scenes, e.g. from a legacy import) are split into consecutive
     groups; if that exceeds the 40-chapter limit the scenes are regrouped in screenplay order.
     Rewritten scenes keep their own ``chapter_id`` (``repair.rewrite_scene``), so the grouping only
-    shapes the context the scene writer sees.
+    shapes the context the scene writer sees. Scenes a plan cannot hold (a teacher-inserted v3 clip scene) are left
+    out: the writer never writes one and does not need it as a neighbour.
     """
     known_miscs = {m.id for m in screenplay.misconceptions}
-    by_id = {s.id: s for s in screenplay.scenes}
+    plannable = [s for s in screenplay.scenes if s.type in PLANNABLE_SCENE_TYPES]
+    by_id = {s.id: s for s in plannable}
     groups: list[tuple[str, str, list[Any]]] = []
     seen: set[str] = set()
     used: set[str] = set()
@@ -60,7 +62,7 @@ def plan_from_screenplay(screenplay: Screenplay) -> LecturePlan:
         seen.update(p.id for p in scenes)
         if scenes:
             groups += _chunked(ch.id, ch.title, scenes, used)
-    rest = [planned(s) for s in screenplay.scenes if s.id not in seen]
+    rest = [planned(s) for s in plannable if s.id not in seen]
     if rest:
         cid = "main"
         while cid in used or any(c.id == cid for c in screenplay.chapters):

@@ -1916,7 +1916,8 @@ export async function mount(container, { app, params, query, signal }) {
   // ------------------------------------------------------------------------------------------
   /**
    * "Save as a copy": a new version of this lecture (POST /duplicate) that receives the unsaved changes and
-   * opens in the editor; this version stays as it was last saved (its videos too).
+   * opens in the editor; this version stays as it was last saved (its videos too). Changes typed while the copy is
+   * being made go to the copy's local draft, which its editor offers to restore.
    */
   async function saveAsCopy() {
     flushPending();
@@ -1952,9 +1953,12 @@ export async function mount(container, { app, params, query, signal }) {
         return;
       }
       if (!copy || !Number.isInteger(copy.id)) return;
+      /** What the copy holds: this version as last saved, then the unsaved changes once they are saved into it. */
+      let held = { screenplay: base, revision: copy.revision };
       if (dirty) {
         try {
-          await put(`/api/versions/${copy.id}/screenplay`, { screenplay: sent, revision: copy.revision });
+          const res = await put(`/api/versions/${copy.id}/screenplay`, { screenplay: sent, revision: copy.revision });
+          held = { screenplay: sent, revision: res && res.version && Number.isInteger(res.version.revision) ? res.version.revision : copy.revision + 1 };
         } catch {
           // The copy exists with the last saved lecture: its editor offers these changes to restore.
           saveDraft(userId, copy.id, { revision: copy.revision, screenplay: sent, base });
@@ -1964,12 +1968,15 @@ export async function mount(container, { app, params, query, signal }) {
       if (destroyed) return;
       // The unsaved changes went into the copy: this version keeps its saved state (no leave question).
       flushPending();
+      // Edits typed while the copy was being made are in neither version: the copy's editor offers them to restore.
+      const later = draft !== sent && !deepEqual(draft, sent);
+      if (later) saveDraft(userId, copy.id, { revision: held.revision, screenplay: draft, base: held.screenplay });
       draft = base;
       autosave.cancel();
       serverAutosave.cancel();
       clearDraft(userId, vid);
       renderChrome();
-      app.toast(`Saved as “${label || `a copy`}”. You are editing the copy now.`, { kind: 'success' });
+      app.toast(`Saved as “${label || `a copy`}”. You are editing the copy now${later ? '; it offers the changes you made meanwhile' : ''}.`, { kind: 'success' });
       app.navigate(href('editor', { id: projectId, vid: copy.id }));
     } finally {
       copying = false;

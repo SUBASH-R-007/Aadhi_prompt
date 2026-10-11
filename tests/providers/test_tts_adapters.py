@@ -297,13 +297,28 @@ async def test_openai_tts(make_settings) -> None:
     usages: list[Usage] = []
     res = await tts.synthesize("Hello", voice="", language="hi-IN", rate="-20%", on_usage=usages.append)
     call = client.audio.speech.calls[0]
-    assert call == {"model": "tts-1-hd", "voice": "nova", "input": "Hello", "response_format": "mp3", "speed": 0.8}
+    assert call == {"model": "gpt-4o-mini-tts", "voice": "nova", "input": "Hello", "response_format": "mp3",
+                    "speed": 0.8}
     assert res.words == [] and res.duration == pytest.approx(1.0) and not tts.supports_word_timings
-    assert usages[0].provider == "openai" and usages[0].characters == 5
+    assert usages[0].provider == "openai" and usages[0].characters == 5 and usages[0].model == "gpt-4o-mini-tts"
     with pytest.raises(ProviderError, match="longer than"):
         await tts.synthesize("x" * 5000, voice="nova", language="en-IN")
     with pytest.raises(ProviderError, match="invalid voice"):
         await tts.synthesize("x", voice="Nova Voice!", language="en-IN")
+
+
+@pytest.mark.asyncio
+async def test_openai_tts_legacy_models_keep_the_same_request(make_settings) -> None:
+    """tts-1 / tts-1-hd (until their 2027-01-06 shutdown) get exactly the request gpt-4o-mini-tts gets."""
+    for model in ("tts-1-hd", "tts-1"):
+        s = make_settings(openai_api_key="sk-test-123456789", openai_tts_model=model)
+        client = FakeOpenAIClient(audio=ONE_SECOND_WAV)
+        usages: list[Usage] = []
+        await OpenAITTS(s, client_factory=lambda c=client: c, sleep=no_sleep).synthesize(
+            "Hello", voice="onyx", language="en-IN", on_usage=usages.append)
+        assert client.audio.speech.calls == [{"model": model, "voice": "onyx", "input": "Hello",
+                                              "response_format": "mp3"}]
+        assert usages[0].model == model
 
 
 @pytest.mark.asyncio
@@ -335,6 +350,25 @@ async def test_gemini_tts_pcm_to_wav(gemini_settings) -> None:
     assert cfg.response_modalities == ["AUDIO"]
     assert cfg.speech_config.voice_config.prebuilt_voice_config.voice_name == "Kore"
     assert usages[0].operation == "tts" and usages[0].characters == 8 and usages[0].provider == "gemini"
+
+
+@pytest.mark.asyncio
+async def test_gemini_38_tts_wav_answer_is_kept(gemini_settings) -> None:
+    """Gemini 3.8 TTS (the default) answers with a RIFF WAV: used as is, never wrapped a second time."""
+    assert gemini_settings.gemini_tts_model == "gemini-3.8-flash-tts"
+    wav = pcm_to_wav(struct.pack("<12000h", *([100] * 12000)), sample_rate=24000)
+    factory, clients = gemini_factory({GEMINI_KEYS[0]: [gemini_blob_response(wav, "audio/wav")]})
+    usages: list[Usage] = []
+    res = await GeminiTTS(gemini_settings, client_factory=factory, sleep=no_sleep).synthesize(
+        "Vanakkam", voice="Sulafat", language="ta-IN", on_usage=usages.append)
+    assert res.audio == wav and res.mime == "audio/wav" and res.sample_rate == 24000
+    assert res.duration == pytest.approx(0.5) and res.voice == "Sulafat"
+    call = clients[GEMINI_KEYS[0]].models.calls[0]
+    assert call["model"] == "gemini-3.8-flash-tts" and call["contents"] == "Vanakkam"
+    cfg = call["config"]
+    assert cfg.response_modalities == ["AUDIO"] and cfg.temperature is None
+    assert cfg.speech_config.voice_config.prebuilt_voice_config.voice_name == "Sulafat"
+    assert usages[0].model == "gemini-3.8-flash-tts" and usages[0].characters == 8
 
 
 @pytest.mark.asyncio

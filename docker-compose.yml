@@ -139,6 +139,41 @@ services:
           cpus: "${RENDER_WORKER_CPUS:-4}"
           memory: ${RENDER_WORKER_MEMORY:-6g}
 
+  # --- optional: render worker sized for Dynamic videos (the motion engine) ------------------------
+  # Dynamic renders capture every frame with W parallel workers (one headless Chromium + one x264 encoder each;
+  # W = min(6, CPU quota - 1, physical cores - 1), RENDER_MOTION_WORKERS overrides) plus the audio mix, which the
+  # default render-worker's 4 CPUs / 6 GB / 1 GB shm cannot hold (DYNAMIC_VIDEO_DESIGN section 7.6). It takes the
+  # same jobs as render-worker (classic renders too), so run it instead of that one:
+  #   docker compose --profile motion up -d --scale render-worker=0
+  # CPU slots: every motion render on the host takes RENDER_CPU_SLOTS lock files in RENDER_SLOT_DIR (default
+  # /data/app/render-work/cpu-slots on the shared appdata volume, so the render containers of this stack share them).
+  # Limits are the B1 benchmark's starting point (>= 8 CPUs, >= 10 GB, 2 GB shm); edit them here after measuring.
+  render-worker-motion:
+    <<: *app
+    profiles: ["motion"]
+    environment:
+      <<: *app-env
+      WORKER_KINDS: render_video
+      WORKER_CONCURRENCY: "1"
+      RENDER_CONCURRENCY: ${RENDER_CONCURRENCY:-3}
+    command: ["python", "-m", "aadhi.worker"]
+    healthcheck:
+      disable: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    shm_size: 2gb  # one Chromium per capture worker shares /dev/shm
+    security_opt:
+      - seccomp=./docker/app/chromium-seccomp.json
+    stop_grace_period: 120s
+    deploy:
+      resources:
+        limits:
+          cpus: "8"
+          memory: 10g
+
   # --- optional: S3-compatible storage for testing STORAGE_BACKEND=s3 ------------------------------
   minio:
     profiles: ["s3"]

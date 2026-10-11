@@ -112,7 +112,7 @@ def test_describe_settings_follows_the_run_engine(app_env):
     assert info["llm_models"]["plan"] == "claude-plan-test"
     for engine in (None, "", "klingon", 42):  # no (valid) run-wide engine: the server default
         fallback = RP.describe_settings(settings, engine=engine)  # type: ignore[arg-type]
-        assert fallback["llm_provider"] == "gemini" and fallback["llm_models"]["plan"] == "gemini-2.5-pro"
+        assert fallback["llm_provider"] == "gemini" and fallback["llm_models"]["plan"] == "gemini-3.8-flash"
 
 
 def test_markdown_lists_fixture_engines_that_differ_from_the_run(tmp_path):

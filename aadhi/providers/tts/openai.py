@@ -1,4 +1,16 @@
-"""OpenAI TTS (``audio.speech``; MP3, no word timings)."""
+"""OpenAI TTS (``audio.speech``; MP3, no word timings).
+
+``/v1/audio/speech`` accepts ``gpt-4o-mini-tts`` (the default), its dated snapshots, ``tts-1`` and
+``tts-1-hd``. All of them are listed to shut down on 2027-01-06: ``tts-1``, ``tts-1-hd`` and the dated
+snapshots by name, and the undated alias through its default snapshot (``gpt-4o-mini-tts-2025-12-15``),
+so none of the models listed here is expected to work after that date. The request is the same
+for all of them (``model``, ``voice``, ``input`` up to 4096 characters and, for ``gpt-4o-mini-tts``,
+2000 tokens, ``response_format``, ``speed``); ``instructions`` is not sent (``tts-1``/``tts-1-hd`` do
+not support it). The catalogue voices (``voices.OPENAI_VOICES``) work with every model. OpenAI names
+``gpt-realtime-2.1-mini`` as the replacement of the retiring models, but that is a Realtime API model
+(``v1/realtime`` only) which the speech endpoint does not accept: before 2027-01-06 deployments need
+another ``TTS_PROVIDER`` or a Realtime-API adapter (docs/OPERATIONS.md section 3.3).
+"""
 
 from __future__ import annotations
 

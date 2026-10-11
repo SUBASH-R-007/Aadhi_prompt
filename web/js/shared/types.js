@@ -1,14 +1,29 @@
 // @ts-check
 /**
  * JSDoc type definitions mirroring web/schemas/timeline.schema.json (aadhi/schemas/timeline.py and
- * the screenplay types it embeds). Other modules reference them as
+ * the screenplay types it embeds) and the schema v3 (Dynamic video) types of
+ * web/schemas/screenplay.schema.json. Other modules reference them as
  * import('../shared/types.js').Timeline inside their own typedef comments.
  * This module has no runtime behaviour beyond the enum-like constants at the bottom.
+ *
+ * Schema v3 (design §6.7, §8.2): every Dynamic field is optional and absent from classic documents;
+ * a document using one carries schema_version 3 (aadhi/schemas/features.py).
  */
 
 /**
+ * The last five kinds are v3 (Dynamic lectures, feature "items_v3").
  * @typedef {'heading' | 'bullet' | 'paragraph' | 'definition' | 'formula' | 'callout_info' | 'callout_tip'
- *   | 'callout_warning' | 'misconception' | 'code' | 'table' | 'figure' | 'example_step' | 'takeaway'} BoardItemKind
+ *   | 'callout_warning' | 'misconception' | 'code' | 'table' | 'figure' | 'example_step' | 'takeaway'
+ *   | 'question' | 'stat' | 'step' | 'quote' | 'pair'} BoardItemKind
+ */
+
+/**
+ * A point on a source figure placed by the teacher (v3).
+ * @typedef {object} FigurePin
+ * @property {string} id
+ * @property {number} x        0..1 of the figure's width
+ * @property {number} y        0..1 of the figure's height
+ * @property {string} [label]
  */
 
 /**
@@ -35,9 +50,15 @@
  * @property {string | null} [figure_id]         figure
  * @property {string | null} [caption]           figure
  * @property {string | null} [justification]     example_step (why) / misconception (correction)
- * @property {boolean} [blank]                   example_step shown as a blank until filled
+ * @property {boolean} [blank]                   example_step / question shown as a blank until filled
  * @property {string | null} [misconception_id]
  * @property {string[]} [source_refs]
+ * @property {string | null} [value]             v3 stat: the number as written
+ * @property {string | null} [unit]              v3 stat
+ * @property {string | null} [date]              v3 step of a timeline
+ * @property {string | null} [icon_hint]         v3: one keyword (never translated)
+ * @property {FigurePin[]} [pins]                v3 figure: teacher-placed points
+ * @property {'recall' | 'apply' | 'transfer' | null} [level]   v3 question
  */
 
 /**
@@ -94,12 +115,18 @@
  * @property {number | null} [duration]
  * @property {number | null} [width]
  * @property {number | null} [height]
- * @property {'contain' | 'cover'} [fit]
- * @property {'loop' | 'freeze'} [end_behavior]
+ * @property {'contain' | 'cover' | 'contain_blur'} [fit]   'contain_blur': v3 inserted clips
+ * @property {'loop' | 'freeze'} [end_behavior]   the schema also has v3 'clamp' (inserted clips): typed here when the
+ *   player handles it (B6); a classic timeline never carries it
  * @property {KenBurns | null} [ken_burns]
  * @property {string | null} [attribution]
  * @property {string | null} [link_url]
  * @property {boolean} [render_in_mp4]
+ * @property {number} [trim_in]                 v3: seconds into the source (absent = 0)
+ * @property {boolean} [audio]                  v3: the clip's own sound plays (absent = false)
+ * @property {number} [volume_db]               v3 (absent = 0)
+ * @property {[number, number] | null} [focus]  v3: cover focus point, 0..1
+ * @property {number | null} [src_fps]          v3
  */
 
 /**
@@ -131,6 +158,7 @@
  * @property {string | null} [gif_query]
  * @property {string | null} [override_asset_key]
  * @property {number} [variant]   "new AI version" of a generated image (Visual Review); absent = 0
+ * @property {boolean} [colour_is_content]   v3: the picture's colours carry meaning (absent = false)
  */
 
 /**
@@ -194,6 +222,256 @@
  * @property {string | null} [audio_envelope]   narration loudness: base64, one byte (0..255) per 1/fps s from audio_offset
  * @property {number} [audio_envelope_fps]
  * @property {number} [hold_seconds]   end of `duration` added by the teacher's minimum duration (nothing new appears; absent when 0)
+ * @property {ResolvedLook | null} [look]            v3 Dynamic: the resolved look (absent in classic timelines)
+ * @property {VisualEvent[]} [events]                v3 Dynamic: sorted by t (absent when none)
+ * @property {KineticChunk[]} [kinetic_captions]     v3 Dynamic (absent when none)
+ * @property {TimedOverlay[]} [overlays]             v3 (absent when none)
+ */
+
+// ---------------------------------------------------------------------------------------------
+// Schema v3 (Dynamic video): timeline side (aadhi/schemas/timeline.py)
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * @typedef {object} TimelinePresentation
+ * @property {'dynamic'} style
+ * @property {'landscape' | 'portrait'} format
+ * @property {string} [safe_zone]
+ * @property {Record<string, string>} content   resolved content tokens (hex): ink, ink2, entity:0..2, warn, ok, mark, focus
+ * @property {Record<string, string>} fonts     role -> family id
+ * @property {string} personality
+ * @property {string} caption_style
+ * @property {string} cue_term_style
+ * @property {boolean} captions_burn
+ * @property {boolean} sfx
+ * @property {'standard' | 'calm'} motion
+ * @property {number} generated_seconds
+ * @property {number} [engine_version]           stage contract
+ */
+
+/**
+ * @typedef {object} ResolvedLook
+ * @property {string} template
+ * @property {string | null} [variant]
+ * @property {Record<string, string>} tokens     struct.accent, bg, bg-alt, bg-tint (resolved hex)
+ * @property {Record<string, any>} background    {preset, params, seed, frozen_at}
+ * @property {Record<string, any>} transition_in {kind, seconds}
+ * @property {string | null} [hold_reason]
+ * @property {Record<string, any> | null} [presenter]   {clip_key, crop, rect, t_exit, src_fps}
+ * @property {Record<string, any>} [text_fit]    slot -> {size, lines}
+ */
+
+/**
+ * @typedef {'reveal' | 'fill' | 'cue_term' | 'look_here' | 'draw' | 'count' | 'var' | 'output' | 'countdown'
+ *   | 'answer' | 'exit'} VisualEventKind
+ */
+
+/**
+ * A visual moment: Python decides when (events.py), the stage decides how. Scene-relative seconds.
+ * @typedef {object} VisualEvent
+ * @property {number} t
+ * @property {VisualEventKind} kind
+ * @property {string | null} [target]   board item id, "item:part", "panel"
+ * @property {number | null} [dur]
+ * @property {boolean} [anchored]
+ * @property {string | null} [sfx]
+ * @property {string} [words]           anchor words (Studio only)
+ */
+
+/**
+ * @typedef {object} KineticWord
+ * @property {string} text
+ * @property {number} start
+ * @property {number} end
+ * @property {boolean} [key]
+ */
+
+/**
+ * @typedef {object} KineticChunk
+ * @property {number} start
+ * @property {number} end
+ * @property {KineticWord[]} words
+ * @property {string[]} lines
+ * @property {boolean} [blank]
+ */
+
+/**
+ * @typedef {object} MusicCue
+ * @property {string} asset_key
+ * @property {number} start          absolute seconds
+ * @property {number} end
+ * @property {number} [offset]
+ * @property {number} [gain_lu]
+ * @property {number} fade_in
+ * @property {number} fade_out
+ * @property {'qsin' | 'tri'} [xfade]
+ * @property {Array<[number, number]>} [loops]
+ */
+
+/**
+ * @typedef {object} MusicPlan
+ * @property {MusicCue[]} cues
+ * @property {Array<[number, number]>} duck   (absolute t, gain dB)
+ * @property {'bed' | 'gaps_bookends' | 'off'} mode
+ * @property {number} [ref_lufs]
+ * @property {'normal' | 'low'} [level]
+ */
+
+/**
+ * @typedef {object} SfxCue
+ * @property {number} t              absolute seconds
+ * @property {string} sound
+ * @property {number} gain_db
+ */
+
+/**
+ * An overlay resolved to scene-relative seconds (clamped to its scene).
+ * @typedef {object} TimedOverlay
+ * @property {string} id
+ * @property {number} start
+ * @property {number} end
+ * @property {MediaRef} media
+ * @property {'full' | 'panel'} [region]
+ * @property {'mute' | 'quiet'} [sound]
+ */
+
+// ---------------------------------------------------------------------------------------------
+// Schema v3 (Dynamic video): screenplay side (aadhi/schemas/screenplay.py)
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * @typedef {object} VoiceCalibration
+ * @property {number} natural_wpm
+ * @property {string} control
+ */
+
+/**
+ * @typedef {object} VoiceCast
+ * @property {string} narrator                 VoicePersona id
+ * @property {string | null} [aadhi]
+ * @property {string | null} [student]
+ * @property {Record<string, VoiceCalibration>} [calibration]
+ */
+
+/**
+ * @typedef {object} MusicChoice
+ * @property {'generated' | 'library' | 'upload' | 'procedural' | 'off'} source
+ * @property {string | null} [provider]
+ * @property {string | null} [mood]
+ * @property {string | null} [asset_key]
+ * @property {'bed' | 'gaps_bookends' | 'off'} [mode]
+ * @property {'normal' | 'low'} [level]
+ */
+
+/**
+ * @typedef {object} HookRef
+ * @property {string} question_item            "<scene_id>/<item_id>"
+ * @property {'question' | 'true_false' | 'stakes' | 'mystery' | 'challenge' | 'story' | 'stat'} kind
+ * @property {string | null} [answer_beat]     "<scene_id>/<beat_id>"
+ */
+
+/**
+ * Screenplay.presentation (absent = the classic Aadhi presenter mode).
+ * @typedef {object} Presentation
+ * @property {'dynamic'} [style]
+ * @property {'landscape' | 'portrait'} [format]
+ * @property {'standard' | 'platform_safe'} [length_profile]
+ * @property {'learning' | 'social'} [reel_profile]
+ * @property {'messaging' | 'lms' | 'youtube' | 'lesson_page'} [destination]
+ * @property {number} look_seed
+ * @property {number} [look_epoch]
+ * @property {number} [layout_epoch]
+ * @property {string} theme_family
+ * @property {string} personality
+ * @property {string} display_font
+ * @property {string} caption_style
+ * @property {'marker' | 'underline'} cue_term_style
+ * @property {'fullframe' | 'card_left' | 'pip' | 'split' | null} [intro_layout]
+ * @property {number | null} [reel_card_x]
+ * @property {string} hook_kind
+ * @property {string[]} [check_order]
+ * @property {string | null} [greeting_id]
+ * @property {{ family: string, personality: string }} asset_style
+ * @property {VoiceCast} voices
+ * @property {MusicChoice} music
+ * @property {Record<string, number>} [entity_colors]   entity -> content slot 0..2
+ * @property {HookRef | null} [hook]
+ * @property {boolean} [aadhi_recap]
+ * @property {boolean} [captions_burn]
+ * @property {boolean} [sfx]
+ * @property {'standard' | 'calm'} [motion]
+ * @property {Array<'theme' | 'personality' | 'display_font' | 'voice' | 'music' | 'caption_style'>} [pins]
+ */
+
+/**
+ * @typedef {object} PresenterSpec
+ * @property {'left' | 'center'} clip
+ * @property {number} seconds
+ * @property {'fullframe' | 'card_left' | 'pip' | 'split' | 'card'} layout
+ */
+
+/**
+ * SceneBase.look: set by direct.py or the teacher, never LLM-facing.
+ * @typedef {object} SceneLook
+ * @property {string | null} [template]
+ * @property {string | null} [variant]
+ * @property {string | null} [background]
+ * @property {number | null} [palette_slot]
+ * @property {string | null} [transition_in]
+ * @property {'formula' | 'code' | 'diagram' | 'think' | null} [hold_reason]
+ * @property {PresenterSpec | null} [presenter]
+ * @property {string | null} [continues_from]   scene id
+ * @property {'auto' | 'settled' | 'pinned'} [lock]
+ */
+
+/**
+ * Beat.cuts: caption tokens [start, end) removed from the narration.
+ * @typedef {object} WordRange
+ * @property {number} start
+ * @property {number} end
+ * @property {string} text
+ * @property {'splice' | 'revoice'} [mode]
+ */
+
+/**
+ * @typedef {object} ClipRange
+ * @property {string} asset_key
+ * @property {number} in_frame     30 fps grid
+ * @property {number} out_frame    exclusive
+ */
+
+/**
+ * Beat.overlays: B-roll shown over the narration from an anchor word.
+ * @typedef {object} Overlay
+ * @property {string} id
+ * @property {number} at_word
+ * @property {string} at_text
+ * @property {ClipRange} clip
+ * @property {'full' | 'panel'} [region]
+ * @property {'mute' | 'quiet'} [sound]
+ * @property {string | null} [concept_id]
+ * @property {boolean} [keep_full_length]
+ */
+
+/**
+ * @typedef {object} ClipCaption
+ * @property {number} start   clip-relative seconds
+ * @property {number} end
+ * @property {string} text
+ */
+
+/**
+ * The fields a clip scene (type "clip", feature "clip") adds to the common scene fields.
+ * @typedef {object} ClipSceneFields
+ * @property {'clip'} type
+ * @property {ClipRange} clip
+ * @property {'keep' | 'mute'} [sound]
+ * @property {number} [gain_db]
+ * @property {'contain_blur' | 'contain' | 'cover'} [fit]
+ * @property {{ landscape?: [number, number], portrait?: [number, number] }} [focus]
+ * @property {'freeze' | 'loop'} [end_behavior]
+ * @property {ClipCaption[]} [captions]
+ * @property {string} [credit]
  */
 
 /**
@@ -284,6 +562,9 @@
  * @property {Branding} [branding]
  * @property {number} [transition_seconds]
  * @property {boolean} [estimated]
+ * @property {TimelinePresentation | null} [presentation]   v3 Dynamic (absent in classic timelines)
+ * @property {MusicPlan | null} [music]                     v3 Dynamic
+ * @property {SfxCue[]} [sfx]                               v3 Dynamic (absent when none)
  */
 
 // ---------------------------------------------------------------------------------------------
@@ -358,11 +639,22 @@
  * @property {{ doneIds: Set<string>, activeId: string | null }} conceptState
  */
 
-/** Board item kinds, in schema order. */
+/** Board item kinds, in schema order (the classic kinds; the v3 kinds are V3_BOARD_ITEM_KINDS). */
 export const BOARD_ITEM_KINDS = Object.freeze([
   'heading', 'bullet', 'paragraph', 'definition', 'formula', 'callout_info', 'callout_tip', 'callout_warning',
   'misconception', 'code', 'table', 'figure', 'example_step', 'takeaway',
 ]);
+
+/** Schema v3 board item kinds (Dynamic lectures, feature "items_v3"; aadhi.schemas.screenplay.V3_BOARD_ITEM_KINDS). */
+export const V3_BOARD_ITEM_KINDS = Object.freeze(['question', 'stat', 'step', 'quote', 'pair']);
+
+/** DYNAMIC_FEATURES names (aadhi/schemas/features.py): a server refuses writes using a feature it does not enable
+ * (422 feature_unavailable). */
+export const DYNAMIC_FEATURES = Object.freeze(['presentation', 'items_v3', 'cuts', 'overlays', 'clip', 'voice_override']);
+
+/** The highest screenplay / timeline schema_version this frontend understands; a server answers 409 newer_document
+ * for documents above what it reads. */
+export const READER_SCHEMA_VERSION = 3;
 
 /** Scene types rendered by the board scene view. */
 export const BOARD_SCENE_TYPES = Object.freeze(['title', 'content', 'example', 'summary', 'key_takeaway', 'recap']);

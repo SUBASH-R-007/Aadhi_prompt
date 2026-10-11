@@ -1,0 +1,7170 @@
+{
+ "schema_version": 2,
+ "version_id": 1,
+ "screenplay_revision": 1,
+ "language": "en-IN",
+ "board_language": "en-IN",
+ "fps": 30,
+ "width": 1920,
+ "height": 1080,
+ "meta": {
+  "subject_name": "Basic Electrical Engineering",
+  "unit_name": "Electric Circuits",
+  "session_number": "Session 2",
+  "session_title": "Ohm's Law - The Rule That Runs Every Circuit",
+  "asset_storage_keys": {
+   "image-5e7c2919c54743eb56163144e7cb3bbdd85efa85": "assets/image/image-5e7c2919c54743eb56163144e7cb3bbdd85efa85/invariance.png",
+   "image-f4bc020961f789f28b87ba6acb0da18078acc011": "assets/image/image-f4bc020961f789f28b87ba6acb0da18078acc011/invariance.png",
+   "manim-be1d18e51e327385e4c8d7274ba7809a2b45fd85": "assets/manim/manim-be1d18e51e327385e4c8d7274ba7809a2b45fd85/invariance.mp4",
+   "scene_audio-13add098307fa0e875478ab57c400a411d761ebc": "assets/scene_audio/scene_audio-13add098307fa0e875478ab57c400a411d761ebc/invariance.mp3",
+   "scene_audio-270ac8162b93bc06e8c6f7cf653ada4a6bd863ca": "assets/scene_audio/scene_audio-270ac8162b93bc06e8c6f7cf653ada4a6bd863ca/invariance.mp3",
+   "scene_audio-309babbecee361160119dceb4e9c888258ff18d4": "assets/scene_audio/scene_audio-309babbecee361160119dceb4e9c888258ff18d4/invariance.mp3",
+   "scene_audio-31213f4ffa0e907bc323f5813d9f176204a8585c": "assets/scene_audio/scene_audio-31213f4ffa0e907bc323f5813d9f176204a8585c/invariance.mp3",
+   "scene_audio-3360f806cc39b3cae932a1a6d2f3956b9230a0e5": "assets/scene_audio/scene_audio-3360f806cc39b3cae932a1a6d2f3956b9230a0e5/invariance.mp3",
+   "scene_audio-3be80f87b0a8b75b491a57411d07ece80dd90fe8": "assets/scene_audio/scene_audio-3be80f87b0a8b75b491a57411d07ece80dd90fe8/invariance.mp3",
+   "scene_audio-56af0339cda5a2b8f631abe17762e8b94fb049d9": "assets/scene_audio/scene_audio-56af0339cda5a2b8f631abe17762e8b94fb049d9/invariance.mp3",
+   "scene_audio-61d3bb2010198e8a1fd6b527a5117cf22b2fe296": "assets/scene_audio/scene_audio-61d3bb2010198e8a1fd6b527a5117cf22b2fe296/invariance.mp3",
+   "scene_audio-622c78c31c49f0ab0e0a16d0ab53290c129e888e": "assets/scene_audio/scene_audio-622c78c31c49f0ab0e0a16d0ab53290c129e888e/invariance.mp3",
+   "scene_audio-7019595c295b5d390ed164b421ee22d1c1e6afc2": "assets/scene_audio/scene_audio-7019595c295b5d390ed164b421ee22d1c1e6afc2/invariance.mp3",
+   "scene_audio-81055b89b4618dc1c093e5af3c2b387975f52df5": "assets/scene_audio/scene_audio-81055b89b4618dc1c093e5af3c2b387975f52df5/invariance.mp3",
+   "scene_audio-8381671ed17e7e11b3dff74491f77cf6a1a08e41": "assets/scene_audio/scene_audio-8381671ed17e7e11b3dff74491f77cf6a1a08e41/invariance.mp3",
+   "scene_audio-ae67b6b4b1c44907a1ad23f4e8a58316d2a97699": "assets/scene_audio/scene_audio-ae67b6b4b1c44907a1ad23f4e8a58316d2a97699/invariance.mp3",
+   "scene_audio-d21d455ae721390f63d1fdba0e5399d68330207f": "assets/scene_audio/scene_audio-d21d455ae721390f63d1fdba0e5399d68330207f/invariance.mp3",
+   "scene_audio-f23beb278ccb39f31c6a06683032519a1fd9147f": "assets/scene_audio/scene_audio-f23beb278ccb39f31c6a06683032519a1fd9147f/invariance.mp3",
+   "scene_audio-f78a9439b0e8453c8ee8e74ff235f83964c8bfc2": "assets/scene_audio/scene_audio-f78a9439b0e8453c8ee8e74ff235f83964c8bfc2/invariance.mp3",
+   "video-4693bfca11b3f976ee033583b5262f5c5dd6dd38": "assets/video/video-4693bfca11b3f976ee033583b5262f5c5dd6dd38/invariance.mp4",
+   "video-679dfef7516c8a0916d34503de543025b6670612": "assets/video/video-679dfef7516c8a0916d34503de543025b6670612/invariance.mp4",
+   "video-85b8db31b97597a04e4d55f87f8574e85d3ffad1": "assets/video/video-85b8db31b97597a04e4d55f87f8574e85d3ffad1/invariance.mp4"
+  }
+ },
+ "concept_map": [
+  {
+   "id": "intro",
+   "title": "The Mystery",
+   "summary": "",
+   "depends_on": [],
+   "kind": "core"
+  },
+  {
+   "id": "voltage_current",
+   "title": "Voltage & Current",
+   "summary": "",
+   "depends_on": [
+    "intro"
+   ],
+   "kind": "core"
+  },
+  {
+   "id": "resistance",
+   "title": "Resistance",
+   "summary": "",
+   "depends_on": [
+    "voltage_current"
+   ],
+   "kind": "core"
+  },
+  {
+   "id": "ohms_law",
+   "title": "Ohm's Law",
+   "summary": "",
+   "depends_on": [
+    "voltage_current",
+    "resistance"
+   ],
+   "kind": "core"
+  },
+  {
+   "id": "applications",
+   "title": "Real-World Circuits",
+   "summary": "",
+   "depends_on": [
+    "ohms_law"
+   ],
+   "kind": "core"
+  }
+ ],
+ "learning_objectives": [],
+ "intro": {
+  "logo_video_url": "/branding/logo_animation_clean.mp4",
+  "logo_duration": 5.5,
+  "background_url": "/branding/static_background.png",
+  "cards": [
+   {
+    "line1": "Basic Electrical Engineering",
+    "line2": "Electric Circuits",
+    "start": 5.5,
+    "duration": 3.0
+   },
+   {
+    "line1": "Session 2",
+    "line2": "Ohm's Law - The Rule That Runs Every Circuit",
+    "start": 8.5,
+    "duration": 3.0
+   }
+  ],
+  "duration": 11.5
+ },
+ "scenes": [
+  {
+   "scene_id": "s1",
+   "index": 0,
+   "type": "ai_video",
+   "concept_id": "intro",
+   "chapter_id": "ch0",
+   "title": "THE INVISIBLE RIVER",
+   "subtitle": "Something is flowing inside your walls",
+   "chapter_label": null,
+   "start": 11.5,
+   "duration": 20.55,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "left",
+    "show_side_panel": false,
+    "fullscreen_media": true
+   },
+   "audio_asset_key": "scene_audio-8381671ed17e7e11b3dff74491f77cf6a1a08e41",
+   "audio_url": null,
+   "audio_duration": 19.25,
+   "board": [],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "s1-b1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 1.6,
+     "end": 3.1,
+     "narration": "Vanakkam, future engineers!",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Vanakkam,",
+       "start": 0.5,
+       "end": 0.867
+      },
+      {
+       "text": "future",
+       "start": 0.867,
+       "end": 1.233
+      },
+      {
+       "text": "engineers!",
+       "start": 1.233,
+       "end": 1.6
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.5,
+       "end": 2.0,
+       "text": "Vanakkam, future engineers!"
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s1-b2",
+     "index": 1,
+     "phase": "main",
+     "start": 3.25,
+     "speech_end": 9.15,
+     "end": 10.65,
+     "narration": "Tonight, like every night, millions of phones across Tamil Nadu will quietly drink power from a simple wall socket.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Tonight,",
+       "start": 3.25,
+       "end": 3.561
+      },
+      {
+       "text": "like",
+       "start": 3.561,
+       "end": 3.871
+      },
+      {
+       "text": "every",
+       "start": 3.871,
+       "end": 4.182
+      },
+      {
+       "text": "night,",
+       "start": 4.182,
+       "end": 4.492
+      },
+      {
+       "text": "millions",
+       "start": 4.492,
+       "end": 4.803
+      },
+      {
+       "text": "of",
+       "start": 4.803,
+       "end": 5.113
+      },
+      {
+       "text": "phones",
+       "start": 5.113,
+       "end": 5.424
+      },
+      {
+       "text": "across",
+       "start": 5.424,
+       "end": 5.734
+      },
+      {
+       "text": "Tamil",
+       "start": 5.734,
+       "end": 6.045
+      },
+      {
+       "text": "Nadu",
+       "start": 6.045,
+       "end": 6.355
+      },
+      {
+       "text": "will",
+       "start": 6.355,
+       "end": 6.666
+      },
+      {
+       "text": "quietly",
+       "start": 6.666,
+       "end": 6.976
+      },
+      {
+       "text": "drink",
+       "start": 6.976,
+       "end": 7.287
+      },
+      {
+       "text": "power",
+       "start": 7.287,
+       "end": 7.597
+      },
+      {
+       "text": "from",
+       "start": 7.597,
+       "end": 7.908
+      },
+      {
+       "text": "a",
+       "start": 7.908,
+       "end": 8.218
+      },
+      {
+       "text": "simple",
+       "start": 8.218,
+       "end": 8.529
+      },
+      {
+       "text": "wall",
+       "start": 8.529,
+       "end": 8.839
+      },
+      {
+       "text": "socket.",
+       "start": 8.839,
+       "end": 9.15
+      }
+     ],
+     "captions": [
+      {
+       "start": 3.25,
+       "end": 6.976,
+       "text": "Tonight, like every night, millions of\nphones across Tamil Nadu will quietly"
+      },
+      {
+       "start": 6.976,
+       "end": 9.55,
+       "text": "drink power from a simple wall socket."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s1-b3",
+     "index": 2,
+     "phase": "main",
+     "start": 10.8,
+     "speech_end": 16.4,
+     "end": 17.9,
+     "narration": "But have you ever wondered what is actually flowing behind that wall - and what rule commands it?",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "But",
+       "start": 10.8,
+       "end": 11.111
+      },
+      {
+       "text": "have",
+       "start": 11.111,
+       "end": 11.422
+      },
+      {
+       "text": "you",
+       "start": 11.422,
+       "end": 11.733
+      },
+      {
+       "text": "ever",
+       "start": 11.733,
+       "end": 12.044
+      },
+      {
+       "text": "wondered",
+       "start": 12.044,
+       "end": 12.356
+      },
+      {
+       "text": "what",
+       "start": 12.356,
+       "end": 12.667
+      },
+      {
+       "text": "is",
+       "start": 12.667,
+       "end": 12.978
+      },
+      {
+       "text": "actually",
+       "start": 12.978,
+       "end": 13.289
+      },
+      {
+       "text": "flowing",
+       "start": 13.289,
+       "end": 13.6
+      },
+      {
+       "text": "behind",
+       "start": 13.6,
+       "end": 13.911
+      },
+      {
+       "text": "that",
+       "start": 13.911,
+       "end": 14.222
+      },
+      {
+       "text": "wall",
+       "start": 14.222,
+       "end": 14.533
+      },
+      {
+       "text": "-",
+       "start": 14.533,
+       "end": 14.844
+      },
+      {
+       "text": "and",
+       "start": 14.844,
+       "end": 15.156
+      },
+      {
+       "text": "what",
+       "start": 15.156,
+       "end": 15.467
+      },
+      {
+       "text": "rule",
+       "start": 15.467,
+       "end": 15.778
+      },
+      {
+       "text": "commands",
+       "start": 15.778,
+       "end": 16.089
+      },
+      {
+       "text": "it?",
+       "start": 16.089,
+       "end": 16.4
+      }
+     ],
+     "captions": [
+      {
+       "start": 10.8,
+       "end": 15.156,
+       "text": "But have you ever wondered what is\nactually flowing behind that wall - and"
+      },
+      {
+       "start": 15.156,
+       "end": 16.8,
+       "text": "what rule commands it?"
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s1-b4",
+     "index": 3,
+     "phase": "main",
+     "start": 18.05,
+     "speech_end": 19.75,
+     "end": 19.75,
+     "narration": "Follow me inside the wire.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Follow",
+       "start": 18.05,
+       "end": 18.39
+      },
+      {
+       "text": "me",
+       "start": 18.39,
+       "end": 18.73
+      },
+      {
+       "text": "inside",
+       "start": 18.73,
+       "end": 19.07
+      },
+      {
+       "text": "the",
+       "start": 19.07,
+       "end": 19.41
+      },
+      {
+       "text": "wire.",
+       "start": 19.41,
+       "end": 19.75
+      }
+     ],
+     "captions": [
+      {
+       "start": 18.05,
+       "end": 19.75,
+       "text": "Follow me inside the wire."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": null,
+   "media": {
+    "kind": "video",
+    "asset_key": "video-4693bfca11b3f976ee033583b5262f5c5dd6dd38",
+    "url": null,
+    "mime": "video/mp4",
+    "duration": 8.0,
+    "width": 1280,
+    "height": 720,
+    "fit": "cover",
+    "end_behavior": "loop",
+    "ken_burns": null,
+    "attribution": null,
+    "link_url": null,
+    "render_in_mp4": true
+   },
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": []
+  },
+  {
+   "scene_id": "s2",
+   "index": 1,
+   "type": "content",
+   "concept_id": "intro",
+   "chapter_id": "ch0",
+   "title": "THE MYSTERY OF THE WARM CHARGER",
+   "subtitle": "One rule runs every circuit on Earth",
+   "chapter_label": null,
+   "start": 32.05,
+   "duration": 25.1,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "right",
+    "show_side_panel": true,
+    "fullscreen_media": false
+   },
+   "audio_asset_key": "scene_audio-13add098307fa0e875478ab57c400a411d761ebc",
+   "audio_url": null,
+   "audio_duration": 23.8,
+   "board": [
+    {
+     "id": "s2-i1",
+     "kind": "paragraph",
+     "text": "Every day, you plug in a charger and it simply works.",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "s2-i2",
+     "kind": "paragraph",
+     "text": "Behind that socket hides an invisible river, obeying one elegant rule.",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "s2-i3",
+     "kind": "callout_info",
+     "text": "One formula runs every device you own - from your phone to the Chennai Metro.",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "s2-b1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 3.1,
+     "end": 3.1,
+     "narration": "And here is the answer waiting for us.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "And",
+       "start": 0.5,
+       "end": 0.825
+      },
+      {
+       "text": "here",
+       "start": 0.825,
+       "end": 1.15
+      },
+      {
+       "text": "is",
+       "start": 1.15,
+       "end": 1.475
+      },
+      {
+       "text": "the",
+       "start": 1.475,
+       "end": 1.8
+      },
+      {
+       "text": "answer",
+       "start": 1.8,
+       "end": 2.125
+      },
+      {
+       "text": "waiting",
+       "start": 2.125,
+       "end": 2.45
+      },
+      {
+       "text": "for",
+       "start": 2.45,
+       "end": 2.775
+      },
+      {
+       "text": "us.",
+       "start": 2.775,
+       "end": 3.1
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.5,
+       "end": 3.1,
+       "text": "And here is the answer waiting for us."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s2-b2",
+     "index": 1,
+     "phase": "main",
+     "start": 3.25,
+     "speech_end": 6.15,
+     "end": 7.65,
+     "narration": "Every day you plug in, and it just works.",
+     "board_item_id": "s2-i1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Every",
+       "start": 3.25,
+       "end": 3.572
+      },
+      {
+       "text": "day",
+       "start": 3.572,
+       "end": 3.894
+      },
+      {
+       "text": "you",
+       "start": 3.894,
+       "end": 4.217
+      },
+      {
+       "text": "plug",
+       "start": 4.217,
+       "end": 4.539
+      },
+      {
+       "text": "in,",
+       "start": 4.539,
+       "end": 4.861
+      },
+      {
+       "text": "and",
+       "start": 4.861,
+       "end": 5.183
+      },
+      {
+       "text": "it",
+       "start": 5.183,
+       "end": 5.506
+      },
+      {
+       "text": "just",
+       "start": 5.506,
+       "end": 5.828
+      },
+      {
+       "text": "works.",
+       "start": 5.828,
+       "end": 6.15
+      }
+     ],
+     "captions": [
+      {
+       "start": 3.25,
+       "end": 6.55,
+       "text": "Every day you plug in, and it just works."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s2-b3",
+     "index": 2,
+     "phase": "main",
+     "start": 7.8,
+     "speech_end": 12.2,
+     "end": 12.2,
+     "narration": "Because behind that socket flows an invisible river of charge, obeying one simple rule.",
+     "board_item_id": "s2-i2",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Because",
+       "start": 7.8,
+       "end": 8.114
+      },
+      {
+       "text": "behind",
+       "start": 8.114,
+       "end": 8.429
+      },
+      {
+       "text": "that",
+       "start": 8.429,
+       "end": 8.743
+      },
+      {
+       "text": "socket",
+       "start": 8.743,
+       "end": 9.057
+      },
+      {
+       "text": "flows",
+       "start": 9.057,
+       "end": 9.371
+      },
+      {
+       "text": "an",
+       "start": 9.371,
+       "end": 9.686
+      },
+      {
+       "text": "invisible",
+       "start": 9.686,
+       "end": 10.0
+      },
+      {
+       "text": "river",
+       "start": 10.0,
+       "end": 10.314
+      },
+      {
+       "text": "of",
+       "start": 10.314,
+       "end": 10.629
+      },
+      {
+       "text": "charge,",
+       "start": 10.629,
+       "end": 10.943
+      },
+      {
+       "text": "obeying",
+       "start": 10.943,
+       "end": 11.257
+      },
+      {
+       "text": "one",
+       "start": 11.257,
+       "end": 11.571
+      },
+      {
+       "text": "simple",
+       "start": 11.571,
+       "end": 11.886
+      },
+      {
+       "text": "rule.",
+       "start": 11.886,
+       "end": 12.2
+      }
+     ],
+     "captions": [
+      {
+       "start": 7.8,
+       "end": 11.571,
+       "text": "Because behind that socket flows an\ninvisible river of charge, obeying one"
+      },
+      {
+       "start": 11.571,
+       "end": 12.2,
+       "text": "simple rule."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s2-b4",
+     "index": 3,
+     "phase": "main",
+     "start": 12.35,
+     "speech_end": 16.45,
+     "end": 17.95,
+     "narration": "One formula runs everything - your phone, your fan, even the Chennai Metro.",
+     "board_item_id": "s2-i3",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "One",
+       "start": 12.35,
+       "end": 12.665
+      },
+      {
+       "text": "formula",
+       "start": 12.665,
+       "end": 12.981
+      },
+      {
+       "text": "runs",
+       "start": 12.981,
+       "end": 13.296
+      },
+      {
+       "text": "everything",
+       "start": 13.296,
+       "end": 13.612
+      },
+      {
+       "text": "-",
+       "start": 13.612,
+       "end": 13.927
+      },
+      {
+       "text": "your",
+       "start": 13.927,
+       "end": 14.242
+      },
+      {
+       "text": "phone,",
+       "start": 14.242,
+       "end": 14.558
+      },
+      {
+       "text": "your",
+       "start": 14.558,
+       "end": 14.873
+      },
+      {
+       "text": "fan,",
+       "start": 14.873,
+       "end": 15.188
+      },
+      {
+       "text": "even",
+       "start": 15.188,
+       "end": 15.504
+      },
+      {
+       "text": "the",
+       "start": 15.504,
+       "end": 15.819
+      },
+      {
+       "text": "Chennai",
+       "start": 15.819,
+       "end": 16.135
+      },
+      {
+       "text": "Metro.",
+       "start": 16.135,
+       "end": 16.45
+      }
+     ],
+     "captions": [
+      {
+       "start": 12.35,
+       "end": 16.85,
+       "text": "One formula runs everything - your\nphone, your fan, even the Chennai Metro."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s2-b5",
+     "index": 4,
+     "phase": "main",
+     "start": 18.1,
+     "speech_end": 24.3,
+     "end": 24.3,
+     "narration": "Here is our roadmap beside me - by the end of this session, that rule, Ohm's Law, will be yours!",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Here",
+       "start": 18.1,
+       "end": 18.41
+      },
+      {
+       "text": "is",
+       "start": 18.41,
+       "end": 18.72
+      },
+      {
+       "text": "our",
+       "start": 18.72,
+       "end": 19.03
+      },
+      {
+       "text": "roadmap",
+       "start": 19.03,
+       "end": 19.34
+      },
+      {
+       "text": "beside",
+       "start": 19.34,
+       "end": 19.65
+      },
+      {
+       "text": "me",
+       "start": 19.65,
+       "end": 19.96
+      },
+      {
+       "text": "-",
+       "start": 19.96,
+       "end": 20.27
+      },
+      {
+       "text": "by",
+       "start": 20.27,
+       "end": 20.58
+      },
+      {
+       "text": "the",
+       "start": 20.58,
+       "end": 20.89
+      },
+      {
+       "text": "end",
+       "start": 20.89,
+       "end": 21.2
+      },
+      {
+       "text": "of",
+       "start": 21.2,
+       "end": 21.51
+      },
+      {
+       "text": "this",
+       "start": 21.51,
+       "end": 21.82
+      },
+      {
+       "text": "session,",
+       "start": 21.82,
+       "end": 22.13
+      },
+      {
+       "text": "that",
+       "start": 22.13,
+       "end": 22.44
+      },
+      {
+       "text": "rule,",
+       "start": 22.44,
+       "end": 22.75
+      },
+      {
+       "text": "Ohm's",
+       "start": 22.75,
+       "end": 23.06
+      },
+      {
+       "text": "Law,",
+       "start": 23.06,
+       "end": 23.37
+      },
+      {
+       "text": "will",
+       "start": 23.37,
+       "end": 23.68
+      },
+      {
+       "text": "be",
+       "start": 23.68,
+       "end": 23.99
+      },
+      {
+       "text": "yours!",
+       "start": 23.99,
+       "end": 24.3
+      }
+     ],
+     "captions": [
+      {
+       "start": 18.1,
+       "end": 23.37,
+       "text": "Here is our roadmap beside me - by the\nend of this session, that rule, Ohm's Law,"
+      },
+      {
+       "start": 23.37,
+       "end": 24.3,
+       "text": "will be yours!"
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": {
+    "panel": {
+     "kind": "skill_tree",
+     "title": null,
+     "rationale": "",
+     "show_from_beat_id": null,
+     "figure_id": null,
+     "image_prompt": null,
+     "chart": null,
+     "graph": null,
+     "model_3d": null,
+     "manim": null,
+     "terminal": null,
+     "quiz": null,
+     "gif_query": null,
+     "override_asset_key": null
+    },
+    "media": null,
+    "show_at": 0.0
+   },
+   "media": null,
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": []
+  },
+  {
+   "scene_id": "s3",
+   "index": 2,
+   "type": "recap",
+   "concept_id": "intro",
+   "chapter_id": "ch0",
+   "title": "PREVIOUSLY IN ELECTRIC CIRCUITS",
+   "subtitle": null,
+   "chapter_label": null,
+   "start": 57.15,
+   "duration": 15.5,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "popup_bottom_right",
+    "show_side_panel": true,
+    "fullscreen_media": false
+   },
+   "audio_asset_key": "scene_audio-31213f4ffa0e907bc323f5813d9f176204a8585c",
+   "audio_url": null,
+   "audio_duration": 14.2,
+   "board": [
+    {
+     "id": "s3-i1",
+     "kind": "bullet",
+     "text": "Electric charge is carried by electrons.",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "s3-i2",
+     "kind": "bullet",
+     "text": "Current is the flow of charge, measured in amperes.",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "s3-i3",
+     "kind": "bullet",
+     "text": "Current flows only around a complete, closed loop.",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "s3-b1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 2.8,
+     "end": 2.8,
+     "narration": "First, a lightning recap of Session One.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "First,",
+       "start": 0.5,
+       "end": 0.829
+      },
+      {
+       "text": "a",
+       "start": 0.829,
+       "end": 1.157
+      },
+      {
+       "text": "lightning",
+       "start": 1.157,
+       "end": 1.486
+      },
+      {
+       "text": "recap",
+       "start": 1.486,
+       "end": 1.814
+      },
+      {
+       "text": "of",
+       "start": 1.814,
+       "end": 2.143
+      },
+      {
+       "text": "Session",
+       "start": 2.143,
+       "end": 2.471
+      },
+      {
+       "text": "One.",
+       "start": 2.471,
+       "end": 2.8
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.5,
+       "end": 2.8,
+       "text": "First, a lightning recap of Session One."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s3-b2",
+     "index": 1,
+     "phase": "main",
+     "start": 2.95,
+     "speech_end": 4.95,
+     "end": 4.95,
+     "narration": "Charge is carried by tiny electrons.",
+     "board_item_id": "s3-i1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Charge",
+       "start": 2.95,
+       "end": 3.283
+      },
+      {
+       "text": "is",
+       "start": 3.283,
+       "end": 3.617
+      },
+      {
+       "text": "carried",
+       "start": 3.617,
+       "end": 3.95
+      },
+      {
+       "text": "by",
+       "start": 3.95,
+       "end": 4.283
+      },
+      {
+       "text": "tiny",
+       "start": 4.283,
+       "end": 4.617
+      },
+      {
+       "text": "electrons.",
+       "start": 4.617,
+       "end": 4.95
+      }
+     ],
+     "captions": [
+      {
+       "start": 2.95,
+       "end": 4.95,
+       "text": "Charge is carried by tiny electrons."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s3-b3",
+     "index": 2,
+     "phase": "main",
+     "start": 5.1,
+     "speech_end": 8.3,
+     "end": 8.3,
+     "narration": "Current is the flow of that charge, measured in amperes.",
+     "board_item_id": "s3-i2",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Current",
+       "start": 5.1,
+       "end": 5.42
+      },
+      {
+       "text": "is",
+       "start": 5.42,
+       "end": 5.74
+      },
+      {
+       "text": "the",
+       "start": 5.74,
+       "end": 6.06
+      },
+      {
+       "text": "flow",
+       "start": 6.06,
+       "end": 6.38
+      },
+      {
+       "text": "of",
+       "start": 6.38,
+       "end": 6.7
+      },
+      {
+       "text": "that",
+       "start": 6.7,
+       "end": 7.02
+      },
+      {
+       "text": "charge,",
+       "start": 7.02,
+       "end": 7.34
+      },
+      {
+       "text": "measured",
+       "start": 7.34,
+       "end": 7.66
+      },
+      {
+       "text": "in",
+       "start": 7.66,
+       "end": 7.98
+      },
+      {
+       "text": "amperes.",
+       "start": 7.98,
+       "end": 8.3
+      }
+     ],
+     "captions": [
+      {
+       "start": 5.1,
+       "end": 8.3,
+       "text": "Current is the flow of that\ncharge, measured in amperes."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s3-b4",
+     "index": 3,
+     "phase": "main",
+     "start": 8.45,
+     "speech_end": 11.35,
+     "end": 12.85,
+     "narration": "And it flows only around a complete, closed loop.",
+     "board_item_id": "s3-i3",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "And",
+       "start": 8.45,
+       "end": 8.772
+      },
+      {
+       "text": "it",
+       "start": 8.772,
+       "end": 9.094
+      },
+      {
+       "text": "flows",
+       "start": 9.094,
+       "end": 9.417
+      },
+      {
+       "text": "only",
+       "start": 9.417,
+       "end": 9.739
+      },
+      {
+       "text": "around",
+       "start": 9.739,
+       "end": 10.061
+      },
+      {
+       "text": "a",
+       "start": 10.061,
+       "end": 10.383
+      },
+      {
+       "text": "complete,",
+       "start": 10.383,
+       "end": 10.706
+      },
+      {
+       "text": "closed",
+       "start": 10.706,
+       "end": 11.028
+      },
+      {
+       "text": "loop.",
+       "start": 11.028,
+       "end": 11.35
+      }
+     ],
+     "captions": [
+      {
+       "start": 8.45,
+       "end": 11.75,
+       "text": "And it flows only around\na complete, closed loop."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s3-b5",
+     "index": 4,
+     "phase": "main",
+     "start": 13.0,
+     "speech_end": 14.7,
+     "end": 14.7,
+     "narration": "Ready? Let's open the tap!",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Ready?",
+       "start": 13.0,
+       "end": 13.34
+      },
+      {
+       "text": "Let's",
+       "start": 13.34,
+       "end": 13.68
+      },
+      {
+       "text": "open",
+       "start": 13.68,
+       "end": 14.02
+      },
+      {
+       "text": "the",
+       "start": 14.02,
+       "end": 14.36
+      },
+      {
+       "text": "tap!",
+       "start": 14.36,
+       "end": 14.7
+      }
+     ],
+     "captions": [
+      {
+       "start": 13.0,
+       "end": 14.7,
+       "text": "Ready? Let's open the tap!"
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": {
+    "panel": {
+     "kind": "image",
+     "title": null,
+     "rationale": "",
+     "show_from_beat_id": null,
+     "figure_id": null,
+     "image_prompt": "hyper-realistic macro photograph of glowing copper wires and electrons flowing inside a transparent electric cable, blue energy streaks, dark background, photography, 8k resolution, highly detailed",
+     "chart": null,
+     "graph": null,
+     "model_3d": null,
+     "manim": null,
+     "terminal": null,
+     "quiz": null,
+     "gif_query": null,
+     "override_asset_key": null
+    },
+    "media": {
+     "kind": "image",
+     "asset_key": "image-f4bc020961f789f28b87ba6acb0da18078acc011",
+     "url": null,
+     "mime": "image/png",
+     "duration": null,
+     "width": 1024,
+     "height": 576,
+     "fit": "contain",
+     "end_behavior": "loop",
+     "ken_burns": null,
+     "attribution": null,
+     "link_url": null,
+     "render_in_mp4": true
+    },
+    "show_at": 0.0
+   },
+   "media": null,
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": []
+  },
+  {
+   "scene_id": "s4",
+   "index": 3,
+   "type": "chapter_card",
+   "concept_id": "voltage_current",
+   "chapter_id": "ch1",
+   "title": "The River of Charge",
+   "subtitle": "What pushes electricity - and what holds it back?",
+   "chapter_label": "Part 1",
+   "start": 72.65,
+   "duration": 6.3,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "center",
+    "show_side_panel": false,
+    "fullscreen_media": false
+   },
+   "audio_asset_key": "scene_audio-270ac8162b93bc06e8c6f7cf653ada4a6bd863ca",
+   "audio_url": null,
+   "audio_duration": 5.0,
+   "board": [],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "s4-b1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 5.5,
+     "end": 5.5,
+     "narration": "Part One - The River of Charge! What pushes electricity forward, and what holds it back?",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Part",
+       "start": 0.5,
+       "end": 0.812
+      },
+      {
+       "text": "One",
+       "start": 0.812,
+       "end": 1.125
+      },
+      {
+       "text": "-",
+       "start": 1.125,
+       "end": 1.438
+      },
+      {
+       "text": "The",
+       "start": 1.438,
+       "end": 1.75
+      },
+      {
+       "text": "River",
+       "start": 1.75,
+       "end": 2.062
+      },
+      {
+       "text": "of",
+       "start": 2.062,
+       "end": 2.375
+      },
+      {
+       "text": "Charge!",
+       "start": 2.375,
+       "end": 2.688
+      },
+      {
+       "text": "What",
+       "start": 2.688,
+       "end": 3.0
+      },
+      {
+       "text": "pushes",
+       "start": 3.0,
+       "end": 3.312
+      },
+      {
+       "text": "electricity",
+       "start": 3.312,
+       "end": 3.625
+      },
+      {
+       "text": "forward,",
+       "start": 3.625,
+       "end": 3.938
+      },
+      {
+       "text": "and",
+       "start": 3.938,
+       "end": 4.25
+      },
+      {
+       "text": "what",
+       "start": 4.25,
+       "end": 4.562
+      },
+      {
+       "text": "holds",
+       "start": 4.562,
+       "end": 4.875
+      },
+      {
+       "text": "it",
+       "start": 4.875,
+       "end": 5.188
+      },
+      {
+       "text": "back?",
+       "start": 5.188,
+       "end": 5.5
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.5,
+       "end": 2.688,
+       "text": "Part One - The River of Charge!"
+      },
+      {
+       "start": 2.688,
+       "end": 5.5,
+       "text": "What pushes electricity\nforward, and what holds it back?"
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": null,
+   "media": null,
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": []
+  },
+  {
+   "scene_id": "s5",
+   "index": 4,
+   "type": "content",
+   "concept_id": "voltage_current",
+   "chapter_id": "ch1",
+   "title": "VOLTAGE AND CURRENT",
+   "subtitle": "The push and the flow",
+   "chapter_label": null,
+   "start": 78.95,
+   "duration": 28.0,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "left",
+    "show_side_panel": true,
+    "fullscreen_media": false
+   },
+   "audio_asset_key": "scene_audio-56af0339cda5a2b8f631abe17762e8b94fb049d9",
+   "audio_url": null,
+   "audio_duration": 26.7,
+   "board": [
+    {
+     "id": "s5-i1",
+     "kind": "definition",
+     "text": "The electrical pressure that pushes charge through a circuit, measured in volts.",
+     "term": "Voltage (V)",
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "s5-i2",
+     "kind": "definition",
+     "text": "The rate of flow of charge, measured in amperes.",
+     "term": "Current (I)",
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "s5-i3",
+     "kind": "misconception",
+     "text": "Students often think current gets \"used up\" as it flows around a circuit",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": "The SAME current returns to the source, because charge is conserved. It is ENERGY that gets delivered.",
+     "blank": false,
+     "misconception_id": "m1",
+     "source_refs": []
+    }
+   ],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "s5-b1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 2.8,
+     "end": 2.8,
+     "narration": "So what pushes current around that loop?",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "So",
+       "start": 0.5,
+       "end": 0.829
+      },
+      {
+       "text": "what",
+       "start": 0.829,
+       "end": 1.157
+      },
+      {
+       "text": "pushes",
+       "start": 1.157,
+       "end": 1.486
+      },
+      {
+       "text": "current",
+       "start": 1.486,
+       "end": 1.814
+      },
+      {
+       "text": "around",
+       "start": 1.814,
+       "end": 2.143
+      },
+      {
+       "text": "that",
+       "start": 2.143,
+       "end": 2.471
+      },
+      {
+       "text": "loop?",
+       "start": 2.471,
+       "end": 2.8
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.5,
+       "end": 2.8,
+       "text": "So what pushes current around that loop?"
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s5-b2",
+     "index": 1,
+     "phase": "main",
+     "start": 2.95,
+     "speech_end": 5.25,
+     "end": 6.75,
+     "narration": "Voltage - electrical pressure, measured in volts.",
+     "board_item_id": "s5-i1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Voltage",
+       "start": 2.95,
+       "end": 3.279
+      },
+      {
+       "text": "-",
+       "start": 3.279,
+       "end": 3.607
+      },
+      {
+       "text": "electrical",
+       "start": 3.607,
+       "end": 3.936
+      },
+      {
+       "text": "pressure,",
+       "start": 3.936,
+       "end": 4.264
+      },
+      {
+       "text": "measured",
+       "start": 4.264,
+       "end": 4.593
+      },
+      {
+       "text": "in",
+       "start": 4.593,
+       "end": 4.921
+      },
+      {
+       "text": "volts.",
+       "start": 4.921,
+       "end": 5.25
+      }
+     ],
+     "captions": [
+      {
+       "start": 2.95,
+       "end": 5.65,
+       "text": "Voltage - electrical\npressure, measured in volts."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s5-b3",
+     "index": 2,
+     "phase": "main",
+     "start": 6.9,
+     "speech_end": 12.2,
+     "end": 13.7,
+     "narration": "The resulting flow is current, in amperes. See the pump beside me - pressure pushes, flow follows!",
+     "board_item_id": "s5-i2",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "The",
+       "start": 6.9,
+       "end": 7.212
+      },
+      {
+       "text": "resulting",
+       "start": 7.212,
+       "end": 7.524
+      },
+      {
+       "text": "flow",
+       "start": 7.524,
+       "end": 7.835
+      },
+      {
+       "text": "is",
+       "start": 7.835,
+       "end": 8.147
+      },
+      {
+       "text": "current,",
+       "start": 8.147,
+       "end": 8.459
+      },
+      {
+       "text": "in",
+       "start": 8.459,
+       "end": 8.771
+      },
+      {
+       "text": "amperes.",
+       "start": 8.771,
+       "end": 9.082
+      },
+      {
+       "text": "See",
+       "start": 9.082,
+       "end": 9.394
+      },
+      {
+       "text": "the",
+       "start": 9.394,
+       "end": 9.706
+      },
+      {
+       "text": "pump",
+       "start": 9.706,
+       "end": 10.018
+      },
+      {
+       "text": "beside",
+       "start": 10.018,
+       "end": 10.329
+      },
+      {
+       "text": "me",
+       "start": 10.329,
+       "end": 10.641
+      },
+      {
+       "text": "-",
+       "start": 10.641,
+       "end": 10.953
+      },
+      {
+       "text": "pressure",
+       "start": 10.953,
+       "end": 11.265
+      },
+      {
+       "text": "pushes,",
+       "start": 11.265,
+       "end": 11.576
+      },
+      {
+       "text": "flow",
+       "start": 11.576,
+       "end": 11.888
+      },
+      {
+       "text": "follows!",
+       "start": 11.888,
+       "end": 12.2
+      }
+     ],
+     "captions": [
+      {
+       "start": 6.9,
+       "end": 9.082,
+       "text": "The resulting flow is current, in amperes."
+      },
+      {
+       "start": 9.082,
+       "end": 12.6,
+       "text": "See the pump beside me -\npressure pushes, flow follows!"
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s5-b4",
+     "index": 3,
+     "phase": "main",
+     "start": 13.85,
+     "speech_end": 20.35,
+     "end": 21.85,
+     "narration": "And careful - current is NOT used up around the circuit. The same current comes home; energy is what gets delivered.",
+     "board_item_id": "s5-i3",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "And",
+       "start": 13.85,
+       "end": 14.16
+      },
+      {
+       "text": "careful",
+       "start": 14.16,
+       "end": 14.469
+      },
+      {
+       "text": "-",
+       "start": 14.469,
+       "end": 14.779
+      },
+      {
+       "text": "current",
+       "start": 14.779,
+       "end": 15.088
+      },
+      {
+       "text": "is",
+       "start": 15.088,
+       "end": 15.398
+      },
+      {
+       "text": "NOT",
+       "start": 15.398,
+       "end": 15.707
+      },
+      {
+       "text": "used",
+       "start": 15.707,
+       "end": 16.017
+      },
+      {
+       "text": "up",
+       "start": 16.017,
+       "end": 16.326
+      },
+      {
+       "text": "around",
+       "start": 16.326,
+       "end": 16.636
+      },
+      {
+       "text": "the",
+       "start": 16.636,
+       "end": 16.945
+      },
+      {
+       "text": "circuit.",
+       "start": 16.945,
+       "end": 17.255
+      },
+      {
+       "text": "The",
+       "start": 17.255,
+       "end": 17.564
+      },
+      {
+       "text": "same",
+       "start": 17.564,
+       "end": 17.874
+      },
+      {
+       "text": "current",
+       "start": 17.874,
+       "end": 18.183
+      },
+      {
+       "text": "comes",
+       "start": 18.183,
+       "end": 18.493
+      },
+      {
+       "text": "home;",
+       "start": 18.493,
+       "end": 18.802
+      },
+      {
+       "text": "energy",
+       "start": 18.802,
+       "end": 19.112
+      },
+      {
+       "text": "is",
+       "start": 19.112,
+       "end": 19.421
+      },
+      {
+       "text": "what",
+       "start": 19.421,
+       "end": 19.731
+      },
+      {
+       "text": "gets",
+       "start": 19.731,
+       "end": 20.04
+      },
+      {
+       "text": "delivered.",
+       "start": 20.04,
+       "end": 20.35
+      }
+     ],
+     "captions": [
+      {
+       "start": 13.85,
+       "end": 17.255,
+       "text": "And careful - current is NOT\nused up around the circuit."
+      },
+      {
+       "start": 17.255,
+       "end": 20.75,
+       "text": "The same current comes home;\nenergy is what gets delivered."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s5-b5",
+     "index": 4,
+     "phase": "main",
+     "start": 22.0,
+     "speech_end": 25.2,
+     "end": 27.2,
+     "narration": "Now - what happens when something squeezes this flow? Predict!",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Now",
+       "start": 22.0,
+       "end": 22.32
+      },
+      {
+       "text": "-",
+       "start": 22.32,
+       "end": 22.64
+      },
+      {
+       "text": "what",
+       "start": 22.64,
+       "end": 22.96
+      },
+      {
+       "text": "happens",
+       "start": 22.96,
+       "end": 23.28
+      },
+      {
+       "text": "when",
+       "start": 23.28,
+       "end": 23.6
+      },
+      {
+       "text": "something",
+       "start": 23.6,
+       "end": 23.92
+      },
+      {
+       "text": "squeezes",
+       "start": 23.92,
+       "end": 24.24
+      },
+      {
+       "text": "this",
+       "start": 24.24,
+       "end": 24.56
+      },
+      {
+       "text": "flow?",
+       "start": 24.56,
+       "end": 24.88
+      },
+      {
+       "text": "Predict!",
+       "start": 24.88,
+       "end": 25.2
+      }
+     ],
+     "captions": [
+      {
+       "start": 22.0,
+       "end": 24.88,
+       "text": "Now - what happens when\nsomething squeezes this flow?"
+      },
+      {
+       "start": 24.88,
+       "end": 25.6,
+       "text": "Predict!"
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": {
+    "panel": {
+     "kind": "image",
+     "title": null,
+     "rationale": "",
+     "show_from_beat_id": null,
+     "figure_id": null,
+     "image_prompt": "hyper-realistic photograph of a large water pump station pushing water through wide transparent pipes with pressure gauges, industrial setting, dramatic lighting, photography, 8k resolution, highly detailed",
+     "chart": null,
+     "graph": null,
+     "model_3d": null,
+     "manim": null,
+     "terminal": null,
+     "quiz": null,
+     "gif_query": null,
+     "override_asset_key": null
+    },
+    "media": {
+     "kind": "image",
+     "asset_key": "image-5e7c2919c54743eb56163144e7cb3bbdd85efa85",
+     "url": null,
+     "mime": "image/png",
+     "duration": null,
+     "width": 1024,
+     "height": 576,
+     "fit": "contain",
+     "end_behavior": "loop",
+     "ken_burns": null,
+     "attribution": null,
+     "link_url": null,
+     "render_in_mp4": true
+    },
+    "show_at": 0.0
+   },
+   "media": null,
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": []
+  },
+  {
+   "scene_id": "s6",
+   "index": 5,
+   "type": "ai_video",
+   "concept_id": "voltage_current",
+   "chapter_id": "ch1",
+   "title": "THE WATER PARK OF ELECTRICITY",
+   "subtitle": "Pressure, flow, and the narrow pipe",
+   "chapter_label": null,
+   "start": 106.95,
+   "duration": 14.15,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "left",
+    "show_side_panel": false,
+    "fullscreen_media": true
+   },
+   "audio_asset_key": "scene_audio-3360f806cc39b3cae932a1a6d2f3956b9230a0e5",
+   "audio_url": null,
+   "audio_duration": 12.85,
+   "board": [],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "s6-b1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 7.3,
+     "end": 8.8,
+     "narration": "Watch! The pump pressure is voltage. The rushing water is current. And that narrow pinch choking the flow - that is resistance.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Watch!",
+       "start": 0.5,
+       "end": 0.809
+      },
+      {
+       "text": "The",
+       "start": 0.809,
+       "end": 1.118
+      },
+      {
+       "text": "pump",
+       "start": 1.118,
+       "end": 1.427
+      },
+      {
+       "text": "pressure",
+       "start": 1.427,
+       "end": 1.736
+      },
+      {
+       "text": "is",
+       "start": 1.736,
+       "end": 2.045
+      },
+      {
+       "text": "voltage.",
+       "start": 2.045,
+       "end": 2.355
+      },
+      {
+       "text": "The",
+       "start": 2.355,
+       "end": 2.664
+      },
+      {
+       "text": "rushing",
+       "start": 2.664,
+       "end": 2.973
+      },
+      {
+       "text": "water",
+       "start": 2.973,
+       "end": 3.282
+      },
+      {
+       "text": "is",
+       "start": 3.282,
+       "end": 3.591
+      },
+      {
+       "text": "current.",
+       "start": 3.591,
+       "end": 3.9
+      },
+      {
+       "text": "And",
+       "start": 3.9,
+       "end": 4.209
+      },
+      {
+       "text": "that",
+       "start": 4.209,
+       "end": 4.518
+      },
+      {
+       "text": "narrow",
+       "start": 4.518,
+       "end": 4.827
+      },
+      {
+       "text": "pinch",
+       "start": 4.827,
+       "end": 5.136
+      },
+      {
+       "text": "choking",
+       "start": 5.136,
+       "end": 5.445
+      },
+      {
+       "text": "the",
+       "start": 5.445,
+       "end": 5.755
+      },
+      {
+       "text": "flow",
+       "start": 5.755,
+       "end": 6.064
+      },
+      {
+       "text": "-",
+       "start": 6.064,
+       "end": 6.373
+      },
+      {
+       "text": "that",
+       "start": 6.373,
+       "end": 6.682
+      },
+      {
+       "text": "is",
+       "start": 6.682,
+       "end": 6.991
+      },
+      {
+       "text": "resistance.",
+       "start": 6.991,
+       "end": 7.3
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.5,
+       "end": 2.355,
+       "text": "Watch! The pump pressure is voltage."
+      },
+      {
+       "start": 2.355,
+       "end": 6.991,
+       "text": "The rushing water is current. And that\nnarrow pinch choking the flow - that is"
+      },
+      {
+       "start": 6.991,
+       "end": 7.7,
+       "text": "resistance."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s6-b2",
+     "index": 1,
+     "phase": "main",
+     "start": 8.95,
+     "speech_end": 13.35,
+     "end": 13.35,
+     "narration": "More pressure, more flow. Tighter pipe, less flow. Electricity works exactly the same way!",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "More",
+       "start": 8.95,
+       "end": 9.264
+      },
+      {
+       "text": "pressure,",
+       "start": 9.264,
+       "end": 9.579
+      },
+      {
+       "text": "more",
+       "start": 9.579,
+       "end": 9.893
+      },
+      {
+       "text": "flow.",
+       "start": 9.893,
+       "end": 10.207
+      },
+      {
+       "text": "Tighter",
+       "start": 10.207,
+       "end": 10.521
+      },
+      {
+       "text": "pipe,",
+       "start": 10.521,
+       "end": 10.836
+      },
+      {
+       "text": "less",
+       "start": 10.836,
+       "end": 11.15
+      },
+      {
+       "text": "flow.",
+       "start": 11.15,
+       "end": 11.464
+      },
+      {
+       "text": "Electricity",
+       "start": 11.464,
+       "end": 11.779
+      },
+      {
+       "text": "works",
+       "start": 11.779,
+       "end": 12.093
+      },
+      {
+       "text": "exactly",
+       "start": 12.093,
+       "end": 12.407
+      },
+      {
+       "text": "the",
+       "start": 12.407,
+       "end": 12.721
+      },
+      {
+       "text": "same",
+       "start": 12.721,
+       "end": 13.036
+      },
+      {
+       "text": "way!",
+       "start": 13.036,
+       "end": 13.35
+      }
+     ],
+     "captions": [
+      {
+       "start": 8.95,
+       "end": 11.464,
+       "text": "More pressure, more flow.\nTighter pipe, less flow."
+      },
+      {
+       "start": 11.464,
+       "end": 13.35,
+       "text": "Electricity works exactly the same way!"
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": null,
+   "media": {
+    "kind": "video",
+    "asset_key": "video-85b8db31b97597a04e4d55f87f8574e85d3ffad1",
+    "url": null,
+    "mime": "video/mp4",
+    "duration": 8.0,
+    "width": 1280,
+    "height": 720,
+    "fit": "cover",
+    "end_behavior": "loop",
+    "ken_burns": null,
+    "attribution": null,
+    "link_url": null,
+    "render_in_mp4": true
+   },
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": []
+  },
+  {
+   "scene_id": "s7",
+   "index": 6,
+   "type": "content",
+   "concept_id": "resistance",
+   "chapter_id": "ch1",
+   "title": "RESISTANCE - THE NARROW PIPE",
+   "subtitle": "The opposition every circuit feels",
+   "chapter_label": null,
+   "start": 121.1,
+   "duration": 29.85,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "popup_bottom_left",
+    "show_side_panel": true,
+    "fullscreen_media": false
+   },
+   "audio_asset_key": "scene_audio-309babbecee361160119dceb4e9c888258ff18d4",
+   "audio_url": null,
+   "audio_duration": 28.55,
+   "board": [
+    {
+     "id": "s7-i1",
+     "kind": "definition",
+     "text": "The opposition a material offers to the flow of current, measured in ohms (Ω).",
+     "term": "Resistance (R)",
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "s7-i2",
+     "kind": "paragraph",
+     "text": "Example: A bulb's thin tungsten filament has HIGH resistance - the struggle makes it glow.",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "s7-i3",
+     "kind": "paragraph",
+     "text": "Non-example: A thick copper wire has almost NO resistance - it stays cool and simply carries the flow.",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "s7-i4",
+     "kind": "callout_tip",
+     "text": "Rule of thumb: thin, long and hot means MORE resistance; thick, short and cool means LESS.",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "s7-b1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 2.8,
+     "end": 2.8,
+     "narration": "Resistance is the narrow pipe of circuits.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Resistance",
+       "start": 0.5,
+       "end": 0.829
+      },
+      {
+       "text": "is",
+       "start": 0.829,
+       "end": 1.157
+      },
+      {
+       "text": "the",
+       "start": 1.157,
+       "end": 1.486
+      },
+      {
+       "text": "narrow",
+       "start": 1.486,
+       "end": 1.814
+      },
+      {
+       "text": "pipe",
+       "start": 1.814,
+       "end": 2.143
+      },
+      {
+       "text": "of",
+       "start": 2.143,
+       "end": 2.471
+      },
+      {
+       "text": "circuits.",
+       "start": 2.471,
+       "end": 2.8
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.5,
+       "end": 2.8,
+       "text": "Resistance is the narrow pipe of circuits."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s7-b2",
+     "index": 1,
+     "phase": "main",
+     "start": 2.95,
+     "speech_end": 5.85,
+     "end": 7.35,
+     "narration": "Formally - opposition to current flow, measured in ohms.",
+     "board_item_id": "s7-i1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Formally",
+       "start": 2.95,
+       "end": 3.272
+      },
+      {
+       "text": "-",
+       "start": 3.272,
+       "end": 3.594
+      },
+      {
+       "text": "opposition",
+       "start": 3.594,
+       "end": 3.917
+      },
+      {
+       "text": "to",
+       "start": 3.917,
+       "end": 4.239
+      },
+      {
+       "text": "current",
+       "start": 4.239,
+       "end": 4.561
+      },
+      {
+       "text": "flow,",
+       "start": 4.561,
+       "end": 4.883
+      },
+      {
+       "text": "measured",
+       "start": 4.883,
+       "end": 5.206
+      },
+      {
+       "text": "in",
+       "start": 5.206,
+       "end": 5.528
+      },
+      {
+       "text": "ohms.",
+       "start": 5.528,
+       "end": 5.85
+      }
+     ],
+     "captions": [
+      {
+       "start": 2.95,
+       "end": 6.25,
+       "text": "Formally - opposition to\ncurrent flow, measured in ohms."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s7-b3",
+     "index": 2,
+     "phase": "main",
+     "start": 7.5,
+     "speech_end": 11.3,
+     "end": 11.3,
+     "narration": "A bulb's thin filament resists strongly - that struggle makes it glow!",
+     "board_item_id": "s7-i2",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "A",
+       "start": 7.5,
+       "end": 7.817
+      },
+      {
+       "text": "bulb's",
+       "start": 7.817,
+       "end": 8.133
+      },
+      {
+       "text": "thin",
+       "start": 8.133,
+       "end": 8.45
+      },
+      {
+       "text": "filament",
+       "start": 8.45,
+       "end": 8.767
+      },
+      {
+       "text": "resists",
+       "start": 8.767,
+       "end": 9.083
+      },
+      {
+       "text": "strongly",
+       "start": 9.083,
+       "end": 9.4
+      },
+      {
+       "text": "-",
+       "start": 9.4,
+       "end": 9.717
+      },
+      {
+       "text": "that",
+       "start": 9.717,
+       "end": 10.033
+      },
+      {
+       "text": "struggle",
+       "start": 10.033,
+       "end": 10.35
+      },
+      {
+       "text": "makes",
+       "start": 10.35,
+       "end": 10.667
+      },
+      {
+       "text": "it",
+       "start": 10.667,
+       "end": 10.983
+      },
+      {
+       "text": "glow!",
+       "start": 10.983,
+       "end": 11.3
+      }
+     ],
+     "captions": [
+      {
+       "start": 7.5,
+       "end": 11.3,
+       "text": "A bulb's thin filament resists\nstrongly - that struggle makes it glow!"
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s7-b4",
+     "index": 3,
+     "phase": "main",
+     "start": 11.45,
+     "speech_end": 14.65,
+     "end": 14.65,
+     "narration": "A thick copper wire barely resists - it stays cool.",
+     "board_item_id": "s7-i3",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "A",
+       "start": 11.45,
+       "end": 11.77
+      },
+      {
+       "text": "thick",
+       "start": 11.77,
+       "end": 12.09
+      },
+      {
+       "text": "copper",
+       "start": 12.09,
+       "end": 12.41
+      },
+      {
+       "text": "wire",
+       "start": 12.41,
+       "end": 12.73
+      },
+      {
+       "text": "barely",
+       "start": 12.73,
+       "end": 13.05
+      },
+      {
+       "text": "resists",
+       "start": 13.05,
+       "end": 13.37
+      },
+      {
+       "text": "-",
+       "start": 13.37,
+       "end": 13.69
+      },
+      {
+       "text": "it",
+       "start": 13.69,
+       "end": 14.01
+      },
+      {
+       "text": "stays",
+       "start": 14.01,
+       "end": 14.33
+      },
+      {
+       "text": "cool.",
+       "start": 14.33,
+       "end": 14.65
+      }
+     ],
+     "captions": [
+      {
+       "start": 11.45,
+       "end": 14.65,
+       "text": "A thick copper wire barely\nresists - it stays cool."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s7-b5",
+     "index": 4,
+     "phase": "main",
+     "start": 14.8,
+     "speech_end": 18.0,
+     "end": 19.5,
+     "narration": "Rule of thumb - thin, long and hot resists more.",
+     "board_item_id": "s7-i4",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Rule",
+       "start": 14.8,
+       "end": 15.12
+      },
+      {
+       "text": "of",
+       "start": 15.12,
+       "end": 15.44
+      },
+      {
+       "text": "thumb",
+       "start": 15.44,
+       "end": 15.76
+      },
+      {
+       "text": "-",
+       "start": 15.76,
+       "end": 16.08
+      },
+      {
+       "text": "thin,",
+       "start": 16.08,
+       "end": 16.4
+      },
+      {
+       "text": "long",
+       "start": 16.4,
+       "end": 16.72
+      },
+      {
+       "text": "and",
+       "start": 16.72,
+       "end": 17.04
+      },
+      {
+       "text": "hot",
+       "start": 17.04,
+       "end": 17.36
+      },
+      {
+       "text": "resists",
+       "start": 17.36,
+       "end": 17.68
+      },
+      {
+       "text": "more.",
+       "start": 17.68,
+       "end": 18.0
+      }
+     ],
+     "captions": [
+      {
+       "start": 14.8,
+       "end": 18.4,
+       "text": "Rule of thumb - thin,\nlong and hot resists more."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s7-b6",
+     "index": 5,
+     "phase": "main",
+     "start": 19.65,
+     "speech_end": 27.05,
+     "end": 29.05,
+     "narration": "Electrons bumping through atoms like the one beside me - that IS resistance! Now predict - double the voltage, what happens to the flow?",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Electrons",
+       "start": 19.65,
+       "end": 19.958
+      },
+      {
+       "text": "bumping",
+       "start": 19.958,
+       "end": 20.267
+      },
+      {
+       "text": "through",
+       "start": 20.267,
+       "end": 20.575
+      },
+      {
+       "text": "atoms",
+       "start": 20.575,
+       "end": 20.883
+      },
+      {
+       "text": "like",
+       "start": 20.883,
+       "end": 21.192
+      },
+      {
+       "text": "the",
+       "start": 21.192,
+       "end": 21.5
+      },
+      {
+       "text": "one",
+       "start": 21.5,
+       "end": 21.808
+      },
+      {
+       "text": "beside",
+       "start": 21.808,
+       "end": 22.117
+      },
+      {
+       "text": "me",
+       "start": 22.117,
+       "end": 22.425
+      },
+      {
+       "text": "-",
+       "start": 22.425,
+       "end": 22.733
+      },
+      {
+       "text": "that",
+       "start": 22.733,
+       "end": 23.042
+      },
+      {
+       "text": "IS",
+       "start": 23.042,
+       "end": 23.35
+      },
+      {
+       "text": "resistance!",
+       "start": 23.35,
+       "end": 23.658
+      },
+      {
+       "text": "Now",
+       "start": 23.658,
+       "end": 23.967
+      },
+      {
+       "text": "predict",
+       "start": 23.967,
+       "end": 24.275
+      },
+      {
+       "text": "-",
+       "start": 24.275,
+       "end": 24.583
+      },
+      {
+       "text": "double",
+       "start": 24.583,
+       "end": 24.892
+      },
+      {
+       "text": "the",
+       "start": 24.892,
+       "end": 25.2
+      },
+      {
+       "text": "voltage,",
+       "start": 25.2,
+       "end": 25.508
+      },
+      {
+       "text": "what",
+       "start": 25.508,
+       "end": 25.817
+      },
+      {
+       "text": "happens",
+       "start": 25.817,
+       "end": 26.125
+      },
+      {
+       "text": "to",
+       "start": 26.125,
+       "end": 26.433
+      },
+      {
+       "text": "the",
+       "start": 26.433,
+       "end": 26.742
+      },
+      {
+       "text": "flow?",
+       "start": 26.742,
+       "end": 27.05
+      }
+     ],
+     "captions": [
+      {
+       "start": 19.65,
+       "end": 23.658,
+       "text": "Electrons bumping through atoms like\nthe one beside me - that IS resistance!"
+      },
+      {
+       "start": 23.658,
+       "end": 27.45,
+       "text": "Now predict - double the voltage,\nwhat happens to the flow?"
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": {
+    "panel": {
+     "kind": "model_3d",
+     "title": null,
+     "rationale": "",
+     "show_from_beat_id": null,
+     "figure_id": null,
+     "image_prompt": null,
+     "chart": null,
+     "graph": null,
+     "model_3d": {
+      "primitives": [
+       {
+        "shape": "sphere",
+        "position": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "size": [
+         0.6
+        ],
+        "color": "#ffd700",
+        "label": "Nucleus"
+       },
+       {
+        "shape": "torus",
+        "position": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "size": [
+         1.4,
+         0.03
+        ],
+        "color": "#b026ff",
+        "label": null
+       },
+       {
+        "shape": "torus",
+        "position": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "size": [
+         2.1,
+         0.03
+        ],
+        "color": "#b026ff",
+        "label": null
+       },
+       {
+        "shape": "torus",
+        "position": [
+         0.0,
+         0.0,
+         0.0
+        ],
+        "size": [
+         2.8,
+         0.03
+        ],
+        "color": "#b026ff",
+        "label": null
+       },
+       {
+        "shape": "sphere",
+        "position": [
+         1.4,
+         0.0,
+         0.0
+        ],
+        "size": [
+         0.15
+        ],
+        "color": "#00e5ff",
+        "label": "Electron"
+       },
+       {
+        "shape": "sphere",
+        "position": [
+         0.0,
+         -2.1,
+         0.0
+        ],
+        "size": [
+         0.15
+        ],
+        "color": "#00e5ff",
+        "label": null
+       },
+       {
+        "shape": "sphere",
+        "position": [
+         -1.98,
+         1.98,
+         0.0
+        ],
+        "size": [
+         0.15
+        ],
+        "color": "#00e5ff",
+        "label": null
+       }
+      ],
+      "auto_rotate": true
+     },
+     "manim": null,
+     "terminal": null,
+     "quiz": null,
+     "gif_query": null,
+     "override_asset_key": null
+    },
+    "media": null,
+    "show_at": 0.0
+   },
+   "media": null,
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": []
+  },
+  {
+   "scene_id": "s8",
+   "index": 7,
+   "type": "simulation",
+   "concept_id": "ohms_law",
+   "chapter_id": "ch1",
+   "title": "VISUALIZING OHM'S LAW",
+   "subtitle": null,
+   "chapter_label": null,
+   "start": 150.95,
+   "duration": 23.55,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "hidden",
+    "show_side_panel": false,
+    "fullscreen_media": true
+   },
+   "audio_asset_key": "scene_audio-3be80f87b0a8b75b491a57411d07ece80dd90fe8",
+   "audio_url": null,
+   "audio_duration": 22.25,
+   "board": [],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "s8-b1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 1.6,
+     "end": 3.1,
+     "narration": "The crown jewel!",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "The",
+       "start": 0.5,
+       "end": 0.867
+      },
+      {
+       "text": "crown",
+       "start": 0.867,
+       "end": 1.233
+      },
+      {
+       "text": "jewel!",
+       "start": 1.233,
+       "end": 1.6
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.5,
+       "end": 2.0,
+       "text": "The crown jewel!"
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s8-b2",
+     "index": 1,
+     "phase": "main",
+     "start": 3.25,
+     "speech_end": 7.95,
+     "end": 9.45,
+     "narration": "Voltage equals current times resistance - the push, the flow, and the opposition, tied together.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Voltage",
+       "start": 3.25,
+       "end": 3.563
+      },
+      {
+       "text": "equals",
+       "start": 3.563,
+       "end": 3.877
+      },
+      {
+       "text": "current",
+       "start": 3.877,
+       "end": 4.19
+      },
+      {
+       "text": "times",
+       "start": 4.19,
+       "end": 4.503
+      },
+      {
+       "text": "resistance",
+       "start": 4.503,
+       "end": 4.817
+      },
+      {
+       "text": "-",
+       "start": 4.817,
+       "end": 5.13
+      },
+      {
+       "text": "the",
+       "start": 5.13,
+       "end": 5.443
+      },
+      {
+       "text": "push,",
+       "start": 5.443,
+       "end": 5.757
+      },
+      {
+       "text": "the",
+       "start": 5.757,
+       "end": 6.07
+      },
+      {
+       "text": "flow,",
+       "start": 6.07,
+       "end": 6.383
+      },
+      {
+       "text": "and",
+       "start": 6.383,
+       "end": 6.697
+      },
+      {
+       "text": "the",
+       "start": 6.697,
+       "end": 7.01
+      },
+      {
+       "text": "opposition,",
+       "start": 7.01,
+       "end": 7.323
+      },
+      {
+       "text": "tied",
+       "start": 7.323,
+       "end": 7.637
+      },
+      {
+       "text": "together.",
+       "start": 7.637,
+       "end": 7.95
+      }
+     ],
+     "captions": [
+      {
+       "start": 3.25,
+       "end": 7.323,
+       "text": "Voltage equals current times resistance\n- the push, the flow, and the opposition,"
+      },
+      {
+       "start": 7.323,
+       "end": 8.35,
+       "text": "tied together."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s8-b3",
+     "index": 2,
+     "phase": "main",
+     "start": 9.6,
+     "speech_end": 12.8,
+     "end": 14.3,
+     "narration": "Now watch it rearrange - current equals voltage over resistance.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Now",
+       "start": 9.6,
+       "end": 9.92
+      },
+      {
+       "text": "watch",
+       "start": 9.92,
+       "end": 10.24
+      },
+      {
+       "text": "it",
+       "start": 10.24,
+       "end": 10.56
+      },
+      {
+       "text": "rearrange",
+       "start": 10.56,
+       "end": 10.88
+      },
+      {
+       "text": "-",
+       "start": 10.88,
+       "end": 11.2
+      },
+      {
+       "text": "current",
+       "start": 11.2,
+       "end": 11.52
+      },
+      {
+       "text": "equals",
+       "start": 11.52,
+       "end": 11.84
+      },
+      {
+       "text": "voltage",
+       "start": 11.84,
+       "end": 12.16
+      },
+      {
+       "text": "over",
+       "start": 12.16,
+       "end": 12.48
+      },
+      {
+       "text": "resistance.",
+       "start": 12.48,
+       "end": 12.8
+      }
+     ],
+     "captions": [
+      {
+       "start": 9.6,
+       "end": 13.2,
+       "text": "Now watch it rearrange - current\nequals voltage over resistance."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s8-b4",
+     "index": 3,
+     "phase": "main",
+     "start": 14.45,
+     "speech_end": 22.75,
+     "end": 22.75,
+     "narration": "And here is your prediction, proven - a perfect straight line. Four volts gives two amperes. Eight volts, exactly four. Double the voltage - double the current!",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "And",
+       "start": 14.45,
+       "end": 14.757
+      },
+      {
+       "text": "here",
+       "start": 14.757,
+       "end": 15.065
+      },
+      {
+       "text": "is",
+       "start": 15.065,
+       "end": 15.372
+      },
+      {
+       "text": "your",
+       "start": 15.372,
+       "end": 15.68
+      },
+      {
+       "text": "prediction,",
+       "start": 15.68,
+       "end": 15.987
+      },
+      {
+       "text": "proven",
+       "start": 15.987,
+       "end": 16.294
+      },
+      {
+       "text": "-",
+       "start": 16.294,
+       "end": 16.602
+      },
+      {
+       "text": "a",
+       "start": 16.602,
+       "end": 16.909
+      },
+      {
+       "text": "perfect",
+       "start": 16.909,
+       "end": 17.217
+      },
+      {
+       "text": "straight",
+       "start": 17.217,
+       "end": 17.524
+      },
+      {
+       "text": "line.",
+       "start": 17.524,
+       "end": 17.831
+      },
+      {
+       "text": "Four",
+       "start": 17.831,
+       "end": 18.139
+      },
+      {
+       "text": "volts",
+       "start": 18.139,
+       "end": 18.446
+      },
+      {
+       "text": "gives",
+       "start": 18.446,
+       "end": 18.754
+      },
+      {
+       "text": "two",
+       "start": 18.754,
+       "end": 19.061
+      },
+      {
+       "text": "amperes.",
+       "start": 19.061,
+       "end": 19.369
+      },
+      {
+       "text": "Eight",
+       "start": 19.369,
+       "end": 19.676
+      },
+      {
+       "text": "volts,",
+       "start": 19.676,
+       "end": 19.983
+      },
+      {
+       "text": "exactly",
+       "start": 19.983,
+       "end": 20.291
+      },
+      {
+       "text": "four.",
+       "start": 20.291,
+       "end": 20.598
+      },
+      {
+       "text": "Double",
+       "start": 20.598,
+       "end": 20.906
+      },
+      {
+       "text": "the",
+       "start": 20.906,
+       "end": 21.213
+      },
+      {
+       "text": "voltage",
+       "start": 21.213,
+       "end": 21.52
+      },
+      {
+       "text": "-",
+       "start": 21.52,
+       "end": 21.828
+      },
+      {
+       "text": "double",
+       "start": 21.828,
+       "end": 22.135
+      },
+      {
+       "text": "the",
+       "start": 22.135,
+       "end": 22.443
+      },
+      {
+       "text": "current!",
+       "start": 22.443,
+       "end": 22.75
+      }
+     ],
+     "captions": [
+      {
+       "start": 14.45,
+       "end": 17.831,
+       "text": "And here is your prediction,\nproven - a perfect straight line."
+      },
+      {
+       "start": 17.831,
+       "end": 20.598,
+       "text": "Four volts gives two amperes.\nEight volts, exactly four."
+      },
+      {
+       "start": 20.598,
+       "end": 22.75,
+       "text": "Double the voltage - double the current!"
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": null,
+   "media": {
+    "kind": "video",
+    "asset_key": "manim-be1d18e51e327385e4c8d7274ba7809a2b45fd85",
+    "url": null,
+    "mime": "video/mp4",
+    "duration": 6.0,
+    "width": 1280,
+    "height": 720,
+    "fit": "contain",
+    "end_behavior": "freeze",
+    "ken_burns": null,
+    "attribution": null,
+    "link_url": null,
+    "render_in_mp4": true
+   },
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": []
+  },
+  {
+   "scene_id": "s9",
+   "index": 8,
+   "type": "quiz_checkpoint",
+   "concept_id": "ohms_law",
+   "chapter_id": "ch1",
+   "title": "CHECKPOINT",
+   "subtitle": null,
+   "chapter_label": null,
+   "start": 174.5,
+   "duration": 31.3,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "hidden",
+    "show_side_panel": false,
+    "fullscreen_media": false
+   },
+   "audio_asset_key": "scene_audio-81055b89b4618dc1c093e5af3c2b387975f52df5",
+   "audio_url": null,
+   "audio_duration": 29.0,
+   "board": [],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "s9-b1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 1.0,
+     "end": 2.5,
+     "narration": "Checkpoint!",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Checkpoint!",
+       "start": 0.5,
+       "end": 1.0
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.5,
+       "end": 1.4,
+       "text": "Checkpoint!"
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s9-b2",
+     "index": 1,
+     "phase": "main",
+     "start": 2.65,
+     "speech_end": 10.05,
+     "end": 10.05,
+     "narration": "Twelve volts drives a circuit. We swap in twenty four volts, same resistance. What happens to the current? Pause the video and try it!",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Twelve",
+       "start": 2.65,
+       "end": 2.958
+      },
+      {
+       "text": "volts",
+       "start": 2.958,
+       "end": 3.267
+      },
+      {
+       "text": "drives",
+       "start": 3.267,
+       "end": 3.575
+      },
+      {
+       "text": "a",
+       "start": 3.575,
+       "end": 3.883
+      },
+      {
+       "text": "circuit.",
+       "start": 3.883,
+       "end": 4.192
+      },
+      {
+       "text": "We",
+       "start": 4.192,
+       "end": 4.5
+      },
+      {
+       "text": "swap",
+       "start": 4.5,
+       "end": 4.808
+      },
+      {
+       "text": "in",
+       "start": 4.808,
+       "end": 5.117
+      },
+      {
+       "text": "twenty",
+       "start": 5.117,
+       "end": 5.425
+      },
+      {
+       "text": "four",
+       "start": 5.425,
+       "end": 5.733
+      },
+      {
+       "text": "volts,",
+       "start": 5.733,
+       "end": 6.042
+      },
+      {
+       "text": "same",
+       "start": 6.042,
+       "end": 6.35
+      },
+      {
+       "text": "resistance.",
+       "start": 6.35,
+       "end": 6.658
+      },
+      {
+       "text": "What",
+       "start": 6.658,
+       "end": 6.967
+      },
+      {
+       "text": "happens",
+       "start": 6.967,
+       "end": 7.275
+      },
+      {
+       "text": "to",
+       "start": 7.275,
+       "end": 7.583
+      },
+      {
+       "text": "the",
+       "start": 7.583,
+       "end": 7.892
+      },
+      {
+       "text": "current?",
+       "start": 7.892,
+       "end": 8.2
+      },
+      {
+       "text": "Pause",
+       "start": 8.2,
+       "end": 8.508
+      },
+      {
+       "text": "the",
+       "start": 8.508,
+       "end": 8.817
+      },
+      {
+       "text": "video",
+       "start": 8.817,
+       "end": 9.125
+      },
+      {
+       "text": "and",
+       "start": 9.125,
+       "end": 9.433
+      },
+      {
+       "text": "try",
+       "start": 9.433,
+       "end": 9.742
+      },
+      {
+       "text": "it!",
+       "start": 9.742,
+       "end": 10.05
+      }
+     ],
+     "captions": [
+      {
+       "start": 2.65,
+       "end": 4.192,
+       "text": "Twelve volts drives a circuit."
+      },
+      {
+       "start": 4.192,
+       "end": 6.658,
+       "text": "We swap in twenty four\nvolts, same resistance."
+      },
+      {
+       "start": 6.658,
+       "end": 10.05,
+       "text": "What happens to the current?\nPause the video and try it!"
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s9-r1",
+     "index": 2,
+     "phase": "reveal",
+     "start": 18.2,
+     "speech_end": 29.5,
+     "end": 29.5,
+     "narration": "It doubles! Double the voltage, double the current - I equals V over R. And if you said 'used up faster' - remember, current always comes home. That trap catches thousands of students - but not you!",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "It",
+       "start": 18.2,
+       "end": 18.505
+      },
+      {
+       "text": "doubles!",
+       "start": 18.505,
+       "end": 18.811
+      },
+      {
+       "text": "Double",
+       "start": 18.811,
+       "end": 19.116
+      },
+      {
+       "text": "the",
+       "start": 19.116,
+       "end": 19.422
+      },
+      {
+       "text": "voltage,",
+       "start": 19.422,
+       "end": 19.727
+      },
+      {
+       "text": "double",
+       "start": 19.727,
+       "end": 20.032
+      },
+      {
+       "text": "the",
+       "start": 20.032,
+       "end": 20.338
+      },
+      {
+       "text": "current",
+       "start": 20.338,
+       "end": 20.643
+      },
+      {
+       "text": "-",
+       "start": 20.643,
+       "end": 20.949
+      },
+      {
+       "text": "I",
+       "start": 20.949,
+       "end": 21.254
+      },
+      {
+       "text": "equals",
+       "start": 21.254,
+       "end": 21.559
+      },
+      {
+       "text": "V",
+       "start": 21.559,
+       "end": 21.865
+      },
+      {
+       "text": "over",
+       "start": 21.865,
+       "end": 22.17
+      },
+      {
+       "text": "R.",
+       "start": 22.17,
+       "end": 22.476
+      },
+      {
+       "text": "And",
+       "start": 22.476,
+       "end": 22.781
+      },
+      {
+       "text": "if",
+       "start": 22.781,
+       "end": 23.086
+      },
+      {
+       "text": "you",
+       "start": 23.086,
+       "end": 23.392
+      },
+      {
+       "text": "said",
+       "start": 23.392,
+       "end": 23.697
+      },
+      {
+       "text": "'used",
+       "start": 23.697,
+       "end": 24.003
+      },
+      {
+       "text": "up",
+       "start": 24.003,
+       "end": 24.308
+      },
+      {
+       "text": "faster'",
+       "start": 24.308,
+       "end": 24.614
+      },
+      {
+       "text": "-",
+       "start": 24.614,
+       "end": 24.919
+      },
+      {
+       "text": "remember,",
+       "start": 24.919,
+       "end": 25.224
+      },
+      {
+       "text": "current",
+       "start": 25.224,
+       "end": 25.53
+      },
+      {
+       "text": "always",
+       "start": 25.53,
+       "end": 25.835
+      },
+      {
+       "text": "comes",
+       "start": 25.835,
+       "end": 26.141
+      },
+      {
+       "text": "home.",
+       "start": 26.141,
+       "end": 26.446
+      },
+      {
+       "text": "That",
+       "start": 26.446,
+       "end": 26.751
+      },
+      {
+       "text": "trap",
+       "start": 26.751,
+       "end": 27.057
+      },
+      {
+       "text": "catches",
+       "start": 27.057,
+       "end": 27.362
+      },
+      {
+       "text": "thousands",
+       "start": 27.362,
+       "end": 27.668
+      },
+      {
+       "text": "of",
+       "start": 27.668,
+       "end": 27.973
+      },
+      {
+       "text": "students",
+       "start": 27.973,
+       "end": 28.278
+      },
+      {
+       "text": "-",
+       "start": 28.278,
+       "end": 28.584
+      },
+      {
+       "text": "but",
+       "start": 28.584,
+       "end": 28.889
+      },
+      {
+       "text": "not",
+       "start": 28.889,
+       "end": 29.195
+      },
+      {
+       "text": "you!",
+       "start": 29.195,
+       "end": 29.5
+      }
+     ],
+     "captions": [
+      {
+       "start": 18.2,
+       "end": 22.476,
+       "text": "It doubles! Double the voltage, double\nthe current - I equals V over R."
+      },
+      {
+       "start": 22.476,
+       "end": 26.446,
+       "text": "And if you said 'used up faster' -\nremember, current always comes home."
+      },
+      {
+       "start": 26.446,
+       "end": 29.5,
+       "text": "That trap catches thousands\nof students - but not you!"
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": null,
+   "media": null,
+   "quiz": {
+    "question": "A circuit runs on a 12 V battery. We swap it for a 24 V battery, keeping the same resistance. What happens to the current?",
+    "options": [
+     "It stays the same",
+     "It doubles",
+     "It halves",
+     "It gets used up faster"
+    ],
+    "correct_index": 1,
+    "feedback_wrong": [
+     "Tempting - but current depends directly on voltage. Change the push, and the flow must change.",
+     "",
+     "That is the inverse trap! Halving happens when RESISTANCE doubles - not voltage.",
+     "Current is never used up - that is the classic misconception. Charge always returns to the source."
+    ],
+    "explanation": "Ohm's Law says I = V / R. Doubling V while R stays constant exactly doubles I.",
+    "countdown_start": 10.2,
+    "countdown_seconds": 8,
+    "reveal_start": 18.2
+   },
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": []
+  },
+  {
+   "scene_id": "s10",
+   "index": 9,
+   "type": "chapter_card",
+   "concept_id": "applications",
+   "chapter_id": "ch2",
+   "title": "Ohm's Law at Work",
+   "subtitle": "Solving real circuits like a real engineer",
+   "chapter_label": "Part 2",
+   "start": 205.8,
+   "duration": 5.7,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "center",
+    "show_side_panel": false,
+    "fullscreen_media": false
+   },
+   "audio_asset_key": "scene_audio-d21d455ae721390f63d1fdba0e5399d68330207f",
+   "audio_url": null,
+   "audio_duration": 4.4,
+   "board": [],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "s10-b1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 4.9,
+     "end": 4.9,
+     "narration": "Part Two - Ohm's Law at work! Let's solve real problems like real engineers.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Part",
+       "start": 0.5,
+       "end": 0.814
+      },
+      {
+       "text": "Two",
+       "start": 0.814,
+       "end": 1.129
+      },
+      {
+       "text": "-",
+       "start": 1.129,
+       "end": 1.443
+      },
+      {
+       "text": "Ohm's",
+       "start": 1.443,
+       "end": 1.757
+      },
+      {
+       "text": "Law",
+       "start": 1.757,
+       "end": 2.071
+      },
+      {
+       "text": "at",
+       "start": 2.071,
+       "end": 2.386
+      },
+      {
+       "text": "work!",
+       "start": 2.386,
+       "end": 2.7
+      },
+      {
+       "text": "Let's",
+       "start": 2.7,
+       "end": 3.014
+      },
+      {
+       "text": "solve",
+       "start": 3.014,
+       "end": 3.329
+      },
+      {
+       "text": "real",
+       "start": 3.329,
+       "end": 3.643
+      },
+      {
+       "text": "problems",
+       "start": 3.643,
+       "end": 3.957
+      },
+      {
+       "text": "like",
+       "start": 3.957,
+       "end": 4.271
+      },
+      {
+       "text": "real",
+       "start": 4.271,
+       "end": 4.586
+      },
+      {
+       "text": "engineers.",
+       "start": 4.586,
+       "end": 4.9
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.5,
+       "end": 4.9,
+       "text": "Part Two - Ohm's Law at work! Let's\nsolve real problems like real engineers."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": null,
+   "media": null,
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": []
+  },
+  {
+   "scene_id": "s11",
+   "index": 10,
+   "type": "example",
+   "concept_id": "applications",
+   "chapter_id": "ch2",
+   "title": "WORKED EXAMPLE - THE CEILING FAN",
+   "subtitle": "From supply to current, step by step",
+   "chapter_label": null,
+   "start": 211.5,
+   "duration": 23.65,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "right",
+    "show_side_panel": true,
+    "fullscreen_media": false
+   },
+   "audio_asset_key": "scene_audio-ae67b6b4b1c44907a1ad23f4e8a58316d2a97699",
+   "audio_url": null,
+   "audio_duration": 22.35,
+   "board": [
+    {
+     "id": "s11-i1",
+     "kind": "heading",
+     "text": "A ceiling fan runs on a 230 V supply and has a resistance of 115 Ω. Find the current.",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "s11-i2",
+     "kind": "example_step",
+     "text": "Step 1: Choose the form I = V / R",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": "Because we want the flow, from a known push and opposition.",
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "s11-i3",
+     "kind": "example_step",
+     "text": "Step 2: Substitute the values - I = 230 / 115, keeping volts and ohms consistent.",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "s11-i4",
+     "kind": "example_step",
+     "text": "Step 3: Solve - I = 2 amperes flowing through the fan.",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "s11-b1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 2.8,
+     "end": 2.8,
+     "narration": "The exact calculation electricians do every day!",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "The",
+       "start": 0.5,
+       "end": 0.829
+      },
+      {
+       "text": "exact",
+       "start": 0.829,
+       "end": 1.157
+      },
+      {
+       "text": "calculation",
+       "start": 1.157,
+       "end": 1.486
+      },
+      {
+       "text": "electricians",
+       "start": 1.486,
+       "end": 1.814
+      },
+      {
+       "text": "do",
+       "start": 1.814,
+       "end": 2.143
+      },
+      {
+       "text": "every",
+       "start": 2.143,
+       "end": 2.471
+      },
+      {
+       "text": "day!",
+       "start": 2.471,
+       "end": 2.8
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.5,
+       "end": 2.8,
+       "text": "The exact calculation\nelectricians do every day!"
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s11-b2",
+     "index": 1,
+     "phase": "main",
+     "start": 2.95,
+     "speech_end": 6.75,
+     "end": 6.75,
+     "narration": "A ceiling fan - two hundred thirty volts, one hundred fifteen ohms.",
+     "board_item_id": "s11-i1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "A",
+       "start": 2.95,
+       "end": 3.267
+      },
+      {
+       "text": "ceiling",
+       "start": 3.267,
+       "end": 3.583
+      },
+      {
+       "text": "fan",
+       "start": 3.583,
+       "end": 3.9
+      },
+      {
+       "text": "-",
+       "start": 3.9,
+       "end": 4.217
+      },
+      {
+       "text": "two",
+       "start": 4.217,
+       "end": 4.533
+      },
+      {
+       "text": "hundred",
+       "start": 4.533,
+       "end": 4.85
+      },
+      {
+       "text": "thirty",
+       "start": 4.85,
+       "end": 5.167
+      },
+      {
+       "text": "volts,",
+       "start": 5.167,
+       "end": 5.483
+      },
+      {
+       "text": "one",
+       "start": 5.483,
+       "end": 5.8
+      },
+      {
+       "text": "hundred",
+       "start": 5.8,
+       "end": 6.117
+      },
+      {
+       "text": "fifteen",
+       "start": 6.117,
+       "end": 6.433
+      },
+      {
+       "text": "ohms.",
+       "start": 6.433,
+       "end": 6.75
+      }
+     ],
+     "captions": [
+      {
+       "start": 2.95,
+       "end": 6.75,
+       "text": "A ceiling fan - two hundred thirty\nvolts, one hundred fifteen ohms."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s11-b3",
+     "index": 2,
+     "phase": "main",
+     "start": 6.9,
+     "speech_end": 11.0,
+     "end": 12.5,
+     "narration": "Step one - I equals V over R, since we want the flow.",
+     "board_item_id": "s11-i2",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Step",
+       "start": 6.9,
+       "end": 7.215
+      },
+      {
+       "text": "one",
+       "start": 7.215,
+       "end": 7.531
+      },
+      {
+       "text": "-",
+       "start": 7.531,
+       "end": 7.846
+      },
+      {
+       "text": "I",
+       "start": 7.846,
+       "end": 8.162
+      },
+      {
+       "text": "equals",
+       "start": 8.162,
+       "end": 8.477
+      },
+      {
+       "text": "V",
+       "start": 8.477,
+       "end": 8.792
+      },
+      {
+       "text": "over",
+       "start": 8.792,
+       "end": 9.108
+      },
+      {
+       "text": "R,",
+       "start": 9.108,
+       "end": 9.423
+      },
+      {
+       "text": "since",
+       "start": 9.423,
+       "end": 9.738
+      },
+      {
+       "text": "we",
+       "start": 9.738,
+       "end": 10.054
+      },
+      {
+       "text": "want",
+       "start": 10.054,
+       "end": 10.369
+      },
+      {
+       "text": "the",
+       "start": 10.369,
+       "end": 10.685
+      },
+      {
+       "text": "flow.",
+       "start": 10.685,
+       "end": 11.0
+      }
+     ],
+     "captions": [
+      {
+       "start": 6.9,
+       "end": 11.4,
+       "text": "Step one - I equals V over\nR, since we want the flow."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s11-b4",
+     "index": 3,
+     "phase": "main",
+     "start": 12.65,
+     "speech_end": 15.55,
+     "end": 15.55,
+     "narration": "Step two - substitute: two thirty over one fifteen.",
+     "board_item_id": "s11-i3",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Step",
+       "start": 12.65,
+       "end": 12.972
+      },
+      {
+       "text": "two",
+       "start": 12.972,
+       "end": 13.294
+      },
+      {
+       "text": "-",
+       "start": 13.294,
+       "end": 13.617
+      },
+      {
+       "text": "substitute:",
+       "start": 13.617,
+       "end": 13.939
+      },
+      {
+       "text": "two",
+       "start": 13.939,
+       "end": 14.261
+      },
+      {
+       "text": "thirty",
+       "start": 14.261,
+       "end": 14.583
+      },
+      {
+       "text": "over",
+       "start": 14.583,
+       "end": 14.906
+      },
+      {
+       "text": "one",
+       "start": 14.906,
+       "end": 15.228
+      },
+      {
+       "text": "fifteen.",
+       "start": 15.228,
+       "end": 15.55
+      }
+     ],
+     "captions": [
+      {
+       "start": 12.65,
+       "end": 15.55,
+       "text": "Step two - substitute: two\nthirty over one fifteen."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s11-b5",
+     "index": 4,
+     "phase": "main",
+     "start": 15.7,
+     "speech_end": 17.7,
+     "end": 19.2,
+     "narration": "Step three - exactly two amperes!",
+     "board_item_id": "s11-i4",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Step",
+       "start": 15.7,
+       "end": 16.033
+      },
+      {
+       "text": "three",
+       "start": 16.033,
+       "end": 16.367
+      },
+      {
+       "text": "-",
+       "start": 16.367,
+       "end": 16.7
+      },
+      {
+       "text": "exactly",
+       "start": 16.7,
+       "end": 17.033
+      },
+      {
+       "text": "two",
+       "start": 17.033,
+       "end": 17.367
+      },
+      {
+       "text": "amperes!",
+       "start": 17.367,
+       "end": 17.7
+      }
+     ],
+     "captions": [
+      {
+       "start": 15.7,
+       "end": 18.1,
+       "text": "Step three - exactly two amperes!"
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s11-b6",
+     "index": 5,
+     "phase": "main",
+     "start": 19.35,
+     "speech_end": 22.85,
+     "end": 22.85,
+     "narration": "Our fan is one point on the straight line beside me.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Our",
+       "start": 19.35,
+       "end": 19.668
+      },
+      {
+       "text": "fan",
+       "start": 19.668,
+       "end": 19.986
+      },
+      {
+       "text": "is",
+       "start": 19.986,
+       "end": 20.305
+      },
+      {
+       "text": "one",
+       "start": 20.305,
+       "end": 20.623
+      },
+      {
+       "text": "point",
+       "start": 20.623,
+       "end": 20.941
+      },
+      {
+       "text": "on",
+       "start": 20.941,
+       "end": 21.259
+      },
+      {
+       "text": "the",
+       "start": 21.259,
+       "end": 21.577
+      },
+      {
+       "text": "straight",
+       "start": 21.577,
+       "end": 21.895
+      },
+      {
+       "text": "line",
+       "start": 21.895,
+       "end": 22.214
+      },
+      {
+       "text": "beside",
+       "start": 22.214,
+       "end": 22.532
+      },
+      {
+       "text": "me.",
+       "start": 22.532,
+       "end": 22.85
+      }
+     ],
+     "captions": [
+      {
+       "start": 19.35,
+       "end": 22.85,
+       "text": "Our fan is one point on the\nstraight line beside me."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": {
+    "panel": {
+     "kind": "graph",
+     "title": "I = V / R (straight line!)",
+     "rationale": "",
+     "show_from_beat_id": null,
+     "figure_id": null,
+     "image_prompt": null,
+     "chart": null,
+     "graph": {
+      "functions": [
+       {
+        "expr": "x/2",
+        "label": null
+       }
+      ],
+      "points": [],
+      "x_range": [
+       -5.0,
+       5.0
+      ],
+      "y_range": null,
+      "x_label": null,
+      "y_label": null
+     },
+     "model_3d": null,
+     "manim": null,
+     "terminal": null,
+     "quiz": null,
+     "gif_query": null,
+     "override_asset_key": null
+    },
+    "media": null,
+    "show_at": 0.0
+   },
+   "media": null,
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": []
+  },
+  {
+   "scene_id": "s12",
+   "index": 11,
+   "type": "example",
+   "concept_id": "applications",
+   "chapter_id": "ch2",
+   "title": "YOUR TURN - FILL THE BLANKS",
+   "subtitle": "The torch bulb challenge",
+   "chapter_label": null,
+   "start": 235.15,
+   "duration": 18.4,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "popup_bottom_right",
+    "show_side_panel": true,
+    "fullscreen_media": false
+   },
+   "audio_asset_key": "scene_audio-f23beb278ccb39f31c6a06683032519a1fd9147f",
+   "audio_url": null,
+   "audio_duration": 17.1,
+   "board": [
+    {
+     "id": "s12-i1",
+     "kind": "heading",
+     "text": "A 6 V torch bulb has a resistance of 3 Ω. Find the current.",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "s12-i2",
+     "kind": "example_step",
+     "text": "Step 1: I = V / R",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "s12-i3",
+     "kind": "example_step",
+     "text": "Step 2: I = ______ / ______",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "s12-i4",
+     "kind": "example_step",
+     "text": "Step 3: I = ______ amperes",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "s12-b1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 2.2,
+     "end": 2.2,
+     "narration": "Now YOU are the engineer!",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Now",
+       "start": 0.5,
+       "end": 0.84
+      },
+      {
+       "text": "YOU",
+       "start": 0.84,
+       "end": 1.18
+      },
+      {
+       "text": "are",
+       "start": 1.18,
+       "end": 1.52
+      },
+      {
+       "text": "the",
+       "start": 1.52,
+       "end": 1.86
+      },
+      {
+       "text": "engineer!",
+       "start": 1.86,
+       "end": 2.2
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.5,
+       "end": 2.2,
+       "text": "Now YOU are the engineer!"
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s12-b2",
+     "index": 1,
+     "phase": "main",
+     "start": 2.35,
+     "speech_end": 4.35,
+     "end": 4.35,
+     "narration": "A six volt bulb, three ohms.",
+     "board_item_id": "s12-i1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "A",
+       "start": 2.35,
+       "end": 2.683
+      },
+      {
+       "text": "six",
+       "start": 2.683,
+       "end": 3.017
+      },
+      {
+       "text": "volt",
+       "start": 3.017,
+       "end": 3.35
+      },
+      {
+       "text": "bulb,",
+       "start": 3.35,
+       "end": 3.683
+      },
+      {
+       "text": "three",
+       "start": 3.683,
+       "end": 4.017
+      },
+      {
+       "text": "ohms.",
+       "start": 4.017,
+       "end": 4.35
+      }
+     ],
+     "captions": [
+      {
+       "start": 2.35,
+       "end": 4.35,
+       "text": "A six volt bulb, three ohms."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s12-b3",
+     "index": 2,
+     "phase": "main",
+     "start": 4.5,
+     "speech_end": 5.9,
+     "end": 5.9,
+     "narration": "The law is ready.",
+     "board_item_id": "s12-i2",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "The",
+       "start": 4.5,
+       "end": 4.85
+      },
+      {
+       "text": "law",
+       "start": 4.85,
+       "end": 5.2
+      },
+      {
+       "text": "is",
+       "start": 5.2,
+       "end": 5.55
+      },
+      {
+       "text": "ready.",
+       "start": 5.55,
+       "end": 5.9
+      }
+     ],
+     "captions": [
+      {
+       "start": 4.5,
+       "end": 5.9,
+       "text": "The law is ready."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s12-b4",
+     "index": 3,
+     "phase": "main",
+     "start": 6.05,
+     "speech_end": 8.35,
+     "end": 13.35,
+     "narration": "Pause and fill in the blanks yourself!",
+     "board_item_id": "s12-i3",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Pause",
+       "start": 6.05,
+       "end": 6.379
+      },
+      {
+       "text": "and",
+       "start": 6.379,
+       "end": 6.707
+      },
+      {
+       "text": "fill",
+       "start": 6.707,
+       "end": 7.036
+      },
+      {
+       "text": "in",
+       "start": 7.036,
+       "end": 7.364
+      },
+      {
+       "text": "the",
+       "start": 7.364,
+       "end": 7.693
+      },
+      {
+       "text": "blanks",
+       "start": 7.693,
+       "end": 8.021
+      },
+      {
+       "text": "yourself!",
+       "start": 8.021,
+       "end": 8.35
+      }
+     ],
+     "captions": [
+      {
+       "start": 6.05,
+       "end": 8.75,
+       "text": "Pause and fill in the blanks yourself!"
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s12-b5",
+     "index": 4,
+     "phase": "main",
+     "start": 13.5,
+     "speech_end": 17.6,
+     "end": 17.6,
+     "narration": "Six by three - two amperes! The terminal beside me confirms it. Brilliant!",
+     "board_item_id": "s12-i4",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Six",
+       "start": 13.5,
+       "end": 13.815
+      },
+      {
+       "text": "by",
+       "start": 13.815,
+       "end": 14.131
+      },
+      {
+       "text": "three",
+       "start": 14.131,
+       "end": 14.446
+      },
+      {
+       "text": "-",
+       "start": 14.446,
+       "end": 14.762
+      },
+      {
+       "text": "two",
+       "start": 14.762,
+       "end": 15.077
+      },
+      {
+       "text": "amperes!",
+       "start": 15.077,
+       "end": 15.392
+      },
+      {
+       "text": "The",
+       "start": 15.392,
+       "end": 15.708
+      },
+      {
+       "text": "terminal",
+       "start": 15.708,
+       "end": 16.023
+      },
+      {
+       "text": "beside",
+       "start": 16.023,
+       "end": 16.338
+      },
+      {
+       "text": "me",
+       "start": 16.338,
+       "end": 16.654
+      },
+      {
+       "text": "confirms",
+       "start": 16.654,
+       "end": 16.969
+      },
+      {
+       "text": "it.",
+       "start": 16.969,
+       "end": 17.285
+      },
+      {
+       "text": "Brilliant!",
+       "start": 17.285,
+       "end": 17.6
+      }
+     ],
+     "captions": [
+      {
+       "start": 13.5,
+       "end": 17.285,
+       "text": "Six by three - two amperes! The\nterminal beside me confirms it."
+      },
+      {
+       "start": 17.285,
+       "end": 17.6,
+       "text": "Brilliant!"
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": {
+    "panel": {
+     "kind": "terminal",
+     "title": null,
+     "rationale": "",
+     "show_from_beat_id": null,
+     "figure_id": null,
+     "image_prompt": null,
+     "chart": null,
+     "graph": null,
+     "model_3d": null,
+     "manim": null,
+     "terminal": {
+      "command": "python circuit_check.py --v 6 --r 3",
+      "output": "Solving I = V / R\nI = 6 / 3\nI = 2.0 A   [VERIFIED]"
+     },
+     "quiz": null,
+     "gif_query": null,
+     "override_asset_key": null
+    },
+    "media": null,
+    "show_at": 0.0
+   },
+   "media": null,
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": []
+  },
+  {
+   "scene_id": "s13",
+   "index": 12,
+   "type": "content",
+   "concept_id": "applications",
+   "chapter_id": "ch2",
+   "title": "THE LAW THAT POWERS TAMIL NADU",
+   "subtitle": "From one formula to an entire grid",
+   "chapter_label": null,
+   "start": 253.55,
+   "duration": 18.75,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "left",
+    "show_side_panel": true,
+    "fullscreen_media": false
+   },
+   "audio_asset_key": "scene_audio-622c78c31c49f0ab0e0a16d0ab53290c129e888e",
+   "audio_url": null,
+   "audio_duration": 17.45,
+   "board": [
+    {
+     "id": "s13-i1",
+     "kind": "paragraph",
+     "text": "Every appliance in your home is a live Ohm's Law calculation.",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "s13-i2",
+     "kind": "paragraph",
+     "text": "Engineers size every wire, fuse and breaker in the grid using this one rule.",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "s13-i3",
+     "kind": "callout_info",
+     "text": "Tamil Nadu's grid delivers thousands of megawatts every day - and every single ampere of it is routed by V = IR.",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "s13-b1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 1.3,
+     "end": 1.3,
+     "narration": "Zoom out.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Zoom",
+       "start": 0.5,
+       "end": 0.9
+      },
+      {
+       "text": "out.",
+       "start": 0.9,
+       "end": 1.3
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.5,
+       "end": 1.3,
+       "text": "Zoom out."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s13-b2",
+     "index": 1,
+     "phase": "main",
+     "start": 1.45,
+     "speech_end": 4.65,
+     "end": 4.65,
+     "narration": "Every appliance around you is a live Ohm's Law calculation.",
+     "board_item_id": "s13-i1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Every",
+       "start": 1.45,
+       "end": 1.77
+      },
+      {
+       "text": "appliance",
+       "start": 1.77,
+       "end": 2.09
+      },
+      {
+       "text": "around",
+       "start": 2.09,
+       "end": 2.41
+      },
+      {
+       "text": "you",
+       "start": 2.41,
+       "end": 2.73
+      },
+      {
+       "text": "is",
+       "start": 2.73,
+       "end": 3.05
+      },
+      {
+       "text": "a",
+       "start": 3.05,
+       "end": 3.37
+      },
+      {
+       "text": "live",
+       "start": 3.37,
+       "end": 3.69
+      },
+      {
+       "text": "Ohm's",
+       "start": 3.69,
+       "end": 4.01
+      },
+      {
+       "text": "Law",
+       "start": 4.01,
+       "end": 4.33
+      },
+      {
+       "text": "calculation.",
+       "start": 4.33,
+       "end": 4.65
+      }
+     ],
+     "captions": [
+      {
+       "start": 1.45,
+       "end": 4.65,
+       "text": "Every appliance around you is\na live Ohm's Law calculation."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s13-b3",
+     "index": 2,
+     "phase": "main",
+     "start": 4.8,
+     "speech_end": 8.9,
+     "end": 8.9,
+     "narration": "Engineers size every wire and fuse in our grid with this one rule.",
+     "board_item_id": "s13-i2",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Engineers",
+       "start": 4.8,
+       "end": 5.115
+      },
+      {
+       "text": "size",
+       "start": 5.115,
+       "end": 5.431
+      },
+      {
+       "text": "every",
+       "start": 5.431,
+       "end": 5.746
+      },
+      {
+       "text": "wire",
+       "start": 5.746,
+       "end": 6.062
+      },
+      {
+       "text": "and",
+       "start": 6.062,
+       "end": 6.377
+      },
+      {
+       "text": "fuse",
+       "start": 6.377,
+       "end": 6.692
+      },
+      {
+       "text": "in",
+       "start": 6.692,
+       "end": 7.008
+      },
+      {
+       "text": "our",
+       "start": 7.008,
+       "end": 7.323
+      },
+      {
+       "text": "grid",
+       "start": 7.323,
+       "end": 7.638
+      },
+      {
+       "text": "with",
+       "start": 7.638,
+       "end": 7.954
+      },
+      {
+       "text": "this",
+       "start": 7.954,
+       "end": 8.269
+      },
+      {
+       "text": "one",
+       "start": 8.269,
+       "end": 8.585
+      },
+      {
+       "text": "rule.",
+       "start": 8.585,
+       "end": 8.9
+      }
+     ],
+     "captions": [
+      {
+       "start": 4.8,
+       "end": 8.9,
+       "text": "Engineers size every wire and fuse\nin our grid with this one rule."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s13-b4",
+     "index": 3,
+     "phase": "main",
+     "start": 9.05,
+     "speech_end": 16.45,
+     "end": 17.95,
+     "narration": "And see the chart - from a tiny LED to a fifteen ampere geyser - that spread is why your home needs different fuses!",
+     "board_item_id": "s13-i3",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "And",
+       "start": 9.05,
+       "end": 9.358
+      },
+      {
+       "text": "see",
+       "start": 9.358,
+       "end": 9.667
+      },
+      {
+       "text": "the",
+       "start": 9.667,
+       "end": 9.975
+      },
+      {
+       "text": "chart",
+       "start": 9.975,
+       "end": 10.283
+      },
+      {
+       "text": "-",
+       "start": 10.283,
+       "end": 10.592
+      },
+      {
+       "text": "from",
+       "start": 10.592,
+       "end": 10.9
+      },
+      {
+       "text": "a",
+       "start": 10.9,
+       "end": 11.208
+      },
+      {
+       "text": "tiny",
+       "start": 11.208,
+       "end": 11.517
+      },
+      {
+       "text": "LED",
+       "start": 11.517,
+       "end": 11.825
+      },
+      {
+       "text": "to",
+       "start": 11.825,
+       "end": 12.133
+      },
+      {
+       "text": "a",
+       "start": 12.133,
+       "end": 12.442
+      },
+      {
+       "text": "fifteen",
+       "start": 12.442,
+       "end": 12.75
+      },
+      {
+       "text": "ampere",
+       "start": 12.75,
+       "end": 13.058
+      },
+      {
+       "text": "geyser",
+       "start": 13.058,
+       "end": 13.367
+      },
+      {
+       "text": "-",
+       "start": 13.367,
+       "end": 13.675
+      },
+      {
+       "text": "that",
+       "start": 13.675,
+       "end": 13.983
+      },
+      {
+       "text": "spread",
+       "start": 13.983,
+       "end": 14.292
+      },
+      {
+       "text": "is",
+       "start": 14.292,
+       "end": 14.6
+      },
+      {
+       "text": "why",
+       "start": 14.6,
+       "end": 14.908
+      },
+      {
+       "text": "your",
+       "start": 14.908,
+       "end": 15.217
+      },
+      {
+       "text": "home",
+       "start": 15.217,
+       "end": 15.525
+      },
+      {
+       "text": "needs",
+       "start": 15.525,
+       "end": 15.833
+      },
+      {
+       "text": "different",
+       "start": 15.833,
+       "end": 16.142
+      },
+      {
+       "text": "fuses!",
+       "start": 16.142,
+       "end": 16.45
+      }
+     ],
+     "captions": [
+      {
+       "start": 9.05,
+       "end": 14.908,
+       "text": "And see the chart - from a tiny LED to a\nfifteen ampere geyser - that spread is why"
+      },
+      {
+       "start": 14.908,
+       "end": 16.85,
+       "text": "your home needs different fuses!"
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": {
+    "panel": {
+     "kind": "chart",
+     "title": "Typical Current Draw (Amperes)",
+     "rationale": "",
+     "show_from_beat_id": null,
+     "figure_id": null,
+     "image_prompt": null,
+     "chart": {
+      "chart_type": "bar",
+      "labels": [
+       "LED Bulb",
+       "Fan",
+       "Fridge",
+       "AC",
+       "Geyser"
+      ],
+      "datasets": [
+       {
+        "label": "Current (A)",
+        "data": [
+         0.04,
+         0.3,
+         1.5,
+         7.0,
+         15.0
+        ]
+       }
+      ],
+      "x_label": null,
+      "y_label": null
+     },
+     "graph": null,
+     "model_3d": null,
+     "manim": null,
+     "terminal": null,
+     "quiz": null,
+     "gif_query": null,
+     "override_asset_key": null
+    },
+    "media": null,
+    "show_at": 0.0
+   },
+   "media": null,
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": [],
+   "sync_cues": [
+    {
+     "kind": "focus",
+     "start": 9.358,
+     "end": 10.958,
+     "item_id": null,
+     "part": null,
+     "beat_id": "s13-b4",
+     "words": "see the chart"
+    }
+   ]
+  },
+  {
+   "scene_id": "s14",
+   "index": 13,
+   "type": "ai_video",
+   "concept_id": "applications",
+   "chapter_id": "ch2",
+   "title": "ENGINEERS OF TOMORROW",
+   "subtitle": "One formula, one glowing city",
+   "chapter_label": null,
+   "start": 272.3,
+   "duration": 11.15,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "left",
+    "show_side_panel": false,
+    "fullscreen_media": true
+   },
+   "audio_asset_key": "scene_audio-61d3bb2010198e8a1fd6b527a5117cf22b2fe296",
+   "audio_url": null,
+   "audio_duration": 9.85,
+   "board": [],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "s14-b1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 3.7,
+     "end": 5.2,
+     "narration": "From one small formula - to an entire glowing city.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "From",
+       "start": 0.5,
+       "end": 0.82
+      },
+      {
+       "text": "one",
+       "start": 0.82,
+       "end": 1.14
+      },
+      {
+       "text": "small",
+       "start": 1.14,
+       "end": 1.46
+      },
+      {
+       "text": "formula",
+       "start": 1.46,
+       "end": 1.78
+      },
+      {
+       "text": "-",
+       "start": 1.78,
+       "end": 2.1
+      },
+      {
+       "text": "to",
+       "start": 2.1,
+       "end": 2.42
+      },
+      {
+       "text": "an",
+       "start": 2.42,
+       "end": 2.74
+      },
+      {
+       "text": "entire",
+       "start": 2.74,
+       "end": 3.06
+      },
+      {
+       "text": "glowing",
+       "start": 3.06,
+       "end": 3.38
+      },
+      {
+       "text": "city.",
+       "start": 3.38,
+       "end": 3.7
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.5,
+       "end": 4.1,
+       "text": "From one small formula -\nto an entire glowing city."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s14-b2",
+     "index": 1,
+     "phase": "main",
+     "start": 5.35,
+     "speech_end": 10.35,
+     "end": 10.35,
+     "narration": "Every light you see obeys the law you just mastered. That is thinking like an engineer.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Every",
+       "start": 5.35,
+       "end": 5.663
+      },
+      {
+       "text": "light",
+       "start": 5.663,
+       "end": 5.975
+      },
+      {
+       "text": "you",
+       "start": 5.975,
+       "end": 6.288
+      },
+      {
+       "text": "see",
+       "start": 6.288,
+       "end": 6.6
+      },
+      {
+       "text": "obeys",
+       "start": 6.6,
+       "end": 6.913
+      },
+      {
+       "text": "the",
+       "start": 6.913,
+       "end": 7.225
+      },
+      {
+       "text": "law",
+       "start": 7.225,
+       "end": 7.538
+      },
+      {
+       "text": "you",
+       "start": 7.538,
+       "end": 7.85
+      },
+      {
+       "text": "just",
+       "start": 7.85,
+       "end": 8.163
+      },
+      {
+       "text": "mastered.",
+       "start": 8.163,
+       "end": 8.475
+      },
+      {
+       "text": "That",
+       "start": 8.475,
+       "end": 8.788
+      },
+      {
+       "text": "is",
+       "start": 8.788,
+       "end": 9.1
+      },
+      {
+       "text": "thinking",
+       "start": 9.1,
+       "end": 9.413
+      },
+      {
+       "text": "like",
+       "start": 9.413,
+       "end": 9.725
+      },
+      {
+       "text": "an",
+       "start": 9.725,
+       "end": 10.038
+      },
+      {
+       "text": "engineer.",
+       "start": 10.038,
+       "end": 10.35
+      }
+     ],
+     "captions": [
+      {
+       "start": 5.35,
+       "end": 8.475,
+       "text": "Every light you see obeys\nthe law you just mastered."
+      },
+      {
+       "start": 8.475,
+       "end": 10.35,
+       "text": "That is thinking like an engineer."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": null,
+   "media": {
+    "kind": "video",
+    "asset_key": "video-679dfef7516c8a0916d34503de543025b6670612",
+    "url": null,
+    "mime": "video/mp4",
+    "duration": 8.0,
+    "width": 1280,
+    "height": 720,
+    "fit": "cover",
+    "end_behavior": "loop",
+    "ken_burns": null,
+    "attribution": null,
+    "link_url": null,
+    "render_in_mp4": true
+   },
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": []
+  },
+  {
+   "scene_id": "s15",
+   "index": 14,
+   "type": "key_takeaway",
+   "concept_id": "applications",
+   "chapter_id": "ch2",
+   "title": "WHAT WE LEARNED",
+   "subtitle": null,
+   "chapter_label": null,
+   "start": 283.45,
+   "duration": 25.45,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "right",
+    "show_side_panel": true,
+    "fullscreen_media": false
+   },
+   "audio_asset_key": "scene_audio-7019595c295b5d390ed164b421ee22d1c1e6afc2",
+   "audio_url": null,
+   "audio_duration": 24.15,
+   "board": [
+    {
+     "id": "s15-i1",
+     "kind": "takeaway",
+     "text": "Voltage is the push, current is the flow, resistance is the opposition.",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "s15-i2",
+     "kind": "takeaway",
+     "text": "Ohm's Law connects them: V = I × R.",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "s15-i3",
+     "kind": "takeaway",
+     "text": "Current is never used up - energy is what gets delivered.",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "s15-b1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 4.3,
+     "end": 7.3,
+     "narration": "Before the summary - pause and recall our three big ideas yourself!",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Before",
+       "start": 0.5,
+       "end": 0.817
+      },
+      {
+       "text": "the",
+       "start": 0.817,
+       "end": 1.133
+      },
+      {
+       "text": "summary",
+       "start": 1.133,
+       "end": 1.45
+      },
+      {
+       "text": "-",
+       "start": 1.45,
+       "end": 1.767
+      },
+      {
+       "text": "pause",
+       "start": 1.767,
+       "end": 2.083
+      },
+      {
+       "text": "and",
+       "start": 2.083,
+       "end": 2.4
+      },
+      {
+       "text": "recall",
+       "start": 2.4,
+       "end": 2.717
+      },
+      {
+       "text": "our",
+       "start": 2.717,
+       "end": 3.033
+      },
+      {
+       "text": "three",
+       "start": 3.033,
+       "end": 3.35
+      },
+      {
+       "text": "big",
+       "start": 3.35,
+       "end": 3.667
+      },
+      {
+       "text": "ideas",
+       "start": 3.667,
+       "end": 3.983
+      },
+      {
+       "text": "yourself!",
+       "start": 3.983,
+       "end": 4.3
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.5,
+       "end": 4.7,
+       "text": "Before the summary - pause and\nrecall our three big ideas yourself!"
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s15-b2",
+     "index": 1,
+     "phase": "main",
+     "start": 7.45,
+     "speech_end": 8.55,
+     "end": 8.55,
+     "narration": "Here they come.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Here",
+       "start": 7.45,
+       "end": 7.817
+      },
+      {
+       "text": "they",
+       "start": 7.817,
+       "end": 8.183
+      },
+      {
+       "text": "come.",
+       "start": 8.183,
+       "end": 8.55
+      }
+     ],
+     "captions": [
+      {
+       "start": 7.45,
+       "end": 8.55,
+       "text": "Here they come."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s15-b3",
+     "index": 2,
+     "phase": "main",
+     "start": 8.7,
+     "speech_end": 10.7,
+     "end": 12.2,
+     "narration": "Voltage pushes, current flows, resistance opposes.",
+     "board_item_id": "s15-i1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Voltage",
+       "start": 8.7,
+       "end": 9.033
+      },
+      {
+       "text": "pushes,",
+       "start": 9.033,
+       "end": 9.367
+      },
+      {
+       "text": "current",
+       "start": 9.367,
+       "end": 9.7
+      },
+      {
+       "text": "flows,",
+       "start": 9.7,
+       "end": 10.033
+      },
+      {
+       "text": "resistance",
+       "start": 10.033,
+       "end": 10.367
+      },
+      {
+       "text": "opposes.",
+       "start": 10.367,
+       "end": 10.7
+      }
+     ],
+     "captions": [
+      {
+       "start": 8.7,
+       "end": 11.1,
+       "text": "Voltage pushes, current\nflows, resistance opposes."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s15-b4",
+     "index": 3,
+     "phase": "main",
+     "start": 12.35,
+     "speech_end": 15.55,
+     "end": 17.05,
+     "narration": "One law ties them - V equals I times R.",
+     "board_item_id": "s15-i2",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "One",
+       "start": 12.35,
+       "end": 12.67
+      },
+      {
+       "text": "law",
+       "start": 12.67,
+       "end": 12.99
+      },
+      {
+       "text": "ties",
+       "start": 12.99,
+       "end": 13.31
+      },
+      {
+       "text": "them",
+       "start": 13.31,
+       "end": 13.63
+      },
+      {
+       "text": "-",
+       "start": 13.63,
+       "end": 13.95
+      },
+      {
+       "text": "V",
+       "start": 13.95,
+       "end": 14.27
+      },
+      {
+       "text": "equals",
+       "start": 14.27,
+       "end": 14.59
+      },
+      {
+       "text": "I",
+       "start": 14.59,
+       "end": 14.91
+      },
+      {
+       "text": "times",
+       "start": 14.91,
+       "end": 15.23
+      },
+      {
+       "text": "R.",
+       "start": 15.23,
+       "end": 15.55
+      }
+     ],
+     "captions": [
+      {
+       "start": 12.35,
+       "end": 15.95,
+       "text": "One law ties them - V equals I times R."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s15-b5",
+     "index": 4,
+     "phase": "main",
+     "start": 17.2,
+     "speech_end": 20.1,
+     "end": 21.6,
+     "narration": "Current is never used up - energy is delivered.",
+     "board_item_id": "s15-i3",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Current",
+       "start": 17.2,
+       "end": 17.522
+      },
+      {
+       "text": "is",
+       "start": 17.522,
+       "end": 17.844
+      },
+      {
+       "text": "never",
+       "start": 17.844,
+       "end": 18.167
+      },
+      {
+       "text": "used",
+       "start": 18.167,
+       "end": 18.489
+      },
+      {
+       "text": "up",
+       "start": 18.489,
+       "end": 18.811
+      },
+      {
+       "text": "-",
+       "start": 18.811,
+       "end": 19.133
+      },
+      {
+       "text": "energy",
+       "start": 19.133,
+       "end": 19.456
+      },
+      {
+       "text": "is",
+       "start": 19.456,
+       "end": 19.778
+      },
+      {
+       "text": "delivered.",
+       "start": 19.778,
+       "end": 20.1
+      }
+     ],
+     "captions": [
+      {
+       "start": 17.2,
+       "end": 20.5,
+       "text": "Current is never used up\n- energy is delivered."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s15-b6",
+     "index": 5,
+     "phase": "main",
+     "start": 21.75,
+     "speech_end": 24.65,
+     "end": 24.65,
+     "narration": "Every node on the map beside me - conquered!",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Every",
+       "start": 21.75,
+       "end": 22.072
+      },
+      {
+       "text": "node",
+       "start": 22.072,
+       "end": 22.394
+      },
+      {
+       "text": "on",
+       "start": 22.394,
+       "end": 22.717
+      },
+      {
+       "text": "the",
+       "start": 22.717,
+       "end": 23.039
+      },
+      {
+       "text": "map",
+       "start": 23.039,
+       "end": 23.361
+      },
+      {
+       "text": "beside",
+       "start": 23.361,
+       "end": 23.683
+      },
+      {
+       "text": "me",
+       "start": 23.683,
+       "end": 24.006
+      },
+      {
+       "text": "-",
+       "start": 24.006,
+       "end": 24.328
+      },
+      {
+       "text": "conquered!",
+       "start": 24.328,
+       "end": 24.65
+      }
+     ],
+     "captions": [
+      {
+       "start": 21.75,
+       "end": 24.65,
+       "text": "Every node on the map\nbeside me - conquered!"
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": {
+    "panel": {
+     "kind": "skill_tree",
+     "title": null,
+     "rationale": "",
+     "show_from_beat_id": null,
+     "figure_id": null,
+     "image_prompt": null,
+     "chart": null,
+     "graph": null,
+     "model_3d": null,
+     "manim": null,
+     "terminal": null,
+     "quiz": null,
+     "gif_query": null,
+     "override_asset_key": null
+    },
+    "media": null,
+    "show_at": 0.0
+   },
+   "media": null,
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": []
+  },
+  {
+   "scene_id": "s16",
+   "index": 15,
+   "type": "summary",
+   "concept_id": "applications",
+   "chapter_id": "ch2",
+   "title": "OHM'S LAW AT A GLANCE",
+   "subtitle": null,
+   "chapter_label": null,
+   "start": 308.9,
+   "duration": 14.45,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "popup_bottom_left",
+    "show_side_panel": true,
+    "fullscreen_media": false
+   },
+   "audio_asset_key": "scene_audio-f78a9439b0e8453c8ee8e74ff235f83964c8bfc2",
+   "audio_url": null,
+   "audio_duration": 13.15,
+   "board": [
+    {
+     "id": "s16-i1",
+     "kind": "table",
+     "text": "",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": [
+      "Quantity",
+      "Symbol",
+      "Unit",
+      "Water Analogy"
+     ],
+     "rows": [
+      [
+       "Voltage",
+       "V",
+       "Volt (V)",
+       "Pump pressure"
+      ],
+      [
+       "Current",
+       "I",
+       "Ampere (A)",
+       "Water flow"
+      ],
+      [
+       "Resistance",
+       "R",
+       "Ohm (Ω)",
+       "Narrow pipe"
+      ]
+     ],
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "s16-i2",
+     "kind": "paragraph",
+     "text": "Next session: series and parallel circuits - where resistances start teaming up!",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "s16-b1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 4.6,
+     "end": 6.1,
+     "narration": "Your pocket summary - three quantities, one water park to remember them by.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Your",
+       "start": 0.5,
+       "end": 0.815
+      },
+      {
+       "text": "pocket",
+       "start": 0.815,
+       "end": 1.131
+      },
+      {
+       "text": "summary",
+       "start": 1.131,
+       "end": 1.446
+      },
+      {
+       "text": "-",
+       "start": 1.446,
+       "end": 1.762
+      },
+      {
+       "text": "three",
+       "start": 1.762,
+       "end": 2.077
+      },
+      {
+       "text": "quantities,",
+       "start": 2.077,
+       "end": 2.392
+      },
+      {
+       "text": "one",
+       "start": 2.392,
+       "end": 2.708
+      },
+      {
+       "text": "water",
+       "start": 2.708,
+       "end": 3.023
+      },
+      {
+       "text": "park",
+       "start": 3.023,
+       "end": 3.338
+      },
+      {
+       "text": "to",
+       "start": 3.338,
+       "end": 3.654
+      },
+      {
+       "text": "remember",
+       "start": 3.654,
+       "end": 3.969
+      },
+      {
+       "text": "them",
+       "start": 3.969,
+       "end": 4.285
+      },
+      {
+       "text": "by.",
+       "start": 4.285,
+       "end": 4.6
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.5,
+       "end": 5.0,
+       "text": "Your pocket summary - three quantities,\none water park to remember them by."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s16-b2",
+     "index": 1,
+     "phase": "main",
+     "start": 6.25,
+     "speech_end": 13.65,
+     "end": 13.65,
+     "narration": "Next session - series and parallel circuits, where resistors start teaming up! Until then, keep the current flowing. This is Aadhi, signing off. Vanakkam!",
+     "board_item_id": "s16-i2",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Next",
+       "start": 6.25,
+       "end": 6.558
+      },
+      {
+       "text": "session",
+       "start": 6.558,
+       "end": 6.867
+      },
+      {
+       "text": "-",
+       "start": 6.867,
+       "end": 7.175
+      },
+      {
+       "text": "series",
+       "start": 7.175,
+       "end": 7.483
+      },
+      {
+       "text": "and",
+       "start": 7.483,
+       "end": 7.792
+      },
+      {
+       "text": "parallel",
+       "start": 7.792,
+       "end": 8.1
+      },
+      {
+       "text": "circuits,",
+       "start": 8.1,
+       "end": 8.408
+      },
+      {
+       "text": "where",
+       "start": 8.408,
+       "end": 8.717
+      },
+      {
+       "text": "resistors",
+       "start": 8.717,
+       "end": 9.025
+      },
+      {
+       "text": "start",
+       "start": 9.025,
+       "end": 9.333
+      },
+      {
+       "text": "teaming",
+       "start": 9.333,
+       "end": 9.642
+      },
+      {
+       "text": "up!",
+       "start": 9.642,
+       "end": 9.95
+      },
+      {
+       "text": "Until",
+       "start": 9.95,
+       "end": 10.258
+      },
+      {
+       "text": "then,",
+       "start": 10.258,
+       "end": 10.567
+      },
+      {
+       "text": "keep",
+       "start": 10.567,
+       "end": 10.875
+      },
+      {
+       "text": "the",
+       "start": 10.875,
+       "end": 11.183
+      },
+      {
+       "text": "current",
+       "start": 11.183,
+       "end": 11.492
+      },
+      {
+       "text": "flowing.",
+       "start": 11.492,
+       "end": 11.8
+      },
+      {
+       "text": "This",
+       "start": 11.8,
+       "end": 12.108
+      },
+      {
+       "text": "is",
+       "start": 12.108,
+       "end": 12.417
+      },
+      {
+       "text": "Aadhi,",
+       "start": 12.417,
+       "end": 12.725
+      },
+      {
+       "text": "signing",
+       "start": 12.725,
+       "end": 13.033
+      },
+      {
+       "text": "off.",
+       "start": 13.033,
+       "end": 13.342
+      },
+      {
+       "text": "Vanakkam!",
+       "start": 13.342,
+       "end": 13.65
+      }
+     ],
+     "captions": [
+      {
+       "start": 6.25,
+       "end": 9.642,
+       "text": "Next session - series and parallel\ncircuits, where resistors start teaming"
+      },
+      {
+       "start": 9.642,
+       "end": 11.8,
+       "text": "up! Until then, keep the current flowing."
+      },
+      {
+       "start": 11.8,
+       "end": 13.65,
+       "text": "This is Aadhi, signing off. Vanakkam!"
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": {
+    "panel": {
+     "kind": "gif",
+     "title": "You did it!",
+     "rationale": "",
+     "show_from_beat_id": null,
+     "figure_id": null,
+     "image_prompt": null,
+     "chart": null,
+     "graph": null,
+     "model_3d": null,
+     "manim": null,
+     "terminal": null,
+     "quiz": null,
+     "gif_query": "celebration high five excited",
+     "override_asset_key": null
+    },
+    "media": {
+     "kind": "gif",
+     "asset_key": null,
+     "url": "https://media.giphy.com/media/aadhi-invariance/giphy.gif",
+     "mime": "image/gif",
+     "duration": null,
+     "width": null,
+     "height": null,
+     "fit": "contain",
+     "end_behavior": "loop",
+     "ken_burns": null,
+     "attribution": "Powered by GIPHY",
+     "link_url": null,
+     "render_in_mp4": false
+    },
+    "show_at": 0.0
+   },
+   "media": null,
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": []
+  }
+ ],
+ "total_duration": 323.35,
+ "chapters": [
+  {
+   "start": 0.0,
+   "title": "Opening"
+  },
+  {
+   "start": 11.5,
+   "title": "Introduction"
+  },
+  {
+   "start": 72.65,
+   "title": "The River of Charge"
+  },
+  {
+   "start": 205.8,
+   "title": "Ohm's Law at Work"
+  }
+ ],
+ "captions": [
+  {
+   "start": 12.0,
+   "end": 13.5,
+   "text": "Vanakkam, future engineers!"
+  },
+  {
+   "start": 14.75,
+   "end": 18.476,
+   "text": "Tonight, like every night, millions of\nphones across Tamil Nadu will quietly"
+  },
+  {
+   "start": 18.476,
+   "end": 21.05,
+   "text": "drink power from a simple wall socket."
+  },
+  {
+   "start": 22.3,
+   "end": 26.656,
+   "text": "But have you ever wondered what is\nactually flowing behind that wall - and"
+  },
+  {
+   "start": 26.656,
+   "end": 28.3,
+   "text": "what rule commands it?"
+  },
+  {
+   "start": 29.55,
+   "end": 31.25,
+   "text": "Follow me inside the wire."
+  },
+  {
+   "start": 32.55,
+   "end": 35.15,
+   "text": "And here is the answer waiting for us."
+  },
+  {
+   "start": 35.3,
+   "end": 38.6,
+   "text": "Every day you plug in, and it just works."
+  },
+  {
+   "start": 39.85,
+   "end": 43.621,
+   "text": "Because behind that socket flows an\ninvisible river of charge, obeying one"
+  },
+  {
+   "start": 43.621,
+   "end": 44.25,
+   "text": "simple rule."
+  },
+  {
+   "start": 44.4,
+   "end": 48.9,
+   "text": "One formula runs everything - your\nphone, your fan, even the Chennai Metro."
+  },
+  {
+   "start": 50.15,
+   "end": 55.42,
+   "text": "Here is our roadmap beside me - by the\nend of this session, that rule, Ohm's Law,"
+  },
+  {
+   "start": 55.42,
+   "end": 56.35,
+   "text": "will be yours!"
+  },
+  {
+   "start": 57.65,
+   "end": 59.95,
+   "text": "First, a lightning recap of Session One."
+  },
+  {
+   "start": 60.1,
+   "end": 62.1,
+   "text": "Charge is carried by tiny electrons."
+  },
+  {
+   "start": 62.25,
+   "end": 65.45,
+   "text": "Current is the flow of that\ncharge, measured in amperes."
+  },
+  {
+   "start": 65.6,
+   "end": 68.9,
+   "text": "And it flows only around\na complete, closed loop."
+  },
+  {
+   "start": 70.15,
+   "end": 71.85,
+   "text": "Ready? Let's open the tap!"
+  },
+  {
+   "start": 73.15,
+   "end": 75.338,
+   "text": "Part One - The River of Charge!"
+  },
+  {
+   "start": 75.338,
+   "end": 78.15,
+   "text": "What pushes electricity\nforward, and what holds it back?"
+  },
+  {
+   "start": 79.45,
+   "end": 81.75,
+   "text": "So what pushes current around that loop?"
+  },
+  {
+   "start": 81.9,
+   "end": 84.6,
+   "text": "Voltage - electrical\npressure, measured in volts."
+  },
+  {
+   "start": 85.85,
+   "end": 88.032,
+   "text": "The resulting flow is current, in amperes."
+  },
+  {
+   "start": 88.032,
+   "end": 91.55,
+   "text": "See the pump beside me -\npressure pushes, flow follows!"
+  },
+  {
+   "start": 92.8,
+   "end": 96.205,
+   "text": "And careful - current is NOT\nused up around the circuit."
+  },
+  {
+   "start": 96.205,
+   "end": 99.7,
+   "text": "The same current comes home;\nenergy is what gets delivered."
+  },
+  {
+   "start": 100.95,
+   "end": 103.83,
+   "text": "Now - what happens when\nsomething squeezes this flow?"
+  },
+  {
+   "start": 103.83,
+   "end": 104.55,
+   "text": "Predict!"
+  },
+  {
+   "start": 107.45,
+   "end": 109.305,
+   "text": "Watch! The pump pressure is voltage."
+  },
+  {
+   "start": 109.305,
+   "end": 113.941,
+   "text": "The rushing water is current. And that\nnarrow pinch choking the flow - that is"
+  },
+  {
+   "start": 113.941,
+   "end": 114.65,
+   "text": "resistance."
+  },
+  {
+   "start": 115.9,
+   "end": 118.414,
+   "text": "More pressure, more flow.\nTighter pipe, less flow."
+  },
+  {
+   "start": 118.414,
+   "end": 120.3,
+   "text": "Electricity works exactly the same way!"
+  },
+  {
+   "start": 121.6,
+   "end": 123.9,
+   "text": "Resistance is the narrow pipe of circuits."
+  },
+  {
+   "start": 124.05,
+   "end": 127.35,
+   "text": "Formally - opposition to\ncurrent flow, measured in ohms."
+  },
+  {
+   "start": 128.6,
+   "end": 132.4,
+   "text": "A bulb's thin filament resists\nstrongly - that struggle makes it glow!"
+  },
+  {
+   "start": 132.55,
+   "end": 135.75,
+   "text": "A thick copper wire barely\nresists - it stays cool."
+  },
+  {
+   "start": 135.9,
+   "end": 139.5,
+   "text": "Rule of thumb - thin,\nlong and hot resists more."
+  },
+  {
+   "start": 140.75,
+   "end": 144.758,
+   "text": "Electrons bumping through atoms like\nthe one beside me - that IS resistance!"
+  },
+  {
+   "start": 144.758,
+   "end": 148.55,
+   "text": "Now predict - double the voltage,\nwhat happens to the flow?"
+  },
+  {
+   "start": 151.45,
+   "end": 152.95,
+   "text": "The crown jewel!"
+  },
+  {
+   "start": 154.2,
+   "end": 158.273,
+   "text": "Voltage equals current times resistance\n- the push, the flow, and the opposition,"
+  },
+  {
+   "start": 158.273,
+   "end": 159.3,
+   "text": "tied together."
+  },
+  {
+   "start": 160.55,
+   "end": 164.15,
+   "text": "Now watch it rearrange - current\nequals voltage over resistance."
+  },
+  {
+   "start": 165.4,
+   "end": 168.781,
+   "text": "And here is your prediction,\nproven - a perfect straight line."
+  },
+  {
+   "start": 168.781,
+   "end": 171.548,
+   "text": "Four volts gives two amperes.\nEight volts, exactly four."
+  },
+  {
+   "start": 171.548,
+   "end": 173.7,
+   "text": "Double the voltage - double the current!"
+  },
+  {
+   "start": 175.0,
+   "end": 175.9,
+   "text": "Checkpoint!"
+  },
+  {
+   "start": 177.15,
+   "end": 178.692,
+   "text": "Twelve volts drives a circuit."
+  },
+  {
+   "start": 178.692,
+   "end": 181.158,
+   "text": "We swap in twenty four\nvolts, same resistance."
+  },
+  {
+   "start": 181.158,
+   "end": 184.55,
+   "text": "What happens to the current?\nPause the video and try it!"
+  },
+  {
+   "start": 192.7,
+   "end": 196.976,
+   "text": "It doubles! Double the voltage, double\nthe current - I equals V over R."
+  },
+  {
+   "start": 196.976,
+   "end": 200.946,
+   "text": "And if you said 'used up faster' -\nremember, current always comes home."
+  },
+  {
+   "start": 200.946,
+   "end": 204.0,
+   "text": "That trap catches thousands\nof students - but not you!"
+  },
+  {
+   "start": 206.3,
+   "end": 210.7,
+   "text": "Part Two - Ohm's Law at work! Let's\nsolve real problems like real engineers."
+  },
+  {
+   "start": 212.0,
+   "end": 214.3,
+   "text": "The exact calculation\nelectricians do every day!"
+  },
+  {
+   "start": 214.45,
+   "end": 218.25,
+   "text": "A ceiling fan - two hundred thirty\nvolts, one hundred fifteen ohms."
+  },
+  {
+   "start": 218.4,
+   "end": 222.9,
+   "text": "Step one - I equals V over\nR, since we want the flow."
+  },
+  {
+   "start": 224.15,
+   "end": 227.05,
+   "text": "Step two - substitute: two\nthirty over one fifteen."
+  },
+  {
+   "start": 227.2,
+   "end": 229.6,
+   "text": "Step three - exactly two amperes!"
+  },
+  {
+   "start": 230.85,
+   "end": 234.35,
+   "text": "Our fan is one point on the\nstraight line beside me."
+  },
+  {
+   "start": 235.65,
+   "end": 237.35,
+   "text": "Now YOU are the engineer!"
+  },
+  {
+   "start": 237.5,
+   "end": 239.5,
+   "text": "A six volt bulb, three ohms."
+  },
+  {
+   "start": 239.65,
+   "end": 241.05,
+   "text": "The law is ready."
+  },
+  {
+   "start": 241.2,
+   "end": 243.9,
+   "text": "Pause and fill in the blanks yourself!"
+  },
+  {
+   "start": 248.65,
+   "end": 252.435,
+   "text": "Six by three - two amperes! The\nterminal beside me confirms it."
+  },
+  {
+   "start": 252.435,
+   "end": 252.75,
+   "text": "Brilliant!"
+  },
+  {
+   "start": 254.05,
+   "end": 254.85,
+   "text": "Zoom out."
+  },
+  {
+   "start": 255.0,
+   "end": 258.2,
+   "text": "Every appliance around you is\na live Ohm's Law calculation."
+  },
+  {
+   "start": 258.35,
+   "end": 262.45,
+   "text": "Engineers size every wire and fuse\nin our grid with this one rule."
+  },
+  {
+   "start": 262.6,
+   "end": 268.458,
+   "text": "And see the chart - from a tiny LED to a\nfifteen ampere geyser - that spread is why"
+  },
+  {
+   "start": 268.458,
+   "end": 270.4,
+   "text": "your home needs different fuses!"
+  },
+  {
+   "start": 272.8,
+   "end": 276.4,
+   "text": "From one small formula -\nto an entire glowing city."
+  },
+  {
+   "start": 277.65,
+   "end": 280.775,
+   "text": "Every light you see obeys\nthe law you just mastered."
+  },
+  {
+   "start": 280.775,
+   "end": 282.65,
+   "text": "That is thinking like an engineer."
+  },
+  {
+   "start": 283.95,
+   "end": 288.15,
+   "text": "Before the summary - pause and\nrecall our three big ideas yourself!"
+  },
+  {
+   "start": 290.9,
+   "end": 292.0,
+   "text": "Here they come."
+  },
+  {
+   "start": 292.15,
+   "end": 294.55,
+   "text": "Voltage pushes, current\nflows, resistance opposes."
+  },
+  {
+   "start": 295.8,
+   "end": 299.4,
+   "text": "One law ties them - V equals I times R."
+  },
+  {
+   "start": 300.65,
+   "end": 303.95,
+   "text": "Current is never used up\n- energy is delivered."
+  },
+  {
+   "start": 305.2,
+   "end": 308.1,
+   "text": "Every node on the map\nbeside me - conquered!"
+  },
+  {
+   "start": 309.4,
+   "end": 313.9,
+   "text": "Your pocket summary - three quantities,\none water park to remember them by."
+  },
+  {
+   "start": 315.15,
+   "end": 318.542,
+   "text": "Next session - series and parallel\ncircuits, where resistors start teaming"
+  },
+  {
+   "start": 318.542,
+   "end": 320.7,
+   "text": "up! Until then, keep the current flowing."
+  },
+  {
+   "start": 320.7,
+   "end": 322.55,
+   "text": "This is Aadhi, signing off. Vanakkam!"
+  }
+ ],
+ "branding": {
+  "mascot_clips": {
+   "left": "/branding/aadhi_left_clean.mp4",
+   "right": "/branding/aadhi_right_clean.mp4",
+   "center": "/branding/aadhi_center_clean.mp4",
+   "popup_bottom_left": "/branding/aadhi_popup_clean.mp4",
+   "popup_bottom_right": "/branding/aadhi_popup_clean.mp4",
+   "hidden": "/branding/no_aadhi_clean.mp4"
+  },
+  "static_background_url": "/branding/static_background.png",
+  "bgm_url": "/branding/bgm.mp3",
+  "bgm_volume": 0.06,
+  "tick_url": null,
+  "ding_url": null,
+  "mascot_rig_url": null
+ },
+ "transition_seconds": 0.4,
+ "estimated": false
+}

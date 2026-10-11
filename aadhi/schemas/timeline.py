@@ -25,14 +25,24 @@ Audio
 -----
 Each scene has at most one narration file that already contains the beat clips (trimmed to a
 constant inter-beat gap) and ``pause_after`` silences, so beat starts are exact offsets.
+
+Dynamic video (v3, design §6.7 / §8.2)
+-------------------------------------
+``Timeline.presentation`` / ``music`` / ``sfx`` and ``TimedScene.look`` / ``events`` / ``kinetic_captions`` /
+``overlays`` (plus the clip fields of ``MediaRef``) are inert from B0: left out of the JSON at their defaults,
+so classic timelines are unchanged. A timeline that uses one is written with ``schema_version = 3`` and a newer
+timeline is refused (``aadhi.schemas.features``). Resolved tokens are stored, so an old timeline keeps its look
+when the catalogue changes. Events, kinetic chunks and overlays stay inside their scene (validator).
 """
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any, ClassVar, Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, SerializerFunctionWrapHandler, field_validator, model_serializer, model_validator
 
+from .features import check_reader_version, marked_version
+from .jsonsafe import check_storable
 from .screenplay import (
     BoardItem,
     ConceptNode,
@@ -42,7 +52,7 @@ from .screenplay import (
     StrictModel,
 )
 
-TIMELINE_SCHEMA_VERSION = 2
+TIMELINE_SCHEMA_VERSION = 2  # classic timelines; a timeline using a v3 field is written as 3
 _EPS = 1e-3
 
 
@@ -89,6 +99,13 @@ class KenBurns(StrictModel):
 
 
 class MediaRef(StrictModel):
+    V3_FIELDS: ClassVar[dict[str, str]] = {
+        "trim_in": "clip", "audio": "clip", "volume_db": "clip", "focus": "clip", "src_fps": "clip",
+    }
+    V3_VALUES: ClassVar[dict[str, dict[str, str]]] = {
+        "fit": {"contain_blur": "clip"}, "end_behavior": {"clamp": "clip"},
+    }
+
     kind: Literal["video", "image", "gif"]
     asset_key: str | None = None  # stored asset (None only for external hotlinks such as GIPHY)
     url: str | None = None  # filled at serve time
@@ -96,12 +113,21 @@ class MediaRef(StrictModel):
     duration: float | None = None  # seconds, for video
     width: int | None = None
     height: int | None = None
-    fit: Literal["contain", "cover"] = "contain"
-    end_behavior: Literal["loop", "freeze"] = "loop"  # manim -> freeze on last frame
+    # v3 "contain_blur": contained over a blurred cover copy of itself (inserted clips, §8.2).
+    fit: Literal["contain", "cover", "contain_blur"] = "contain"
+    # manim -> freeze on last frame; v3 "clamp": hold the last frame without looping (inserted clips). The default
+    # stays "loop" so classic timelines are unchanged.
+    end_behavior: Literal["loop", "freeze", "clamp"] = "loop"
     ken_burns: KenBurns | None = None  # stills used as ai_video fallbacks
     attribution: str | None = None  # e.g. "Powered by GIPHY"
     link_url: str | None = None
     render_in_mp4: bool = True  # False for hotlinked GIFs (live player only)
+    # v3 (inserted clips and overlays): each is left out of the JSON at its default.
+    trim_in: float = Field(default=0.0, ge=0.0, exclude_if=lambda v: v == 0)  # seconds into the source
+    audio: bool = Field(default=False, exclude_if=lambda v: v is False)  # the clip's own sound plays
+    volume_db: float = Field(default=0.0, ge=-60.0, le=24.0, exclude_if=lambda v: v == 0)
+    focus: tuple[float, float] | None = Field(default=None, exclude_if=lambda v: v is None)  # cover focus, 0..1
+    src_fps: float | None = Field(default=None, gt=0, le=240, exclude_if=lambda v: v is None)
 
 
 class ResolvedSidePanel(StrictModel):
@@ -154,7 +180,122 @@ class Layout(StrictModel):
     mascot_cues: bool = Field(default=True, exclude_if=lambda v: v is True)
 
 
+# ---------------------------------------------------------------------------
+# Dynamic video (v3): presentation, resolved looks, visual events, kinetic captions, music, SFX, overlays
+# ---------------------------------------------------------------------------
+
+
+def _storable(v: Any) -> Any:
+    check_storable(v)  # free-form values: checked like stored JSON
+    return v
+
+
+class TimelinePresentation(StrictModel):
+    style: Literal["dynamic"]
+    format: Literal["landscape", "portrait"]
+    safe_zone: str = "universal"
+    content: dict[str, str]  # resolved content tokens (hex): ink, ink2, entity:0..2, warn, ok, mark, focus
+    fonts: dict[str, str]  # role -> family id
+    personality: str
+    caption_style: str
+    cue_term_style: str
+    captions_burn: bool
+    sfx: bool
+    motion: Literal["standard", "calm"]
+    generated_seconds: float = Field(ge=0.0)  # R-01 (§1.4)
+    engine_version: int = Field(default=1, ge=1)  # stage contract (§7.3)
+
+
+class ResolvedLook(StrictModel):
+    template: str
+    variant: str | None = None
+    tokens: dict[str, str]  # per scene: struct.accent, bg, bg-alt, bg-tint (resolved hex)
+    background: dict[str, Any]  # {preset, params, seed, frozen_at: float | None}
+    transition_in: dict[str, Any]  # {kind, seconds}
+    hold_reason: str | None = None
+    presenter: dict[str, Any] | None = None  # {clip_key, crop:[x,y,w,h], rect:[x,y,w,h], t_exit, src_fps}
+    text_fit: dict[str, Any] = Field(default_factory=dict)  # slot -> {size, lines} from textfit.py
+
+    _chk = field_validator("background", "transition_in", "presenter", "text_fit")(_storable)
+
+
+VisualEventKind = Literal[
+    "reveal", "fill", "cue_term", "look_here", "draw", "count", "var", "output", "countdown", "answer", "exit"
+]
+
+
+class VisualEvent(StrictModel):
+    """Python decides WHEN (events.py); the stage decides HOW. Scene-relative seconds."""
+
+    t: float
+    kind: VisualEventKind
+    target: str | None = None  # board item id, "item:part", "panel"
+    dur: float | None = Field(default=None, ge=0.0)
+    anchored: bool = False  # target named within +-300 ms (§1.4); only these count for R-15
+    sfx: str | None = None
+    words: str = ""  # anchor words (Studio only)
+
+
+class KineticWord(StrictModel):
+    text: str
+    start: float
+    end: float
+    key: bool = False
+
+
+class KineticChunk(StrictModel):
+    """One phrase of the in-stage captions (kinetic.py), scene-relative seconds."""
+
+    start: float
+    end: float
+    words: list[KineticWord]
+    lines: list[str]
+    blank: bool = False
+
+
+class MusicCue(StrictModel):
+    asset_key: str
+    start: float  # absolute
+    end: float
+    offset: float = 0.0
+    gain_lu: float = 0.0
+    fade_in: float = Field(ge=0.0)
+    fade_out: float = Field(ge=0.0)
+    xfade: Literal["qsin", "tri"] = "qsin"
+    loops: list[tuple[float, float]] = Field(default_factory=list)  # fitted loop segments (§5.10)
+
+
+class MusicPlan(StrictModel):
+    cues: list[MusicCue]
+    duck: list[tuple[float, float]]  # (absolute t, gain dB)
+    mode: Literal["bed", "gaps_bookends", "off"]
+    ref_lufs: float = -16.0
+    level: Literal["normal", "low"] = "normal"
+
+
+class SfxCue(StrictModel):
+    t: float  # absolute
+    sound: str
+    gain_db: float
+
+
+class TimedOverlay(StrictModel):
+    """An overlay (screenplay ``Beat.overlays``) resolved to scene-relative seconds, clamped to its scene."""
+
+    id: str
+    start: float
+    end: float
+    media: MediaRef
+    region: Literal["full", "panel"] = "full"
+    sound: Literal["mute", "quiet"] = "mute"
+
+
 class TimedScene(StrictModel):
+    V3_FIELDS: ClassVar[dict[str, str]] = {
+        "look": "presentation", "events": "presentation", "kinetic_captions": "presentation", "overlays": "overlays",
+    }
+    V3_VALUES: ClassVar[dict[str, dict[str, str]]] = {"type": {"clip": "clip"}}
+
     scene_id: str
     index: int
     type: str
@@ -190,6 +331,24 @@ class TimedScene(StrictModel):
     # appears then (beats, captions, sync cues, terminal lines and the quiz teaser keep the timing they have without
     # it; Aadhi idles). Left out of the JSON when 0.
     hold_seconds: float = Field(default=0.0, ge=0.0, exclude_if=lambda v: v == 0)
+    # v3 (Dynamic lectures): each is left out of the JSON at its default.
+    look: ResolvedLook | None = Field(default=None, exclude_if=lambda v: v is None)
+    events: list[VisualEvent] = Field(default_factory=list, exclude_if=lambda v: not v)  # sorted by t
+    kinetic_captions: list[KineticChunk] = Field(default_factory=list, exclude_if=lambda v: not v)
+    overlays: list[TimedOverlay] = Field(default_factory=list, exclude_if=lambda v: not v)
+
+    def check_inside(self) -> None:
+        """Events, kinetic chunks and overlays lie inside the scene (``ValueError`` otherwise)."""
+        d = self.duration
+        for e in self.events:
+            if e.t < -_EPS or e.t > d + _EPS or (e.dur is not None and e.t + e.dur > d + _EPS):
+                raise ValueError(f"scene {self.scene_id}: event {e.kind} at {e.t:.3f} outside the scene")
+        for c in self.kinetic_captions:
+            if c.start < -_EPS or c.end > d + _EPS or c.end < c.start - _EPS:
+                raise ValueError(f"scene {self.scene_id}: kinetic caption at {c.start:.3f} outside the scene")
+        for o in self.overlays:
+            if o.start < -_EPS or o.end > d + _EPS or o.end < o.start - _EPS:
+                raise ValueError(f"scene {self.scene_id}: overlay {o.id} outside the scene")
 
 
 class TitleCard(StrictModel):
@@ -224,6 +383,9 @@ class Branding(StrictModel):
 
 
 class Timeline(StrictModel):
+    V3_FIELDS: ClassVar[dict[str, str]] = {"presentation": "presentation", "music": "presentation", "sfx": "presentation"}
+
+    # 2 for classic timelines, 3 when a v3 field is used; a newer timeline is refused (aadhi.schemas.features).
     schema_version: int = TIMELINE_SCHEMA_VERSION
     version_id: int | None = None
     screenplay_revision: int | None = None  # ProjectVersion.revision the timeline was built from
@@ -243,6 +405,23 @@ class Timeline(StrictModel):
     branding: Branding = Field(default_factory=Branding)
     transition_seconds: float = 0.4  # fade-in at the start of each scene (inside its duration)
     estimated: bool = False  # True for editor previews with estimated (not synthesised) timings
+    # v3 (Dynamic lectures): each is left out of the JSON at its default.
+    presentation: TimelinePresentation | None = Field(default=None, exclude_if=lambda v: v is None)
+    music: MusicPlan | None = Field(default=None, exclude_if=lambda v: v is None)
+    sfx: list[SfxCue] = Field(default_factory=list, exclude_if=lambda v: not v)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reader_version(cls, data: Any) -> Any:
+        check_reader_version(data, "timeline")
+        return data
+
+    @model_serializer(mode="wrap")
+    def _write_version(self, handler: SerializerFunctionWrapHandler) -> Any:
+        data = handler(self)
+        if isinstance(data, dict) and "schema_version" in data:
+            data["schema_version"] = marked_version(self, self.schema_version)
+        return data
 
     @model_validator(mode="after")
     def _time_base(self) -> "Timeline":
@@ -257,9 +436,19 @@ class Timeline(StrictModel):
             for b in s.beats:
                 if b.start < -_EPS or b.end > s.duration + _EPS or b.speech_end < b.start - _EPS:
                     raise ValueError(f"scene {s.scene_id}: beat {b.beat_id} timing outside the scene")
+            s.check_inside()
             t = s.start + s.duration
         if abs(self.total_duration - t) > _EPS:
             raise ValueError(f"total_duration {self.total_duration:.3f} != {t:.3f}")
+        if self.presentation is not None:  # Dynamic: the frame follows the format, and there is no classic intro
+            portrait = self.presentation.format == "portrait"
+            if portrait != (self.height > self.width):
+                raise ValueError(f"a {self.presentation.format} timeline cannot be {self.width}x{self.height}")
+            if self.intro is not None:
+                raise ValueError("a Dynamic timeline has no classic intro")
+        version = marked_version(self, self.schema_version)
+        if version != self.schema_version:
+            self.schema_version = version
         return self
 
 

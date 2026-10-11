@@ -44,6 +44,7 @@ asyncio_default_fixture_loop_scope = "function"
 markers = [
     "slow: renders real manim/ffmpeg/playwright output (deselect with -m 'not slow')",
     "network: talks to real external services; runs only with AADHI_NETWORK_TESTS=1",
+    "container: ffmpeg feature checks the Docker test image runs on ffmpeg 5.1 (pytest -m container; also slow)",
 ]
 
 # --- ruff -----------------------------------------------------------------------------------------

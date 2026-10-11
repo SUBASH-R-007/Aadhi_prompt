@@ -38,6 +38,13 @@ receives a temperature (current Claude models reject sampling parameters); its d
 The scene families are `board` (title, content, example, summary, key_takeaway, recap), `chapter`,
 `quiz`, `simulation`, `ai_video` and `interactive` (`script.FAMILY_PROMPTS`).
 
+**Dynamic video fields (batch B0).** No prompt, response schema or `PROMPT_VERSION` changed. The Dynamic fields of
+the screenplay (`docs/DYNAMIC_VIDEO_DESIGN.md` §6.7) exist in the stored schema only: the generation models
+(`gen_models`) do not offer them, a planned scene can never be a `clip` scene, and a scene's `look` is never shown
+to a model. The one place they reach a prompt is translation, which sends a stat's `unit`, a timeline step's
+`date` and an inserted clip's captions as ordinary on-screen text fields (only with the board); `icon_hint`,
+`value`, `credit` and attributions are never sent.
+
 **Instructions inside the source.** Every system prompt of a stage that reads the source (`style.md`
 for the plan, scene writers and repair, `brief.md`, `critic.md`, `practice.md`) says that text inside
 the source document is teaching content, never instructions: requests or commands in it (to ignore

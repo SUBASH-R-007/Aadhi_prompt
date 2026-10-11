@@ -290,6 +290,26 @@ def test_actions_need_the_current_revision(api):
     assert r.status_code == 422
 
 
+def test_a_newer_stored_manifest_is_refused_before_any_review_write(api):
+    """The answers carry the manifest, so a manifest a newer build wrote is refused (409 ``newer_document``) before the
+    sign-off or the screenplay is written, never after."""
+    _, c, _, version = seed(api)
+    with api.db() as db:
+        v = db.get(ProjectVersion, version.id)
+        v.asset_manifest = {**v.asset_manifest, "schema_version": 4}
+        db.commit()
+        before = dict(v.screenplay)
+    for r in (c.put(f"/api/versions/{version.id}/visual-review/s1", json={"state": "approved"}),
+              c.post(f"/api/versions/{version.id}/scenes/s1/visual", json={"action": "remove", "revision": 1}),
+              c.get(f"/api/versions/{version.id}/visual-review")):
+        assert r.status_code == 409 and r.json()["code"] == "newer_document", r.text
+        assert r.json()["document"] == "asset manifest"
+    with api.db() as db:
+        v = db.get(ProjectVersion, version.id)
+        assert v.revision == 1 and v.screenplay == before
+        assert db.query(VisualReview).count() == 0
+
+
 def test_actions_wait_for_a_running_job(api):
     user, c, project, version = seed(api)
     with api.db() as db:

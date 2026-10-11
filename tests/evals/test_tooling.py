@@ -339,9 +339,21 @@ def test_dockerfile_contract():
 
 
 def test_dockerfile_installs_runtime_dependencies_only():
-    installs = [i for i in _dockerfile_instructions() if i.startswith("RUN pip install")]
-    assert installs == ["RUN pip install -c /tmp/requirements.lock -r /tmp/requirements.txt boto3"]
-    assert "requirements-dev" not in _text("Dockerfile")
+    # The deployable stages install the runtime requirements only; the dev tools exist in the CI-only `test`
+    # target alone (docs/DYNAMIC_VIDEO_DESIGN.md section 7.9), which nothing deployable is built from.
+    stage, installs, dev_stages = "", {}, set()
+    for ins in _dockerfile_instructions():
+        if ins.startswith("FROM "):
+            stage = ins.split()[-1]
+            assert ins.split()[1] != "test", ins
+        elif ins.startswith("RUN pip install"):
+            installs.setdefault(stage, []).append(ins)
+        if "requirements-dev" in ins:
+            dev_stages.add(stage)
+    assert installs.pop("pydeps") == ["RUN pip install -c /tmp/requirements.lock -r /tmp/requirements.txt boto3"]
+    (test_install,) = installs.pop("test")
+    assert test_install.startswith("RUN pip install -c /tmp/requirements.lock -r /tmp/requirements-dev.txt")
+    assert installs == {} and dev_stages == {"test"}
 
 
 def test_dockerfile_copies_an_allow_list():

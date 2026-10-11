@@ -31,9 +31,9 @@ T = TypeVar("T", bound=BaseModel)
 
 @dataclass
 class Usage:
-    provider: str  # gemini | openai | anthropic | edge | elevenlabs | pollinations | veo | giphy | fake
+    provider: str  # gemini | openai | anthropic | edge | elevenlabs | pollinations | veo | omni | giphy | fake
     model: str
-    operation: str  # llm | vision | tts | image | video | gif
+    operation: str  # llm | vision | tts | image | video | gif | music (any other operation is priced fail-closed)
     input_tokens: int = 0
     output_tokens: int = 0
     characters: int = 0
@@ -86,6 +86,12 @@ class InvalidMediaOutput(ProviderError):
 class OperationLost(ProviderError):
     """A checkpointed provider operation (e.g. a Veo job) cannot be found or polled again: it expired,
     or the API key that started it is no longer configured. Whether it was billed is unknown."""
+
+
+class PaidSubmissionUncertain(ProviderError):
+    """A request that creates a paid job (a Veo / Omni clip) ended without an answer (a timeout, a dropped
+    connection, a 408/504 from a gateway): the provider may have accepted and billed it. The call is not
+    retried and the record becomes ``ambiguous``, so the clip is never paid for twice without a person."""
 
 
 # --- LLM ------------------------------------------------------------------------

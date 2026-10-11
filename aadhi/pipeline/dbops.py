@@ -11,11 +11,11 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from sqlalchemy import select, update
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from ..assets_auth import record_asset_refs
 from ..db import compare_and_set
-from ..models import AssetRef, Project, ProjectVersion, SourceDocument
+from ..models import Project, ProjectVersion, SourceDocument
 from ..schemas.jsonsafe import validate_stored
 from ..schemas.manifest import AssetManifest
 from ..schemas.screenplay import Screenplay
@@ -120,36 +120,11 @@ def record_extract(db: Session, source_id: int, extracted_key: str, page_count: 
 
 
 def ensure_asset_refs(db: Session, project_id: int, keys: Iterable[str]) -> int:
-    """Insert missing ``AssetRef(project_id, key)`` rows (idempotent; safe under concurrency)."""
-    wanted = sorted({k for k in keys if k})
-    if not wanted:
-        return 0
-    dialect = db.get_bind().dialect.name
-    rows = [{"project_id": project_id, "asset_key": k} for k in wanted]
-    if dialect in ("sqlite", "postgresql"):
-        if dialect == "sqlite":
-            from sqlalchemy.dialects.sqlite import insert
-        else:
-            from sqlalchemy.dialects.postgresql import insert
-        added = 0
-        for i in range(0, len(rows), 500):
-            stmt = insert(AssetRef).values(rows[i:i + 500]).on_conflict_do_nothing(index_elements=["project_id", "asset_key"])
-            added += db.execute(stmt).rowcount or 0
-        return added
-    existing = set(db.execute(
-        select(AssetRef.asset_key).where(AssetRef.project_id == project_id, AssetRef.asset_key.in_(wanted))
-    ).scalars())
-    added = 0
-    for k in wanted:
-        if k in existing:
-            continue
-        try:
-            with db.begin_nested():
-                db.add(AssetRef(project_id=project_id, asset_key=k))
-            added += 1
-        except IntegrityError:
-            pass
-    return added
+    """Insert missing ``AssetRef(project_id, key)`` rows (idempotent; safe under concurrency).
+
+    The pipeline's name for ``aadhi.assets_auth.record_asset_refs``, the one helper that makes generated assets
+    usable in the project's screenplay."""
+    return record_asset_refs(db, project_id, keys)
 
 
 def issue_counts(issues: list[dict[str, Any]]) -> dict[str, int]:

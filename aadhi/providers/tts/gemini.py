@@ -1,4 +1,10 @@
-"""Gemini TTS (``response_modalities=["AUDIO"]``; 24 kHz mono PCM wrapped as WAV, no word timings)."""
+"""Gemini TTS (``response_modalities=["AUDIO"]``; 24 kHz mono 16-bit WAV, no word timings).
+
+Gemini 3.8 TTS models answer with a WAV file (RIFF header) by default, earlier models with headerless
+PCM (``audio/L16;rate=24000``), which is wrapped as WAV here. 3.8 reads the text as a verbatim
+transcript (no "Say cheerfully:" style prompts), which is what narration needs; all catalogue voices
+(``voices.GEMINI_VOICES``) are among its 30 prebuilt voices.
+"""
 
 from __future__ import annotations
 

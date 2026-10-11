@@ -39,7 +39,7 @@ TRANSLATE_PROMPTS = ("translate",)
 BATCH_FIELDS = 120
 
 _NARRATION = ("beats", "reveal_beats")
-_BOARD_ITEM_FIELDS = ("text", "term", "caption", "justification")
+_BOARD_ITEM_FIELDS = ("text", "term", "caption", "justification", "unit", "date")  # unit, date: v3 stat / step
 _SCENE_VISIBLE = ("title", "subtitle", "chapter_label", "question", "explanation")
 
 
@@ -102,6 +102,8 @@ def scene_fields(scene: dict[str, Any], translate_board: bool, keep: list[str]) 
     for i, opt in enumerate(quiz.get("options") or []):
         _add(items, f"side_panel.quiz.options[{i}]", opt, keep)
     _add(items, "side_panel.terminal.output", (panel.get("terminal") or {}).get("output"), keep)
+    for i, cap in enumerate(scene.get("captions") or []):  # v3 clip scene: the inserted clip's own captions
+        _add(items, f"captions[{i}].text", cap.get("text"), keep)
     return items
 
 

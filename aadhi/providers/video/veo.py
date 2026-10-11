@@ -1,5 +1,18 @@
 """Google Veo B-roll generation (``generate_videos`` long-running operation, async polling).
 
+Request per model generation (Veo 3.1 Fast is the default ``VEO_MODEL``):
+
+* Aspect ratio ``16:9`` (default) or ``9:16``; resolution is not sent (720p, the default; 1080p and 4K
+  would require 8-second clips and cost more).
+* Clip length (``VEO_DURATION_SECONDS``): Veo 3.x makes 4, 6 or 8 seconds, so other values round up to
+  the next allowed length (more than 8 = 8), and 8 is used with reference images. Veo 2 took 5-8 as given.
+* A ``reference_image`` is an asset reference image on Veo 3.1 / 3.1 Fast and the first frame
+  (image-to-video) on Veo 3.1 Lite (which takes no reference images) and older models.
+* Veo 3.x always generates an audio track (the SDK refuses ``generate_audio`` on the Gemini API); the
+  player and the MP4 render keep B-roll muted, so only the picture is used.
+* ``person_generation`` is not sent: the allowed value differs by mode and region (``allow_all`` for
+  text-to-video, ``allow_adult`` from an image or in the EU, UK, CH and MENA), so the API's default applies.
+
 Veo bills per generated second as soon as the operation produces a video, whether or not this
 process manages to download or probe it. Usage is therefore reported the moment the operation
 reports a generated video (before download/ffprobe), and an estimated ``Usage`` with
@@ -19,6 +32,11 @@ Sends (``reports_sending``): ``checkpoint.sending()`` is awaited right before ea
 request and ``checkpoint.not_sent()`` when Veo answered it with an error (429, 5xx: no job was created), so
 a restart during a retry wait submits normally. Only a request without an answer (a timeout, a transport
 error, a kill) leaves the record ``submitting`` (ambiguous), and stays so for the later retries of the call.
+
+A model Google no longer serves (``generate_videos`` answered 404 / 410, e.g. after the Veo 3.1 previews
+shut down) raises ``ProviderUnavailable``: the media chain moves on to the next provider (``omni``, Gemini
+Omni, by default: ``Settings._video_order``) and tries Veo after the others for
+``MEDIA_PROVIDER_AUTH_COOLDOWN_SECONDS``. No job was created, so nothing is billed.
 """
 
 from __future__ import annotations
@@ -39,7 +57,9 @@ from ..base import (
     InvalidMediaOutput,
     OperationCheckpoint,
     OperationLost,
+    PaidSubmissionUncertain,
     ProviderError,
+    ProviderUnavailable,
     Usage,
     UsageSink,
     VideoResult,
@@ -61,8 +81,26 @@ VEO_ASPECTS = frozenset({"16:9", "9:16"})
 NEGATIVE_PROMPT = "text, captions, subtitles, watermark, logo, cartoon mascot, distorted faces"
 DEFAULT_VIDEO_SECONDS = 8.0  # Veo's default clip length (billing estimate when no duration is requested)
 MIN_VIDEO_SECONDS = 0.5  # shorter output is not a usable clip
-_REFERENCE_MODELS = re.compile(r"veo-3\.1", re.IGNORECASE)
+VEO3_DURATIONS = (4, 6, 8)  # clip lengths Veo 3.x accepts (seconds)
+_REFERENCE_MODELS = re.compile(r"veo-3\.1(?!-lite)", re.IGNORECASE)  # asset reference images (not Lite)
+_VEO3_MODELS = re.compile(r"veo-3\.", re.IGNORECASE)
 _SAFETY = re.compile(r"(?i)(safety|responsible ai|rai|filtered|blocked|prohibited)")
+
+
+def clip_seconds(model: str, requested: int | None, *, reference: bool = False) -> int | None:
+    """``duration_seconds`` to request from ``model`` for ``VEO_DURATION_SECONDS`` = ``requested``.
+
+    ``None`` = not sent (the model's default, 8 s). Veo 3.x accepts only 4, 6 or 8 seconds (8 with asset
+    reference images), so another value rounds up to the next allowed length; older models get the
+    value unchanged.
+    """
+    if not requested:
+        return None
+    if not _VEO3_MODELS.search(model or ""):
+        return int(requested)
+    if reference and _REFERENCE_MODELS.search(model):
+        return VEO3_DURATIONS[-1]
+    return next((d for d in VEO3_DURATIONS if d >= requested), VEO3_DURATIONS[-1])
 
 
 class VeoVideo:
@@ -102,15 +140,18 @@ class VeoVideo:
             number_of_videos=1,
             negative_prompt=NEGATIVE_PROMPT,
         )
-        if self.settings.veo_duration_seconds:  # VEO_DURATION_SECONDS; unset = the model's default length
-            config.duration_seconds = int(self.settings.veo_duration_seconds)
         image = None
+        as_reference = reference_image is not None and bool(_REFERENCE_MODELS.search(model))
         if reference_image is not None:
             ref = types.Image(image_bytes=reference_image.data, mime_type=reference_image.mime)
-            if _REFERENCE_MODELS.search(model):
+            if as_reference:
                 config.reference_images = [types.VideoGenerationReferenceImage(image=ref, reference_type="ASSET")]
             else:
                 image = ref
+        # VEO_DURATION_SECONDS; unset = the model's default length
+        seconds = clip_seconds(model, self.settings.veo_duration_seconds, reference=as_reference)
+        if seconds:
+            config.duration_seconds = seconds
         return types.GenerateVideosSource(prompt=prompt, image=image), config
 
     async def _with_retries(self, fn: Any, what: str) -> Any:
@@ -139,6 +180,16 @@ class VeoVideo:
                                  detail="; ".join(str(r) for r in reasons))
             raise make_error(ProviderError, "veo", "operation finished without a video", settings=self.settings)
         return safe_attr(videos[0], "video")
+
+    @property
+    def model(self) -> str:
+        return self.settings.veo_model
+
+    def billed_seconds(self) -> float:
+        """Billed length of one clip (no reference image): what ``VEO_DURATION_SECONDS`` becomes for the
+        configured model, else Veo's default. The pipeline's budget estimate before a clip uses it."""
+        seconds = clip_seconds(self.settings.veo_model, self.settings.veo_duration_seconds)
+        return float(seconds or DEFAULT_VIDEO_SECONDS)
 
     def _usage(self, model: str, config: Any, *, status: str) -> Usage:
         """Billing record for one clip: the requested duration (or Veo's default) in seconds."""
@@ -225,6 +276,9 @@ class VeoVideo:
 
         async def start(client: Any, key: str) -> tuple[Any, str]:
             nonlocal uncertain
+            if uncertain:  # an earlier attempt may have created (and billed) the job: never send it twice
+                raise make_error(PaidSubmissionUncertain, "veo", "the previous request to create this paid clip got no answer and may have been accepted and billed; not sending it again", settings=self.settings,
+                                 host=GEMINI_HOST)
             if checkpoint is not None and callable(getattr(checkpoint, "sending", None)):
                 await checkpoint.sending()
             try:
@@ -240,7 +294,19 @@ class VeoVideo:
                 raise
             return op, key
 
-        op, key = await self._caller.call(start, what="video generation")
+        try:
+            op, key = await self._caller.call(start, what="video generation")
+        except PaidSubmissionUncertain:
+            raise
+        except ProviderError as exc:
+            if uncertain:  # the last attempt ended without an answer: possibly billed, needs a person
+                raise make_error(PaidSubmissionUncertain, "veo", "the previous request to create this paid clip got no answer and may have been accepted and billed; not sending it again", settings=self.settings,
+                                 status=exc.status, host=GEMINI_HOST, detail=str(exc)) from None
+            if exc.status in (404, 410) and not isinstance(exc, ProviderUnavailable):  # the model is not served
+                raise make_error(ProviderUnavailable, "veo", f"the video model {model} is not available (shut down "
+                                 "or renamed; VEO_MODEL)", settings=self.settings, status=exc.status, host=GEMINI_HOST,
+                                 detail=str(exc)) from None
+            raise
         client = await self._caller.client(key)
         try:
             if checkpoint is not None:  # durable before polling: a restart resumes instead of paying again
@@ -279,9 +345,10 @@ class VeoVideo:
             raise make_error(OperationLost, "veo", "the video job started earlier cannot be followed: the API key "
                              "that started it is no longer configured", settings=self.settings)
         types = await genai_types()
-        config = types.GenerateVideosConfig()
-        if self.settings.veo_duration_seconds:
-            config.duration_seconds = int(self.settings.veo_duration_seconds)
+        config = types.GenerateVideosConfig()  # billing estimate only (the pipeline sends no reference images)
+        seconds = clip_seconds(model, self.settings.veo_duration_seconds)
+        if seconds:
+            config.duration_seconds = seconds
         client = await self._caller.client(key)
         deadline = time.monotonic() + max(10, int(timeout_s))
         pending: Any = types.GenerateVideosOperation(name=operation)

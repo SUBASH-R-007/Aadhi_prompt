@@ -71,8 +71,10 @@ __all__ = [
 
 KEY_PROVIDERS = CREDENTIAL_PROVIDERS  # ("gemini", "openai", "anthropic")
 KEY_PROVIDER_LABELS = {p: LLM_ENGINE_LABELS[p] for p in KEY_PROVIDERS}  # "Anthropic Claude" ...
-# Usage.provider -> the provider whose key pays for it (Veo videos run on the Gemini key).
-USAGE_KEY_PROVIDER = {"gemini": "gemini", "veo": "gemini", "openai": "openai", "anthropic": "anthropic"}
+# Usage.provider -> the provider whose key pays for it (Veo and Gemini Omni videos and Lyria music run on the Gemini
+# key).
+USAGE_KEY_PROVIDER = {"gemini": "gemini", "veo": "gemini", "omni": "gemini", "lyria": "gemini", "openai": "openai",
+                      "anthropic": "anthropic"}
 Scope = Literal["user", "server"]
 
 MIN_KEY_CHARS = 16

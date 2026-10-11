@@ -64,6 +64,39 @@ async def test_success_request_shape_and_usage(gemini_settings) -> None:
 
 
 @pytest.mark.asyncio
+async def test_gemini3_request_keeps_the_default_temperature(gemini_settings) -> None:
+    """Gemini 3+ (the default gemini-3.8-flash) gets no temperature; the rest of the request is unchanged."""
+    bad = json.dumps({"title": "", "bullets": []})
+    llm, clients = make_llm(gemini_settings, {GEMINI_KEYS[0]: [gemini_text_response(bad), gemini_text_response(GOOD)]})
+    usages: list[Usage] = []
+    out = await llm.generate_json(
+        model="gemini-3.8-flash", system="You are a teacher.", prompt="Summarise", schema=Summary,
+        files=[FileInput(data=b"%PDF-1.7 small", mime="application/pdf", name="notes.pdf")], temperature=0.2,
+        max_output_tokens=4096, on_usage=usages.append,
+    )
+    assert out.title == "Ohm's law"
+    for call in clients[GEMINI_KEYS[0]].models.calls:
+        cfg: gtypes.GenerateContentConfig = call["config"]
+        assert call["model"] == "gemini-3.8-flash" and cfg.temperature is None
+        assert cfg.thinking_config is None and cfg.candidate_count is None  # model defaults (thinking: medium)
+        assert cfg.response_mime_type == "application/json" and cfg.response_json_schema["type"] == "object"
+        assert cfg.system_instruction == "You are a teacher." and cfg.max_output_tokens == 4096
+        assert call["contents"][0].parts[0].inline_data.mime_type == "application/pdf"
+    # the re-ask history ends with a user turn (Gemini 3 accepts no prefilled model turn)
+    assert [c.role for c in clients[GEMINI_KEYS[0]].models.calls[1]["contents"]] == ["user", "model", "user"]
+    assert [u.model for u in usages] == ["gemini-3.8-flash"] * 2
+
+
+@pytest.mark.parametrize(("model", "sent"), [
+    ("gemini-2.5-flash", True), ("gemini-2.5-pro", True), ("models/gemini-2.0-flash-001", True),
+    ("gemini-1.5-pro", True), ("gemini-3.8-flash", False), ("gemini-3.1-pro-preview", False),
+    ("gemini-3.5-flash-lite", False), ("gemini-flash-latest", False), ("", False),
+])
+def test_temperature_is_sent_to_gemini_1_and_2_only(model: str, sent: bool) -> None:
+    assert gemini_llm.sends_temperature(model) is sent
+
+
+@pytest.mark.asyncio
 async def test_invalid_then_valid_reask(gemini_settings) -> None:
     bad = json.dumps({"title": "", "bullets": []})
     llm, clients = make_llm(gemini_settings, {GEMINI_KEYS[0]: [gemini_text_response(bad), gemini_text_response(GOOD)]})

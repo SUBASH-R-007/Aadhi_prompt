@@ -88,6 +88,25 @@ def test_revert_puts_the_generated_scene_back_as_one_saved_edit(api, asset_store
     assert c.get(f"/api/versions/{version.id}/changes").json()["scenes"][0]["status"] == "unchanged"
 
 
+def test_revert_refuses_a_newer_stored_manifest_before_saving(api, asset_store):
+    """A manifest written by a newer build: 409 ``newer_document`` and nothing saved (never saved, then refused)."""
+    _, c, _, version = setup(api, asset_store)
+    sp = copy.deepcopy(current(c, version.id)["screenplay"])
+    sp["scenes"][0]["title"] = "Teacher title"
+    save(c, version.id, sp, 1)
+    with api.db() as db:
+        v = db.get(ProjectVersion, version.id)
+        v.asset_manifest = {**(v.asset_manifest or {}), "schema_version": 4}
+        db.commit()
+        before = copy.deepcopy(v.screenplay)
+    r = c.post(f"/api/versions/{version.id}/scenes/s1/revert", json={"revision": 2, "to": "generated"})
+    assert r.status_code == 409, r.text
+    assert (r.json()["code"], r.json()["document"], r.json()["schema_version"]) == ("newer_document", "asset manifest", 4)
+    with api.db() as db:
+        v = db.get(ProjectVersion, version.id)
+        assert v.revision == 2 and v.screenplay == before
+
+
 def test_revert_restores_a_removed_scene_at_a_position(api, asset_store):
     _, c, _, version = setup(api, asset_store)
     sp = copy.deepcopy(current(c, version.id)["screenplay"])

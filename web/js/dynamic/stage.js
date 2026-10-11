@@ -1,0 +1,597 @@
+// @ts-check
+/**
+ * The Dynamic stage (DYNAMIC_VIDEO_DESIGN §7.3): one compositor for the live player and the MP4.
+ *
+ *   const stage = createDynamicStage(root, timeline, { mode: 'live' | 'render' });
+ *   stage.update(t)            live: paint absolute time t (the player's clock; the narration stays the master)
+ *   await stage.seek(frame)    render: paint frame/fps exactly, wait for TeX, pictures and media frames, then one
+ *                              animation frame; resolves {key}, a hash of every visual input (deduplication)
+ *   stage.info()               {width, height, fps, frames, scenes: [{index, f0, f1}]}
+ *   stage.mediaPlan(f0, f1)    media frames frames [f0, f1) show (media.js)
+ *   stage.textBoxes()          [{x, y, w, h, role, critical, ink, bg, overflow, alpha, scene}] (preflight, §7.12)
+ *   stage.setLayers({captions, stage})   the caption-only layer for a burned second version (§7.5)
+ *   stage.destroy()
+ *
+ * Each frame: the scene that owns the frame is painted by its template at scene time t, over its background at the
+ * background clock (frozen in holds); during a crossfade the previous scene's final state is painted below it
+ * (§4.9); then the caption. Every write goes through the Painter, so the key covers everything that moved.
+ * Only a timeline whose presentation style is "dynamic" may reach this module (a classic one is refused).
+ */
+
+import { h } from '../shared/dom.js';
+import { sceneIndexAt } from '../player/schedule.js';
+import { contrastRatio, mixOklch } from '../motion/color.js';
+import { SCRIPT_FONTS, scriptForLanguage } from '../render/fonts.js';
+import { hashSeed, mulberry32 } from '../motion/random.js';
+import { Painter, makeRoles, sceneIndexOfFrame, stageInfo, zonesFor } from './core.js';
+import { backgroundTime, captionAt, dynamicStateAt, freezeProgress } from './state.js';
+import { paintTransition, transitionAt } from './transitions.js';
+import { CaptionLayer, captionStyle } from './captions.js';
+import { LIVE_DRIFT, MediaView, mediaPlan as planMedia, presenterOf, frameUrl, mediaKey } from './media.js';
+import boardGeneric, { mediaBoxMax } from './templates/board_generic.js';
+import meshDrift from './backgrounds/mesh_drift.js';
+import colourBlock, { blockColors } from './backgrounds/colour_block.js';
+
+/** @typedef {import('../shared/types.js').Timeline} Timeline */
+/** @typedef {import('../shared/types.js').TimedScene} TimedScene */
+/** @typedef {import('./templates/types.js').TemplateContext} TemplateContext */
+/** @typedef {import('./templates/types.js').TextEntry} TextEntry */
+/** @typedef {import('./media.js').MediaFrameInfo} MediaFrameInfo */
+
+/** Templates by id (B1: board_generic only; an unknown or unreleased id falls back to it). */
+export const TEMPLATES = Object.freeze({ board_generic: boardGeneric });
+/** Background presets by id (B1: mesh_drift and colour_block; unknown ids get mesh_drift). */
+export const BACKGROUNDS = Object.freeze({ mesh_drift: meshDrift, colour_block: colourBlock });
+
+/** Display faces the page has vendored (web/vendor/fonts.css); others fall back to Outfit until B2 vendors them. */
+const DISPLAY_FACES = Object.freeze(/** @type {Record<string, string>} */ ({ outfit: 'Outfit', inter: 'Inter' }));
+
+/**
+ * True for a timeline the Dynamic stage renders (its presentation style is "dynamic").
+ * @param {any} timeline
+ */
+export function isDynamic(timeline) {
+  return !!(timeline && timeline.presentation && timeline.presentation.style === 'dynamic');
+}
+
+/**
+ * @param {TimedScene} scene
+ */
+export function templateFor(scene) {
+  const id = scene.look && scene.look.template;
+  return /** @type {Record<string, typeof boardGeneric>} */ (TEMPLATES)[String(id)] || boardGeneric;
+}
+
+/**
+ * @param {TimedScene} scene
+ */
+export function backgroundFor(scene) {
+  const id = scene.look && scene.look.background ? scene.look.background.preset : null;
+  return /** @type {Record<string, typeof meshDrift>} */ (BACKGROUNDS)[String(id)] || meshDrift;
+}
+
+/** The Indic families behind every stack (web/vendor/fonts.css), in their default order. */
+const INDIC_FAMILIES = Object.freeze(['Noto Sans Tamil', 'Noto Sans Devanagari', 'Noto Sans Telugu', 'Noto Sans Kannada', 'Noto Sans Malayalam']);
+
+/**
+ * CSS font stacks of the presentation (display, body, mono) with the Indic families behind each, the lecture's own
+ * script first: the Noto subsets share characters (the Tamil faces also claim U+0964-0965 DANDA, ZWJ/ZWNJ, U+20B9),
+ * so a Hindi danda must come from the Devanagari face the render page preloaded, not from a Tamil face loaded
+ * lazily mid-render (its text would be invisible until it is in, and drawn with another script's glyph).
+ * @param {any} presentation
+ * @param {string} [language]  the board language (BCP-47), e.g. "hi-IN"
+ */
+export function fontStacks(presentation, language = '') {
+  const fonts = (presentation && presentation.fonts) || {};
+  const display = DISPLAY_FACES[String(fonts.display || 'outfit')] || 'Outfit';
+  const script = scriptForLanguage(language);
+  const own = script ? /** @type {Record<string, {family: string}>} */ (SCRIPT_FONTS)[script].family : null;
+  const indic = (own ? [own, ...INDIC_FAMILIES.filter((f) => f !== own)] : INDIC_FAMILIES).map((f) => `'${f}'`).join(', ');
+  return {
+    display: `'${display}', 'Inter', ${indic}, sans-serif`,
+    body: `'Inter', ${indic}, sans-serif`,
+    mono: "'JetBrains Mono', ui-monospace, monospace",
+  };
+}
+
+/** Large text on a colour block (the chapter subtitle, the kicker) keeps at least this contrast (R-53: 3:1 large). */
+export const BLOCK_INK2_CONTRAST = 3;
+
+/**
+ * The quieter ink on a colour block: the strongest mix of `ink` toward the block (at most 25%, R-52's step back) that
+ * still holds 3:1 against every block colour, else `ink` itself (the ink already has only ~4:1 on a saturated block).
+ * @param {string} ink
+ * @param {string[]} bgs  the block's colours
+ */
+export function blockInk2(ink, bgs) {
+  for (const p of [0.25, 0.2, 0.15, 0.1, 0.05]) {
+    const c = mixOklch(ink, bgs[0], p);
+    if (Math.min(...bgs.map((b) => contrastRatio(c, b))) >= BLOCK_INK2_CONTRAST) return c;
+  }
+  return ink;
+}
+
+/**
+ * Keep a live clip at `t` (re-sought when it drifts by more than 0.1 s, or after a seek) and playing or paused.
+ * @param {HTMLVideoElement} v
+ * @param {number} t
+ * @param {boolean} playing
+ * @param {MediaFrameInfo} frameInfo
+ */
+function syncClip(v, t, playing, frameInfo) {
+  try {
+    if (v.readyState >= 1 && !v.seeking && (frameInfo.seeked || !playing || Math.abs(v.currentTime - t) > LIVE_DRIFT)) {
+      if (Math.abs(v.currentTime - t) > 1e-3) v.currentTime = Math.max(0, t);
+    }
+    if (playing && v.paused) {
+      const pr = v.play();
+      if (pr && typeof pr.catch === 'function') pr.catch(() => undefined);
+    } else if (!playing && !v.paused) {
+      v.pause();
+    }
+  } catch {
+    /* not seekable yet */
+  }
+}
+
+/**
+ * One scene on the stage: its background, its template and (from B2) its presenter clip.
+ */
+class Slot {
+  /**
+   * @param {any} stage   the stage internals
+   * @param {number} index
+   */
+  constructor(stage, index) {
+    const timeline = /** @type {Timeline} */ (stage.timeline);
+    /** @type {TimedScene} */
+    this.scene = timeline.scenes[index];
+    this.index = index;
+    this.stage = stage;
+    const scene = this.scene;
+    const look = scene.look || null;
+    const roles = makeRoles(timeline.presentation, look);
+    /** @type {Promise<unknown>[]} */
+    this.pending = [];
+    /** @type {MediaView[]} */
+    this.media = [];
+    this.el = h('div', { class: 'dyn-scene', dataset: { scene: String(index) } });
+    const background = look && look.background ? look.background : {};
+    const seed = Number(background.seed) >>> 0;
+    this.bg = backgroundFor(scene).build({
+      roles, zones: stage.zones, params: background.params || {}, seed, mode: stage.mode, pending: this.pending,
+    });
+    this.el.appendChild(this.bg.el);
+    const content = h('div', { class: 'dyn-content' });
+    this.el.appendChild(content);
+    // attached before the template builds (so it can measure), in scene order whatever the order of seeks
+    const next = [...stage.scenesEl.children].find((c) => Number(/** @type {HTMLElement} */ (c).dataset.scene) > index);
+    stage.scenesEl.insertBefore(this.el, next || null);
+    const block = backgroundFor(scene) === colourBlock;
+    const blockBg = blockColors(roles);
+    const ink = block ? roles.inkOn([blockBg.base, blockBg.highlight]) : roles.color('ink');
+    // the colour behind text drawn on the background: its worst case against the ink (R-53, analytic)
+    const worst = this.bg.colors().reduce((a, b) => (contrastRatio(ink, b) < contrastRatio(ink, a) ? b : a));
+    /** @type {TemplateContext} */
+    this.ctx = {
+      scene, index, timeline, look, roles, zones: stage.zones, format: stage.zones.format,
+      rng: mulberry32(hashSeed(seed, scene.scene_id, 'template')),
+      mode: stage.mode, reducedMotion: stage.reducedMotion, root: content, paint: stage.painter, pending: this.pending,
+      media: (ref, opts) => this._media(ref, opts),
+      onBackground: { ink, ink2: block ? blockInk2(ink, [blockBg.base, blockBg.highlight]) : roles.color('ink2'), bg: worst, block },
+      rectOf: (el) => stage.rectOf(el),
+      locale: stage.locale,
+      renderTex: stage.renderTex,
+    };
+    this.template = templateFor(scene);
+    this.ctx.view = this.template.build(this.ctx);
+    this.presenter = this._presenter();
+    this.laidOut = false;
+    /** @type {Promise<void> | null} */
+    this._prepared = null;
+  }
+
+  /**
+   * @param {import('../shared/types.js').MediaRef} ref
+   * @param {{box: {w: number, h: number}, start?: number, alt?: string}} opts
+   */
+  _media(ref, opts) {
+    const view = new MediaView(ref, {
+      mode: this.stage.mode, box: opts.box, start: opts.start, sceneDuration: Number(this.scene.duration) || 0,
+      fps: this.stage.info.fps, reducedMotion: this.stage.reducedMotion, alt: opts.alt,
+    });
+    this.media.push(view);
+    if (!view.key) this.pending.push(view.ready()); // pictures: decoded before the first frame (frames: per seek)
+    return view;
+  }
+
+  /** The presenter clip (ResolvedLook.presenter, B2): frames in render mode, a muted clip live. */
+  _presenter() {
+    const p = presenterOf(this.scene);
+    if (!p) return null;
+    /** @type {HTMLImageElement | HTMLVideoElement | null} */
+    let media = null;
+    const key = mediaKey('aadhi', p.clip_key, p.size);
+    if (this.stage.mode === 'render') media = h('img', { class: 'dyn-media-el', alt: '', decoding: 'sync' });
+    else if (p.url) {
+      // determinism-allow video: live player only; render mode shows the worker's pre-extracted frames as <img>
+      media = h('video', { class: 'dyn-media-el', src: p.url, preload: 'auto', playsinline: true });
+      media.muted = true;
+    }
+    if (!media) return null;
+    const el = h('div', { class: 'dyn-presenter', style: { left: p.rect.x, top: p.rect.y, width: p.rect.w, height: p.rect.h } }, media);
+    this.el.insertBefore(el, this.el.children[1] || null);
+    return { el, media, spec: p, key };
+  }
+
+  /** Wait for TeX, pictures and fonts, then measure (once). Never rejects. */
+  prepare() {
+    if (!this._prepared) {
+      this._prepared = (async () => {
+        let count = -1;
+        while (count !== this.pending.length) {
+          count = this.pending.length;
+          await Promise.allSettled(this.pending.slice());
+        }
+        this.layout();
+      })();
+    }
+    return this._prepared;
+  }
+
+  /** Measure and fit the template (idempotent). */
+  layout() {
+    if (this.stage.destroyed || !this.el.isConnected) return;
+    if (typeof this.template.layout === 'function') this.template.layout(this.ctx);
+    this.laidOut = true;
+  }
+
+  /**
+   * Paint scene time `sceneT` with the background at background-clock time `bgT`.
+   * @param {Painter} paint
+   * @param {number} sceneT
+   * @param {number} bgT
+   * @param {MediaFrameInfo} frameInfo
+   */
+  update(paint, sceneT, bgT, frameInfo) {
+    this.ctx.frameInfo = frameInfo;
+    paint.note(`s${this.index}`); // the time itself is not a visual input: a frozen hold repeats its key
+    this.bg.update(paint, bgT, freezeProgress(this.scene, sceneT));
+    this.template.update(this.ctx, sceneT, dynamicStateAt(this.scene, sceneT));
+    const pr = this.presenter;
+    if (pr) {
+      const on = sceneT < pr.spec.t_exit;
+      paint.style(pr.el, 'visibility', on ? 'visible' : 'hidden');
+      if (pr.media instanceof HTMLImageElement) {
+        if (on && !frameInfo.noFrames) paint.attr(pr.media, 'src', frameUrl(pr.key, Math.floor(sceneT * pr.spec.src_fps + 1e-6)));
+      } else {
+        syncClip(/** @type {HTMLVideoElement} */ (pr.media), sceneT, on && !!frameInfo.playing, frameInfo);
+      }
+    }
+  }
+
+  /** Resolves when every picture and media frame on screen is decoded (rejects on a missing media frame). */
+  mediaReady() {
+    /** @type {Promise<unknown>[]} */
+    const waits = this.media.filter((m) => m.key).map((m) => m.ready());
+    const pr = this.presenter;
+    if (pr && pr.media instanceof HTMLImageElement && pr.media.getAttribute('src') && typeof pr.media.decode === 'function') {
+      waits.push(pr.media.decode());
+    }
+    return Promise.all(waits);
+  }
+
+  /** @returns {TextEntry[]} */
+  texts() {
+    return typeof this.template.texts === 'function' ? this.template.texts(this.ctx) : [];
+  }
+
+  destroy() {
+    for (const m of this.media) m.destroy();
+    this.media = [];
+    const pr = this.presenter;
+    if (pr && !(pr.media instanceof HTMLImageElement)) {
+      try {
+        pr.media.pause();
+        pr.media.removeAttribute('src');
+        pr.media.load();
+      } catch {
+        /* ignore */
+      }
+    }
+    this.el.remove();
+  }
+}
+
+/**
+ * @typedef {object} StageOptions
+ * @property {'live' | 'render'} [mode]
+ * @property {boolean} [captions]       captions drawn (default: on live; the presentation's captions_burn in render)
+ * @property {boolean} [reducedMotion]  live only (§4.8): entrances fade in place, no Ken Burns, still background
+ * @property {() => Promise<unknown>} [texIdle]   resolves when MathJax is idle (render mode)
+ * @property {() => Promise<unknown>} [frame]     resolves on the next animation frame (render mode)
+ * @property {() => void} [onInvalidate]  live: called when a scene finished laying out (repaint the current time)
+ * @property {import('../player/richtext.js').TexRenderer} [renderTex]   TeX converter (tests; default MathJax, cached)
+ */
+
+/**
+ * Create the stage inside `root` for a Dynamic timeline.
+ * @param {HTMLElement} root
+ * @param {Timeline} timeline
+ * @param {StageOptions} [opts]
+ */
+export function createDynamicStage(root, timeline, opts = {}) {
+  if (!isDynamic(timeline) || !Array.isArray(timeline.scenes)) {
+    throw new TypeError('createDynamicStage: the timeline has no Dynamic presentation');
+  }
+  const mode = opts.mode === 'render' ? 'render' : 'live';
+  const info = stageInfo(timeline);
+  const zones = zonesFor(timeline);
+  const presentation = /** @type {any} */ (timeline.presentation);
+  const locale = String(timeline.board_language || timeline.language || 'en');
+  const fonts = fontStacks(presentation, locale);
+  const el = h('div', {
+    class: ['dyn-stage', `dyn-stage--${zones.format}`, `dyn-mode--${mode}`],
+    lang: locale,
+    style: {
+      width: info.width, height: info.height, '--dyn-font-display': fonts.display, '--dyn-font-body': fonts.body,
+      '--dyn-font-mono': fonts.mono,
+    },
+  });
+  const scenesEl = h('div', { class: 'dyn-scenes' });
+  const captionHost = h('div', { class: 'dyn-captionlayer' });
+  el.append(scenesEl, captionHost);
+  root.appendChild(el);
+
+  const stage = {
+    timeline, mode, info, zones, locale, el, scenesEl, painter: new Painter(), destroyed: false,
+    reducedMotion: mode === 'live' && !!opts.reducedMotion,
+    renderTex: opts.renderTex,
+    /** @param {Element} node */
+    rectOf(node) {
+      if (!node || !node.isConnected) return null;
+      const o = el.getBoundingClientRect();
+      const r = node.getBoundingClientRect();
+      const k = o.width > 0 ? o.width / info.width : 1;
+      return { x: (r.left - o.left) / k, y: (r.top - o.top) / k, w: r.width / k, h: r.height / k };
+    },
+  };
+  const captions = new CaptionLayer(captionHost, { zones, style: captionStyle(presentation, zones.format), locale });
+  // A face that arrives late changes text widths, so every mounted scene measures again. Live: at once, then a repaint.
+  // Render: the page preloads the faces of the lecture's scripts before `ready`, but text can still pull in a face it
+  // did not preload (a character another script's subset claims, a word in a third script); seek() then waits for it
+  // and measures and paints the frame again, so a frame never depends on whether the face was in when it was laid out.
+  const fontSet = el.ownerDocument ? /** @type {any} */ (el.ownerDocument).fonts : null;
+  let fontsChanged = false;
+  const onFonts = () => {
+    if (stage.destroyed) return;
+    if (mode === 'render') {
+      fontsChanged = true;
+      return;
+    }
+    for (const s of slots.values()) s.layout();
+    if (opts.onInvalidate) opts.onInvalidate();
+  };
+  if (fontSet && typeof fontSet.addEventListener === 'function') fontSet.addEventListener('loadingdone', onFonts);
+  const layers = { stage: true, captions: opts.captions !== undefined ? !!opts.captions : mode === 'render' ? !!presentation.captions_burn : true };
+  captions.setEnabled(layers.captions);
+  /** @type {Map<number, Slot>} */
+  const slots = new Map();
+  /** @type {{index: number, sceneT: number, t: number, outgoing: number | null}} */
+  let current = { index: -1, sceneT: 0, t: 0, outgoing: null };
+  /** @type {Promise<unknown>} */
+  let queue = Promise.resolve();
+  const texIdle = opts.texIdle || (() => Promise.resolve());
+  const nextFrame = opts.frame || (() => Promise.resolve());
+
+  /** @param {number} i */
+  const slotFor = (i) => {
+    let s = slots.get(i);
+    if (!s) {
+      s = new Slot(stage, i);
+      slots.set(i, s);
+      if (mode === 'live') {
+        s.layout(); // measure now; again once TeX and pictures are in
+        const built = s;
+        s.prepare().then(() => {
+          if (!stage.destroyed && slots.get(i) === built && opts.onInvalidate) opts.onInvalidate();
+        });
+      }
+    }
+    return s;
+  };
+
+  /**
+   * Scenes on screen at (i, sceneT): the scene and, during a crossfade, the one before it.
+   * @param {number} i
+   * @param {number} sceneT
+   */
+  const onScreen = (i, sceneT) => {
+    const tr = transitionAt(timeline, i, sceneT);
+    return { tr, outgoing: tr && tr.outgoing !== null ? tr.outgoing : null };
+  };
+
+  /** @param {Set<number>} keep */
+  const prune = (keep) => {
+    for (const [i, s] of slots) {
+      if (!keep.has(i)) {
+        s.destroy();
+        slots.delete(i);
+      }
+    }
+  };
+
+  /**
+   * Paint one instant. Returns the frame key.
+   * @param {number} i        scene index
+   * @param {number} sceneT   scene-relative time
+   * @param {number} t        absolute time
+   * @param {MediaFrameInfo} frameInfo
+   */
+  const paint = (i, sceneT, t, frameInfo) => {
+    const p = stage.painter;
+    p.begin();
+    const scene = timeline.scenes[i];
+    const { tr, outgoing } = onScreen(i, sceneT);
+    p.note(`L${layers.stage ? 1 : 0}${layers.captions ? 1 : 0}|i${i}|o${outgoing === null ? '' : outgoing}`);
+    if (layers.stage) {
+      prune(new Set(outgoing === null ? [i] : [i, outgoing]));
+      const bgT = stage.reducedMotion ? 0 : backgroundTime(timeline, t);
+      const inc = slotFor(i);
+      inc.update(p, sceneT, bgT, frameInfo);
+      /** @type {Slot | null} */
+      let out = null;
+      if (outgoing !== null) {
+        out = slotFor(outgoing);
+        out.update(p, Number(timeline.scenes[outgoing].duration), bgT, frameInfo);
+      }
+      paintTransition(p, inc.el, out ? out.el : null, tr);
+    }
+    p.style(scenesEl, 'visibility', layers.stage ? 'visible' : 'hidden');
+    captions.update(p, layers.captions ? captionAt(scene, sceneT) : null);
+    current = { index: i, sceneT, t, outgoing };
+    return p.digest();
+  };
+
+  const api = {
+    el,
+
+    /**
+     * Live: paint absolute time t.
+     * @param {number} t
+     * @param {MediaFrameInfo} [frameInfo]
+     */
+    update(t, frameInfo = {}) {
+      if (stage.destroyed || !timeline.scenes.length) return '';
+      const total = Number(timeline.total_duration) || 0;
+      const tt = Math.min(Math.max(0, Number(t) || 0), total);
+      const i = Math.max(0, sceneIndexAt(timeline, tt));
+      const scene = timeline.scenes[i];
+      const sceneT = Math.min(Math.max(0, tt - Number(scene.start)), Number(scene.duration));
+      return paint(i, sceneT, tt, frameInfo);
+    },
+
+    /**
+     * Render: paint frame `frame` (t = frame / fps exactly) and wait until it is stable. Calls are serialised;
+     * frames may be requested in any order. `{frames: false}` (the render page's boot paint only) leaves the
+     * pre-extracted media frames unrequested: the worker serves them per chunk (§7.7), not before `ready`.
+     * @param {number} frame
+     * @param {{frames?: boolean}} [opts]
+     * @returns {Promise<{key: string}>}
+     */
+    seek(frame, opts = {}) {
+      const frameInfo = opts.frames === false ? { noFrames: true } : {};
+      const job = queue.then(async () => {
+        if (stage.destroyed) throw new Error('stage destroyed');
+        if (typeof frame !== 'number' || !Number.isInteger(frame) || frame < 0 || frame >= info.frames) {
+          throw new RangeError(`seek: frame ${String(frame)} outside 0..${info.frames - 1}`);
+        }
+        const t = frame / info.fps;
+        const i = sceneIndexOfFrame(info.scenes, frame);
+        const scene = timeline.scenes[i];
+        const sceneT = Math.min(Math.max(0, t - Number(scene.start)), Number(scene.duration));
+        if (layers.stage) {
+          const { outgoing } = onScreen(i, sceneT);
+          const need = outgoing === null ? [i] : [outgoing, i];
+          for (const n of need) await slotFor(n).prepare();
+        }
+        let key = paint(i, sceneT, t, frameInfo);
+        if (layers.stage) {
+          await Promise.all([...slots.values()].map((s) => s.mediaReady()));
+        }
+        await texIdle();
+        await nextFrame();
+        // A face this frame's text pulled in (font-display: block hides that text until it is in) or one that came in
+        // since the scenes were measured: wait for it, measure again and repaint (no timers: the FontFaceSet's promise).
+        if (fontSet && (fontSet.status === 'loading' || fontsChanged)) {
+          while (fontSet.status === 'loading') await fontSet.ready;
+          fontsChanged = false;
+          for (const s of slots.values()) s.layout();
+          key = paint(i, sceneT, t, frameInfo);
+          if (layers.stage) await Promise.all([...slots.values()].map((s) => s.mediaReady()));
+          await nextFrame();
+        }
+        return { key };
+      });
+      queue = job.catch(() => undefined);
+      return job;
+    },
+
+    info() {
+      return { ...info, scenes: info.scenes.map((s) => ({ ...s })) };
+    },
+
+    /**
+     * @param {number} f0
+     * @param {number} f1  exclusive
+     */
+    mediaPlan(f0, f1) {
+      return planMedia(timeline, Number(f0), Number(f1), (scene) => {
+        const tpl = templateFor(scene);
+        return tpl === boardGeneric ? mediaBoxMax(scene, zones) : { w: zones.width, h: zones.height };
+      });
+    },
+
+    /** Text boxes of the frame on screen, in stage px. */
+    textBoxes() {
+      /** @type {any[]} */
+      const out = [];
+      /** @param {TextEntry} e @param {number | null} scene */
+      const add = (e, scene) => {
+        const alpha = e.alpha === undefined ? 1 : e.alpha;
+        if (!(alpha > 0.01)) return;
+        const r = stage.rectOf(e.el);
+        if (!r || !(r.w > 0 && r.h > 0)) return;
+        const overflow = typeof e.overflow === 'number' ? Math.round(e.overflow * 10) / 10 : e.overflow ? 1 : 0;
+        out.push({
+          x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.w), h: Math.round(r.h), role: e.role,
+          // critical text is checked only when fully shown: mid-entrance it still moves (and cannot be read)
+          critical: !!e.critical && alpha >= 0.99, ink: e.ink, bg: e.bg, overflow,
+          alpha: Math.round(alpha * 1000) / 1000, scene,
+          ...(e.slot ? { slot: e.slot } : {}), ...(e.size ? { size: Math.round(e.size * 10) / 10 } : {}),
+          ...(e.min ? { min: Math.round(e.min * 10) / 10 } : {}), ...(e.weight ? { weight: e.weight } : {}),
+          ...(e.text ? { text: String(e.text).slice(0, 120) } : {}),
+        });
+      };
+      if (layers.stage) {
+        for (const i of [current.outgoing, current.index]) {
+          const s = i === null ? undefined : slots.get(i);
+          if (s) for (const e of s.texts()) add(e, i);
+        }
+      }
+      const cap = captions.textEntry();
+      if (cap) add(cap, current.index >= 0 ? current.index : null);
+      return out;
+    },
+
+    /**
+     * Which layers are drawn: {captions, stage}. `{stage: false, captions: true}` is the caption-only layer on a
+     * transparent page (§7.5 second version).
+     * @param {{captions?: boolean, stage?: boolean}} spec
+     */
+    setLayers(spec) {
+      const s = spec || {};
+      if (s.captions !== undefined) layers.captions = !!s.captions;
+      if (s.stage !== undefined) layers.stage = !!s.stage;
+      captions.setEnabled(layers.captions);
+      el.classList.toggle('is-captions-only', !layers.stage);
+      if (mode === 'live' && current.index >= 0 && !stage.destroyed) paint(current.index, current.sceneT, current.t, {});
+      return { ...layers };
+    },
+
+    /** The layers drawn now. */
+    layers() {
+      return { ...layers };
+    },
+
+    destroy() {
+      if (stage.destroyed) return;
+      stage.destroyed = true;
+      if (fontSet && typeof fontSet.removeEventListener === 'function') fontSet.removeEventListener('loadingdone', onFonts);
+      prune(new Set());
+      captions.destroy();
+      el.remove();
+    },
+  };
+  return api;
+}

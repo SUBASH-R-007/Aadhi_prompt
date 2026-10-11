@@ -2,7 +2,10 @@
 
 Rules (shared by the web player, SRT/VTT downloads and MP4 burn-in):
 
-* a cue holds at most ``MAX_LINES`` (2) lines of at most ``MAX_LINE_CHARS`` (42) characters;
+* a cue holds at most ``MAX_LINES`` (2) lines of at most ``MAX_LINE_CHARS`` (42) characters (``split_caption``'s
+  ``width`` sets another line length, e.g. for a narrower portrait caption band; the classic default is unchanged);
+* a word longer than a line is hard-split; with ``clusters`` (the narrow Dynamic 9:16 band, where it is frequent) the
+  split never cuts a grapheme cluster or an Indic conjunct, prefers a hyphen, and the pieces keep their word's timing;
 * cues are timed by word timings (``TimedWord``) when available, otherwise spread over the
   given window proportionally to the character count of each token;
 * cues never overlap and always have a positive duration after millisecond rounding.
@@ -11,6 +14,7 @@ Rules (shared by the web player, SRT/VTT downloads and MP4 burn-in):
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections.abc import Iterable, Sequence
 
 from ..schemas.timeline import CaptionCue, TimedWord
@@ -33,6 +37,41 @@ def _hard_split(token: str, width: int) -> list[str]:
     return [token[i : i + width] for i in range(0, len(token), width)] or [token]
 
 
+_JOINERS = frozenset("\u200c\u200d")  # ZWNJ, ZWJ
+
+
+def _unsafe_cut(token: str, i: int) -> bool:
+    """Cutting ``token`` before index ``i`` would split a grapheme cluster or an Indic conjunct."""
+    if not 0 < i < len(token):
+        return False
+    nxt, prev = token[i], token[i - 1]
+    return (unicodedata.category(nxt)[0] == "M" or nxt in _JOINERS or prev in _JOINERS
+            or unicodedata.combining(prev) == 9)  # never right after a virama / halant
+
+
+def _cluster_split(token: str, width: int) -> list[str]:
+    """Pieces of at most ``width`` code points, cut between grapheme clusters (after a hyphen in the second half
+    of a line when there is one); a cluster longer than a line stays whole."""
+    out: list[str] = []
+    i = 0
+    while len(token) - i > width:
+        cut = i + width
+        hyphen = token.rfind("-", i + 1, cut)
+        if hyphen >= i + width // 2:
+            cut = hyphen + 1
+        while cut > i + 1 and _unsafe_cut(token, cut):
+            cut -= 1  # back off: lines stay <= width
+        if _unsafe_cut(token, cut):  # no safe point in the line: keep the whole cluster
+            cut = i + width
+            while cut < len(token) and _unsafe_cut(token, cut):
+                cut += 1
+        out.append(token[i:cut])
+        i = cut
+    if i < len(token):
+        out.append(token[i:])
+    return out or [token]
+
+
 def tokenize(text: str, width: int = MAX_LINE_CHARS) -> list[str]:
     """Whitespace tokens of ``text``; tokens longer than a line are hard-split."""
     out: list[str] = []
@@ -40,6 +79,20 @@ def tokenize(text: str, width: int = MAX_LINE_CHARS) -> list[str]:
         if tok:
             out.extend(_hard_split(tok, width) if len(tok) > width else [tok])
     return out
+
+
+def tokens_with_owner(text: str, width: int = MAX_LINE_CHARS, *,
+                      clusters: bool = False) -> tuple[list[str], list[int]]:
+    """Like :func:`tokenize`, plus the index of the whitespace word each token comes from (a word split over a line
+    gives several tokens of one owner). ``clusters`` splits long words between grapheme clusters."""
+    split = _cluster_split if clusters else _hard_split
+    toks: list[str] = []
+    owner: list[int] = []
+    for k, tok in enumerate(t for t in _WS.split((text or "").strip()) if t):
+        parts = split(tok, width) if len(tok) > width else [tok]
+        toks += parts
+        owner += [k] * len(parts)
+    return toks, owner
 
 
 def wrap_tokens(tokens: Sequence[str], width: int = MAX_LINE_CHARS) -> list[str]:
@@ -74,8 +127,8 @@ def balance_lines(tokens: Sequence[str], width: int = MAX_LINE_CHARS) -> list[st
     return best[1] if best else lines
 
 
-def _fits(tokens: Sequence[str]) -> bool:
-    return len(wrap_tokens(tokens)) <= MAX_LINES
+def _fits(tokens: Sequence[str], width: int = MAX_LINE_CHARS) -> bool:
+    return len(wrap_tokens(tokens, width)) <= MAX_LINES
 
 
 # ---------------------------------------------------------------------------
@@ -83,18 +136,18 @@ def _fits(tokens: Sequence[str]) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def _group_tokens(tokens: Sequence[str]) -> list[tuple[int, int]]:
+def _group_tokens(tokens: Sequence[str], width: int = MAX_LINE_CHARS) -> list[tuple[int, int]]:
     """Split token indices into cue groups ``[(start, end_exclusive)]``.
 
-    A cue is closed when the next token would not fit into two lines, or after a sentence end
-    once the cue is reasonably full (keeps cue boundaries on natural pauses).
+    A cue is closed when the next token would not fit into two lines of ``width`` characters, or after a
+    sentence end once the cue is reasonably full (keeps cue boundaries on natural pauses).
     """
     groups: list[tuple[int, int]] = []
     start = 0
-    capacity = MAX_LINE_CHARS * MAX_LINES
+    capacity = width * MAX_LINES
     i = 0
     while i < len(tokens):
-        if i > start and not _fits(tokens[start : i + 1]):
+        if i > start and not _fits(tokens[start : i + 1], width):
             groups.append((start, i))
             start = i
             continue
@@ -133,11 +186,20 @@ def estimate_words(text: str, start: float, end: float | None = None) -> list[Ti
             zip(tokens, _proportional_times(tokens, start, end), strict=True)]
 
 
-def _token_times(tokens: Sequence[str], words: Sequence[TimedWord]) -> list[tuple[float, float]]:
-    """Timing per caption token: word timings when they map 1:1, else proportional."""
+def _token_times(tokens: Sequence[str], words: Sequence[TimedWord],
+                 owner: Sequence[int] | None = None) -> list[tuple[float, float]]:
+    """Timing per caption token: word timings when they map 1:1, else proportional. With ``owner`` (the word each
+    token comes from, :func:`tokens_with_owner`) the pieces of a split word share their word's timing, so the other
+    words keep their exact times."""
     ws = sorted((w for w in words if w.end >= w.start), key=lambda w: w.start)
     if not ws:
         return []
+    if owner and len(owner) == len(tokens) and len(ws) == owner[-1] + 1:
+        out: list[tuple[float, float]] = []
+        for k, w in enumerate(ws):
+            out += _proportional_times([t for t, o in zip(tokens, owner, strict=True) if o == k], w.start,
+                                       max(w.end, w.start))
+        return out
     if len(ws) == len(tokens):
         return [(w.start, max(w.end, w.start)) for w in ws]
     return _proportional_times(tokens, ws[0].start, max(w.end for w in ws))
@@ -149,28 +211,36 @@ def split_caption(
     *,
     start: float | None = None,
     end: float | None = None,
+    width: int = MAX_LINE_CHARS,
+    clusters: bool = False,
 ) -> list[CaptionCue]:
-    """Split ``text`` into cues of <= 2 lines x 42 chars, timed by ``words``.
+    """Split ``text`` into cues of <= 2 lines x ``width`` (default 42) chars, timed by ``words``.
 
     ``words`` are the (written-form) word timings of ``text``; when they do not map 1:1 onto the
     text tokens their overall span is distributed proportionally. Without words, the cues are
     spread over ``[start, end]`` (``start`` defaults to 0; ``end`` to an estimate of 0.065 s/char).
     Consecutive cues separated by less than 0.5 s are joined end-to-start to avoid flicker.
+    ``width`` (at least 1) is the line length in characters; tokens longer than a line are hard-split (with
+    ``clusters``: between grapheme clusters, the pieces keeping their word's timing; see :func:`tokens_with_owner`).
     """
-    tokens = tokenize(text)
+    width = max(1, int(width))
+    if clusters:
+        tokens, owner = tokens_with_owner(text, width, clusters=True)
+    else:
+        tokens, owner = tokenize(text, width), None
     if not tokens:
         return []
-    times = _token_times(tokens, words or [])
+    times = _token_times(tokens, words or [], owner)
     if not times:
         s = 0.0 if start is None else float(start)
         e = s + len(" ".join(tokens)) * EST_SECONDS_PER_CHAR if end is None else float(end)
         times = _proportional_times(tokens, s, max(e, s))
     cues: list[CaptionCue] = []
-    for a, b in _group_tokens(tokens):
+    for a, b in _group_tokens(tokens, width):
         cue_start = times[a][0]
         cue_end = max(times[b - 1][1], cue_start)
         cues.append(CaptionCue(start=round(cue_start, 3), end=round(cue_end, 3),
-                               text="\n".join(balance_lines(tokens[a:b]))))
+                               text="\n".join(balance_lines(tokens[a:b], width))))
     for i in range(len(cues) - 1):
         nxt = cues[i + 1].start
         if nxt - cues[i].end < _CLOSE_GAP_SECONDS:

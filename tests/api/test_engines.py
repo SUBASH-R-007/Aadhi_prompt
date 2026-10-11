@@ -59,7 +59,7 @@ def test_meta_lists_engines_with_configuration_and_models(api):
     assert engines["anthropic"]["configured"] is True and engines["gemini"]["configured"] is False
     assert engines["anthropic"]["key_source"] == "env" and engines["gemini"]["key_source"] is None
     assert engines["openai"]["models"]["plan"] == "gpt-5"
-    assert engines["gemini"]["models"]["plan"] == "gemini-2.5-pro"
+    assert engines["gemini"]["models"]["plan"] == "gemini-3.8-flash"
     assert engines["anthropic"]["models"] == {t: getattr(api.settings, f"anthropic_model_{t}")
                                               for t in ("plan", "script", "critic", "fast")}
     assert ANTHROPIC_KEY.get_secret_value() not in c.get("/api/meta").text

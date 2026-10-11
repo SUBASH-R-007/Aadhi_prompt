@@ -1,0 +1,666 @@
+{
+ "schema_version": 2,
+ "subject_name": "Basic Electrical Engineering",
+ "unit_name": "Unit 2: DC Circuits",
+ "session_number": "Session 3",
+ "session_title": "Ohm's Law",
+ "language": "en-IN",
+ "board_language": null,
+ "learning_objectives": [
+  {
+   "id": "obj-1",
+   "text": "Apply Ohm's law",
+   "bloom": "understand",
+   "concept_ids": [
+    "ohm"
+   ]
+  }
+ ],
+ "concept_map": [
+  {
+   "id": "basics",
+   "title": "Charge and Current",
+   "summary": "",
+   "depends_on": [],
+   "kind": "core"
+  },
+  {
+   "id": "ohm",
+   "title": "Ohm's Law",
+   "summary": "",
+   "depends_on": [
+    "basics"
+   ],
+   "kind": "core"
+  }
+ ],
+ "misconceptions": [],
+ "chapters": [],
+ "lexicon": [],
+ "scenes": [
+  {
+   "id": "s-title",
+   "concept_id": "basics",
+   "chapter_id": null,
+   "title": "Ohm's Law",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "s-title-b1",
+     "narration": "Welcome to this session on Ohm's law.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "type": "title",
+   "board": [
+    {
+     "id": "i1",
+     "kind": "heading",
+     "text": "Ohm's Law",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ]
+  },
+  {
+   "id": "s-chapter",
+   "concept_id": "basics",
+   "chapter_id": null,
+   "title": "Current",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "min_seconds": 6.0,
+   "type": "chapter_card",
+   "chapter_label": "Part 1"
+  },
+  {
+   "id": "s-board",
+   "concept_id": "ohm",
+   "chapter_id": null,
+   "title": "The law",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "s-board-b1",
+     "narration": "Voltage is proportional to current.",
+     "spoken": null,
+     "board_item_id": "p1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.5,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "s-board-b2",
+     "narration": "We write this as V equals I R.",
+     "spoken": null,
+     "board_item_id": "f1",
+     "fill_item_id": null,
+     "highlight_item_ids": [
+      "p1"
+     ],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "s-board-b3",
+     "narration": "Here is a resistor.",
+     "spoken": null,
+     "board_item_id": "fig",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "s-board-b4",
+     "narration": "So the current is two amperes.",
+     "spoken": null,
+     "board_item_id": "e1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "s-board-b5",
+     "narration": "Let us fill in the step.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": "e1",
+     "highlight_item_ids": [
+      "f1",
+      "p1"
+     ],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": {
+    "kind": "figure",
+    "title": null,
+    "rationale": "shows the part",
+    "show_from_beat_id": "s-board-b3",
+    "figure_id": "fig-1",
+    "image_prompt": null,
+    "chart": null,
+    "graph": null,
+    "model_3d": null,
+    "manim": null,
+    "terminal": null,
+    "quiz": null,
+    "gif_query": null,
+    "override_asset_key": null
+   },
+   "objective_ids": [
+    "obj-1"
+   ],
+   "intent": null,
+   "notes": "",
+   "type": "content",
+   "board": [
+    {
+     "id": "h",
+     "kind": "heading",
+     "text": "V = IR",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "p1",
+     "kind": "bullet",
+     "text": "Voltage is proportional to current",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "f1",
+     "kind": "formula",
+     "text": "",
+     "term": null,
+     "latex": "V = I R",
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "fig",
+     "kind": "figure",
+     "text": "",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": "fig-1",
+     "caption": "A resistor",
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "e1",
+     "kind": "example_step",
+     "text": "I = 2 A",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": true,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ]
+  },
+  {
+   "id": "s-hidden",
+   "concept_id": "basics",
+   "chapter_id": null,
+   "title": "A hidden scene",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "s-hidden-b1",
+     "narration": "This scene is hidden by the teacher.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "hidden": true,
+   "type": "title",
+   "board": [
+    {
+     "id": "hh",
+     "kind": "heading",
+     "text": "Not in the video",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ]
+  },
+  {
+   "id": "s-sim",
+   "concept_id": "ohm",
+   "chapter_id": null,
+   "title": "Animation",
+   "subtitle": null,
+   "mascot_position": "right",
+   "beats": [
+    {
+     "id": "s-sim-b1",
+     "narration": "Watch the current rise.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": "Current arrow grows",
+     "source_refs": []
+    },
+    {
+     "id": "s-sim-b2",
+     "narration": "And the voltage doubles.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": "Voltage bar doubles",
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "type": "simulation",
+   "manim": {
+    "template": "equation_steps",
+    "params": {},
+    "code": null
+   },
+   "override_asset_key": null
+  },
+  {
+   "id": "s-sim-fallback",
+   "concept_id": "ohm",
+   "chapter_id": null,
+   "title": "Fallback animation",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "s-simf-b1",
+     "narration": "First the battery.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": "Battery appears with $5 label",
+     "source_refs": []
+    },
+    {
+     "id": "s-simf-b2",
+     "narration": "Then nothing visual.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "s-simf-b3",
+     "narration": "Finally the bulb.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": "Bulb *glows*",
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "type": "simulation",
+   "manim": {
+    "template": "equation_steps",
+    "params": {},
+    "code": null
+   },
+   "override_asset_key": null
+  },
+  {
+   "id": "s-video",
+   "concept_id": "ohm",
+   "chapter_id": null,
+   "title": "Power lines",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "s-video-b1",
+     "narration": "Power lines carry current across the state.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "type": "ai_video",
+   "video_prompt": "Drone shot over power lines",
+   "rationale": "",
+   "fallback_image_prompt": "power lines",
+   "fallback_figure_id": null,
+   "override_asset_key": null
+  },
+  {
+   "id": "s-video-none",
+   "concept_id": "ohm",
+   "chapter_id": null,
+   "title": "Substation",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "s-videon-b1",
+     "narration": "A substation steps the voltage down.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "type": "ai_video",
+   "video_prompt": "Slow pan across a substation at dusk",
+   "rationale": "",
+   "fallback_image_prompt": null,
+   "fallback_figure_id": null,
+   "override_asset_key": null
+  },
+  {
+   "id": "s-interactive",
+   "concept_id": "ohm",
+   "chapter_id": null,
+   "title": "Try it",
+   "subtitle": null,
+   "mascot_position": "hidden",
+   "beats": [
+    {
+     "id": "s-int-b1",
+     "narration": "Drag the slider to change the resistance.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "type": "interactive",
+   "p5_code": "function setup(){createCanvas(100,100);}",
+   "poster_override_asset_key": null
+  },
+  {
+   "id": "s-quiz",
+   "concept_id": "ohm",
+   "chapter_id": null,
+   "title": "Check",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "s-quiz-b1",
+     "narration": "Here is a quick question.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "type": "quiz_checkpoint",
+   "question": "If R doubles at fixed V, what happens to I?",
+   "options": [
+    "It halves",
+    "It doubles",
+    "It stays the same"
+   ],
+   "correct_index": 0,
+   "feedback_wrong": [
+    "",
+    "No: I = V/R",
+    "No: R changed"
+   ],
+   "option_misconception_ids": [
+    null,
+    null,
+    null
+   ],
+   "explanation": "I = V / R.",
+   "bloom": "understand",
+   "countdown_seconds": 5,
+   "reveal_beats": [
+    {
+     "id": "s-quiz-r1",
+     "narration": "The current halves.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "source_refs": []
+  },
+  {
+   "id": "s-noaudio",
+   "concept_id": "ohm",
+   "chapter_id": null,
+   "title": "Summary",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "s-noaudio-b1",
+     "narration": "To summarise, voltage equals current times resistance.",
+     "spoken": null,
+     "board_item_id": "t1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": {
+    "kind": "gif",
+    "title": null,
+    "rationale": "fun",
+    "show_from_beat_id": null,
+    "figure_id": null,
+    "image_prompt": null,
+    "chart": null,
+    "graph": null,
+    "model_3d": null,
+    "manim": null,
+    "terminal": null,
+    "quiz": null,
+    "gif_query": "electricity",
+    "override_asset_key": null
+   },
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "type": "summary",
+   "board": [
+    {
+     "id": "t1",
+     "kind": "takeaway",
+     "text": "V = IR always",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ]
+  }
+ ],
+ "companion_sheet": {
+  "key_formulas": [],
+  "definitions": [],
+  "misconceptions": [],
+  "practice_problems": [],
+  "legacy_markdown": null
+ },
+ "figures": [
+  {
+   "id": "fig-1",
+   "caption": "A resistor",
+   "page": null,
+   "asset_key": "figure-aaa",
+   "width": 640,
+   "height": 480
+  }
+ ],
+ "source": {
+  "filename": "",
+  "mime": "",
+  "pages": null,
+  "sha256": null
+ }
+}

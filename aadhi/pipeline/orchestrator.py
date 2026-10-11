@@ -69,7 +69,7 @@ from ..jobs.base import AwaitingReview, BudgetExceeded, FatalJobError, JobCancel
 from ..models import ProjectVersion
 from ..providers.base import ProviderError, ProviderNotConfigured, RateLimited
 from ..schemas.manifest import AssetManifest
-from ..schemas.screenplay import CompanionSheet, LexiconEntry, Screenplay, SourceInfo
+from ..schemas.screenplay import PLANNABLE_SCENE_TYPES, CompanionSheet, LexiconEntry, Screenplay, SourceInfo
 from ..storage.assets import GenerationGuard, generation_guard
 from . import dbops, integrations, plan_state, source_review
 from .assets import build_assets_detailed
@@ -1005,6 +1005,8 @@ async def _regenerate(ctx: Any, vid: int, snap: dbops.VersionSnapshot) -> dict[s
         old_scene = sp.scene_by_id(scene_id)
     except KeyError as exc:
         raise FatalJobError(f"scene {scene_id!r} not found", code="not_found") from exc
+    if old_scene.type not in PLANNABLE_SCENE_TYPES:  # a teacher-inserted clip (v3): never written by AI
+        raise FatalJobError("Inserted clips cannot be regenerated.", code="bad_request")
     project = await _db(ctx, dbops.load_project, snap.project_id)
     options = options_for(sp, version_options(snap.generation_meta, project))
     if not await _cas(ctx, vid, {"revision": base}, {"status": "generating"}):

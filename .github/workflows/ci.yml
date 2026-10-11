@@ -4,6 +4,9 @@ on:
   push:
     branches: [main, "overhaul/**"]
   pull_request:
+    # `labeled`/`unlabeled`: adding or removing a label (`classic-change`, `docker`) starts a fresh run; the
+    # concurrency group below cancels the stale one.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   workflow_dispatch:
 
 permissions:
@@ -57,11 +60,12 @@ jobs:
       - name: Ruff
         run: ruff check aadhi tests scripts evals docker
 
-      - name: Generated files are current (.env.example, seccomp profile, eval fixtures)
+      - name: Generated files are current (.env.example, seccomp profile, eval fixtures, web JSON schemas)
         run: |
           python scripts/gen_env_example.py --check
           python scripts/gen_chromium_seccomp.py --check
           python evals/make_fixtures.py --check
+          python -m aadhi.schemas.generate --check
 
       - name: Pytest (fast suite)
         run: pytest -m "not slow and not network"
@@ -140,3 +144,213 @@ jobs:
         run: |
           docker compose config --quiet
           docker compose --profile s3 --profile sandbox --profile docker-sandbox config --quiet
+
+  container:
+    # Blocking from batch B0 on (docs/DYNAMIC_VIDEO_DESIGN.md sections 3.6, 7.9 and 10.2): the suites that need the
+    # production image's tools (Debian's ffmpeg 5.1, the pinned Chromium, TeX Live, the fonts) run inside the
+    # Docker `test` target against this checkout: the fast suite, the ffmpeg 5.1 feature checks, the classic
+    # invariance harness (goldens in the fast suite; the differential pixel test of the merge base against HEAD in
+    # the same container) and the slow suite. A PR that changes the classic output on purpose carries the
+    # `classic-change` label (review approval): the differential is then reported, not blocking. The label is read
+    # live (step `declared`), so re-runs and the push after the merge see it too.
+    name: Container suites (Docker test image)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    permissions:
+      contents: read
+      pull-requests: read  # the `classic-change` label of the PR (or of the merged PR a push brought in)
+    env:
+      TEST_IMAGE: aadhi-eduengine:test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # the merge base of the differential pixel test
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: npm ci (web/vendor for the render page)
+        run: npm ci --no-audit --no-fund
+
+      - name: Merge base of the differential pixel test
+        id: base
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -eu
+          if [ "$EVENT" = "pull_request" ]; then
+            base=$(git merge-base "origin/$BASE_REF" HEAD)
+          elif [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] \
+               && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            base=$BEFORE
+          else
+            base=$(git rev-parse HEAD~1)
+          fi
+          echo "sha=$base" >> "$GITHUB_OUTPUT"
+          # The two renders are needed only when something the classic render is made of changed.
+          if git diff --quiet "$base" HEAD -- aadhi web video_template requirements.txt requirements.lock \
+               package.json package-lock.json scripts/vendor.mjs Dockerfile tests/invariance; then
+            echo "render=false" >> "$GITHUB_OUTPUT"
+            echo "merge base $base: no renderer input changed, the differential pixel test is skipped"
+          else
+            echo "render=true" >> "$GITHUB_OUTPUT"
+            echo "merge base $base"
+          fi
+          # The burned-in caption render (libass, the final re-encode) is compared too when its path changed.
+          if git diff --quiet "$base" HEAD -- aadhi/compose/ffmpeg.py aadhi/compose/captions.py \
+               aadhi/compose/video.py package.json package-lock.json scripts/vendor.mjs Dockerfile; then
+            echo "burn=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "burn=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Declared classic change (live labels; also for re-runs and the push after a merge)
+        id: declared
+        if: steps.base.outputs.render == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ steps.base.outputs.sha }}
+        run: |
+          set -eu
+          # Read at run time, never from the event payload (a re-run reuses the payload it started with). A PR
+          # declares the change with the `classic-change` label; a push inherits the label of the merged PR that
+          # brought HEAD in; a direct push without a PR carries a reviewed `Classic-Change: approved` commit trailer
+          # in the pushed range. An unreadable label list counts as undeclared (the differential then blocks).
+          if [ -n "$PR" ]; then
+            labels=$(gh api "repos/$REPO/pulls/$PR" --jq '.labels[].name') \
+              || { echo "::warning::could not read the PR labels; the change counts as undeclared"; labels=""; }
+          else
+            labels=$(gh api "repos/$REPO/commits/$GITHUB_SHA/pulls" \
+                       --jq '.[] | select(.merged_at != null) | .labels[].name') \
+              || { echo "::warning::could not read the merged PR's labels"; labels=""; }
+            if git log --format='%(trailers:key=Classic-Change,valueonly)' "$BASE_SHA..HEAD" | grep -qix 'approved'; then
+              labels=$(printf '%s\nclassic-change' "$labels")
+            fi
+          fi
+          if printf '%s\n' "$labels" | grep -qx 'classic-change'; then d=true; else d=false; fi
+          echo "declared=$d" >> "$GITHUB_OUTPUT"
+          echo "declared classic change: $d"
+
+      - name: Merge base checkout (with its own web/vendor)
+        if: steps.base.outputs.render == 'true'
+        env:
+          BASE_SHA: ${{ steps.base.outputs.sha }}
+        run: |
+          set -eu
+          mkdir -p "$RUNNER_TEMP/base" "$RUNNER_TEMP/invariance"
+          git archive --format=tar "$BASE_SHA" | tar -x -C "$RUNNER_TEMP/base"
+          cd "$RUNNER_TEMP/base"
+          npm ci --no-audit --no-fund
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build the test image (runtime image + test tools)
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: test
+          push: false
+          load: true
+          tags: ${{ env.TEST_IMAGE }}
+          cache-from: |
+            type=gha,scope=test
+            type=gha
+          cache-to: type=gha,scope=test,mode=max
+
+      - name: Container runner (the runner's uid, the checkout at /src, sandboxed Chromium)
+        run: |
+          # Ubuntu 24.04 restricts unprivileged user namespaces via AppArmor; Chromium's sandbox needs them
+          # (docs/OPERATIONS.md section 4.2).
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+          cat > "$RUNNER_TEMP/in-container" <<'EOF'
+          #!/bin/sh
+          # in-container CMD...: run CMD in the test image; EXTRA_DOCKER_ARGS adds mounts.
+          exec docker run --rm --shm-size=1g --security-opt seccomp=docker/app/chromium-seccomp.json \
+            --user "$(id -u):$(id -g)" -e CI -e GITHUB_ACTIONS \
+            -v "$GITHUB_WORKSPACE:/src" -w /src ${EXTRA_DOCKER_ARGS:-} "$TEST_IMAGE" "$@"
+          EOF
+          chmod +x "$RUNNER_TEMP/in-container"
+          "$RUNNER_TEMP/in-container" sh -c 'ffmpeg -hide_banner -version | head -n 1; python -m pytest --version'
+
+      - name: Fast suite in the container (incl. the classic goldens)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          "$RUNNER_TEMP/in-container" python -m pytest -m "not slow and not network"
+
+      - name: ffmpeg 5.1 feature checks and the Dynamic determinism suite in the container
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          # Every test marked `container`: tests/compose/test_ffmpeg_features.py and the loudness measurements (the
+          # image sets AADHI_EXPECT_FFMPEG=5.1, so the ffmpeg version pin runs here too), the motion engine's container
+          # checks and, from B1, the Dynamic determinism suite (tests/determinism/test_frame_hashes.py: 300 frames as
+          # 1x300, 3x100 and in reverse give identical hashes on the real stage, and a stray timer trips the guard).
+          set +e
+          "$RUNNER_TEMP/in-container" python -m pytest -m "container and not network"
+          code=$?
+          if [ "$code" -eq 5 ]; then
+            echo "::warning::no ffmpeg feature checks were collected (expected tests marked container)"
+            exit 0
+          fi
+          exit "$code"
+
+      - name: "Classic invariance: differential pixel test (merge base vs HEAD, same container)"
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && steps.base.outputs.render == 'true' }}
+        env:
+          EXTRA_DOCKER_ARGS: -v ${{ runner.temp }}/base:/base:ro -v ${{ runner.temp }}/invariance:/out
+          DECLARED: ${{ steps.declared.outputs.declared }}
+        run: |
+          flag=""
+          if [ "$DECLARED" = "true" ]; then flag="--declared-change"; fi
+          "$RUNNER_TEMP/in-container" python tests/invariance/differential.py --base-root /base --head-root /src \
+            --out /out --keep-states $flag
+
+      - name: "Classic invariance: differential pixel test with burned-in captions (caption path changed)"
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && steps.base.outputs.render == 'true' && steps.base.outputs.burn == 'true' }}
+        env:
+          EXTRA_DOCKER_ARGS: -v ${{ runner.temp }}/base:/base:ro -v ${{ runner.temp }}/invariance-burn:/out
+          DECLARED: ${{ steps.declared.outputs.declared }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/invariance-burn"  # created by the runner's user, who runs the container
+          flag=""
+          if [ "$DECLARED" = "true" ]; then flag="--declared-change"; fi
+          "$RUNNER_TEMP/in-container" python tests/invariance/differential.py --base-root /base --head-root /src \
+            --out /out --burn-captions $flag
+
+      - name: Differential summary
+        if: ${{ !cancelled() && steps.base.outputs.render == 'true' }}
+        run: |
+          cat "$RUNNER_TEMP/invariance/summary.md" >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+          cat "$RUNNER_TEMP/invariance-burn/summary.md" >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+
+      - name: Slow suite in the container
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          "$RUNNER_TEMP/in-container" python -m pytest -m "slow and not network and not container"
+
+      - name: Upload the invariance report
+        if: ${{ !cancelled() && steps.base.outputs.render == 'true' && (failure() || steps.declared.outputs.declared == 'true') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: classic-invariance-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/invariance/report.json
+            ${{ runner.temp }}/invariance/summary.md
+            ${{ runner.temp }}/invariance/frames/
+            ${{ runner.temp }}/invariance/base/report.json
+            ${{ runner.temp }}/invariance/base/capture.json
+            ${{ runner.temp }}/invariance/base/states/
+            ${{ runner.temp }}/invariance/head/report.json
+            ${{ runner.temp }}/invariance/head/capture.json
+            ${{ runner.temp }}/invariance/head/states/
+            ${{ runner.temp }}/invariance-burn/report.json
+            ${{ runner.temp }}/invariance-burn/summary.md
+            ${{ runner.temp }}/invariance-burn/frames/
+          if-no-files-found: ignore
+          retention-days: 14

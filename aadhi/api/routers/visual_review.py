@@ -51,7 +51,7 @@ from ..generation import (
 from ..screenplay_service import authorize_asset_keys, stale_scenes
 from ..storable import StorableBody
 from ..timelines import signed_urls
-from .versions import safe_manifest, safe_screenplay
+from .versions import require_readable_manifest, safe_manifest, safe_screenplay
 
 router = APIRouter(prefix="/api/versions", tags=["visual review"], dependencies=RATE_LIMITED)
 
@@ -84,7 +84,10 @@ class VisualActionBody(StorableBody):
 
 
 def _require_screenplay(version: ProjectVersion) -> Screenplay:
+    """The stored screenplay; 409 ``newer_document`` first when a newer build wrote it or the asset manifest (every
+    endpoint here answers with the manifest, so a write is refused before it is made, never after)."""
     sp = safe_screenplay(version)
+    require_readable_manifest(version)
     if sp is None:
         raise ApiException(409, "no_screenplay", "This version has no screenplay yet.")
     return sp

@@ -44,6 +44,16 @@ export function errorMessage(err, fallback = 'Something went wrong. Please try a
         return 'Saving API keys in the Studio is turned off on this server.';
       case 'render_unavailable': // 503 with a plain reason (missing ffmpeg / encoder / browser)
         return err.message || 'This server cannot render videos right now.';
+      case 'newer_document': // 409: saved by a newer build (schema_version above what this server reads)
+        return 'This lecture was saved by a newer version of Aadhi EduEngine, so this server cannot open or change it. Ask an administrator to update the server.';
+      case 'feature_unavailable': {
+        // 422 with one {loc, msg: "<feature label>: not available on this server yet (...)"} per feature
+        const labels = Array.isArray(err.detail)
+          ? err.detail.map((/** @type {any} */ d) => String(d?.msg ?? '').split(':')[0].trim()).filter(Boolean)
+          : [];
+        const what = labels.length ? ` (${labels.join('; ')})` : '';
+        return `This lecture uses Dynamic-video features this server does not offer yet${what}. Remove them, or ask an administrator to switch them on.`;
+      }
       default:
         if (err.status >= 500) return 'The server had a problem. Please try again in a moment.';
         return err.message || fallback;

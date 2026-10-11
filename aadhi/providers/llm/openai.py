@@ -18,6 +18,12 @@ unverified key: HTTP 400 "Your organization must be verified to stream this mode
 within the same attempt, and the model is remembered (per provider instance, i.e. per key) so
 later calls skip the refused stream. Those calls get no stall detection: only the per-attempt cap
 (``LLM_TIMEOUT_SECONDS``) and the "still waiting" notices apply.
+
+Reasoning models (o-series, gpt-5, gpt-5.x such as gpt-5.6-sol/terra/luna, gpt-6 and later) get no
+``temperature``: without an explicit ``reasoning.effort`` they reason at their default (``medium``),
+and OpenAI accepts sampling parameters only at effort ``none``. Their output budget is
+``max_output_tokens`` (Responses) / ``max_completion_tokens`` (Chat Completions), which includes the
+reasoning tokens. Structured output (``json_schema``, ``strict: false``) is the same for every model.
 """
 
 from __future__ import annotations
@@ -42,7 +48,7 @@ from .structured import Completion, Turn, run_structured, settle
 
 log = logging.getLogger(__name__)
 
-_REASONING_MODEL = re.compile(r"^(o\d|gpt-5)", re.IGNORECASE)
+_REASONING_MODEL = re.compile(r"^(o\d|gpt-([5-9]|[1-9]\d))", re.IGNORECASE)  # o3, gpt-5.6-terra, gpt-6-luna, ...
 _TEXT_MIMES = ("text/", "application/json", "application/xml")
 INLINE_FILE_LIMIT = 20 * 1024 * 1024
 DEFAULT_MODEL_PRO = "gpt-4.1"

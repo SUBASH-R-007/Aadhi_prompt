@@ -242,6 +242,7 @@ def test_many_states_keep_memory_and_argv_constant(tmp_path: Path, settings: Set
             pytest.fail("encode took too long")
         time.sleep(0.05)
     err = proc.stderr.read().decode("utf-8", "replace") if proc.stderr else ""
+    proc.wait(timeout=60)  # the loop may stop sampling early (a transient psutil error): collect the exit code
     assert proc.returncode == 0, err[-500:]
     assert peak < 800 * 1024 * 1024, f"peak RSS {peak / 2**20:.0f} MB"  # was ~1.5 GB with 40 PNG inputs
     info = asyncio.run(probe(tmp_path / "many.mp4", settings=settings))

@@ -1,0 +1,723 @@
+"""Dynamic render preflight (DYNAMIC_VIDEO_DESIGN §7.12): check what is deterministic before capture, fix what can be
+fixed automatically, block only with an action the teacher can take.
+
+**How.** The worker loads the stage once (``stage_page``; the timeline it holds is served to the page; media frames
+are 1x1 stand-ins, text does not depend on them) and seeks the sampled frames: 24 spread frames (the centres of 24
+equal parts), every scene's first frame, every scene's last frame (its fullest board: every item revealed; an
+addition to §7.12's list), every beat's settled frame (``BEAT_SETTLE_S`` after the beat starts: the card it reveals
+is in, and a card that later collapses is still on screen; also an addition, B1 integration) and, in 9:16, every
+caption chunk's first frame (``TimedScene.kinetic_captions``; without them, every phrase caption's). At each
+frame it reads ``aadhiStage.textBoxes()`` (``{x, y, w, h, role, critical, ink, bg, overflow}``, plus the optional
+``scene``, ``slot``, ``size``, ``weight``, ``min`` and ``text`` this module reads when the stage sends them).
+
+**Checks in B1.**
+
+=============== ==================================================== ===============================================
+Check           Rule                                                 On failure
+=============== ==================================================== ===============================================
+text_overflow   §4.6: a critical or caption box reports ``overflow`` Shrink the slot to its minimum size
+                                                                     (``look.text_fit[slot].size``); still
+                                                                     overflowing: block with "Shorten text".
+                                                                     Decorative boxes only warn
+safe_zones      R-59 (simple per-format bands until B2's             Force the template's safe variant
+                ``zones.py``): critical boxes inside the critical    (``look.variant = "safe"``); still outside:
+                area, caption boxes inside the caption band; with    block with "Shorten text"
+                burned captions no other critical box may reach
+                into the caption band (the caption covers it)
+contrast        R-53 from the declared ink and background colours:   Force the scrim on
+                4.5:1 body; 3:1 at >= 32 px, or >= 24 px bold;       (``look.text_fit[slot].scrim = true``);
+                formula/entity text 4.5:1; captions 7:1 (target)     never blocks (a warning remains)
+type_floor      R-29 from the declared size and weight: labels and   Warn only (the stage keeps these floors
+                the chip >= 40 px (16:9) / >= 44 px (9:16); 9:16     itself: a warning means a stage regression)
+                text at <= 64 px weight >= 600
+=============== ==================================================== ===============================================
+
+Remedies are applied to the served timeline (``apply_remedies``) and the affected scenes' frames are checked once
+more on the reloaded page; the capture must use :attr:`PreflightResult.timeline`. The stage honours the remedies
+through fields that already exist in ``ResolvedLook`` (``variant``, ``text_fit``); a stage that ignores one simply
+leaves the problem in place, and the second round turns it into a block or a warning as above.
+
+**Result.** :meth:`PreflightResult.summary` is the frozen preflight schema (``PREFLIGHT_SCHEMA``), stored in
+``Render.options["qa"]["preflight"]`` (``container.motion_qa``; :meth:`PreflightResult.as_qa` when the render stops
+at preflight).
+
+Not checked here yet (they need later batches): duration profile and the fit step (B4), Aadhi time (B4), the 9:16
+frame-0 hook band (B2 zones / B4), licences (B6), music under speech and master loudness (B3), caption re-chunking
+(B2 ``kinetic.py``).
+"""
+
+from __future__ import annotations
+
+import copy
+import math
+import time
+from collections import Counter
+from collections.abc import Callable, Iterable, Sequence
+from dataclasses import dataclass, field
+from typing import Any
+
+from ...config import Settings
+from ...jobs.base import FatalJobError
+from ...schemas.timeline import Timeline
+from ..base import timeline_stage
+from ..qa import expected_frame_count
+from .colour import text_contrast
+from .stage_page import StageInfo, StagePage, StageScene, placeholder_frames, stage_browser
+
+PREFLIGHT_SCHEMA = 1
+SPREAD_FRAMES = 24
+# A card enters 0.12 s before its beat and takes 0.5 s (board_generic): settled this long after the beat starts.
+BEAT_SETTLE_S = 0.6
+SAFE_VARIANT = "safe"
+
+# R-59, simple per-format bands until B2's zones.py: (y0, y1, x0, x1) in stage px. A box must lie inside the union of
+# its bands, and every band its vertical extent overlaps must hold its horizontal extent.
+CRITICAL_BANDS: dict[str, tuple[tuple[float, float, float, float], ...]] = {
+    "landscape": ((54, 912, 96, 1824),),
+    "portrait": ((288, 840, 192, 888), (840, 1248, 120, 780)),
+}
+CAPTION_BANDS: dict[str, tuple[tuple[float, float, float, float], ...]] = {
+    "landscape": ((924, 1032, 96, 1824),),
+    "portrait": ((1040, 1240, 120, 780),),
+}
+ZONE_TOLERANCE_PX = 1.0  # DOM rects are fractional
+OVERFLOW_TOLERANCE_PX = 0.5
+MIN_TEXT_PX = {"landscape": 36, "portrait": 40}  # R-29 floors ("never < 36" / "never < 40")
+MIN_LABEL_PX = {"landscape": 40.0, "portrait": 44.0}  # R-29: labels >= 40 px (16:9), >= 44 px (9:16)
+LABEL_ROLES = frozenset({"label", "chip"})
+PORTRAIT_HEAVY_BELOW_PX = 64.0  # R-29 (9:16): text at <= 64 px ...
+PORTRAIT_MIN_WEIGHT = 600.0  # ... is at least weight 600
+
+# R-53
+CONTRAST_BODY = 4.5
+CONTRAST_LARGE = 3.0
+CONTRAST_CAPTION_TARGET = 7.0
+LARGE_REGULAR_PX = 32.0
+LARGE_BOLD_PX = 24.0
+BOLD_WEIGHT = 700.0
+CAPTION_ROLES = frozenset({"caption", "captions"})
+STRICT_ROLES = frozenset({"formula", "symbol", "entity"})  # 4.5:1 at any size
+
+CHECKS = ("text_overflow", "safe_zones", "contrast", "type_floor")
+REMEDY_FOR = {"text_overflow": "shrink", "safe_zones": "safe_variant", "contrast": "scrim"}
+ACTION_SHORTEN_TEXT = "Shorten text"
+
+_MESSAGES = {
+    ("text_overflow", "block"): "The text does not fit its box ({slot}) even at the smallest size.",
+    ("text_overflow", "warn"): "A decorative text ({slot}) does not fit its box.",
+    ("text_overflow", "fixed"): "The text ({slot}) was set smaller so that it fits its box.",
+    ("safe_zones", "block"): "The text ({slot}) runs outside the safe area of the frame, where player controls, "
+                             "platform buttons or the caption band would cover it.",
+    ("safe_zones", "fixed"): "The scene was switched to its safe layout so that the text ({slot}) stays clear of "
+                             "player controls and platform buttons.",
+    ("contrast", "warn"): "The text ({slot}) is hard to read on its background ({ratio}:1; {required}:1 needed).",
+    ("contrast", "fixed"): "A background scrim was added behind the text ({slot}) so that it is easy to read.",
+    ("type_floor", "warn"): "The text ({slot}) is smaller or lighter than the type floor of this format (R-29).",
+}
+
+
+# ---------------------------------------------------------------------------
+# Text boxes
+# ---------------------------------------------------------------------------
+
+
+def _number(v: Any) -> float | None:
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v):
+        return None
+    return float(v)
+
+
+def _text(v: Any, limit: int = 60) -> str:
+    return " ".join(str(v).split())[:limit] if isinstance(v, str) else ""
+
+
+@dataclass(frozen=True)
+class TextBox:
+    """One entry of ``aadhiStage.textBoxes()`` (stage px)."""
+
+    x: float
+    y: float
+    w: float
+    h: float
+    role: str = "text"
+    critical: bool = False
+    ink: str | None = None
+    bg: str | None = None
+    overflow: float = 0.0  # px the text overflows its box (``True`` = 1 px; 0 = fits)
+    scene: int | None = None  # scene index the box belongs to (else the frame's scene)
+    slot: str | None = None  # the ``ResolvedLook.text_fit`` key of the box (else its role)
+    size: float | None = None  # font size, px
+    weight: float | None = None
+    min_size: float | None = None  # the slot's smallest allowed size, px
+    text: str = ""
+
+    @classmethod
+    def parse(cls, raw: Any) -> TextBox | None:
+        """A box from the page's dict, or None when its geometry is unusable."""
+        if not isinstance(raw, dict):
+            return None
+        x, y, w, h = (_number(raw.get(k)) for k in ("x", "y", "w", "h"))
+        if x is None or y is None or w is None or h is None or w < 0 or h < 0:
+            return None
+        overflow = raw.get("overflow")
+        if overflow is True:
+            spill = 1.0
+        else:
+            spill = max(0.0, _number(overflow) or 0.0)
+        scene = raw.get("scene")
+        role = _text(raw.get("role"), 40) or "text"
+        return cls(
+            x=x, y=y, w=w, h=h, role=role.lower(), critical=raw.get("critical") is True,
+            ink=raw.get("ink") if isinstance(raw.get("ink"), str) else None,
+            bg=raw.get("bg") if isinstance(raw.get("bg"), str) else None,
+            overflow=spill,
+            scene=scene if isinstance(scene, int) and not isinstance(scene, bool) and scene >= 0 else None,
+            slot=_text(raw.get("slot"), 60) or None, size=_number(raw.get("size")), weight=_number(raw.get("weight")),
+            min_size=_number(raw.get("min")), text=_text(raw.get("text")))
+
+    @property
+    def key(self) -> str:
+        """The slot the remedies address (``slot``, else ``role``)."""
+        return self.slot or self.role
+
+    @property
+    def is_caption(self) -> bool:
+        return self.role in CAPTION_ROLES
+
+    def rect(self) -> list[float]:
+        return [round(self.x, 1), round(self.y, 1), round(self.w, 1), round(self.h, 1)]
+
+
+def inside_bands(box: TextBox, bands: Iterable[tuple[float, float, float, float]], *,
+                 tolerance: float = ZONE_TOLERANCE_PX) -> bool:
+    """True when ``box`` lies inside the union of ``bands`` ((y0, y1, x0, x1)), each band it overlaps holding its
+    horizontal extent (an empty box always fits)."""
+    if box.w < 1 or box.h < 1:
+        return True
+    top, bottom, left, right = box.y, box.y + box.h, box.x, box.x + box.w
+    covered = 0.0
+    for y0, y1, x0, x1 in bands:
+        overlap = min(bottom, y1) - max(top, y0)
+        if overlap <= tolerance:
+            continue
+        if left < x0 - tolerance or right > x1 + tolerance:
+            return False
+        covered += overlap
+    return covered >= box.h - tolerance
+
+
+def overlaps_bands(box: TextBox, bands: Iterable[tuple[float, float, float, float]], *,
+                   tolerance: float = ZONE_TOLERANCE_PX) -> bool:
+    """True when ``box`` covers part of any of ``bands`` ((y0, y1, x0, x1)) by more than ``tolerance`` both ways."""
+    if box.w < 1 or box.h < 1:
+        return False
+    for y0, y1, x0, x1 in bands:
+        if (min(box.y + box.h, y1) - max(box.y, y0) > tolerance
+                and min(box.x + box.w, x1) - max(box.x, x0) > tolerance):
+            return True
+    return False
+
+
+def below_type_floor(box: TextBox, fmt: str) -> bool:
+    """R-29 from the size and weight the stage declared (a box without them is not judged)."""
+    if box.size is None:
+        return False
+    if box.role in LABEL_ROLES and box.size + 0.01 < MIN_LABEL_PX.get(fmt, MIN_LABEL_PX["landscape"]):
+        return True
+    return (fmt == "portrait" and box.weight is not None and box.size <= PORTRAIT_HEAVY_BELOW_PX
+            and box.weight + 0.01 < PORTRAIT_MIN_WEIGHT)
+
+
+def contrast_required(box: TextBox) -> float:
+    """The R-53 minimum (or, for captions, the target) contrast of ``box``."""
+    if box.is_caption:
+        return CONTRAST_CAPTION_TARGET
+    if box.role in STRICT_ROLES:
+        return CONTRAST_BODY
+    if box.size is not None:
+        bold = (box.weight or 400.0) >= BOLD_WEIGHT
+        if box.size >= LARGE_REGULAR_PX or (bold and box.size >= LARGE_BOLD_PX):
+            return CONTRAST_LARGE
+    return CONTRAST_BODY
+
+
+# ---------------------------------------------------------------------------
+# Findings
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class Finding:
+    """One problem with one slot of one scene (merged over every frame it was seen at)."""
+
+    check: str
+    scene_index: int | None
+    slot: str
+    role: str
+    frame: int
+    box: list[float]
+    remedy: str | None = None
+    ratio: float | None = None
+    required: float | None = None
+    overflow: float | None = None
+    frames: int = 1
+    status: str = "open"  # open -> fixed | block | warn
+    text: str = ""
+
+    @property
+    def ident(self) -> tuple[str, int | None, str]:
+        return self.check, self.scene_index, self.slot
+
+    def merge(self, other: Finding) -> None:
+        self.frames += other.frames
+        if other.ratio is not None and (self.ratio is None or other.ratio < self.ratio):
+            self.ratio, self.frame, self.box = other.ratio, other.frame, other.box
+        if other.overflow is not None and (self.overflow is None or other.overflow > self.overflow):
+            self.overflow = other.overflow
+        if self.remedy is not None and other.remedy is None:
+            self.remedy = None  # the slot is already at its limit somewhere: no remedy for it
+
+
+def evaluate_box(box: TextBox, *, fmt: str, frame: int, scene_index: int | None,
+                 variant: str | None = None, captions: bool = False) -> tuple[list[Finding], bool]:
+    """The findings of one box (``fmt``: ``landscape``/``portrait``) and whether its contrast could be measured.
+    ``variant``: the scene's current ``look.variant`` (a scene already on its safe variant gets no zone remedy);
+    ``captions``: captions are burned, so their band is taken (in 9:16 it lies inside the lower critical band)."""
+    found: list[Finding] = []
+    checked = box.critical or box.is_caption
+
+    def add(check: str, remedy: str | None, **extra: Any) -> None:
+        found.append(Finding(check=check, scene_index=scene_index, slot=box.key, role=box.role, frame=frame,
+                             box=box.rect(), remedy=remedy, text=box.text, **extra))
+
+    if box.overflow > OVERFLOW_TOLERANCE_PX:
+        if not checked:
+            add("text_overflow", None, overflow=round(box.overflow, 1), status="warn")
+        else:
+            floor = box.min_size if box.min_size is not None else MIN_TEXT_PX.get(fmt, 36)
+            at_floor = box.size is not None and box.size <= floor + 0.01
+            add("text_overflow", None if at_floor else "shrink", overflow=round(box.overflow, 1))
+    if checked:
+        bands = CAPTION_BANDS if box.is_caption else CRITICAL_BANDS
+        outside = not inside_bands(box, bands.get(fmt, bands["landscape"]))
+        covered = captions and not box.is_caption and overlaps_bands(
+            box, CAPTION_BANDS.get(fmt, CAPTION_BANDS["landscape"]))
+        if outside or covered:
+            add("safe_zones", None if variant == SAFE_VARIANT else "safe_variant")
+    if below_type_floor(box, fmt):
+        add("type_floor", None, status="warn")
+    measured = False
+    if checked:
+        ratio = text_contrast(box.ink, box.bg)
+        measured = ratio is not None
+        required = contrast_required(box)
+        if ratio is not None and ratio + 1e-9 < required:
+            add("contrast", "scrim", ratio=round(ratio, 2), required=required)
+    return found, measured
+
+
+def merge_findings(findings: Iterable[Finding]) -> list[Finding]:
+    """One finding per (check, scene, slot), in first-seen order."""
+    out: dict[tuple[str, int | None, str], Finding] = {}
+    for f in findings:
+        if f.ident in out:
+            out[f.ident].merge(f)
+        else:
+            out[f.ident] = copy.copy(f)
+    return list(out.values())
+
+
+def evaluate_boxes(boxes: Iterable[Any], *, fmt: str, frame: int, info: StageInfo | None = None,
+                   variants: dict[int, str | None] | None = None,
+                   captions: bool = False) -> tuple[list[Finding], Counter[str]]:
+    """Findings and counts (``boxes``, ``malformed``, ``contrast_measured``) of the raw boxes seen at ``frame``."""
+    stats: Counter[str] = Counter()
+    found: list[Finding] = []
+    frame_scene = info.scene_at(frame) if info is not None else None
+    for raw in boxes:
+        box = raw if isinstance(raw, TextBox) else TextBox.parse(raw)
+        if box is None:
+            stats["malformed"] += 1
+            continue
+        stats["boxes"] += 1
+        scene_index = box.scene if box.scene is not None else (frame_scene.index if frame_scene else None)
+        items, measured = evaluate_box(box, fmt=fmt, frame=frame, scene_index=scene_index,
+                                       variant=(variants or {}).get(scene_index) if scene_index is not None else None,
+                                       captions=captions)
+        stats["contrast_measured"] += int(measured)
+        found += items
+    return found, stats
+
+
+# ---------------------------------------------------------------------------
+# Remedies
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Remedy:
+    """An automatic fix: ``shrink`` (``text_fit[slot].size``), ``safe_variant`` (``variant``) or ``scrim``
+    (``text_fit[slot].scrim``) on one scene's ``look``."""
+
+    kind: str
+    scene_index: int
+    slot: str = ""
+    size: float | None = None
+
+    def as_dict(self) -> dict[str, Any]:
+        out: dict[str, Any] = {"kind": self.kind, "scene_index": self.scene_index}
+        if self.slot:
+            out["slot"] = self.slot
+        if self.size is not None:
+            out["size"] = self.size
+        return out
+
+
+def plan_remedies(findings: Iterable[Finding], *, fmt: str, min_sizes: dict[tuple[int, str], float] | None = None,
+                  has_look: Callable[[int], bool] | None = None) -> list[Remedy]:
+    """The remedies for the open findings that have one (one per scene and slot; one safe variant per scene).
+    ``min_sizes``: the smallest size each (scene, slot) reported; ``has_look``: scenes without a look get none."""
+    out: dict[tuple[str, int, str], Remedy] = {}
+    for f in findings:
+        if f.status != "open" or f.remedy is None or f.scene_index is None:
+            continue
+        if has_look is not None and not has_look(f.scene_index):
+            continue
+        if f.remedy == "safe_variant":
+            out.setdefault(("safe_variant", f.scene_index, ""), Remedy("safe_variant", f.scene_index))
+        elif f.remedy == "shrink":
+            size = (min_sizes or {}).get((f.scene_index, f.slot), float(MIN_TEXT_PX.get(fmt, 36)))
+            out.setdefault(("shrink", f.scene_index, f.slot), Remedy("shrink", f.scene_index, f.slot, size))
+        elif f.remedy == "scrim":
+            out.setdefault(("scrim", f.scene_index, f.slot), Remedy("scrim", f.scene_index, f.slot))
+    return list(out.values())
+
+
+def apply_remedies(timeline: dict[str, Any], remedies: Iterable[Remedy]) -> dict[str, Any]:
+    """A copy of the (served) timeline dict with the remedies written into each scene's ``look``. Scenes without a
+    look are left alone."""
+    out = copy.deepcopy(timeline)
+    scenes = out.get("scenes") if isinstance(out, dict) else None
+    if not isinstance(scenes, list):
+        return out
+    for r in remedies:
+        if not 0 <= r.scene_index < len(scenes) or not isinstance(scenes[r.scene_index], dict):
+            continue
+        look = scenes[r.scene_index].get("look")
+        if not isinstance(look, dict):
+            continue
+        if r.kind == "safe_variant":
+            look["variant"] = SAFE_VARIANT
+            continue
+        fit = look.get("text_fit")
+        if not isinstance(fit, dict):
+            fit = look["text_fit"] = {}
+        slot = fit.get(r.slot)
+        if not isinstance(slot, dict):
+            slot = fit[r.slot] = {}
+        if r.kind == "shrink" and r.size is not None:
+            slot["size"] = r.size
+        elif r.kind == "scrim":
+            slot["scrim"] = True
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Sampling
+# ---------------------------------------------------------------------------
+
+
+def sample_frames(info: StageInfo, timeline: Timeline | None = None, *, spread: int = SPREAD_FRAMES) -> list[int]:
+    """The frames preflight seeks (sorted, unique): ``spread`` spread frames, every scene's first and last frame, every
+    beat's settled frame and, for a portrait timeline, the first frame of every shown caption chunk (of every phrase
+    caption when the timeline has no caption chunks)."""
+    n = info.frames
+    frames: set[int] = {min(n - 1, (2 * k + 1) * n // (2 * spread)) for k in range(spread)} if n > 0 else set()
+    for sc in info.scenes:
+        frames.update((sc.f0, sc.f1 - 1))
+    if timeline is None:
+        return sorted(f for f in frames if 0 <= f < n)
+    by_index = {sc.index: sc for sc in info.scenes}
+
+    def at(sc: StageScene, seconds: float) -> int:
+        return min(max(sc.f0 + math.ceil(seconds * info.fps - 1e-6), sc.f0), sc.f1 - 1)
+
+    for scene in timeline.scenes:
+        sc = by_index.get(scene.index)
+        if sc is not None:
+            frames.update(at(sc, beat.start + BEAT_SETTLE_S) for beat in scene.beats)
+    portrait = timeline.presentation is not None and timeline.presentation.format == "portrait"
+    if portrait:
+        chunked = False
+        for scene in timeline.scenes:
+            sc = by_index.get(scene.index)
+            if sc is None:
+                continue
+            for chunk in scene.kinetic_captions:
+                chunked = True
+                if not chunk.blank:
+                    frames.add(at(sc, chunk.start))
+        if not chunked:  # B1: phrase captions (Timeline.captions, absolute times) until kinetic.py (B2)
+            frames.update(min(n - 1, math.ceil(c.start * info.fps - 1e-6)) for c in timeline.captions)
+    return sorted(f for f in frames if 0 <= f < n)
+
+
+# ---------------------------------------------------------------------------
+# Result
+# ---------------------------------------------------------------------------
+
+
+def _message(f: Finding) -> str:
+    template = _MESSAGES.get((f.check, f.status), "{slot}: " + f.check.replace("_", " "))
+    ratio = f"{f.ratio:.1f}" if f.ratio is not None else "?"
+    required = f"{f.required:.1f}" if f.required is not None else "?"
+    return template.format(slot=f.slot, ratio=ratio, required=required)
+
+
+@dataclass
+class PreflightResult:
+    """What preflight found and did (see the module docstring)."""
+
+    format: str
+    frames: int
+    fps: int
+    sampled: list[int] = field(default_factory=list)
+    rounds: int = 1
+    seconds: float = 0.0
+    webgl: bool | None = None
+    findings: list[Finding] = field(default_factory=list)
+    remedies: list[Remedy] = field(default_factory=list)
+    stats: dict[str, int] = field(default_factory=dict)
+    scenes: dict[int, tuple[str, str]] = field(default_factory=dict)  # index -> (scene_id, title)
+    timeline: dict[str, Any] | None = None  # the served timeline with the remedies applied (capture uses it)
+
+    @property
+    def blocking(self) -> list[Finding]:
+        return [f for f in self.findings if f.status == "block"]
+
+    @property
+    def ok(self) -> bool:
+        """No blocking finding."""
+        return not self.blocking
+
+    def items(self) -> list[dict[str, Any]]:
+        """The findings as teacher-facing items (scene order; blocks first within a scene)."""
+        rank = {"block": 0, "warn": 1, "fixed": 2}
+        ordered = sorted(self.findings, key=lambda f: (f.scene_index if f.scene_index is not None else 10**9,
+                                                      rank.get(f.status, 3), CHECKS.index(f.check)
+                                                      if f.check in CHECKS else 9))
+        out = []
+        for f in ordered:
+            sid, title = self.scenes.get(f.scene_index, (None, "")) if f.scene_index is not None else (None, "")
+            item: dict[str, Any] = {
+                "check": f.check, "status": f.status, "blocking": f.status == "block",
+                "scene_index": f.scene_index, "scene_id": sid, "title": title, "slot": f.slot, "role": f.role,
+                "frame": f.frame, "t": round(f.frame / max(1, self.fps), 3), "frames": f.frames, "box": f.box,
+                "remedy": f.remedy if f.status == "fixed" else None,
+                "action": ACTION_SHORTEN_TEXT if f.status == "block" else None,
+                "message": _message(f),
+            }
+            if f.ratio is not None:
+                item["ratio"], item["required"] = f.ratio, f.required
+            if f.overflow is not None:
+                item["overflow"] = f.overflow
+            if f.text:
+                item["text"] = f.text
+            out.append(item)
+        return out
+
+    def check_status(self) -> dict[str, dict[str, Any]]:
+        out: dict[str, dict[str, Any]] = {}
+        for check in CHECKS:
+            mine = [f for f in self.findings if f.check == check]
+            statuses = {f.status for f in mine}
+            status = next((s for s in ("block", "warn", "fixed") if s in statuses), "pass")
+            out[check] = {"status": status, "count": len(mine)}
+        return out
+
+    def summary(self) -> dict[str, Any]:
+        """The preflight schema (``PREFLIGHT_SCHEMA``), JSON-serialisable."""
+        items = self.items()
+        return {
+            "schema": PREFLIGHT_SCHEMA,
+            "ok": self.ok,
+            "format": self.format,
+            "frames": self.frames,
+            "fps": self.fps,
+            "sampled": len(self.sampled),
+            "rounds": self.rounds,
+            "seconds": round(self.seconds, 2),
+            "webgl": self.webgl,
+            "checks": self.check_status(),
+            "items": items,
+            "remedies": [r.as_dict() for r in self.remedies],
+            "stats": dict(self.stats),
+            "problems": [i["message"] + f" ({i['action']})" for i in items if i["blocking"]],
+            "warnings": [i["message"] for i in items if i["status"] == "warn"],
+        }
+
+    def as_qa(self) -> dict[str, Any]:
+        """``Render.options["qa"]`` when the render stops at preflight (no MP4 was made)."""
+        summary = self.summary()
+        return {"ok": self.ok, "engine": "motion", "stage": "preflight", "schema": PREFLIGHT_SCHEMA,
+                "preflight": summary, "problems": list(summary["problems"]), "warnings": list(summary["warnings"])}
+
+
+class PreflightBlocked(FatalJobError):
+    """The render cannot start: a preflight check failed and its remedy did not fix it (teacher action needed)."""
+
+    def __init__(self, result: PreflightResult) -> None:
+        blocking = [i for i in result.items() if i["blocking"]]
+        scenes = sorted({i["scene_index"] + 1 for i in blocking if i["scene_index"] is not None})
+        where = f" (scene {', '.join(map(str, scenes))})" if scenes else ""
+        super().__init__(f"The video cannot be rendered yet{where}: {blocking[0]['message']} "
+                         f"{blocking[0]['action']} and render again." if blocking else "preflight failed",
+                         code="preflight_blocked")
+        self.result = result
+
+
+def raise_if_blocked(result: PreflightResult) -> None:
+    """Raise :class:`PreflightBlocked` (a FatalJobError, code ``preflight_blocked``) when anything blocks."""
+    if not result.ok:
+        raise PreflightBlocked(result)
+
+
+# ---------------------------------------------------------------------------
+# Running it
+# ---------------------------------------------------------------------------
+
+
+def _finalise(first: list[Finding], second: list[Finding] | None, planned: set[tuple[int, str, str]]) -> list[Finding]:
+    """Statuses after the remedies: a remedied finding seen again is escalated (zones/overflow block, contrast warns),
+    one gone is ``fixed``; findings without a remedy are escalated at once; new findings of the second round too."""
+
+    def escalate(f: Finding) -> Finding:
+        if f.status == "open":
+            f.status = "warn" if f.check == "contrast" else "block"
+        return f
+
+    final: list[Finding] = []
+    again = {f.ident: f for f in (second or [])}
+    for f in first:
+        if f.status != "open":
+            final.append(f)
+            continue
+        remedied = f.remedy is not None and f.scene_index is not None and (
+            (f.remedy, f.scene_index, "" if f.remedy == "safe_variant" else f.slot) in planned)
+        if not remedied or second is None:
+            final.append(escalate(f))
+        elif f.ident in again:
+            later = again.pop(f.ident)
+            later.remedy = f.remedy
+            final.append(escalate(later))
+        else:
+            f.status = "fixed"
+            final.append(f)
+    for f in again.values():  # new in the second round (the remedy caused it, or a frame shows it only now)
+        f.remedy = None
+        final.append(escalate(f))
+    return final
+
+
+async def _scan(page: StagePage, frames: Sequence[int], info: StageInfo, *, fmt: str,
+                variants: dict[int, str | None], check_cancelled: Callable[[], None] | None,
+                stats: Counter[str], captions: bool = False) -> tuple[list[Finding], dict[tuple[int, str], float]]:
+    found: list[Finding] = []
+    min_sizes: dict[tuple[int, str], float] = {}
+    for frame in frames:
+        if check_cancelled:
+            check_cancelled()
+        await page.seek(frame)
+        raw = await page.text_boxes()
+        items, counts = evaluate_boxes(raw, fmt=fmt, frame=frame, info=info, variants=variants, captions=captions)
+        stats.update(counts)
+        stats["frames"] += 1
+        found += items
+        frame_scene = info.scene_at(frame)
+        for entry in raw:
+            box = TextBox.parse(entry)
+            scene = box.scene if box is not None and box.scene is not None else (
+                frame_scene.index if frame_scene else None)
+            if box is not None and box.min_size is not None and scene is not None:
+                min_sizes[(scene, box.key)] = box.min_size
+    return merge_findings(found), min_sizes
+
+
+def _variants(timeline: dict[str, Any]) -> dict[int, str | None]:
+    out: dict[int, str | None] = {}
+    for n, scene in enumerate(timeline.get("scenes") or []):
+        look = scene.get("look") if isinstance(scene, dict) else None
+        out[n] = look.get("variant") if isinstance(look, dict) else None
+    return out
+
+
+async def run_preflight(
+    settings: Settings,
+    timeline: Timeline,
+    *,
+    token: str,
+    served_timeline: dict[str, Any] | None = None,
+    base_url: str | None = None,
+    media_origins: Sequence[str] = (),
+    check_cancelled: Callable[[], None] | None = None,
+    ready_timeout_s: float = 120.0,
+    call_timeout_s: float = 60.0,
+    log: Callable[[str], None] | None = None,
+    captions: bool | None = None,
+) -> PreflightResult:
+    """Run the preflight of a Dynamic ``timeline`` (see the module docstring).
+
+    ``served_timeline``: the timeline exactly as the page should receive it (resolved URLs); default
+    ``timeline.model_dump(mode="json")``. ``token``: the scoped render token for the page's fragment. ``captions``:
+    whether the render burns captions (default: ``presentation.captions_burn``): burned captions take their band.
+    Raises
+    ``ValueError`` for a classic timeline and :class:`~aadhi.compose.dynamic.stage_page.StageError` when the page
+    breaks its contract; a teacher-fixable problem never raises here (see :func:`raise_if_blocked`).
+    """
+    if timeline.presentation is None:
+        raise ValueError("preflight runs on Dynamic timelines only (this one has no presentation)")
+    started = time.monotonic()
+    fmt = timeline.presentation.format
+    size = timeline_stage(timeline)
+    fps = int(timeline.fps)
+    frames_needed = expected_frame_count(timeline.total_duration, fps)
+    served = served_timeline if served_timeline is not None else timeline.model_dump(mode="json")
+    burned = bool(timeline.presentation.captions_burn) if captions is None else bool(captions)
+    has_look = {s.index: s.look is not None for s in timeline.scenes}
+    result = PreflightResult(format=fmt, frames=frames_needed, fps=fps,
+                             scenes={s.index: (s.scene_id, s.title) for s in timeline.scenes})
+    stats: Counter[str] = Counter()
+    async with stage_browser(settings, size=size, base_url=base_url, media_origins=media_origins,
+                             call_timeout_s=call_timeout_s, check_cancelled=check_cancelled) as browser:
+        page = await browser.open(token=token, served_timeline=served, frames=placeholder_frames,
+                                  ready_timeout_s=ready_timeout_s)
+        info = await page.info()
+        info.check(size=size, fps=fps, frames=frames_needed)
+        result.webgl = page.webgl
+        result.sampled = sample_frames(info, timeline)
+        first, min_sizes = await _scan(page, result.sampled, info, fmt=fmt, variants=_variants(served),
+                                       check_cancelled=check_cancelled, stats=stats, captions=burned)
+        remedies = plan_remedies(first, fmt=fmt, min_sizes=min_sizes, has_look=lambda i: has_look.get(i, False))
+        second: list[Finding] | None = None
+        if remedies:
+            if log:
+                log(f"Preflight: applying {len(remedies)} automatic fix(es) and checking again")
+            served = apply_remedies(served, remedies)
+            info = await page.load(served)
+            info.check(size=size, fps=fps, frames=frames_needed)
+            touched = {r.scene_index for r in remedies}
+            again = [f for f in result.sampled if (sc := info.scene_at(f)) is not None and sc.index in touched]
+            seen, _ = await _scan(page, again, info, fmt=fmt, variants=_variants(served),
+                                  check_cancelled=check_cancelled, stats=stats, captions=burned)
+            second = [f for f in seen if f.scene_index in touched]  # other scenes' boxes (transitions) are final
+            result.rounds = 2
+        planned = {(r.kind, r.scene_index, r.slot) for r in remedies}
+        result.findings = _finalise(first, second, planned)
+        result.remedies = remedies
+        browser.check_policy()
+        if page.guard_trips:
+            stats["guard_trips"] += len(page.guard_trips)
+    result.timeline = served
+    result.stats = dict(stats)
+    result.seconds = time.monotonic() - started
+    return result

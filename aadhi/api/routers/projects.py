@@ -14,6 +14,7 @@ from fastapi import APIRouter, File, Form, Response, UploadFile
 from pydantic import ConfigDict, Field, ValidationError
 from sqlalchemy import func, or_, select, update
 
+from ...assets_auth import record_asset_refs
 from ...db import compare_and_set
 from ...jobs.queue import job_summary, request_cancel
 from ...legacy import convert_legacy, is_legacy
@@ -42,6 +43,7 @@ from ..screenplay_service import (
     hidden_scene_ids,
     issues_payload,
     lint_screenplay,
+    require_features,
     source_ingest,
     strip_unauthorized_asset_keys,
 )
@@ -241,7 +243,8 @@ def import_project(
     data = read_upload(file, max_bytes)
     filename = file.filename or "lecture.json"
     validate_upload(filename, data, allowed_kinds={"json"}, max_bytes=max_bytes)
-    screenplay, warnings = _parse_import(data)
+    screenplay, warnings = _parse_import(data)  # a newer screenplay: 409 newer_document (NewerDocumentError)
+    require_features(screenplay, settings, prefix=("file",))  # Dynamic features this server does not enable: 422
     screenplay, strip_warnings, kept_keys = strip_unauthorized_asset_keys(
         db, screenplay, project_ids=accessible_project_ids(db, user.id, admin=is_admin(user))
     )
@@ -260,8 +263,7 @@ def import_project(
     )
     db.add(project)
     db.flush()
-    for key in sorted(kept_keys):
-        db.add(AssetRef(project_id=project.id, asset_key=key))
+    record_asset_refs(db, project.id, kept_keys)  # the imported keys the user may use (stripped ones are gone)
     version = create_version(db, project, status="building", language=language, created_by=user.id, label="Imported")
     version.set_screenplay(screenplay)
     dumped, counts = issues_payload(issues, hidden_scene_ids(screenplay))

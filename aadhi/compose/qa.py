@@ -3,10 +3,11 @@
 ``inspect_render`` measures the finished file with ffprobe/ffmpeg (no decoding of the whole
 video): the exact video frame count (packets) against the timeline, the declared frame rate,
 whether every frame sits on the ``n * (1/fps)`` grid, the audio stream and its loudness
-(``volumedetect``, audio only), black edges (letter/pillarbox) on three sampled frames, the colour
-tags and the soft caption track. ``RenderQA.problems`` are fatal (the job fails with
-``render_invalid`` instead of storing a broken video): no video, a frame count off by more than
-one, no audio stream, or silence while the lecture has narration. Everything else is a warning.
+(``volumedetect``, audio only), black edges (letter/pillarbox) on three sampled frames (scaled to 320x180, or
+180x320 for a portrait video: :func:`edge_sample_size`), the colour tags and the soft caption track.
+``RenderQA.problems`` are fatal (the job fails with ``render_invalid`` instead of storing a broken video): no
+video, a frame count off by more than one, no audio stream, or silence while the lecture has narration.
+Everything else is a warning.
 The summary is stored on the render (``Render.options["qa"]``) and shown in the Studio.
 
 The pure parsers/statistics here are reused by ``evals/video_qa.py`` (slow tests, parity eval).
@@ -27,7 +28,7 @@ from .ffmpeg import PROTOCOLS, FFmpegError, run_process
 
 SILENCE_DB = -60.0  # max_volume at or below this = no audible sound
 BLACK_LUMA = 10.0  # mean full-range luma of an edge strip at or below this = black bar
-EDGE_SAMPLE = (320, 180)  # sampled frames are scaled to this size (area average)
+EDGE_SAMPLE = (320, 180)  # sampled landscape frames are scaled to this size (area average); portrait: transposed
 EDGE_STRIP = 2  # strip width in sampled pixels (~12 px of a 1080p frame)
 _VOLUME_RE = re.compile(r"(mean|max)_volume:\s*(-?[\d.]+|-inf)\s*dB")
 
@@ -145,6 +146,15 @@ def black_strips(gray: Sequence[int] | bytes, width: int, height: int, *, strip:
     return [name for name, box in bands.items() if mean(*box) <= threshold]
 
 
+def edge_sample_size(width: int | None, height: int | None) -> tuple[int, int]:
+    """Size the frames sampled for black edges are scaled to: :data:`EDGE_SAMPLE` (320x180) for landscape and
+    square videos (and when the size is unknown), transposed (180x320) for a portrait video, so a sampled pixel
+    covers about 6x6 output pixels in both formats."""
+    if width and height and int(height) > int(width):
+        return EDGE_SAMPLE[1], EDGE_SAMPLE[0]
+    return EDGE_SAMPLE
+
+
 def expected_frame_count(total_seconds: float, fps: int) -> int:
     """Frames of a constant-rate video of ``total_seconds`` (rounded)."""
     return max(0, math.floor(total_seconds * fps + 0.5))
@@ -203,14 +213,16 @@ async def gray_frame(path: Path, t: float, settings: Settings, *, size: tuple[in
 
 async def inspect_render(path: str | Path, *, settings: Settings, fps: int, expected_frames: int,
                          expect_audio: bool, expect_bt709: bool = False, expect_subtitles: bool = False,
-                         check_cancelled: Callable[[], None] | None = None) -> RenderQA:
+                         check_cancelled: Callable[[], None] | None = None,
+                         size: tuple[int, int] | None = None) -> RenderQA:
     """Measure ``path`` (see the module docstring). Raises :class:`FFmpegError` only when the file
-    cannot be probed at all; later measurement failures become warnings."""
+    cannot be probed at all; later measurement failures become warnings. ``size`` is the encoded frame size
+    (``base.output_size``) that picks the edge sampling orientation; None = the probed picture size."""
     path = Path(path)
     qa = RenderQA(expected_frames=expected_frames, fps=fps)
     data = await _ffprobe_json(path, "stream=index,codec_type,codec_name,r_frame_rate,avg_frame_rate,time_base,"
-                                     "color_space,color_primaries,color_transfer,color_range:format=duration",
-                               settings)
+                                     "width,height,color_space,color_primaries,color_transfer,color_range"
+                                     ":format=duration", settings)
     try:
         qa.duration = float((data.get("format") or {}).get("duration"))
     except (TypeError, ValueError):
@@ -266,22 +278,30 @@ async def inspect_render(path: str | Path, *, settings: Settings, fps: int, expe
                 qa.problems.append("the narration is silent in the video")
 
     total = qa.duration or expected_frames / max(1, fps)
+    sample = edge_sample_size(*(size or (_int_or_none(video.get("width")), _int_or_none(video.get("height")))))
     found: list[set[str]] = []
     for frac in (0.25, 0.5, 0.75):
         if check_cancelled:
             check_cancelled()
         try:
-            gray = await gray_frame(path, total * frac, settings)
+            gray = await gray_frame(path, total * frac, settings, size=sample)
         except FFmpegError as exc:
             qa.warnings.append(f"a frame could not be sampled ({exc})")
             found = []
             break
-        found.append(set(black_strips(gray, *EDGE_SAMPLE)))
+        found.append(set(black_strips(gray, *sample)))
     if found:
         qa.black_edges = sorted(set.intersection(*found))
         if qa.black_edges:
             qa.warnings.append(f"black bars at the {', '.join(qa.black_edges)} edge(s)")
     return qa
+
+
+def _int_or_none(value: Any) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _grid_step(time_base: str, fps: int) -> int | None:

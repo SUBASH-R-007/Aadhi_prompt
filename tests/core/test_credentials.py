@@ -293,6 +293,8 @@ def test_billed_to_follows_the_paying_key():
     sources = {"gemini": "personal", "openai": "server", "anthropic": "env"}
     assert billed_to(sources, "gemini") == "user"
     assert billed_to(sources, "veo") == "user"  # Veo runs on the Gemini key
+    assert billed_to(sources, "omni") == "user"  # ...and so do Gemini Omni videos
+    assert billed_to(sources, "lyria") == "user"  # ...and Lyria music
     assert billed_to(sources, "openai") == "server"
     assert billed_to(sources, "anthropic") == "server"
     for free in ("edge", "pollinations", "fake", "", "unknown"):

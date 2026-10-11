@@ -1037,9 +1037,15 @@ def bgm_filter(*, narration: str, bgm: str, volume: float, delay: float, total: 
     ])
 
 
-def subtitles_filter(srt: str, *, fonts_dir: str | None, font_name: str, height: int) -> str:
-    """libass caption burn-in with the vendored fonts and a fixed style."""
-    size = max(12, round(height / 1080 * 22))
+def subtitles_filter(srt: str, *, fonts_dir: str | None, font_name: str, height: int,
+                     width: int | None = None) -> str:
+    """libass caption burn-in with the vendored fonts and a fixed style.
+
+    libass already scales ``FontSize`` by frame height / PlayResY (288 in ffmpeg's SRT header). A landscape frame
+    keeps the classic size (22 at 1080p); a portrait frame sizes from its short side and divides out the extra
+    height libass applies, so a 1080x1920 reel gets the glyph size of a 1920x1080 classic render."""
+    short = min(width, height) if width else height
+    size = max(12, round(short / 1080 * 22 * (short / height)))  # landscape: short / height == 1.0, the classic size
     style = (f"FontName={font_name},FontSize={size},PrimaryColour=&H00FFFFFF,OutlineColour=&H80000000,"
              "BorderStyle=1,Outline=2,Shadow=0,MarginV=36")
     opts = f"filename={filter_escape(srt)}"
@@ -1072,7 +1078,7 @@ def build_final(spec: FinalSpec, *, filter_script: str = "final.filtergraph",
     video_args: list[str]
     if spec.burn_subtitles:
         graph.append("[0:v]" + subtitles_filter(spec.burn_subtitles, fonts_dir=spec.fonts_dir,
-                                                font_name=spec.font_name, height=spec.height)
+                                                font_name=spec.font_name, height=spec.height, width=spec.width)
                      + ",format=yuv420p[vout]")
         video_args = ["-map", "[vout]", *video_codec_args(fps=spec.fps, crf=spec.crf, preset=spec.preset,
                                                           bt709=spec.bt709)]

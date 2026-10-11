@@ -88,7 +88,8 @@ async verify_key(provider: str, api_key: str, settings: Settings) -> tuple[bool,
 #   one authenticated list-models call with the official SDK (AsyncAnthropic / AsyncOpenAI models.list; google-genai
 #   client.aio.models.list), short timeout, no retries, redacted message; tests always monkeypatch it
 billed_to(sources: Mapping[str, str | None], usage_provider: str) -> str
-#   "user" when the provider whose key pays for usage_provider ("veo" -> "gemini") is "personal" in sources, else "server"
+#   "user" when the provider whose key pays for usage_provider (USAGE_KEY_PROVIDER: "veo", "omni", "lyria" -> "gemini")
+#   is "personal" in sources, else "server"
 personal_key_rejection(exc: BaseException, sources: Mapping[str, str | None]) -> str | None
 #   job error message when exc (or an exception it wraps) is a ProviderError 401/403 (or Gemini's 400 API_KEY_INVALID /
 #   "API key expired") on a provider whose key is "personal" (the worker then fails the job with error_code
@@ -102,6 +103,10 @@ key_hint(api_key: str) -> str                       # "<vendor prefix>…<last 4
 ```python
 # pricing.py
 estimate_cost(usage: Usage, settings: Settings | None = None) -> float
+#   operations llm | vision | tts | image | video | gif | music; "music" = {"unit": USD per song, "second": USD per s}
+#   per provider and model family; video provider "omni" per second (OMNI_VIDEO_USD_PER_MILLION_TOKENS x
+#   OMNI_VIDEO_TOKENS_PER_SECOND); any OTHER operation fails closed: every reported quantity at the global default
+#   rate of its kind (at least one unit), one warning per operation and process ("fake" stays free)
 # service.py
 record_usage(db: Session, usage: Usage, *, user_id, project_id, job_id, cost_usd: float, billed_to: str = "server") -> UsageEvent
 spent_today(db: Session, user_id: int) -> float                      # only billed_to == "server" (what the daily budget counts)
@@ -164,6 +169,48 @@ class DBJobContext  # implements aadhi.jobs.base.JobContext
 #   start (render_video workers) and runs sweep_host_once() at start and hourly; handlers run under
 #   storage.assets.claim_owner(ctx.claim_owner()) so their generation claims name the job's lease
 # queue.py — settle_render(db, job) marks a Render row whose render_video job ended outside the handler
+# reader_version.py — NEWER_DOCUMENT = "newer_document" (job error_code)
+newer_documents(db: Session, version_ids: list[int]) -> list[NewerDocumentError]   # one query on the schema_version markers
+newer_document_refusal(db: Session, version_id: int | None, payload: dict | None) -> str | None
+#   the worker calls it before a handler (the job's version and payload["source_version_id"]): a document above
+#   READER_SCHEMA_VERSION fails the job with error_code "newer_document" without running it; a NewerDocumentError a
+#   loader raises mid-job fails it the same way (fatal, never retried)
+```
+
+## aadhi.schemas (owner: lead; contract files) — schema v3, Dynamic video B0
+```python
+# features.py (pure): feature names, the reader-version marker, the usage walk
+CLASSIC_SCHEMA_VERSION = 2 ; V3_SCHEMA_VERSION = 3 ; READER_SCHEMA_VERSION = 3   # newer documents are refused
+DYNAMIC_FEATURES = ("presentation", "items_v3", "cuts", "overlays", "clip", "voice_override")   # frozen names
+FEATURE_LABELS: dict[str, str]                                # plain words for the 422 message
+class NewerDocumentError(Exception): code = "newer_document"; document: str; version: int; reader: int
+#   NOT a ValueError: pydantic never wraps it, so no `except ValidationError` turns it into a 422 or "unreadable"
+check_reader_version(data: Any, document: str) -> None        # raises NewerDocumentError; every model calls it first
+features_used(model) -> {feature: [location]} ; disabled_features(model, enabled) -> same ; uses_v3(model) -> bool
+marked_version(model, current: int) -> int                    # 3 when a v3 field is used, a 3 without one -> 2
+#   models declare V3_FIELDS (field -> feature), V3_VALUES (field -> value -> feature) and V3_MODEL; a field counts as
+#   used when it would be serialised (exclude_if); Screenplay / Timeline / AssetManifest set schema_version on
+#   validation and on every dump, so a model_copy can never write a v3 document as 2
+# generate.py — python -m aadhi.schemas.generate [--check]: web/schemas/screenplay.schema.json + timeline.schema.json
+#   (byte-for-byte; CI and tests/schemas/test_v3_schema.py); the JSDoc mirrors in web/js/shared/types.js are by hand
+# config: Settings.dynamic_features (DYNAMIC_FEATURES env, comma list; unknown names fail at start-up)
+```
+
+## aadhi.assets_auth (owner: api + pipeline)
+```python
+FIELD_RULES: dict[str, FieldRule]   # frozen table of design §6.7: field -> allowed asset kinds + MIME family
+#   SourceFigure.asset_key, SidePanel / SimulationScene / AIVideoScene.override_asset_key,
+#   InteractiveScene.poster_override_asset_key (classic, unchanged); ClipScene.clip.asset_key and
+#   Overlay.clip.asset_key {clip, upload, video} motion; Presentation.music.asset_key {music, upload} audio;
+#   Beat.voice_override_asset_key {narration_upload} audio. A new key field must be added here and to
+#   api.screenplay_service.asset_uses (tests/core/test_assets_auth.py enforces it)
+FieldRule.fits(kind: str, mime: str) -> bool ; FAMILY_MIMES = {visual, motion, visual_or_motion, audio}
+record_asset_refs(db: Session, project_id: int, keys: Iterable[str]) -> int   # THE way to add AssetRef rows: idempotent,
+#   INSERT ... ON CONFLICT DO NOTHING per 500 keys, never commits (uploads, imports, generated media, renders;
+#   pipeline name dbops.ensure_asset_refs)
+# models.PUBLIC_ASSET_KINDS += music, clip, clip_proxy, clip_sprite, waveform, voice_sample, thumbnail,
+#   narration_upload (served from /media); calibration stays private; each joins jobs.cleanup.GC_ASSET_KINDS in the
+#   batch that starts producing it
 ```
 
 ## aadhi.storage.assets (owner: storage)
@@ -218,6 +265,9 @@ plan.generate_plan(ctx, ingest, options, meta=None, *, brief: ConceptBrief | Non
 preview  # python -m aadhi.pipeline.preview SOURCE [--options] [--out] [--stages] [--scene] [--engine]: exact prompts, no model call
 critic.critic_model(settings, options=None) -> str             # critic tier of the lecture's engine
 translate.translate_model(options, settings) -> str            # script tier of the lecture's engine (admin llm_model_script override wins)
+translate.scene_fields(scene: dict, translate_board: bool, keep: list[str]) -> list[FieldItem]   # with translate_board also
+#   the v3 on-screen fields board[].unit, board[].date and a clip scene's captions[].text (TRANSLATABLE_FIELDS);
+#   icon_hint, value, credit and attributions are protected
 companion.render_markdown(screenplay: Screenplay) -> str
 companion.render_html(screenplay: Screenplay) -> str          # self-contained, escaped, uses /web/vendor/mathjax via renderTex-free static TeX (KaTeX-less: TeX shown in <code>) or MathJax script from /web/vendor
 assets.scene_hash(scene) -> str                                # content hash used for staleness
@@ -232,7 +282,13 @@ assets.build_assets(ctx, screenplay, options, *, previous: AssetManifest | None 
 #   Libraries (prefer_library_visuals, LIBRARY_AUTO_SAVE_GENERATED) only when the job's user owns the lecture.
 assets.carry_visual_variant(old_scene, new_scene) -> Scene   # keeps variant when the request is unchanged (repair.carry_over)
 #   build_assets never builds a hidden scene (not even when scene_ids names it) and never lists it stale; scene_hash
-#   ignores hidden and min_seconds (both kept by repair on regeneration). orchestrator: generate_lecture / translate
+#   ignores hidden and min_seconds (both kept by repair on regeneration), and the Dynamic look and the beats' overlays
+#   (cuts, speaker and voice_override_asset_key stay in: they change the audio); repair.carry_over keeps look and the
+#   scene's v3 intent (narrative_role pretraining/predict/recap, visual_intent). screenplay_ops.plan_from_screenplay
+#   leaves clip scenes out and canonicalize.planned_from_scene maps v3 roles to classic ones (until B4).
+#   Clip keys carry OMNI_MODEL for provider "omni", VEO_MODEL for every other provider (keys unchanged); provenance,
+#   checkpoint and budget estimate use the adapter's .model (else VEO_MODEL).
+#   dbops.ensure_asset_refs(db, project_id, keys) -> int   # = assets_auth.record_asset_refs (generated media) orchestrator: generate_lecture / translate
 #   store changes.store_snapshot(...) with the generated screenplay (same compare-and-set) ->
 #   generation_meta["generated_snapshot_key"]
 base.GenerationOptions.image_provider: Literal["gemini", "pollinations"] | None = None   # None = the server's chain
@@ -280,7 +336,19 @@ timeline.resolve_urls(timeline: Timeline, store: AssetStore, *, signed: bool = F
 timeline.default_branding(settings: Settings) -> Branding
 sync.SyncOptions.from_settings(settings) -> SyncOptions | None   # None with SYNC_WORD_ANCHORS=false
 sync.scene_sync_cues(beats, board, side_panel, duration, options) -> list[SyncCue]   # pure, sorted by start
-captions.to_srt(cues) -> str ; captions.to_vtt(cues) -> str ; captions.split_caption(text, words) -> list[CaptionCue]
+captions.to_srt(cues) -> str ; captions.to_vtt(cues) -> str
+captions.split_caption(text, words, *, start=None, end=None, width=MAX_LINE_CHARS) -> list[CaptionCue]   # <= 2 lines x width (42)
+base.STAGE_SIZES = {"landscape": (1920, 1080), "portrait": (1080, 1920)}   # frozen in B0
+base.stage_size(format: str | None = None) -> tuple[int, int]      # None = landscape (classic); ValueError for others
+base.timeline_stage(tl) -> (tl.width, tl.height)                    # the render page's viewport and screenshot size
+base.output_size(tl, settings) -> tuple[int, int]                   # the classic stage: exactly RENDER_WIDTH x
+#   RENDER_HEIGHT; other stages scaled by the configured short side / 1080, even sides (1920x1080 -> a 1080x1920 reel)
+#   build_timeline: Timeline.width x height = stage_size(screenplay.presentation.format) (1920x1080 without presentation)
+loudness.ebur128(path, settings, *, true_peak=True, timeout=600, check_cancelled=None) -> R128Summary   # LUFS, LRA, peaks
+loudness.loudnorm_measure(path, settings, target=None, *, ...) -> LoudnormStats   # first loudnorm pass (print_format=json)
+loudness.loudnorm_normalize(src, dest, settings, target=None, *, measured=None, linear=True, ...) -> (first, second)
+#   two passes; refuses silent input (LoudnessError); parse_ebur128 / parse_loudnorm, loudnorm_filter, ebur128_filter,
+#   static_gain_db, limiter_filter; LoudnessTarget(integrated=-16.0, true_peak=-1.5, lra=9.0); as_dict(): -inf -> None
 chapters.youtube_chapters(timeline: Timeline) -> str ; chapters.opening_title(taken) -> str   # never a duplicate "Introduction"
 video  # registers "render_video"; video.sweep_render_workspaces(settings, session) -> int
 preflight.render_preflight(timeline, issues=None, hidden=frozenset()) -> list[{scene_index, scene_id, title, reason, blocking, message}]
@@ -289,7 +357,64 @@ preflight.quality_items(issues, timeline=None, hidden=frozenset()) -> list[{...,
 #   screenplay place, api/routers/renders.numbered); video.render_warnings(timeline, capture=None, numbers=None) too
 #   within a severity, lecture-wide and scene findings alternate (scene findings are not pushed into "N more")
 capabilities.render_capabilities(settings, *, browser=True, force=False) -> RenderCapabilities   # cached, blocking
-qa.inspect_render(path, *, settings, fps, expected_frames, ...) -> RenderQA (Render.options["qa"]) ; workspace.RenderWorkspace, sweep_stale(settings, statuses)
+qa.inspect_render(path, *, settings, fps, expected_frames, ..., size=None) -> RenderQA (Render.options["qa"]) ; workspace.RenderWorkspace, sweep_stale(settings, statuses)
+qa.edge_sample_size(width, height) -> (320, 180) | (180, 320)   # black-edge sampling, transposed for portrait (also evals/video_qa.py)
+# --- Dynamic video, B1 (DYNAMIC_VIDEO_DESIGN §7; only while DYNAMIC_ENABLED is on; classic timelines never get here)
+presentation.resolve_looks(screenplay, timed_scenes) -> list[ResolvedLook]          # pure; B1 table of the 4 R1 families
+presentation.timeline_presentation(presentation, timed_scenes, total) -> TimelinePresentation   # engine_version 1
+presentation.dynamic_enabled(settings) -> bool ; presentation.seed_for(presentation, scene_id, purpose) -> int (31 bit)
+#   build_timeline: a screenplay with a presentation + the flag on -> Timeline.presentation, TimedScene.look, no intro,
+#   fps 30, 9:16 phrase captions at PORTRAIT_CAPTION_LINE_CHARS (16); flag off -> the classic timeline, unchanged
+presentation.portrait_caption_cues(text, words, *, start, speech_end, hold_end, width=16) -> [CaptionCue]
+#   9:16 only: minimum-cost grouping (no chunk under PORTRAIT_CAPTION_MIN_SECONDS 1.0 s where the beat allows it),
+#   long words split between grapheme clusters keeping their word's timing (captions.tokens_with_owner(text, width,
+#   clusters=True); split_caption(..., clusters=False) is the classic splitter, unchanged)
+api.timelines.current_timeline(version, settings) -> stored | rebuilt   # DYNAMIC_ENABLED applies when served: a stored
+#   timeline built under the other value is served as build_timeline builds it now (versions, shares, /api/render/
+#   timeline); timeline_etag carries the flag
+video.render_video: timeline.presentation.style == "dynamic" -> motion.job.render_dynamic(ctx, job, payload, ws)
+motion.job.caption_modes(payload, timeline) -> (burn, soft)   # burn: payload, else presentation.captions_burn
+motion.job.dynamic_warnings(items) -> items                  # panel warnings worded for the motion engine
+motion.engine.render_motion(ctx, timeline, out_path, settings, *, burn_captions=False, soft_subtitles=False,
+                            token=None, served=None, work_dir=None, cache=None, local_files=None, title=None,
+                            config: MotionConfig | None = None, refresh_served=None) -> MotionResult
+#   served: the timeline the page receives (preflight's PreflightResult.timeline); refresh_served(): served with its
+#   presigned URLs signed again, called before every page load (motion.job.refresher: S3 without a CDN only, the
+#   preflight remedies kept); cache: ChunkCache.in_workspace(root);
+#   local_files: asset key -> file already on disk; raises MotionError(code, retryable), StageError, FFmpegError,
+#   ContainerCheckFailed. MotionConfig(workers, chunk_min=240, chunk_max=600, recycle_frames=1800,
+#   recycle_slowdown=0.5, stage=StageOptions(), use_slots=True, sample_memory_seconds=2.0, encoder_timeout=600,
+#   shared_driver=True). MotionResult.summary() -> Render.options["qa"]["motion"] (docs/API.md)
+motion.resources.motion_workers(settings, budget=None) -> int ; CpuBudget.detect() ; CpuSlots.from_settings(settings,
+#   budget).acquire(want, check_cancelled=, on_wait=) -> SlotLease(count).release()   # RENDER_SLOT_DIR/slot-NNN.lock
+motion.chunks.scene_frame_bounds(timeline, fps=None) -> [(f0, f1)] ; plan_chunks(bounds, min_frames, max_frames)
+#   -> [Chunk(index, f0, f1)] ; chunk_key(timeline, chunk, *, bundle, encoder, capture, chromium, media, data) -> 64 hex
+#   = sha256 of {v: 2, engine_version, frames, timeline slices (scenes, outgoing scene, the chapter title each shows
+#   as its kicker, global fields, captions in range), media identities, stage bundle digest, encoder and capture
+#   parameters, Chromium version}; STAGE_TIMELINE_FIELDS lists every top-level field the stage reads (all hashed)
+motion.media.native_frames(frames, *, src_fps, rate) -> {page index: file frame}  # floor(n * rate / srcFps): a clip
+#   at another rate than the page grid (24 fps Veo) is extracted at its own rate, frame-exact in any chunk plan
+motion.encode.EncoderSpec.from_settings(settings, fps, out_size).chunk_args(frames=, output=, capture=)   # §7.5 + -threads 4
+motion.encode.master_audio_command(MasterAudioSpec(audio_list, total_seconds, output="master.m4a", bgm=None, ...),
+#   script_flag=) -> Command        # AAC-LC 48 kHz stereo 384k, encoded while the frames are captured
+motion.encode.final_mux_command(MotionFinalSpec(video_list, audio, metadata, total_seconds, output,
+#   soft_subtitles=None, subtitle_language="und")) -> Command   # -c copy both, +faststart+negative_cts_offsets
+motion.stage.StageSession(settings=, size=, token=, served=, base_url=, media_origins=, options=StageOptions(
+#   webgl, jpeg_quality=92, ready_timeout, call_timeout, layers, extra_args=()), playwright=None, refresh_served=None)
+#   a CDP capture on a dead renderer raises StageError("stage_crashed", retryable) (the chunk is captured again)
+#   /__frames/[<chunk>/]<media key>/<source frame>.jpg answered from FrameRegistry (route.fulfill); else 404
+dynamic.stage_page.stage_browser(settings, *, size, base_url=None, media_origins=(), webgl=False, call_timeout_s=60,
+#   check_cancelled=None, extra_args=(), playwright=None) ; open_stage(..., token, served_timeline, frames) -> StagePage
+#   StagePage: load(), info() -> StageInfo, seek(frame) -> key, text_boxes(), media_plan(f0, f1), set_layers(captions=,
+#   stage=), capture_jpeg(q=92), capture_png(transparent=); errors / guard_trips collected; StageError codes:
+#   render_page_* (boot), stage_contract (never retried), stage_call_failed (the page's code), stage_crashed (retryable)
+dynamic.preflight.run_preflight(settings, timeline, *, token, served_timeline=None, base_url=None, media_origins=(),
+#   check_cancelled=None, ...) -> PreflightResult(ok, timeline (served, with remedies), sampled, remedies, summary(),
+#   as_qa()); raise_if_blocked(result) -> PreflightBlocked (code preflight_blocked); sample_frames(info, timeline)
+dynamic.container.inspect_container(path, *, settings, fps, expected_frames, expect_audio, expect_subtitles=False,
+#   chunks=(), loudness=None, size=None) -> ContainerQA ; verify_container(inspect, remedies) -> ContainerQA |
+#   ContainerCheckFailed (render_invalid) ; motion_qa(container, preflight) -> dict ; record_qa(ctx, render_id, qa)
+dynamic.determinism.run_plans(open_page, standard_plans(0, 300, 3)) -> DeterminismReport (1x300, 3x100, reverse)
 ```
 
 ## aadhi.providers (owner: providers)
@@ -304,6 +429,18 @@ factory.get_llm(settings=None, engine: str | None = None) -> LLMProvider   # Non
 factory.available_llm_engines(settings) -> list[dict]          # [{id,label,configured,models}] for LLM_ENGINES; "fake" first only where allowed
 factory.get_tts(name=None, settings=None) -> TTSProvider
 factory.get_image(settings=None) ; factory.get_video(settings=None) ; factory.get_gif(settings=None)
+factory.VIDEO_PROVIDERS = ("veo", "omni", "fake")   # MEDIA_LABELS["omni"] = "Google Gemini Omni"; both need a Gemini key
+#   Settings.video_providers (VIDEO_PROVIDERS) replaces video_provider + video_fallback_providers when set; else a chain
+#   that names veo gets "omni" appended (Settings._video_order; Settings.auto_video_backup == "omni"), so media_chain
+#   already holds the effective order. The appended successor is tried only while Veo is unavailable (assets
+#   _generate_video: Veo's 404/410/account refusal now or in its "unavailable" cooldown); a named omni backup always.
+video.omni.OmniVideo(settings, *, client_factory=None, sleep=None, poll_interval_s=10.0, max_attempts=None)   # "omni", paid,
+#   resumable, reports_sending; Interactions API (client.aio.interactions create/get/cancel, SDK retries off);
+#   .model (OMNI_MODEL), billed_seconds() = ESTIMATED_SECONDS (10.0); Usage(provider="omni", operation="video",
+#   seconds = video output tokens / VIDEO_TOKENS_PER_SECOND (5792)); 404/410 on create -> ProviderUnavailable;
+#   one genai client per key and event loop (gemini_common.GeminiCaller(per_loop=True)); generate/resume hold
+#   GeminiCaller.loop_lease(), whose last holder in a loop closes that loop's clients in it
+#   VeoVideo.model (VEO_MODEL); Veo's 404/410 on create (model no longer served) -> ProviderUnavailable, nothing billed
 factory.media_chain(kind, settings) -> list[str]                # IMAGE_/VIDEO_PROVIDER then *_FALLBACK_PROVIDERS ([] for none)
 factory.media_configured(kind, settings) -> bool ; factory.media_unavailable_reason(kind, name, settings) -> str | None
 factory.available_image_providers(settings) -> list[dict]      # [{id,label,configured,paid}] a lecture may choose; [] when none
@@ -403,6 +540,14 @@ stage.matches_current(built_revision, revision, version_built_revision) -> bool
 ## aadhi.api (owner: api)
 ```python
 errors.ApiException(status: int, code: str, detail: Any, **extra)   # + exception handlers (incl. RequestValidationError -> code "validation")
+#   schemas.features.NewerDocumentError -> 409 "newer_document" (+ document, schema_version, reader_version)
+screenplay_service.require_features(sp, settings, *, prefix=("body", "screenplay"), already=None) -> None
+#   422 "feature_unavailable" (+ features) when sp uses a feature settings.dynamic_features does not enable;
+#   already() returns the stored screenplay, whose features stay writable (PUT, lint, preview: the stored version;
+#   import: prefix ("file",), no already). unavailable_features(sp, enabled, *, already=None) -> {feature: [loc]}
+screenplay_service.asset_uses(sp) -> list[AssetUse]   # every key with its FIELD_RULES rule (classic + the Dynamic
+#   clip / overlay / music / narration fields) -> asset_key_errors / authorize_asset_keys (422) and
+#   strip_unauthorized_asset_keys (import: optional keys cleared, an overlay or clip scene without its clip removed)
 deps.load_version(db, user, vid, *, for_update: bool = False) -> ProjectVersion
 deps.load_project(db, user, project_id) -> Project
 generation.parse_options(raw: str | dict | None, *, defaults: dict | None = None) -> GenerationOptions   # 422 validation
@@ -419,6 +564,9 @@ generation.ensure_budget(db, user, settings, *, engine=None, keys=None, options=
 #   only when the effective engine AND every paid voice / image / video provider of options (gemini/openai/elevenlabs
 #   voices, Gemini images, Veo) run on "personal" keys; a Gemini image or Veo backup in the chain, or the lecture's
 #   image_provider choice, counts as a payer
+#   (+ Veo or Gemini Omni in the video chain; Dynamic options when present, read with getattr: options.voice
+#   {premium_allowed, any_provider, narrator "provider:voice"} and options.music {source, ai_opt_in} add the paid
+#   voice and music payers, incl. the voices' calibration)
 generation.ensure_image_provider_configured(options, settings, keys=None) -> None   # 422 at ["options", "image_provider"]
 #   (type "provider_not_configured") when generated images are off or the chosen provider has no key for the requester
 storable.StorableBody / storable.ensure_storable(document, loc)   # 422 for NaN/Infinity/lone surrogates in stored bodies
@@ -492,17 +640,72 @@ export function validateLibraryFile(file, maxMb, kind) -> string | null ; export
 // web/js/studio/lib/lessonStage.js — STAGES, STAGE_INFO, WORKFLOW_STEPS, stageInfo(stage), workflowSteps(stage),
 //   deriveStage(version, job) (servers without stage), nextStepFor(stage, ids), safeStepHref(href) ("#/…" or same-site
 //   "/…" only), projectStage(project) -> {stage, next, derived} | null
-// web/js/studio/components/stage.js — stageChip(stage, opts), nextStepCard({stage, next, canDo, onAction, note, extra})
+// web/js/studio/components/stage.js — stageChip(stage, opts), nextStepCard({stage, next, canDo, onAction, note, extra,
+//   stageAction}) (stageAction: the stage's own next action when the page replaced `next`, for the workflow strip)
 // web/js/studio/components/videoPreview.js — openVideoPreview(opts) (HTML5 <video>, source released on close)
 // web/js/studio/lib/debug.js — showTechnical(loc?) (?debug in the page or hash query)
 // web/js/studio/lib/visibility.js — pageHidden(doc?), onceVisible(fn, doc?) -> cancel
 // web/js/studio/lib/names.js — nameKey, uniqueJoin(parts, sep), distinctTitles(items, opts), withSuffix(title, suffix)
 // web/js/studio/views/editor/splitScene.js — splitProblem(sp, sceneId, beatIndex), canSplitType(scene),
-//   splitScene(sp, sceneId, beatIndex) -> {screenplay, scene}   (pure; scene = the new second part)
+//   splitScene(sp, sceneId, beatIndex) -> {screenplay, scene}   (pure; scene = the new second part; references to
+//   moved items and beats follow them: companion entries, Beat.answers, presentation.hook; part B keeps the board's
+//   sequence, never A's look)
+// web/js/studio/lib/screenplayEdit.js — COMMON_SCENE_KEYS (every SceneBase field: a type change keeps them all, incl.
+//   hidden, min_seconds, look, colour_is_content), BOARD_SCENE_KEYS (['board', 'sequence']: kept between board
+//   types), BLANKABLE_KINDS (Set ['example_step', 'question']: kinds a beat may fill)
+// web/js/render/render.js — stageSize(timeline) -> {width, height} (timeline.width x height, else 1920x1080);
+//   applyStageSize(doc, size) sets --render-stage-width / --render-stage-height and the viewport at boot
+// web/js/studio/errors.js — errorMessage(err, fallback?): plain words per API code (incl. newer_document,
+//   feature_unavailable with the features' labels from detail)
 // web/js/studio/views/editor/sceneMerge.js — mergeDrafts(base, mine, theirs), mergeScene(b, m, t) (field by field;
 //   beats and board items by id)
 // web/js/studio/views/editor/changes.js — HISTORY_LIMIT (200), editLabel(key), changesBySceneId(res),
 //   fieldWords(fields), changeBadge(change), restorePosition(all, removed)
 // web/js/studio/views/editor/timelineStrip.js — stripModel(timeline, sp), fallbackModel(sp), createTimelineStrip(opts)
 // web/js/studio/components/shortcutsDialog.js — openShortcutsDialog(groups)
+// --- Dynamic video, B1 -------------------------------------------------------------------------------------------
+// web/js/motion/ (owner: motion) — pure ESM, no DOM at import time, no clock; index.js re-exports everything
+//   easing.js  ease(name, x) (§4.8 tokens 'ease.enter' | 'ease.exit' | 'ease.move' | 'ease.hero' | 'linear' | 'pop',
+//              CSS keywords, step-start/end, 'cubic-bezier(...)' strings or functions; unknown names throw);
+//              cubicBezier(x1, y1, x2, y2) -> fn (CSS-exact, linear outside 0..1); EASINGS; POP_OVERSHOOT 1.08
+//   track.js   track([{t, v, ease?}]) -> (t) => value (numbers, arrays, objects, colours mixed in OKLCH -> hex); a
+//              keyframe's ease shapes the segment ARRIVING at it; equal t = a jump; held before/after; progress(t,
+//              start, duration), interpolate, stagger(index, count, each, {from})
+//   color.js   parseColor (hex, rgb(), hsl(), oklch(), oklab()), toOklch, fromOklch, toHex, mixOklch(a, b, p) -> css
+//              (shorter hue arc, gamut-mapped as CSS Color 4), contrastRatio(a, b) (WCAG 2)
+//   text.js    segmentGraphemes(str, locale) (Intl.Segmenter; Indic conjuncts re-joined), splitWords(str, locale) ->
+//              [{text, ws, index, wordLike}] (punctuation attached, NBSP keeps "10 V" together),
+//              splitLines(str, maxWidth, measure, {locale, balance})
+//   draw.js    strokeDash(pathLength, p, {reverse}) -> {dasharray, dashoffset, visible} (visible false at p = 0)
+//   random.js  mulberry32(seed), hashSeed(...parts) -> uint32 (FNV-1a + murmur3 finaliser, documented in the file for
+//              a Python port; integers and strings only)
+//   count.js   countUp(from, to, p, {decimals, locale = 'en-IN', numberingSystem}) (never "-0", exact end at p = 1)
+// web/js/dynamic/stage.js (owner: stage) — the one compositor of the live player and the render page
+export function createDynamicStage(root, timeline, { mode /* 'live' | 'render' */, captions, reducedMotion, texIdle,
+  frame, onInvalidate, renderTex }) -> { el, update(t, frameInfo?) /* live */, seek(frame) -> Promise<{key}> /* render */,
+  info(), mediaPlan(f0, f1), textBoxes(), setLayers({captions, stage}), layers(), destroy() }
+//   refuses a timeline without presentation.style 'dynamic'; templates TEMPLATES {board_generic}, backgrounds
+//   BACKGROUNDS {mesh_drift, colour_block}; templates/board_generic.js mediaOf(scene, mode), variantOf(scene, mode),
+//   mediaBoxMax(scene, zones, mode = 'render'), cardSpecs(scene, format); media.js shownIn(ref, mode)
+// web/js/dynamic/render.js (owner: stage) — the render page web/render-dynamic.html, served at GET /render-dynamic:
+//   window.aadhiStage = { version: 3,
+//     ready,              Promise<{webgl}>: timeline fetched with the fragment token (as /render-frame), every font in
+//                         use loaded, every TeX string converted, MathJax idle, frame 0 painted (without the per-chunk
+//                         media frames); rejects with {code, message}; methods throw 'not_ready' before it
+//     info()              {width, height, fps, frames, scenes: [{index, f0, f1}]} (f0/f1 = the engine's scene bounds)
+//     mediaPlan(f0, f1)   [{key, asset_key, kind: 'video' | 'aadhi', srcFps, frames: [n...], size: [w, h], url,
+//                         duration, end_behavior, trim_in}] for frames [f0, f1); a clip not started yet (a panel
+//                         before its show_at) lists its first frame: the page paints it into the hidden panel
+//     seek(frame)         Promise<{key}>: t = frame / fps; paints, waits for TeX, pictures and the media frames
+//                         (/__frames/<key>/<n>.jpg, 10 prefetched; frame n = the picture at source time n / srcFps),
+//                         then one animation frame; a font face the frame pulled in (document.fonts loading) is
+//                         awaited and the frame measured and painted again; calls are serialised; any order; key =
+//                         hash of every painted value
+//     textBoxes()         [{x, y, w, h, role, critical, ink, bg, overflow /* px: too tall, past the column with
+//                         the cards on screen with it, or clipped at the sides */, alpha, scene, slot?, size?, min?,
+//                         weight?, text?}] of the frame on screen (roles: title, subtitle, label, body, chip, caption)
+//     setLayers(spec)     {captions, stage} -> the layers; {stage: false, captions: true} = the caption-only layer on a
+//                         transparent page; render mode starts with captions = presentation.captions_burn }
+//   after ready: setTimeout / setInterval throw (guard.js), each trip recorded in window.aadhiStageGuard.trips and
+//   logged as "aadhi timer guard: ..."
 ```

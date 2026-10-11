@@ -449,6 +449,30 @@ def test_escapes() -> None:
     assert sub.startswith("subtitles=filename=c.srt:force_style='FontName=Inter,FontSize=22")
 
 
+@pytest.mark.parametrize(("width", "height", "size"), [
+    (1920, 1080, 22),  # classic: unchanged
+    (1280, 720, 15),
+    (1080, 1080, 22),
+    (1080, 1920, 12),  # portrait: libass scales by the 1920 height, so 12 gives the 1080p glyph size (~82 px)
+    (720, 1280, 12),  # 8.25, raised to the floor
+])
+def test_burned_caption_size_follows_the_short_side(width: int, height: int, size: int) -> None:
+    sub = subtitles_filter("c.srt", fonts_dir=None, font_name="Inter", height=height, width=width)
+    assert f"FontSize={size}," in sub
+    if (width, height) == (1080, 1920):  # glyph height = FontSize x frame height / 288: 80 px vs 82.5 px classic
+        assert size * height / 288 == pytest.approx(22 * 1080 / 288, abs=3)
+
+
+def test_build_final_burns_portrait_captions_at_the_classic_glyph_size() -> None:
+    spec = FinalSpec(video_list="v", audio_list="a", metadata="m", total_seconds=10, output="o.mp4",
+                     burn_subtitles="c.srt", width=1080, height=1920)
+    graph = build_final(spec, filter_script="f").files["f"]
+    assert "FontSize=12," in graph
+    classic = build_final(FinalSpec(video_list="v", audio_list="a", metadata="m", total_seconds=10, output="o.mp4",
+                                    burn_subtitles="c.srt"), filter_script="f").files["f"]
+    assert "FontSize=22," in classic
+
+
 def test_parse_probe() -> None:
     data = {"format": {"duration": "12.5", "format_name": "mov,mp4"},
             "streams": [{"codec_type": "video", "codec_name": "h264", "width": 1280, "height": 720,

@@ -6,13 +6,15 @@
  *   splitScene(sp, sceneId, beatIndex)   -> { screenplay, scene }   (`scene` = the new second part)
  *
  * The cut is always between two main beats, never inside one: part A keeps beats [0, k), its id and its
- * visual (side panel, footage, sketch) and its minimum duration; part B gets a new id, beats [k, n) re-numbered
- * under it (`{B}-b1`, ...), and joins A's chapter right after it. Board scenes: B has A's type and takes the
- * board items that B's beats reveal or fill (A keeps everything visible from the start or revealed by its own
- * beats); highlights that would point across the cut are dropped by repairSceneRefs, and companion-sheet
- * entries that came from a moved item follow it. Real-world video and interactive scenes: B is a content scene
- * with an empty board (the footage or sketch stays with A). Quiz checkpoints, chapter cards and animations
- * (one animation step per beat) cannot be split. B starts visible or hidden like A.
+ * visual (side panel, footage, sketch), its minimum duration and every other field it has (its look included);
+ * part B gets a new id, beats [k, n) re-numbered under it (`{B}-b1`, ...) with all their other fields, and joins
+ * A's chapter right after it. Board scenes: B has A's type and `sequence` and takes the board items that B's
+ * beats reveal or fill (A keeps everything visible from the start or revealed by its own beats); highlights that
+ * would point across the cut are dropped by repairSceneRefs, and references to a moved item or beat follow it
+ * (companion-sheet entries, `Beat.answers`, the lecture's hook). Real-world video and interactive scenes: B is a
+ * content scene with an empty board (the footage or sketch stays with A). Quiz checkpoints, chapter cards and
+ * animations (one animation step per beat) cannot be split. B starts visible or hidden like A; it has no look of
+ * its own (one is chosen for it when the lecture is saved).
  */
 
 import { clone } from '../../util.js';
@@ -133,6 +135,7 @@ export function splitScene(sp, sceneId, beatIndex) {
     board: bBoard,
   };
   if (original.hidden === true) second.hidden = true;
+  if (board && original.sequence != null) second.sequence = original.sequence;
 
   /** @type {Record<string, any>} */
   const first = { ...original, beats: keptBeats };
@@ -144,7 +147,70 @@ export function splitScene(sp, sceneId, beatIndex) {
   let next = { ...sp, scenes };
   next = insertScene(next, repairSceneRefs(second), index + 1);
   next = moveCompanionRefs(next, original.id, newId, itemMap);
+  next = moveAnswerRefs(next, original.id, newId, itemMap, beatMap);
   return { screenplay: next, scene: /** @type {any} */ (findScene(next, newId)) };
+}
+
+/**
+ * `"<fromScene>/<id>"` -> `"<toScene>/<mapped id>"` when `id` moved, else the reference unchanged.
+ * @param {any} ref
+ * @param {string} fromScene
+ * @param {string} toScene
+ * @param {Map<string, string>} idMap
+ */
+function movedRef(ref, fromScene, toScene, idMap) {
+  if (typeof ref !== 'string' || !ref.startsWith(`${fromScene}/`)) return ref;
+  const mapped = idMap.get(ref.slice(fromScene.length + 1));
+  return mapped ? `${toScene}/${mapped}` : ref;
+}
+
+/**
+ * Scene-qualified references to a moved item or beat follow it into the new scene: the beats that answer a
+ * question (`Beat.answers`, `"<scene>/<item>"`) and the lecture's hook (`presentation.hook.question_item` and
+ * `answer_beat`). Everything else is left as it is.
+ * @param {Record<string, any>} sp
+ * @param {string} fromScene
+ * @param {string} toScene
+ * @param {Map<string, string>} itemMap
+ * @param {Map<string, string>} beatMap
+ */
+function moveAnswerRefs(sp, fromScene, toScene, itemMap, beatMap) {
+  /** @param {any} b */
+  const moveBeat = (b) => {
+    const answers = movedRef(b.answers, fromScene, toScene, itemMap);
+    return answers === b.answers ? b : { ...b, answers };
+  };
+  let changed = false;
+  const scenes = (sp.scenes || []).map((/** @type {any} */ scene) => {
+    /** @type {Record<string, any>} */
+    const out = { ...scene };
+    let touched = false;
+    for (const key of ['beats', 'reveal_beats']) {
+      if (!Array.isArray(scene[key])) continue;
+      const list = scene[key].map(moveBeat);
+      if (list.some((/** @type {any} */ b, /** @type {number} */ i) => b !== scene[key][i])) {
+        out[key] = list;
+        touched = true;
+      }
+    }
+    if (!touched) return scene;
+    changed = true;
+    return out;
+  });
+  /** @type {Record<string, any>} */
+  let next = changed ? { ...sp, scenes } : sp;
+  const presentation = next.presentation;
+  const hook = presentation && typeof presentation === 'object' ? presentation.hook : null;
+  if (hook && typeof hook === 'object') {
+    const question = movedRef(hook.question_item, fromScene, toScene, itemMap);
+    const answer = movedRef(hook.answer_beat, fromScene, toScene, beatMap);
+    if (question !== hook.question_item || answer !== hook.answer_beat) {
+      const nextHook = { ...hook, question_item: question };
+      if (answer !== hook.answer_beat) nextHook.answer_beat = answer;
+      next = { ...next, presentation: { ...presentation, hook: nextHook } };
+    }
+  }
+  return next;
 }
 
 /**

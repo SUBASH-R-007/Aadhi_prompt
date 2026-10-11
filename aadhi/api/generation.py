@@ -241,20 +241,61 @@ def project_default_options(project: Project, settings: Settings) -> dict[str, A
 _PAID_TTS_KEYS: dict[str, str | None] = {"gemini": "gemini", "openai": "openai", "elevenlabs": None}
 
 
-def _media_billed_to_server(settings: Settings, keys: ResolvedKeys, options: GenerationOptions | None) -> bool:
-    """True when the job's voices, generated images or AI videos would be paid with a server (Studio or
-    .env) key. ``options`` None = the defaults; free providers (edge, pollinations, fake, none) never count."""
-    opts = options or GenerationOptions()
+# Paid music providers -> the API key that pays for them (None: always a server key). Lyria runs on the Gemini
+# key (DYNAMIC_VIDEO_DESIGN §5.7); ElevenLabs Music joins with its adapter (B7).
+_PAID_MUSIC_KEYS: dict[str, str | None] = {"lyria": "gemini"}
+
+
+def _tts_usable(settings: Settings, keys: ResolvedKeys, key: str | None) -> bool:
+    """Whether a paid voice provider paid by ``key`` (None: a server-only key, ElevenLabs) can run at all."""
+    return keys.source(key) is not None if key is not None else bool(settings.elevenlabs_api_key.get_secret_value())
+
+
+def _voice_payers(settings: Settings, keys: ResolvedKeys, opts: Any) -> list[str | None]:
+    """Keys that may pay for the narration, including the Dynamic voices' calibration synthesis (§5.4: a usage row
+    like any TTS call, made with the cast voices). The lecture's voice provider always counts. Dynamic voice
+    preferences (``opts.voice``, when the options carry them) add a pinned paid narrator persona
+    (``"<provider>:<voice>"``) and, with premium voices allowed from any provider, every paid voice provider that
+    casting could pick (one whose key resolves)."""
     payers: list[str | None] = []
     tts = opts.tts_provider or settings.tts_provider
     if tts in _PAID_TTS_KEYS:
         payers.append(_PAID_TTS_KEYS[tts])
+    voice = getattr(opts, "voice", None)
+    if voice is None:
+        return payers
+    pinned = str(getattr(voice, "narrator", None) or "").split(":", 1)[0]
+    if pinned in _PAID_TTS_KEYS:
+        payers.append(_PAID_TTS_KEYS[pinned])
+    if getattr(voice, "premium_allowed", False) and getattr(voice, "any_provider", False):
+        payers += [key for key in _PAID_TTS_KEYS.values() if _tts_usable(settings, keys, key)]
+    return payers
+
+
+def _music_payers(opts: Any) -> list[str | None]:
+    """Keys that may pay for generated music: AI music is requested (``source="generated"``) or allowed for
+    "Auto" (``ai_opt_in``) in the Dynamic music preferences (``opts.music``, when the options carry them)."""
+    music = getattr(opts, "music", None)
+    if music is None:
+        return []
+    source = getattr(music, "source", None) or "auto"
+    if source == "generated" or (source == "auto" and getattr(music, "ai_opt_in", False)):
+        return list(_PAID_MUSIC_KEYS.values())
+    return []
+
+
+def _media_billed_to_server(settings: Settings, keys: ResolvedKeys, options: GenerationOptions | None) -> bool:
+    """True when the job's voices (with their calibration), generated images, AI videos or generated music would
+    be paid with a server (Studio or .env) key. ``options`` None = the defaults; free providers (edge,
+    pollinations, procedural music, fake, none) never count."""
+    opts = options or GenerationOptions()
+    payers: list[str | None] = [*_voice_payers(settings, keys, opts), *_music_payers(opts)]
     images = media_chain("image", settings)
     if images and opts.image_provider:  # the lecture's choice goes first (when images are on at all)
         images = [opts.image_provider, *images]
     if opts.allow_generated_images and "gemini" in images:  # preferred or a backup: it may bill the key
         payers.append("gemini")
-    if opts.allow_ai_video and "veo" in media_chain("video", settings):  # Veo runs on the Gemini key
+    if opts.allow_ai_video and {"veo", "omni"} & set(media_chain("video", settings)):  # both on the Gemini key
         payers.append("gemini")
     return any(p is None or keys.source(p) != "personal" for p in payers)
 

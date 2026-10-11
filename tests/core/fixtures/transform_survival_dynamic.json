@@ -1,0 +1,1291 @@
+{
+  "schema_version": 3,
+  "subject_name": "Basic Electrical Engineering",
+  "unit_name": "Electric Circuits",
+  "session_number": "Session 2",
+  "session_title": "Ohm's Law",
+  "language": "en-IN",
+  "board_language": null,
+  "learning_objectives": [
+    {
+      "id": "obj-1",
+      "text": "State Ohm's law",
+      "bloom": "remember",
+      "concept_ids": [
+        "ohms-law"
+      ]
+    },
+    {
+      "id": "obj-2",
+      "text": "Compute the voltage across a resistor",
+      "bloom": "apply",
+      "concept_ids": [
+        "ohms-law"
+      ]
+    }
+  ],
+  "concept_map": [
+    {
+      "id": "voltage",
+      "title": "Voltage",
+      "summary": "The push on charge",
+      "depends_on": [],
+      "kind": "prerequisite"
+    },
+    {
+      "id": "ohms-law",
+      "title": "Ohm's law",
+      "summary": "V = IR",
+      "depends_on": [
+        "voltage"
+      ],
+      "kind": "core"
+    }
+  ],
+  "misconceptions": [
+    {
+      "id": "m1",
+      "concept_id": "ohms-law",
+      "statement": "Current is used up in a resistor",
+      "correction": "Charge is conserved; the same current flows all around the loop"
+    }
+  ],
+  "chapters": [
+    {
+      "id": "ch1",
+      "title": "Foundations",
+      "scene_ids": [
+        "s1",
+        "s2",
+        "s3",
+        "s4",
+        "s5"
+      ]
+    },
+    {
+      "id": "ch2",
+      "title": "Practice",
+      "scene_ids": [
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "s10",
+        "s11"
+      ],
+      "builds_on": false
+    }
+  ],
+  "lexicon": [
+    {
+      "written": "Ohm",
+      "spoken": "ohm",
+      "language": null,
+      "keep_in_english": true
+    }
+  ],
+  "scenes": [
+    {
+      "id": "s1",
+      "concept_id": null,
+      "chapter_id": "ch1",
+      "title": "Ohm's Law",
+      "subtitle": "Why current flows",
+      "mascot_position": "center",
+      "beats": [
+        {
+          "id": "s1-b1",
+          "narration": "Hi, I am Aadhi. Today we find out why current flows.",
+          "spoken": null,
+          "board_item_id": null,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "pause_after": 0.5,
+          "visual_cue": null,
+          "source_refs": [],
+          "speaker": "aadhi"
+        },
+        {
+          "id": "s1-b2",
+          "narration": "Why does current flow at all?",
+          "spoken": null,
+          "board_item_id": null,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "pause_after": 0.0,
+          "visual_cue": null,
+          "source_refs": [],
+          "speaker": "student"
+        }
+      ],
+      "side_panel": null,
+      "objective_ids": [],
+      "intent": {
+        "goal": "Open the lesson with a question",
+        "key_points": [],
+        "source_refs": [],
+        "narrative_role": "hook",
+        "bridge_in": "",
+        "visual_intent": "hook"
+      },
+      "notes": "",
+      "type": "title",
+      "board": [],
+      "look": {
+        "template": "aadhi_intro",
+        "variant": "card",
+        "background": "aurora",
+        "palette_slot": 0,
+        "transition_in": "cut",
+        "hold_reason": "think",
+        "presenter": {
+          "clip": "center",
+          "seconds": 4.0,
+          "layout": "pip"
+        },
+        "lock": "settled"
+      }
+    },
+    {
+      "id": "s2",
+      "concept_id": "voltage",
+      "chapter_id": "ch1",
+      "title": "A question to start",
+      "subtitle": null,
+      "mascot_position": "left",
+      "beats": [
+        {
+          "id": "s2-b1",
+          "narration": "Here is a question to keep in mind.",
+          "spoken": null,
+          "board_item_id": "s2-i1",
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "pause_after": 0.0,
+          "visual_cue": null,
+          "source_refs": [],
+          "speaker": "aadhi"
+        },
+        {
+          "id": "s2-b2",
+          "narration": "A home socket gives two hundred and thirty volts.",
+          "spoken": null,
+          "board_item_id": "s2-i2",
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "pause_after": 0.0,
+          "visual_cue": null,
+          "source_refs": []
+        },
+        {
+          "id": "s2-b3",
+          "narration": "Think of voltage like water pressure in a pipe.",
+          "spoken": null,
+          "board_item_id": "s2-i3",
+          "fill_item_id": null,
+          "highlight_item_ids": [
+            "s2-i2"
+          ],
+          "pause_after": 0.0,
+          "visual_cue": null,
+          "source_refs": []
+        },
+        {
+          "id": "s2-b4",
+          "narration": "Ohm himself, very famously, put it simply.",
+          "spoken": null,
+          "board_item_id": "s2-i4",
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "pause_after": 0.0,
+          "visual_cue": null,
+          "source_refs": [],
+          "cuts": [
+            {
+              "start": 2,
+              "end": 4,
+              "text": "very famously,",
+              "mode": "splice"
+            }
+          ],
+          "overlays": [
+            {
+              "id": "s2-b4-o1",
+              "at_word": 0,
+              "at_text": "Ohm",
+              "clip": {
+                "asset_key": "clip-broll-1",
+                "in_frame": 0,
+                "out_frame": 60
+              },
+              "region": "panel",
+              "sound": "quiet",
+              "concept_id": "ohms-law",
+              "keep_full_length": true
+            }
+          ]
+        },
+        {
+          "id": "s2-b5",
+          "narration": "Voltage is the push that moves charge.",
+          "spoken": null,
+          "board_item_id": "s2-i5",
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "pause_after": 0.0,
+          "visual_cue": null,
+          "source_refs": []
+        }
+      ],
+      "side_panel": null,
+      "objective_ids": [
+        "obj-1"
+      ],
+      "intent": {
+        "goal": "Raise the hook question and pre-train the key term",
+        "key_points": [],
+        "source_refs": [],
+        "narrative_role": "predict",
+        "bridge_in": "",
+        "visual_intent": "predict"
+      },
+      "notes": "",
+      "type": "content",
+      "board": [
+        {
+          "id": "s2-i1",
+          "kind": "question",
+          "text": "What pushes the charge around a circuit?",
+          "term": null,
+          "latex": null,
+          "variables": [],
+          "language": null,
+          "code": null,
+          "headers": null,
+          "rows": null,
+          "figure_id": null,
+          "caption": null,
+          "justification": "A voltage: the push from the cell.",
+          "blank": true,
+          "misconception_id": null,
+          "source_refs": [],
+          "level": "recall",
+          "icon_hint": "battery"
+        },
+        {
+          "id": "s2-i2",
+          "kind": "stat",
+          "text": "Mains voltage in an Indian home",
+          "term": null,
+          "latex": null,
+          "variables": [],
+          "language": null,
+          "code": null,
+          "headers": null,
+          "rows": null,
+          "figure_id": null,
+          "caption": null,
+          "justification": null,
+          "blank": false,
+          "misconception_id": null,
+          "source_refs": [],
+          "value": "230",
+          "unit": "volts",
+          "date": "2024",
+          "icon_hint": "plug"
+        },
+        {
+          "id": "s2-i3",
+          "kind": "pair",
+          "text": "Voltage",
+          "term": "Water pressure",
+          "latex": null,
+          "variables": [],
+          "language": null,
+          "code": null,
+          "headers": null,
+          "rows": null,
+          "figure_id": null,
+          "caption": null,
+          "justification": null,
+          "blank": false,
+          "misconception_id": null,
+          "source_refs": []
+        },
+        {
+          "id": "s2-i4",
+          "kind": "quote",
+          "text": "The current is directly proportional to the voltage.",
+          "term": null,
+          "latex": null,
+          "variables": [],
+          "language": null,
+          "code": null,
+          "headers": null,
+          "rows": null,
+          "figure_id": null,
+          "caption": "Georg Ohm, 1827",
+          "justification": null,
+          "blank": false,
+          "misconception_id": null,
+          "source_refs": []
+        },
+        {
+          "id": "s2-i5",
+          "kind": "definition",
+          "text": "The push that moves charge",
+          "term": "Voltage",
+          "latex": null,
+          "variables": [],
+          "language": null,
+          "code": null,
+          "headers": null,
+          "rows": null,
+          "figure_id": null,
+          "caption": null,
+          "justification": null,
+          "blank": false,
+          "misconception_id": null,
+          "source_refs": [],
+          "icon_hint": "zap"
+        }
+      ],
+      "look": {
+        "template": "hook_question",
+        "variant": "a",
+        "background": "aurora",
+        "palette_slot": 1,
+        "transition_in": "push",
+        "lock": "pinned"
+      }
+    },
+    {
+      "id": "s3",
+      "concept_id": "ohms-law",
+      "chapter_id": "ch1",
+      "title": "From cell to meter",
+      "subtitle": null,
+      "mascot_position": "left",
+      "beats": [
+        {
+          "id": "s3-b1",
+          "narration": "First, connect the cell to the resistor.",
+          "spoken": null,
+          "board_item_id": "s3-i1",
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "pause_after": 0.0,
+          "visual_cue": null,
+          "source_refs": []
+        },
+        {
+          "id": "s3-b2",
+          "narration": "The cell's voltage is the push we asked about.",
+          "spoken": null,
+          "board_item_id": "s3-i2",
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "pause_after": 0.0,
+          "visual_cue": null,
+          "source_refs": [],
+          "answers": "s2/s2-i1",
+          "voice_override_asset_key": "narration-take-1"
+        },
+        {
+          "id": "s3-b3",
+          "narration": "Then read the current on the meter.",
+          "spoken": null,
+          "board_item_id": "s3-i3",
+          "fill_item_id": null,
+          "highlight_item_ids": [
+            "s3-i1"
+          ],
+          "pause_after": 1.0,
+          "visual_cue": null,
+          "source_refs": []
+        }
+      ],
+      "side_panel": {
+        "kind": "image",
+        "title": "A simple circuit",
+        "rationale": "Shows the loop the charge follows",
+        "show_from_beat_id": "s3-b2",
+        "figure_id": null,
+        "image_prompt": "A cell connected to a resistor with red and black wires",
+        "chart": null,
+        "graph": null,
+        "model_3d": null,
+        "manim": null,
+        "terminal": null,
+        "quiz": null,
+        "gif_query": null,
+        "override_asset_key": "upload-panel-1",
+        "variant": 1,
+        "colour_is_content": true
+      },
+      "objective_ids": [
+        "obj-1"
+      ],
+      "intent": {
+        "goal": "Walk through the measurement",
+        "key_points": [],
+        "source_refs": [],
+        "narrative_role": "concept",
+        "bridge_in": "",
+        "visual_intent": "sequence"
+      },
+      "notes": "Point at the meter.",
+      "type": "content",
+      "min_seconds": 12.5,
+      "sequence": "flow",
+      "board": [
+        {
+          "id": "s3-i1",
+          "kind": "step",
+          "text": "Connect the cell",
+          "term": null,
+          "latex": null,
+          "variables": [],
+          "language": null,
+          "code": null,
+          "headers": null,
+          "rows": null,
+          "figure_id": null,
+          "caption": null,
+          "justification": null,
+          "blank": false,
+          "misconception_id": null,
+          "source_refs": [],
+          "icon_hint": "plug"
+        },
+        {
+          "id": "s3-i2",
+          "kind": "step",
+          "text": "Measure the voltage",
+          "term": null,
+          "latex": null,
+          "variables": [],
+          "language": null,
+          "code": null,
+          "headers": null,
+          "rows": null,
+          "figure_id": null,
+          "caption": null,
+          "justification": null,
+          "blank": false,
+          "misconception_id": null,
+          "source_refs": []
+        },
+        {
+          "id": "s3-i3",
+          "kind": "step",
+          "text": "Read the current",
+          "term": null,
+          "latex": null,
+          "variables": [],
+          "language": null,
+          "code": null,
+          "headers": null,
+          "rows": null,
+          "figure_id": null,
+          "caption": null,
+          "justification": null,
+          "blank": false,
+          "misconception_id": null,
+          "source_refs": []
+        },
+        {
+          "id": "s3-i4",
+          "kind": "heading",
+          "text": "Voltage drives current",
+          "term": null,
+          "latex": null,
+          "variables": [],
+          "language": null,
+          "code": null,
+          "headers": null,
+          "rows": null,
+          "figure_id": null,
+          "caption": null,
+          "justification": null,
+          "blank": false,
+          "misconception_id": null,
+          "source_refs": []
+        },
+        {
+          "id": "s3-i5",
+          "kind": "figure",
+          "text": "",
+          "term": null,
+          "latex": null,
+          "variables": [],
+          "language": null,
+          "code": null,
+          "headers": null,
+          "rows": null,
+          "figure_id": "fig-1",
+          "caption": "The circuit we measure",
+          "justification": null,
+          "blank": false,
+          "misconception_id": null,
+          "source_refs": [],
+          "pins": [
+            {
+              "id": "pin-cell",
+              "x": 0.25,
+              "y": 0.6,
+              "label": "Cell"
+            }
+          ]
+        }
+      ],
+      "look": {
+        "template": "list_build",
+        "variant": "b",
+        "background": "grid",
+        "palette_slot": 3,
+        "transition_in": "push",
+        "hold_reason": "diagram",
+        "continues_from": "s2",
+        "lock": "auto"
+      }
+    },
+    {
+      "id": "s4",
+      "concept_id": "ohms-law",
+      "chapter_id": "ch1",
+      "title": "Current follows voltage",
+      "subtitle": null,
+      "mascot_position": "left",
+      "beats": [
+        {
+          "id": "s4-b1",
+          "narration": "Watch the current rise as the voltage goes up.",
+          "spoken": null,
+          "board_item_id": null,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "pause_after": 0.0,
+          "visual_cue": "Draw the line",
+          "source_refs": []
+        },
+        {
+          "id": "s4-b2",
+          "narration": "Double the voltage and the current doubles too.",
+          "spoken": null,
+          "board_item_id": null,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "pause_after": 0.0,
+          "visual_cue": "Shift the line up",
+          "source_refs": []
+        }
+      ],
+      "side_panel": null,
+      "objective_ids": [],
+      "intent": {
+        "goal": "Show the proportionality",
+        "key_points": [],
+        "source_refs": [],
+        "narrative_role": "pretraining",
+        "bridge_in": "",
+        "visual_intent": "data"
+      },
+      "notes": "",
+      "type": "simulation",
+      "manim": {
+        "template": null,
+        "params": {},
+        "code": "class Explainer(AadhiScene):\n    def construct(self):\n        self.wait_until_beat(0)\n        line = Line(LEFT, RIGHT)\n        self.play(Create(line))\n        self.wait_until_beat(1)\n        self.play(line.animate.shift(UP))\n        self.finish()"
+      },
+      "override_asset_key": "upload-sim-1",
+      "colour_is_content": true,
+      "look": {
+        "template": "animation_stage",
+        "palette_slot": 5,
+        "hold_reason": "formula",
+        "lock": "auto"
+      }
+    },
+    {
+      "id": "s5",
+      "concept_id": null,
+      "chapter_id": "ch1",
+      "title": "Lab demo",
+      "subtitle": null,
+      "mascot_position": "left",
+      "beats": [
+        {
+          "id": "s5-b1",
+          "narration": "Watch the meter as the voltage rises.",
+          "spoken": null,
+          "board_item_id": null,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "pause_after": 0.0,
+          "visual_cue": null,
+          "source_refs": [],
+          "speaker": "student",
+          "cuts": [
+            {
+              "start": 0,
+              "end": 1,
+              "text": "Watch",
+              "mode": "revoice"
+            }
+          ]
+        }
+      ],
+      "side_panel": null,
+      "objective_ids": [],
+      "intent": null,
+      "notes": "",
+      "type": "clip",
+      "clip": {
+        "asset_key": "clip-lab-demo",
+        "in_frame": 30,
+        "out_frame": 330
+      },
+      "sound": "mute",
+      "gain_db": -3.5,
+      "fit": "cover",
+      "focus": {
+        "landscape": [
+          0.4,
+          0.5
+        ],
+        "portrait": [
+          0.6,
+          0.45
+        ]
+      },
+      "end_behavior": "loop",
+      "captions": [
+        {
+          "start": 0.0,
+          "end": 2.5,
+          "text": "The meter reads two amps."
+        }
+      ],
+      "credit": "Lab demo recorded by the teacher",
+      "look": {
+        "template": "clip_scene",
+        "transition_in": "cut",
+        "lock": "settled"
+      }
+    },
+    {
+      "id": "s6",
+      "concept_id": null,
+      "chapter_id": "ch2",
+      "title": "Practice",
+      "subtitle": null,
+      "mascot_position": "left",
+      "beats": [
+        {
+          "id": "s6-b1",
+          "narration": "Now let us practise.",
+          "spoken": null,
+          "board_item_id": null,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "pause_after": 0.0,
+          "visual_cue": null,
+          "source_refs": [],
+          "speaker": "aadhi"
+        }
+      ],
+      "side_panel": null,
+      "objective_ids": [],
+      "intent": null,
+      "notes": "",
+      "type": "chapter_card",
+      "chapter_label": "Part 2",
+      "look": {
+        "template": "chapter_bumper",
+        "transition_in": "wipe",
+        "lock": "auto"
+      }
+    },
+    {
+      "id": "s7",
+      "concept_id": "ohms-law",
+      "chapter_id": "ch2",
+      "title": "Worked example",
+      "subtitle": null,
+      "mascot_position": "left",
+      "beats": [
+        {
+          "id": "s7-b1",
+          "narration": "Ohm's law says V equals I times R.",
+          "spoken": null,
+          "board_item_id": "s7-i1",
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "pause_after": 0.0,
+          "visual_cue": null,
+          "source_refs": []
+        },
+        {
+          "id": "s7-b2",
+          "narration": "Take two amps through three ohms.",
+          "spoken": null,
+          "board_item_id": "s7-i2",
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "pause_after": 0.0,
+          "visual_cue": null,
+          "source_refs": []
+        },
+        {
+          "id": "s7-b3",
+          "narration": "So the voltage is six volts.",
+          "spoken": null,
+          "board_item_id": "s7-i3",
+          "fill_item_id": "s7-i3",
+          "highlight_item_ids": [],
+          "pause_after": 0.0,
+          "visual_cue": null,
+          "source_refs": []
+        },
+        {
+          "id": "s7-b4",
+          "narration": "Your turn: one amp through five ohms.",
+          "spoken": null,
+          "board_item_id": "s7-i4",
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "pause_after": 2.0,
+          "visual_cue": null,
+          "source_refs": []
+        },
+        {
+          "id": "s7-b5",
+          "narration": "That gives five volts.",
+          "spoken": null,
+          "board_item_id": null,
+          "fill_item_id": "s7-i4",
+          "highlight_item_ids": [],
+          "pause_after": 0.0,
+          "visual_cue": null,
+          "source_refs": []
+        },
+        {
+          "id": "s7-b6",
+          "narration": "Note that current is not really used up.",
+          "spoken": null,
+          "board_item_id": "s7-i5",
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "pause_after": 0.0,
+          "visual_cue": null,
+          "source_refs": [],
+          "cuts": [
+            {
+              "start": 5,
+              "end": 6,
+              "text": "really",
+              "mode": "revoice"
+            }
+          ]
+        }
+      ],
+      "side_panel": null,
+      "objective_ids": [
+        "obj-2"
+      ],
+      "intent": {
+        "goal": "Practise with a faded example",
+        "key_points": [],
+        "source_refs": [],
+        "narrative_role": "check",
+        "bridge_in": "",
+        "visual_intent": "example"
+      },
+      "notes": "",
+      "type": "example",
+      "board": [
+        {
+          "id": "s7-i1",
+          "kind": "formula",
+          "text": "Ohm's law",
+          "term": null,
+          "latex": "V = IR",
+          "variables": [
+            {
+              "symbol_latex": "V",
+              "meaning": "voltage",
+              "unit": "V",
+              "beat_id": "s7-b1"
+            },
+            {
+              "symbol_latex": "I",
+              "meaning": "current",
+              "unit": "A"
+            }
+          ],
+          "language": null,
+          "code": null,
+          "headers": null,
+          "rows": null,
+          "figure_id": null,
+          "caption": null,
+          "justification": null,
+          "blank": false,
+          "misconception_id": null,
+          "source_refs": []
+        },
+        {
+          "id": "s7-i2",
+          "kind": "example_step",
+          "text": "I = 2 A and R = 3 ohm",
+          "term": null,
+          "latex": null,
+          "variables": [],
+          "language": null,
+          "code": null,
+          "headers": null,
+          "rows": null,
+          "figure_id": null,
+          "caption": null,
+          "justification": "Read the values",
+          "blank": false,
+          "misconception_id": null,
+          "source_refs": []
+        },
+        {
+          "id": "s7-i3",
+          "kind": "example_step",
+          "text": "V = 6 V",
+          "term": null,
+          "latex": null,
+          "variables": [],
+          "language": null,
+          "code": null,
+          "headers": null,
+          "rows": null,
+          "figure_id": null,
+          "caption": null,
+          "justification": "Multiply I by R",
+          "blank": true,
+          "misconception_id": null,
+          "source_refs": []
+        },
+        {
+          "id": "s7-i4",
+          "kind": "question",
+          "text": "What is V when I = 1 A and R = 5 ohm?",
+          "term": null,
+          "latex": null,
+          "variables": [],
+          "language": null,
+          "code": null,
+          "headers": null,
+          "rows": null,
+          "figure_id": null,
+          "caption": null,
+          "justification": "5 V",
+          "blank": true,
+          "misconception_id": null,
+          "source_refs": [],
+          "level": "apply"
+        },
+        {
+          "id": "s7-i5",
+          "kind": "misconception",
+          "text": "Current is used up in the resistor",
+          "term": null,
+          "latex": null,
+          "variables": [],
+          "language": null,
+          "code": null,
+          "headers": null,
+          "rows": null,
+          "figure_id": null,
+          "caption": null,
+          "justification": "Charge is conserved",
+          "blank": false,
+          "misconception_id": "m1",
+          "source_refs": []
+        }
+      ],
+      "look": {
+        "template": "worked_steps",
+        "variant": "c",
+        "background": "paper",
+        "palette_slot": 7,
+        "transition_in": "fade",
+        "hold_reason": "formula",
+        "lock": "settled"
+      }
+    },
+    {
+      "id": "s8",
+      "concept_id": null,
+      "chapter_id": "ch2",
+      "title": "Ohm's law in a torch",
+      "subtitle": null,
+      "mascot_position": "left",
+      "beats": [
+        {
+          "id": "s8-b1",
+          "narration": "A torch uses the same law every day.",
+          "spoken": null,
+          "board_item_id": null,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "pause_after": 0.0,
+          "visual_cue": null,
+          "source_refs": []
+        },
+        {
+          "id": "s8-b2",
+          "narration": "One amp through five ohms needs five volts.",
+          "spoken": null,
+          "board_item_id": null,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "pause_after": 0.0,
+          "visual_cue": null,
+          "source_refs": [],
+          "answers": "s7/s7-i4"
+        }
+      ],
+      "side_panel": null,
+      "objective_ids": [],
+      "intent": {
+        "goal": "Apply the law",
+        "key_points": [],
+        "source_refs": [],
+        "narrative_role": "application",
+        "bridge_in": "",
+        "visual_intent": "apply"
+      },
+      "notes": "",
+      "type": "ai_video",
+      "video_prompt": "A torch lighting up a dark room, close-up of the bulb",
+      "rationale": "Connects the law to daily life",
+      "fallback_image_prompt": "A torch beam in a dark room",
+      "fallback_figure_id": "fig-1",
+      "override_asset_key": "upload-video-1",
+      "variant": 2,
+      "look": {
+        "template": "full_bleed_media",
+        "lock": "auto"
+      }
+    },
+    {
+      "id": "s9",
+      "concept_id": null,
+      "chapter_id": "ch2",
+      "title": "Try it yourself",
+      "subtitle": null,
+      "mascot_position": "left",
+      "beats": [
+        {
+          "id": "s9-b1",
+          "narration": "Move the slider and watch the current change.",
+          "spoken": null,
+          "board_item_id": null,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "pause_after": 0.0,
+          "visual_cue": null,
+          "source_refs": []
+        }
+      ],
+      "side_panel": null,
+      "objective_ids": [],
+      "intent": null,
+      "notes": "",
+      "type": "interactive",
+      "p5_code": "function setup() {\n  createCanvas(640, 360);\n}\n\nfunction draw() {\n  background(20);\n  circle(mouseX, mouseY, 30);\n}",
+      "poster_override_asset_key": "upload-poster-1",
+      "look": {
+        "template": "interactive_poster",
+        "palette_slot": 2,
+        "lock": "auto"
+      }
+    },
+    {
+      "id": "s10",
+      "concept_id": null,
+      "chapter_id": "ch2",
+      "title": "Check yourself",
+      "subtitle": null,
+      "mascot_position": "left",
+      "beats": [
+        {
+          "id": "s10-b1",
+          "narration": "Here is a quick check.",
+          "spoken": null,
+          "board_item_id": null,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "pause_after": 0.0,
+          "visual_cue": null,
+          "source_refs": []
+        }
+      ],
+      "side_panel": null,
+      "objective_ids": [
+        "obj-2"
+      ],
+      "intent": null,
+      "notes": "",
+      "type": "quiz_checkpoint",
+      "question": "What is V when I = 2 A and R = 3 ohm?",
+      "options": [
+        "5 V",
+        "6 V",
+        "1.5 V"
+      ],
+      "correct_index": 1,
+      "feedback_wrong": [
+        "Add? No, multiply.",
+        "",
+        "Check: V equals I times R."
+      ],
+      "option_misconception_ids": [
+        "m1",
+        null,
+        null
+      ],
+      "explanation": "V = IR = 2 x 3 = 6 V.",
+      "bloom": "apply",
+      "countdown_seconds": 10,
+      "reveal_beats": [
+        {
+          "id": "s10-r1",
+          "narration": "Six volts, because V equals I times R.",
+          "spoken": null,
+          "board_item_id": null,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "pause_after": 0.0,
+          "visual_cue": null,
+          "source_refs": [],
+          "speaker": "aadhi"
+        }
+      ],
+      "source_refs": [],
+      "look": {
+        "template": "check",
+        "variant": "b",
+        "lock": "pinned"
+      }
+    },
+    {
+      "id": "s11",
+      "concept_id": null,
+      "chapter_id": "ch2",
+      "title": "Recap",
+      "subtitle": null,
+      "mascot_position": "left",
+      "beats": [
+        {
+          "id": "s11-b1",
+          "narration": "Voltage pushes and resistance resists.",
+          "spoken": null,
+          "board_item_id": "s11-i1",
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "pause_after": 0.0,
+          "visual_cue": null,
+          "source_refs": []
+        },
+        {
+          "id": "s11-b2",
+          "narration": "Why does a thicker wire carry more current?",
+          "spoken": null,
+          "board_item_id": "s11-i2",
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "pause_after": 0.0,
+          "visual_cue": null,
+          "source_refs": []
+        }
+      ],
+      "side_panel": null,
+      "objective_ids": [],
+      "intent": {
+        "goal": "Retrieve the big ideas",
+        "key_points": [],
+        "source_refs": [],
+        "narrative_role": "recap",
+        "bridge_in": "",
+        "visual_intent": "recap"
+      },
+      "notes": "",
+      "type": "recap",
+      "hidden": true,
+      "board": [
+        {
+          "id": "s11-i1",
+          "kind": "takeaway",
+          "text": "Voltage pushes, resistance resists",
+          "term": null,
+          "latex": null,
+          "variables": [],
+          "language": null,
+          "code": null,
+          "headers": null,
+          "rows": null,
+          "figure_id": null,
+          "caption": null,
+          "justification": null,
+          "blank": false,
+          "misconception_id": null,
+          "source_refs": []
+        },
+        {
+          "id": "s11-i2",
+          "kind": "question",
+          "text": "Why does a thicker wire carry more current?",
+          "term": null,
+          "latex": null,
+          "variables": [],
+          "language": null,
+          "code": null,
+          "headers": null,
+          "rows": null,
+          "figure_id": null,
+          "caption": null,
+          "justification": "Its resistance is lower.",
+          "blank": false,
+          "misconception_id": null,
+          "source_refs": [],
+          "level": "transfer"
+        }
+      ],
+      "look": {
+        "template": "recap_retrieval",
+        "lock": "auto"
+      }
+    }
+  ],
+  "companion_sheet": {
+    "key_formulas": [
+      {
+        "name": "Ohm's law",
+        "latex": "V = IR",
+        "description": "Voltage equals current times resistance",
+        "variables": [],
+        "source_item_id": "s7/s7-i1"
+      }
+    ],
+    "definitions": [
+      {
+        "term": "Voltage",
+        "definition": "The push that moves charge",
+        "source_item_id": "s2/s2-i5"
+      }
+    ],
+    "misconceptions": [
+      {
+        "misconception": "Current is used up",
+        "correction": "Charge is conserved"
+      }
+    ],
+    "practice_problems": [
+      {
+        "id": "p1",
+        "question": "Find V for I = 3 A and R = 4 ohm.",
+        "steps": [
+          "Write V = IR.",
+          "Substitute: V = 3 x 4."
+        ],
+        "final_answer": "12 V",
+        "hints": [
+          "Multiply."
+        ],
+        "difficulty": "easy",
+        "objective_ids": [
+          "obj-2"
+        ],
+        "source_refs": []
+      }
+    ],
+    "legacy_markdown": null
+  },
+  "figures": [
+    {
+      "id": "fig-1",
+      "caption": "A simple circuit",
+      "page": 1,
+      "asset_key": "figure-ohm-1",
+      "width": 640,
+      "height": 360
+    }
+  ],
+  "source": {
+    "filename": "ohms-law.pdf",
+    "mime": "application/pdf",
+    "pages": 3,
+    "sha256": null
+  },
+  "presentation": {
+    "style": "dynamic",
+    "format": "portrait",
+    "length_profile": "platform_safe",
+    "reel_profile": "social",
+    "destination": "youtube",
+    "look_seed": 123456789,
+    "look_epoch": 2,
+    "layout_epoch": 1,
+    "theme_family": "teal_coral",
+    "personality": "lively",
+    "display_font": "outfit",
+    "caption_style": "karaoke",
+    "cue_term_style": "underline",
+    "intro_layout": "split",
+    "reel_card_x": 540,
+    "hook_kind": "question",
+    "check_order": [
+      "true_false",
+      "quiz"
+    ],
+    "greeting_id": "greet-3",
+    "asset_style": {
+      "family": "teal_coral",
+      "personality": "lively"
+    },
+    "voices": {
+      "narrator": "en-in-narrator-1",
+      "aadhi": "aadhi-en-1",
+      "student": "student-en-2",
+      "calibration": {
+        "en-in-narrator-1": {
+          "natural_wpm": 152.5,
+          "control": "+8%"
+        }
+      }
+    },
+    "music": {
+      "source": "generated",
+      "provider": "lyria",
+      "mood": "curious",
+      "asset_key": "music-curious-1",
+      "mode": "gaps_bookends",
+      "level": "low"
+    },
+    "entity_colors": {
+      "v": 0,
+      "i": 1,
+      "r": 2
+    },
+    "hook": {
+      "question_item": "s2/s2-i1",
+      "kind": "question",
+      "answer_beat": "s3/s3-b2"
+    },
+    "aadhi_recap": false,
+    "captions_burn": false,
+    "sfx": false,
+    "motion": "calm",
+    "pins": [
+      "theme",
+      "voice"
+    ]
+  }
+}

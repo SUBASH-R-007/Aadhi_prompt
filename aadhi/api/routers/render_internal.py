@@ -18,7 +18,7 @@ from ...auth.tokens import InvalidToken, decode_scoped_token
 from ...models import Project, ProjectVersion, Render
 from ..deps import AppSettings, DbSession, Store, valid_id
 from ..errors import ApiException, not_found
-from ..timelines import resolve_timeline
+from ..timelines import current_timeline, resolve_timeline
 from .versions import safe_manifest, safe_screenplay
 
 router = APIRouter(tags=["render"])
@@ -31,9 +31,10 @@ def _unauthenticated() -> ApiException:
 
 
 def _render_timeline(version: ProjectVersion, stored: dict[str, Any], include_intro: Any, settings: AppSettings) -> Any:
-    """The render job's timeline (rebuilt with its ``include_intro``), else the stored one."""
+    """The render job's timeline (rebuilt with its ``include_intro``), else the stored one (as the player gets it:
+    ``DYNAMIC_ENABLED`` applies when served)."""
     if not isinstance(include_intro, bool) or version.built_revision != version.revision:
-        return stored
+        return current_timeline(version, settings) or stored
     screenplay = safe_screenplay(version)
     if screenplay is None:
         return stored
