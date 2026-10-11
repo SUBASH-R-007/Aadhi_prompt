@@ -14,11 +14,12 @@ import functools
 import importlib.util
 import io
 import json
+import os
 import subprocess
 import sys
 from collections.abc import Iterable, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 import pytest
 
@@ -65,12 +66,31 @@ def dynamic_timeline(fmt: str = "landscape") -> Any:
     return parity_eval().dynamic_timeline(fmt, settings=settings())
 
 
+# Set by the Docker ``test`` image (Dockerfile, target ``test``), which runs the B1 suites in the blocking CI job: there
+# every tool is part of the image, so a missing one is a broken image, not a developer machine without it.
+CONTAINER_TESTS_ENV = "AADHI_CONTAINER_TESTS"
+
+
+def container_tests() -> bool:
+    """True inside the Docker ``test`` image (``AADHI_CONTAINER_TESTS`` set to anything but empty, 0, false, no)."""
+    return os.environ.get(CONTAINER_TESTS_ENV, "").strip().lower() not in ("", "0", "false", "no")
+
+
+def missing(reason: str) -> NoReturn:
+    """Skip the test for a missing tool (``reason``), or fail it inside the Docker ``test`` image (see
+    :func:`container_tests`): a CI job that skipped the determinism, parity or engine suites would pass green."""
+    if container_tests():
+        pytest.fail(f"{reason}, but the Docker test image ({CONTAINER_TESTS_ENV}=1) must provide it: the suite would "
+                    "have been skipped", pytrace=False)
+    pytest.skip(reason)
+
+
 def tools() -> tuple[str, str]:
-    """``(ffmpeg, ffprobe)`` or skip."""
+    """``(ffmpeg, ffprobe)``, else skip (fail in the Docker test image: :func:`missing`)."""
     s = settings()
     ffmpeg, ffprobe = resolve_tool(s.ffmpeg_path), resolve_tool(s.ffprobe_path)
     if ffmpeg is None or ffprobe is None:
-        pytest.skip("ffmpeg/ffprobe are not installed")
+        missing("ffmpeg/ffprobe are not installed")
     return ffmpeg, ffprobe
 
 
@@ -81,10 +101,20 @@ def _chromium() -> bool | None:
     return chromium_installed()
 
 
+def _playwright_installed() -> bool:
+    try:
+        import playwright.async_api  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
 def need_chromium() -> None:
-    pytest.importorskip("playwright.async_api")
+    """Playwright and its Chromium, else skip (fail in the Docker test image: :func:`missing`)."""
+    if not _playwright_installed():
+        missing("playwright is not installed")
     if _chromium() is False:
-        pytest.skip("Playwright's Chromium is not installed")
+        missing("Playwright's Chromium is not installed")
 
 
 def run(cmd: Sequence[str], *, data: bytes | None = None, cwd: Path | None = None) -> bytes:

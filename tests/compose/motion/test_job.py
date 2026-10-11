@@ -16,17 +16,23 @@ from aadhi.compose import video as video_mod
 from aadhi.compose.motion import job as job_mod
 from aadhi.compose.motion.job import caption_modes
 from aadhi.jobs.base import FatalJobError
+from aadhi.schemas.timeline import Timeline
 from aadhi.storage.assets import Produced
 from tests.helpers import FakeJobContext
 
 from ..dbutil import create_rows, get_render
+from ..dynamic.helpers import missing
 from ..factories import make_manifest, make_screenplay
 from .fixtures import AUDIO_KEY, CLIP_KEY, TOKEN, dynamic_timeline, make_bits_video, make_wav
 from .stage_server import serve_stage
 
 
-def _dynamic(version_id: int, **kw):
+def _dynamic(version_id: int, *, panel: str | None = None, **kw):
     tl = dynamic_timeline([2.0, 2.0], **kw)
+    if panel is not None:  # a side panel of this kind (PANELS) on the first scene
+        data = tl.model_dump(mode="json")
+        data["scenes"][0]["side_panel"] = {"panel": PANELS[panel], "media": None, "show_at": 0.0}
+        tl = Timeline.model_validate(data)
     return tl.model_copy(update={"version_id": version_id, "screenplay_revision": 3})
 
 
@@ -59,6 +65,49 @@ def test_panel_warnings_say_what_the_dynamic_video_does() -> None:
     assert [o["message"] for o in out[:2]] == [job_mod.DYNAMIC_MESSAGES["panel_not_in_video"],
                                                job_mod.DYNAMIC_MESSAGES["panel_media_missing"]]
     assert "title" not in out[0]["message"] and out[2] == items[2] and items[0]["message"] == "classic"
+
+
+PANELS = {
+    "chart": {"kind": "chart", "chart": {"labels": ["a", "b"], "datasets": [{"label": "x", "data": [1, 2]}]}},
+    "graph": {"kind": "graph", "graph": {"points": [{"x": 1, "y": 2}]}},
+    "model_3d": {"kind": "model_3d", "model_3d": {"primitives": [{"shape": "sphere"}]}},
+    "skill_tree": {"kind": "skill_tree"},
+    "quiz": {"kind": "quiz", "quiz": {"question": "Which?", "options": ["a", "b"], "correct_index": 0}},
+    "terminal": {"kind": "terminal", "terminal": {"command": "python ohm.py", "output": "V = 6"}},
+    "image": {"kind": "image", "image_prompt": "a resistor"},  # its picture is missing (a classic warning)
+}
+
+
+def _with_panels(kinds: list[str], *, hidden: frozenset[int] = frozenset()) -> Timeline:
+    data = dynamic_timeline([2.0] * len(kinds)).model_dump(mode="json")
+    for i, kind in enumerate(kinds):
+        data["scenes"][i]["side_panel"] = {"panel": PANELS[kind], "media": None, "show_at": 0.0}
+        data["scenes"][i]["layout"] = {"show_side_panel": i not in hidden}
+    return Timeline.model_validate(data)
+
+
+def test_side_panels_the_stage_does_not_draw_are_reported() -> None:
+    """The Dynamic stage draws a panel's picture or clip and the terminal card, and lays the scene out without any
+    other panel (live and MP4): each such shown panel gets a render warning naming the scene, in scene order with the
+    classic items; a panel the scene does not show is not reported."""
+    kinds = ["chart", "terminal", "graph", "image", "model_3d", "skill_tree", "quiz", "chart"]
+    tl = _with_panels(kinds, hidden=frozenset({7}))
+    numbers = {f"s{i}": i + 3 for i in range(len(kinds))}
+    items = job_mod.dynamic_warnings(video_mod.render_warnings(tl, numbers=numbers), tl, numbers=numbers)
+    assert [(it["scene_index"], it["reason"]) for it in items] == [
+        (0, "panel_not_drawn"), (2, "panel_not_drawn"), (3, "panel_media_missing"), (4, "panel_not_drawn"),
+        (5, "panel_not_drawn"), (6, "panel_not_drawn")]
+    chart = items[0]
+    assert chart == {"scene_index": 0, "scene_id": "s0", "title": "Scene 0", "reason": "panel_not_drawn",
+                     "blocking": False, "scene_number": 3,
+                     "message": "This side panel (a chart) is not shown in Dynamic videos yet: the scene is laid out "
+                                "without it."}
+    assert [it["message"].split("(")[1].split(")")[0] for it in items if it["reason"] == "panel_not_drawn"] == [
+        "a chart", "a graph", "a 3D model", "a skill tree", "a quiz question"]
+    assert items[2]["message"] == job_mod.DYNAMIC_MESSAGES["panel_media_missing"]
+    assert set(job_mod.UNDRAWN_PANEL_KINDS) == {"chart", "graph", "model_3d", "skill_tree", "quiz"}
+    assert job_mod.dynamic_warnings([], _with_panels(["terminal", "image"])) == []  # drawn (or warned as before)
+    assert job_mod.dynamic_warnings([]) == []  # without the timeline: the classic items reworded only
 
 
 def test_classic_timeline_never_reaches_the_motion_engine(app_env, asset_store, monkeypatch) -> None:
@@ -136,11 +185,11 @@ def test_dynamic_job_renders_stores_and_records_qa(app_env, asset_store, monkeyp
 
     ffmpeg = resolve_tool(app_env.ffmpeg_path)
     if ffmpeg is None or chromium_installed() is False:
-        pytest.skip("ffmpeg or Chromium missing")
+        missing("ffmpeg or Chromium missing")  # fails instead in the Docker test image
     _stored_media(asset_store, tmp_path, ffmpeg)
     sp = make_screenplay()
     rows = create_rows(app_env, sp, make_manifest(sp))
-    _patch_timeline(monkeypatch, lambda vid: _dynamic(vid, media_scene=1))
+    _patch_timeline(monkeypatch, lambda vid: _dynamic(vid, media_scene=1, panel="chart"))
     monkeypatch.setattr(video_mod, "_mint_token", lambda *a, **k: TOKEN)
     boxes = [{"x": 300, "y": 200, "w": 600, "h": 80, "role": "body", "critical": True, "ink": "#ffffff",
               "bg": "#202020", "overflow": False}]
@@ -162,6 +211,11 @@ def test_dynamic_job_renders_stores_and_records_qa(app_env, asset_store, monkeyp
     assert video.kind == "render" and video.mime == "video/mp4" and (video.meta or {}).get("engine") == "motion"
     stages = [e["stage"] for e in ctx.events if e["type"] == "progress"]
     assert stages[0] == "preflight" and "capture" in stages and stages[-1] == "done"
+    # the chart panel the Dynamic stage leaves out is reported on the render and in the job's log
+    chart = job_mod.UNDRAWN_PANEL_MESSAGE.format(what="a chart")
+    assert [(w["scene_id"], w["reason"], w["message"]) for w in render.options["warnings"]] == [
+        ("s0", "panel_not_drawn", chart)]
+    assert any(e["type"] == "log" and e["message"] == f"Scene 1 (Scene 0): {chart}" for e in ctx.events)
 
 
 @pytest.mark.slow
@@ -170,7 +224,7 @@ def test_preflight_block_stops_before_capture(app_env, asset_store, monkeypatch,
 
     ffmpeg = resolve_tool(app_env.ffmpeg_path)
     if ffmpeg is None or chromium_installed() is False:
-        pytest.skip("ffmpeg or Chromium missing")
+        missing("ffmpeg or Chromium missing")  # fails instead in the Docker test image
     _stored_media(asset_store, tmp_path, ffmpeg)
     sp = make_screenplay()
     rows = create_rows(app_env, sp, make_manifest(sp))

@@ -24,6 +24,10 @@ _REAL_TEMP = tempfile.gettempdir()
 _SESSION_TMP = pathlib.Path(tempfile.mkdtemp(prefix="aadhi-test-"))
 SESSION_TEMP = _SESSION_TMP / "tmp"  # the temp dir of this test session (tests compare against it)
 SESSION_TEMP.mkdir()
+# Windows Storage Sense ("delete temporary files that my apps aren't using", run on low disk space) removed this idle,
+# empty directory in the middle of a slow run, after which every Chromium launch failed (mkdtemp ENOENT). A file held
+# open for the whole session keeps the directory in use (and non-empty); it is closed by the interpreter at exit.
+_SESSION_TEMP_GUARD = open(SESSION_TEMP / ".session-in-use", "w")  # noqa: SIM115 - held open on purpose
 os.environ.setdefault("PYTEST_DEBUG_TEMPROOT", _REAL_TEMP)  # tmp_path stays where pytest keeps it
 for _name in ("TEMP", "TMP", "TMPDIR"):
     os.environ[_name] = str(SESSION_TEMP)
@@ -44,6 +48,15 @@ _FORCED_ENV = {
     "VIDEO_PROVIDERS": "",
     # Dynamic-video write gates stay closed unless a test opens them on its settings (aadhi.schemas.features).
     "DYNAMIC_FEATURES": "",
+    # The motion engine's settings at their defaults (aadhi/config.py): a developer .env that switches Dynamic videos
+    # on, pins the workers or CPU slots, shares a slot directory or changes the x264 preset/CRF must not change what a
+    # test builds, renders or asserts. Tests that need another value set it on their settings.
+    "DYNAMIC_ENABLED": "false",
+    "RENDER_MOTION_WORKERS": "0",
+    "RENDER_CPU_SLOTS": "0",
+    "RENDER_SLOT_DIR": "",
+    "MOTION_X264_PRESET": "veryfast",
+    "MOTION_X264_CRF": "17",
     # Production-mode tests opt in explicitly (Settings(allow_fake_providers=True)); a developer .env
     # must not switch the production fake-provider guard off for the whole suite.
     "ALLOW_FAKE_PROVIDERS": "false",
@@ -94,6 +107,7 @@ def pytest_configure(config: pytest.Config) -> None:
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     """Remove this session's own directory after a passing run (kept after a failure, for debugging)."""
     if exitstatus == 0:
+        _SESSION_TEMP_GUARD.close()  # an open file cannot be deleted on Windows
         shutil.rmtree(_SESSION_TMP, ignore_errors=True)
 
 

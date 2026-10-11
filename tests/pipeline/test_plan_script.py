@@ -56,6 +56,56 @@ def test_previous_summary_gives_recap_second(job_ctx, providers, templates, samp
     assert [s.type for s in plan.all_scenes()[:2]] == ["title", "recap"]
 
 
+# The model put the recap in a chapter of its own. Moving it after the hook used to leave that chapter empty and
+# the chapter-card pass then failed on it (IndexError: outside the plan validator's ValueError net, so the job
+# failed and every retry paid for the plan again).
+RECAP_ALONE_PLAN = {
+    "session_title": "Ohm's law",
+    "concept_map": [{"key": "ohm", "title": "Ohm's law", "kind": "core"}],
+    "chapters": [
+        {"key": "a", "title": "Basics", "scenes": [
+            {"key": "open", "type": "title", "goal": "Why current flows", "concept_key": "ohm"},
+            {"key": "teach", "type": "content", "goal": "Teach Ohm's law", "concept_key": "ohm"}]},
+        {"key": "b", "title": "Looking back", "scenes": [{"key": "look_back", "type": "recap", "goal": "Recap"}]},
+        {"key": "c", "title": "Practice", "scenes": [
+            {"key": "more", "type": "example", "goal": "A worked example", "concept_key": "ohm"}]},
+    ],
+}
+RECAP_OPTIONS = GenerationOptions(target_minutes=6, previous_session_summary="Last time we met electric charge.",
+                                  include_quizzes=False)
+
+
+def test_a_recap_alone_in_its_chapter_moves_after_the_hook_and_the_empty_chapter_goes():
+    from aadhi.pipeline.plan import TeacherMeta, to_lecture_plan
+    from aadhi.pipeline.plan_rules import PlanContext
+
+    pc = PlanContext(options=RECAP_OPTIONS)
+    fixed, rep = normalize_plan(GenPlan.model_validate(RECAP_ALONE_PLAN), pc)
+    assert [(ch.key, [s.key for s in ch.scenes]) for ch in fixed.chapters] == [
+        ("a", ["open", "look_back", "teach"]), ("c", ["c_card", "more"])]
+    assert rep.notes[:2] == ["moved the recap scene right after the hook", "removed chapter b, which held only the recap"]
+    plan = to_lecture_plan(fixed, pc.options, TeacherMeta())
+    assert [s.type for s in plan.all_scenes()] == ["title", "recap", "content", "chapter_card", "example"]
+    # a recap that shares its chapter still leaves the rest of that chapter in place
+    shared = {**RECAP_ALONE_PLAN, "chapters": [*RECAP_ALONE_PLAN["chapters"][:1], {
+        "key": "b", "title": "Looking back", "scenes": [
+            {"key": "look_back", "type": "recap", "goal": "Recap"},
+            {"key": "more", "type": "example", "goal": "A worked example", "concept_key": "ohm"}]}]}
+    fixed, rep = normalize_plan(GenPlan.model_validate(shared), pc)
+    assert [(ch.key, [s.key for s in ch.scenes]) for ch in fixed.chapters] == [
+        ("a", ["open", "look_back", "teach"]), ("b", ["b_card", "more"])]
+    assert not any(n.startswith("removed chapter") for n in rep.notes)
+
+
+def test_the_planner_normalises_a_recap_alone_in_its_chapter(job_ctx, providers, sample_ingest):
+    providers.llm.on("GenPlan", lambda p, s: RECAP_ALONE_PLAN)
+    res = _plan(job_ctx, sample_ingest, RECAP_OPTIONS)
+    assert len(providers.llm.calls_for("GenPlan")) == 2  # soft problems once, then accepted and normalised
+    assert [[s.id for s in ch.scenes] for ch in res.plan.chapters] == [["open", "look_back", "teach"],
+                                                                       ["c_card", "more"]]
+    assert "removed chapter b, which held only the recap" in res.notes
+
+
 def test_teacher_metadata_overrides_model(job_ctx, providers, sample_ingest):
     opts = GenerationOptions(target_minutes=6, subject_name="Basic Electrical", session_title="Ohm's law day")
     plan = _plan(job_ctx, sample_ingest, opts).plan

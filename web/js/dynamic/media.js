@@ -12,12 +12,15 @@
  * fps: the worker then extracts at that rate). `size` is the largest size the stage can show the clip at (never above
  * the source or the stage), the same for every chunk, so `key` (which carries it) always names the same pixels.
  * Live mode plays real `<video>` elements kept within 0.1 s of the stage time [ED §8]; the narration stays the clock.
- * Images are plain `<img>` elements; Ken Burns is a transform computed from t.
+ * A paused clip that cannot seek when it is painted (no metadata yet, a seek in flight) is sought once it can, without
+ * a repaint (`MediaView._resync`). Images are plain `<img>` elements; Ken Burns is a transform computed from t. A
+ * medium shown `contain_blur` sits contained in its box over a blurred copy of the same frame (`BACKDROP_WIDTH`): no
+ * other frames are extracted.
  */
 
 import { h, safeUrl } from '../shared/dom.js';
 import { kenBurnsAt, kenBurnsTransform } from '../player/kenburns.js';
-import { Hasher, fx, stageInfo, sceneIndexOfFrame, timelineFps } from './core.js';
+import { Hasher, canvas2d, fx, stageInfo, sceneIndexOfFrame, timelineFps } from './core.js';
 import { transitionAt } from './transitions.js';
 
 /** @typedef {import('../shared/types.js').MediaRef} MediaRef */
@@ -47,6 +50,24 @@ export function shownIn(ref, mode) {
 export const LIVE_DRIFT = 0.1;
 /** Render mode prefetches this many frames ahead of the current one (§7.3 seek step 5). */
 export const LOOKAHEAD = 10;
+
+/**
+ * `fit: "contain_blur"` (§2.5, §8.2: inserted clips; B2's `full_bleed_media` in 9:16): the medium is contained in its
+ * box over a blurred, darkened cover-fit copy of the same frame that fills the box. The copy is drawn into a small
+ * canvas (this many px wide, the box's aspect) with the canvas' own blur and brightness filter, and the canvas is
+ * stretched over the box, whose smooth upscaling does the rest of the blur. A CSS `filter: blur()` over the box would
+ * cost about 22 ms per 1080p frame (§4.3 [MR §3]); this blurs about 2,000 px. The drawing is a function of the frame's
+ * pixels and the box's laid-out size only, so it is the same in any render order, and it reads the element the medium
+ * itself shows (the render page's `<img>` of the pre-extracted frame, a picture, or the live `<video>`): `mediaPlan`
+ * lists no other frame or size for it. A medium that covers its box has none (`backdropShown`). Render mode draws it
+ * once that frame is decoded, before the capture; live mode on every paint and when the clip's frame arrives after one
+ * (its first frame, the end of a seek: no repaint needed).
+ */
+export const BACKDROP_WIDTH = 64;
+/** Blur radius in backdrop px (about 30 stage px once stretched over a 1080 px wide box). */
+export const BACKDROP_BLUR = 2;
+/** Brightness of the backdrop copy: darkened, so the contained medium stands out from its own copy. */
+export const BACKDROP_BRIGHTNESS = 0.6;
 
 /**
  * Even integer, at least 2 (4:2:0 sizes).
@@ -266,6 +287,41 @@ export function presenterOf(scene) {
  */
 
 /**
+ * The `fit` a MediaView draws: `cover`, `contain_blur` (contained over a blurred copy, `BACKDROP_WIDTH`), else
+ * `contain`.
+ * @param {MediaRef} ref
+ * @returns {'cover' | 'contain' | 'contain_blur'}
+ */
+export function mediaFit(ref) {
+  return ref.fit === 'cover' || ref.fit === 'contain_blur' ? ref.fit : 'contain';
+}
+
+/**
+ * The source rect of a `w x h` picture that covers a `cw x ch` box (centred; the box's aspect).
+ * @param {number} w @param {number} h @param {number} cw @param {number} ch
+ * @returns {{x: number, y: number, w: number, h: number}}
+ */
+export function coverCrop(w, h, cw, ch) {
+  const k = Math.max(cw / w, ch / h);
+  const sw = Math.min(w, cw / k);
+  const sh = Math.min(h, ch / k);
+  return { x: (w - sw) / 2, y: (h - sh) / 2, w: sw, h: sh };
+}
+
+/**
+ * Whether a `contain_blur` backdrop shows at all: a `sw x sh` medium contained in a `bw x bh` box leaves room for it
+ * unless it covers the box to within a pixel at each side (board_generic sizes a medium's frame to the medium's own
+ * aspect whenever its size is known, so that is the usual case there). A covered backdrop is not drawn and its canvas
+ * is not shown: nothing of it would be seen, and a shown canvas is a composited layer of its own (dynamic.css).
+ * @param {number} sw @param {number} sh @param {number} bw @param {number} bh
+ */
+export function backdropShown(sw, sh, bw, bh) {
+  if (!(sw > 0 && sh > 0 && bw > 0 && bh > 0)) return true;
+  const k = Math.min(bw / sw, bh / sh);
+  return bw - sw * k >= 2 || bh - sh * k >= 2;
+}
+
+/**
  * One media element of a scene: an image (with Ken Burns), a video (frames in render mode, `<video>` live) or a
  * live-only GIF. The element fills its box with the clip's `fit`.
  */
@@ -278,11 +334,18 @@ export class MediaView {
   constructor(ref, opts) {
     this.ref = ref;
     this.mode = opts.mode;
+    this.box = opts.box;
     this.start = opts.start || 0;
     this.sceneDuration = opts.sceneDuration;
     this.reducedMotion = !!opts.reducedMotion;
     this.srcFps = Number(ref.src_fps) > 0 ? Number(ref.src_fps) : opts.fps;
-    this.fit = ref.fit === 'cover' ? 'cover' : 'contain';
+    this.fit = mediaFit(ref);
+    /** @type {HTMLCanvasElement | null} the `contain_blur` backdrop */
+    this.backdrop = null;
+    /** @type {CanvasRenderingContext2D | null | undefined} */
+    this.backdropCtx = undefined;
+    /** what the backdrop shows now (source, its size, the canvas size): drawn again only when that changes */
+    this.backdropKey = '';
     /** @type {HTMLVideoElement | null} */
     this.video = null;
     /** @type {HTMLImageElement | null} */
@@ -294,10 +357,17 @@ export class MediaView {
     /** @type {HTMLImageElement[]} */
     this.prefetch = [];
     this.missing = false;
+    /** @type {{local: number, frame: MediaFrameInfo} | null} live: the clip time the stage asked for last (`_resync`) */
+    this.liveWant = null;
+    /** live: the source time this view last sought the clip to */
+    this.liveSought = NaN;
+    /** @type {[string, EventListener][]} listeners on the live `<video>` (removed by `destroy`) */
+    this.listeners = [];
     const isVideo = ref.kind === 'video';
     const live = this.mode !== 'render';
+    // `dyn-media--clip`: a new picture every frame (dynamic.css gives a contain_blur clip's box a layer of its own)
     /** @type {HTMLDivElement} */
-    this.el = h('div', { class: ['dyn-media', `dyn-media--${this.fit}`] });
+    this.el = h('div', { class: ['dyn-media', `dyn-media--${this.fit}`, isVideo ? 'dyn-media--clip' : null] });
     if (isVideo && !live) {
       if (!ref.asset_key || ref.render_in_mp4 === false) {
         this.missing = true;
@@ -322,8 +392,39 @@ export class MediaView {
       else this.img = h('img', { class: 'dyn-media-el', src: url, alt: opts.alt || '', decoding: 'sync', draggable: 'false' });
     }
     const child = this.video || this.img;
+    if (child && this.fit === 'contain_blur') {
+      this.backdrop = h('canvas', { class: 'dyn-media-backdrop', 'aria-hidden': 'true' });
+      this.el.appendChild(this.backdrop);
+    }
     if (child) this.el.appendChild(child);
     else this.el.classList.add('is-missing');
+    const v = this.video;
+    if (v) {
+      // Live only: render mode never makes a <video> (a clip is an <img> of its pre-extracted frame, drawn by update()
+      // and ready() alone), so these listeners never touch the MP4, which stays a pure function of the seek. The live
+      // player paints on its own frames only: every animation frame while playing, once per seek or relayout while
+      // paused (web/js/player/player.js). What a paused clip does after that paint is caught here, with no repaint:
+      // it can seek only once its metadata is in and one seek at a time (a scrub asks for many), so the time asked
+      // for last is applied when it can be (`_resync`); and the contain_blur backdrop, which reads the clip itself, is
+      // drawn when the frame the clip shows arrives (its first frame, the end of a seek: readyState is >= 2 at
+      // 'seeked' in Chromium), not left showing the frame before the seek, or nothing, until the next play.
+      this._listen(v, 'loadedmetadata', () => this._resync());
+      this._listen(v, 'seeked', () => {
+        this._resync();
+        this._backdrop();
+      });
+      if (this.backdrop) this._listen(v, 'loadeddata', () => this._backdrop());
+    }
+  }
+
+  /**
+   * @param {HTMLVideoElement} el
+   * @param {string} type
+   * @param {EventListener} fn
+   */
+  _listen(el, type, fn) {
+    el.addEventListener(type, fn);
+    this.listeners.push([type, fn]);
   }
 
   /**
@@ -350,6 +451,70 @@ export class MediaView {
       paint.style(this.img, 'transform-origin', '0 0');
       paint.style(this.img, 'transform', kenBurnsTransform(kb));
     }
+    // a frame already in (a picture, a cached frame, the live clip) and a box laid out anew both show at once
+    this._backdrop();
+  }
+
+  /**
+   * Draw the `contain_blur` backdrop from what the element shows now: a picture or frame only once it is completely
+   * available (its new `src` loaded, not the previous picture it keeps showing meanwhile), a live clip once it has a
+   * frame at its time and is not seeking. No-op for any other fit.
+   */
+  _backdrop() {
+    if (!this.backdrop) return;
+    const v = this.video;
+    if (v) {
+      if (v.readyState >= 2 && !v.seeking && v.videoWidth > 0) this._drawBackdrop(v, v.videoWidth, v.videoHeight, `t:${v.currentTime}`);
+      return;
+    }
+    const img = this.img;
+    const src = img ? img.getAttribute('src') : null;
+    if (img && src && img.complete && img.naturalWidth > 0) this._drawBackdrop(img, img.naturalWidth, img.naturalHeight, src);
+  }
+
+  /**
+   * The cover-fit copy of `source` (`sw x sh` px, showing `id`) in the backdrop canvas, blurred and darkened (see
+   * BACKDROP_WIDTH), for the box as laid out now; none (the canvas not shown) while the medium covers the box
+   * (`backdropShown`). Drawn again only when the picture or the box changed: the canvas then already holds exactly
+   * this drawing.
+   * @param {CanvasImageSource} source
+   * @param {number} sw
+   * @param {number} sh
+   * @param {string} id
+   */
+  _drawBackdrop(source, sw, sh, id) {
+    const canvas = this.backdrop;
+    if (!canvas) return;
+    // the box the medium is shown in (a template may lay it out at another aspect than the box it planned)
+    const bw = this.el.clientWidth || this.box.w;
+    const bh = this.el.clientHeight || this.box.h;
+    if (!(bw > 0 && bh > 0)) return;
+    const key = `${id}|${sw}x${sh}|${bw}x${bh}`;
+    if (key === this.backdropKey) return;
+    const shown = backdropShown(sw, sh, bw, bh);
+    canvas.style.display = shown ? '' : 'none';
+    if (!shown) {
+      this.backdropKey = key;
+      return;
+    }
+    if (this.backdropCtx === undefined) this.backdropCtx = canvas2d(canvas);
+    const g = this.backdropCtx;
+    if (!g) return;
+    const cw = BACKDROP_WIDTH;
+    const ch = Math.max(1, Math.round((cw * bh) / bw));
+    if (canvas.width !== cw) canvas.width = cw;
+    if (canvas.height !== ch) canvas.height = ch;
+    const crop = coverCrop(sw, sh, cw, ch);
+    // drawn a little larger than the canvas, so the blur at its edges averages picture, not the transparent outside
+    const pad = 3 * BACKDROP_BLUR;
+    g.save();
+    g.clearRect(0, 0, cw, ch);
+    g.filter = `blur(${BACKDROP_BLUR}px) brightness(${BACKDROP_BRIGHTNESS})`;
+    g.imageSmoothingEnabled = true;
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(source, crop.x, crop.y, crop.w, crop.h, -pad, -pad, cw + 2 * pad, ch + 2 * pad);
+    g.restore();
+    this.backdropKey = key;
   }
 
   /** @param {number} n */
@@ -380,11 +545,15 @@ export class MediaView {
   _syncVideo(local, frame) {
     const v = this.video;
     if (!v) return;
+    this.liveWant = { local, frame: { ...frame } };
     const target = sourceTime(this.ref, local);
     const playing = !!frame.playing && local >= 0;
     try {
       if (v.readyState >= 1 && !v.seeking && (frame.seeked || !playing || Math.abs(v.currentTime - target) > LIVE_DRIFT)) {
-        if (Math.abs(v.currentTime - target) > 1e-3) v.currentTime = target;
+        if (Math.abs(v.currentTime - target) > 1e-3) {
+          v.currentTime = target;
+          this.liveSought = target;
+        }
       }
       v.playbackRate = Number(frame.rate) > 0 ? Number(frame.rate) : 1;
       if (playing && v.paused) {
@@ -398,6 +567,19 @@ export class MediaView {
     }
   }
 
+  /**
+   * Live, paused: seek the clip to the time the stage asked for last when it could not seek then (its metadata was
+   * not in yet, or another seek was in flight). Never while playing (the next animation frame syncs the clip), and
+   * never again for a time it was already sought to: a clip shorter than its declared duration clamps that seek to
+   * its end, and chasing the time would seek forever.
+   */
+  _resync() {
+    const want = this.liveWant;
+    if (!want || want.frame.playing) return;
+    if (Math.abs(sourceTime(this.ref, want.local) - this.liveSought) <= 1e-3) return;
+    this._syncVideo(want.local, want.frame);
+  }
+
   /** Resolves when the image on screen is decoded (render mode waits for it before capturing). */
   ready() {
     const img = this.img;
@@ -405,7 +587,10 @@ export class MediaView {
     if (!this.decoding) {
       const src = img.getAttribute('src');
       this.decoding = img.decode().then(
-        () => img.classList.remove('is-broken'),
+        () => {
+          img.classList.remove('is-broken');
+          this._backdrop(); // the frame is in: its blurred copy too, before the capture
+        },
         (err) => {
           // A missing pre-extracted frame is an engine bug: the capture must fail. A broken picture degrades.
           if (this.key) throw Object.assign(new Error(`media frame failed to load: ${src}`), { code: 'media_frame', cause: err });
@@ -418,6 +603,8 @@ export class MediaView {
 
   destroy() {
     if (this.video) {
+      for (const [type, fn] of this.listeners) this.video.removeEventListener(type, fn);
+      this.listeners = [];
       try {
         this.video.pause();
         this.video.removeAttribute('src');

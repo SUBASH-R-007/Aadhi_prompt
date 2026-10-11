@@ -369,6 +369,11 @@ export class BackgroundMusic {
     this.enabled = true;
   }
 
+  /** Whether there is music at all (a usable URL): without it nothing plays, whatever is set. */
+  get hasTrack() {
+    return !!this.el;
+  }
+
   _apply() {
     if (!this.el) return;
     this.el.volume = clamp(this.level * this.volume * (this.ducked ? 0.5 : 1), 0, 1);

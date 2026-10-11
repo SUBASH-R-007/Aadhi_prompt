@@ -11,6 +11,7 @@ from aadhi.compose.dynamic.preflight import PreflightBlocked, raise_if_blocked, 
 from aadhi.compose.dynamic.stage_page import StageInfo, StageScene
 from aadhi.schemas.timeline import Timeline
 
+from ..motion.fixtures import dynamic_timeline as motion_timeline
 from .helpers import dynamic_timeline, need_chromium, settings
 from .stage_server import serve_stage
 
@@ -91,6 +92,45 @@ async def test_portrait_samples_caption_chunks_and_checks_the_reel_zones() -> No
     assert starts and all(any(abs(f - s) <= 1 for f in res.sampled) for s in starts)
     # the caption boxes were checked against the 9:16 caption band (none failed)
     assert not any(f.check == "safe_zones" and f.role == "caption" for f in res.findings)
+
+
+def _captions_burn(tl: Timeline, on: bool) -> Timeline:
+    return tl.model_copy(update={"presentation": tl.presentation.model_copy(update={"captions_burn": on})})
+
+
+@pytest.mark.parametrize(("presented", "burned"), [(False, True), (True, False)])
+async def test_the_caption_layer_checked_is_the_one_the_render_burns(presented: bool, burned: bool) -> None:
+    """Like the real stage, the stub draws captions as ``presentation.captions_burn`` says until ``setLayers``; the
+    render's own choice (the request's ``burn_captions`` wins) decides which caption boxes are checked."""
+    tl = _captions_burn(dynamic_timeline("landscape"), presented)
+    with serve_stage(TOKEN, {}, config={"faults": {"1": ["caption_overflow"]}}) as (base, _):
+        res = await run_preflight(settings(), tl, token=TOKEN, base_url=base, captions=burned)
+    captions = [f for f in res.findings if f.role == "caption"]
+    if burned:  # burned but not presented: the overflowing caption is seen, and no remedy fixes it in the stub
+        assert not res.ok and captions and {(f.check, f.scene_index, f.status) for f in captions} == {
+            ("text_overflow", 1, "block")}
+    else:  # presented but not burned: no caption is drawn, so none can block the render
+        assert res.ok and res.rounds == 1 and not captions
+
+
+async def test_the_second_round_checks_the_render_caption_layer() -> None:
+    """The reload after the remedies starts the page over on the presentation's caption layer: preflight sets the
+    render's layer again, so captions the render does not burn are not checked in the second round either."""
+    tl = _captions_burn(dynamic_timeline("landscape"), True)
+    config = {"faults": {"1": ["unsafe", "caption_overflow"]}, "honour": ["safe"]}
+    with serve_stage(TOKEN, {}, config=config) as (base, state):
+        res = await run_preflight(settings(), tl, token=TOKEN, base_url=base, captions=False)
+    assert res.ok and res.rounds == 2 and _page_loads(state) == 2
+    assert {(f.check, f.scene_index, f.status) for f in res.findings} == {("safe_zones", 1, "fixed")}
+
+
+async def test_a_scene_shorter_than_half_a_frame_keeps_its_frame() -> None:
+    """The stage gives every scene at least one frame (``core.js stageInfo``, as the engine's ``scene_frame_bounds``):
+    a last scene of 0.01 s makes 121 frames of a 4.01 s lecture, and preflight expects exactly that."""
+    tl = motion_timeline([2.0, 2.0, 0.01], size=(1920, 1080))
+    with serve_stage(TOKEN, {}) as (base, _):
+        res = await run_preflight(settings(), tl, token=TOKEN, base_url=base)
+    assert res.ok and res.frames == 121 and 120 in res.sampled
 
 
 async def test_classic_timelines_are_refused() -> None:

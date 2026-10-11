@@ -306,6 +306,29 @@ def test_a_failed_brief_never_fails_the_lecture(world):
     assert any("planned directly from the source" in w for w in warnings)
 
 
+def test_a_rate_limited_brief_retries_the_job_instead_of_planning_without_it(world):
+    """A rate limit is a job-level condition (as for the critic and the practice problems): planning without the
+    brief would let the chunks it sets aside reach the planner and the scene writers."""
+    from aadhi.jobs.base import RetryableJobError
+    from aadhi.providers.base import RateLimited
+
+    llm = world["providers"].llm
+    llm.on("GenBrief", lambda p, s: RateLimited("fake: quota exhausted", status=429, provider="fake"))
+    with pytest.raises(RetryableJobError):
+        generate(world)
+    v = get_version(world["seeded"].version_id)
+    assert v.status == "generating" and v.screenplay is None  # left for the retry (attempt 1 of 2)
+    assert world["plan_calls"] == [] and not llm.calls_for("GenPlan")
+    warnings = [e["message"] for e in world["ctx"].events if e["type"] == "log" and e["level"] == "warning"]
+    assert not any("planned directly from the source" in w for w in warnings)
+    llm.on("GenBrief", fake_brief_responder)  # the quota is back for the retry
+    world["ctx"].attempt = 2
+    generate(world)
+    v = get_version(world["seeded"].version_id)
+    assert v.status == "ready" and isinstance(world["plan_calls"][0]["brief"], ConceptBrief)
+    assert plan_state.load_brief(v) is not None
+
+
 def test_plan_review_keeps_the_brief_for_the_resume(world):
     opts = OPTIONS.model_copy(update={"review_plan": True}).model_dump(mode="json")
     with pytest.raises(AwaitingReview) as exc:

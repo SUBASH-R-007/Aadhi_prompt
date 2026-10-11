@@ -23,7 +23,7 @@ import { sceneIndexAt } from '../player/schedule.js';
 import { contrastRatio, mixOklch } from '../motion/color.js';
 import { SCRIPT_FONTS, scriptForLanguage } from '../render/fonts.js';
 import { hashSeed, mulberry32 } from '../motion/random.js';
-import { Painter, makeRoles, sceneIndexOfFrame, stageInfo, zonesFor } from './core.js';
+import { Painter, makeRoles, sceneIndexOfFrame, stageInfo, toneColor, zonesFor } from './core.js';
 import { backgroundTime, captionAt, dynamicStateAt, freezeProgress } from './state.js';
 import { paintTransition, transitionAt } from './transitions.js';
 import { CaptionLayer, captionStyle } from './captions.js';
@@ -112,17 +112,21 @@ export function blockInk2(ink, bgs) {
 }
 
 /**
- * Keep a live clip at `t` (re-sought when it drifts by more than 0.1 s, or after a seek) and playing or paused.
+ * Keep a live clip at `t` (re-sought when it drifts by more than 0.1 s, or after a seek), playing at the player's
+ * rate (like `MediaView`: at 1.5x a clip left at 1x would fall 0.1 s behind every 0.2 s and be re-sought, a stutter)
+ * and playing or paused.
  * @param {HTMLVideoElement} v
  * @param {number} t
  * @param {boolean} playing
  * @param {MediaFrameInfo} frameInfo
  */
-function syncClip(v, t, playing, frameInfo) {
+export function syncClip(v, t, playing, frameInfo) {
   try {
     if (v.readyState >= 1 && !v.seeking && (frameInfo.seeked || !playing || Math.abs(v.currentTime - t) > LIVE_DRIFT)) {
       if (Math.abs(v.currentTime - t) > 1e-3) v.currentTime = Math.max(0, t);
     }
+    const rate = Number(frameInfo.rate) > 0 ? Number(frameInfo.rate) : 1;
+    if (v.playbackRate !== rate) v.playbackRate = rate;
     if (playing && v.paused) {
       const pr = v.play();
       if (pr && typeof pr.catch === 'function') pr.catch(() => undefined);
@@ -155,9 +159,17 @@ class Slot {
     this.pending = [];
     /** @type {MediaView[]} */
     this.media = [];
-    this.el = h('div', { class: 'dyn-scene', dataset: { scene: String(index) } });
     const background = look && look.background ? look.background : {};
     const seed = Number(background.seed) >>> 0;
+    const block = backgroundFor(scene) === colourBlock;
+    const blockBg = blockColors(roles);
+    const ink = block ? roles.inkOn([blockBg.base, blockBg.highlight]) : roles.color('ink');
+    // The scene's own page colour and ink for what the stylesheet draws without a template colour (dynamic.css: the
+    // matte around contained media, inherited text): from the roles, so a light family never gets a dark literal.
+    this.el = h('div', {
+      class: 'dyn-scene', dataset: { scene: String(index) },
+      style: { '--dyn-page': toneColor(roles, background.params && background.params.tone), '--dyn-ink': ink },
+    });
     this.bg = backgroundFor(scene).build({
       roles, zones: stage.zones, params: background.params || {}, seed, mode: stage.mode, pending: this.pending,
     });
@@ -167,18 +179,17 @@ class Slot {
     // attached before the template builds (so it can measure), in scene order whatever the order of seeks
     const next = [...stage.scenesEl.children].find((c) => Number(/** @type {HTMLElement} */ (c).dataset.scene) > index);
     stage.scenesEl.insertBefore(this.el, next || null);
-    const block = backgroundFor(scene) === colourBlock;
-    const blockBg = blockColors(roles);
-    const ink = block ? roles.inkOn([blockBg.base, blockBg.highlight]) : roles.color('ink');
-    // the colour behind text drawn on the background: its worst case against the ink (R-53, analytic)
-    const worst = this.bg.colors().reduce((a, b) => (contrastRatio(ink, b) < contrastRatio(ink, a) ? b : a));
+    // the colour behind text drawn on the background: its worst case against the ink (R-53, analytic); every colour
+    // of the background too, for text over a translucent scrim (its worst case depends on the text's own ink)
+    const bgs = this.bg.colors();
+    const worst = bgs.reduce((a, b) => (contrastRatio(ink, b) < contrastRatio(ink, a) ? b : a));
     /** @type {TemplateContext} */
     this.ctx = {
       scene, index, timeline, look, roles, zones: stage.zones, format: stage.zones.format,
       rng: mulberry32(hashSeed(seed, scene.scene_id, 'template')),
       mode: stage.mode, reducedMotion: stage.reducedMotion, root: content, paint: stage.painter, pending: this.pending,
       media: (ref, opts) => this._media(ref, opts),
-      onBackground: { ink, ink2: block ? blockInk2(ink, [blockBg.base, blockBg.highlight]) : roles.color('ink2'), bg: worst, block },
+      onBackground: { ink, ink2: block ? blockInk2(ink, [blockBg.base, blockBg.highlight]) : roles.color('ink2'), bg: worst, bgs, block },
       rectOf: (el) => stage.rectOf(el),
       locale: stage.locale,
       renderTex: stage.renderTex,
@@ -330,12 +341,17 @@ export function createDynamicStage(root, timeline, opts = {}) {
   const presentation = /** @type {any} */ (timeline.presentation);
   const locale = String(timeline.board_language || timeline.language || 'en');
   const fonts = fontStacks(presentation, locale);
+  // the stage's own page colour and ink (under the scenes; each scene sets its own): the first scene's roles
+  const first = timeline.scenes[0];
+  const firstLook = first && first.look ? first.look : null;
+  const firstRoles = makeRoles(presentation, firstLook);
   const el = h('div', {
     class: ['dyn-stage', `dyn-stage--${zones.format}`, `dyn-mode--${mode}`],
     lang: locale,
     style: {
       width: info.width, height: info.height, '--dyn-font-display': fonts.display, '--dyn-font-body': fonts.body,
-      '--dyn-font-mono': fonts.mono,
+      '--dyn-font-mono': fonts.mono, '--dyn-ink': firstRoles.color('ink'),
+      '--dyn-page': toneColor(firstRoles, firstLook && firstLook.background && firstLook.background.params ? firstLook.background.params.tone : null),
     },
   });
   const scenesEl = h('div', { class: 'dyn-scenes' });

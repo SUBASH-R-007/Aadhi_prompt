@@ -25,8 +25,10 @@
  * @property {import('../core.js').Painter} paint
  * @property {Promise<unknown>[]} pending   TeX and pictures the first frame waits for
  * @property {(ref: import('../../shared/types.js').MediaRef, opts: {box: {w: number, h: number}, start?: number, alt?: string}) => import('../media.js').MediaView} media
- * @property {{ink: string, ink2: string, bg: string, block?: boolean}} onBackground   text colours for text drawn on
- *   the background, the worst-case colour behind it, and whether it is a colour block (structure marks use ink)
+ * @property {{ink: string, ink2: string, bg: string, bgs?: string[], block?: boolean}} onBackground   text colours for
+ *   text drawn on the background, the worst-case colour behind it (against `ink`), every colour the background shows
+ *   (`bgs`: the worst case of text over a translucent scrim depends on the text's own ink), and whether it is a colour
+ *   block (structure marks use ink)
  * @property {(el: Element) => {x: number, y: number, w: number, h: number} | null} rectOf   stage-px rect
  * @property {string} locale
  * @property {import('../../player/richtext.js').TexRenderer} [renderTex]   TeX converter (tests; default MathJax)
@@ -37,10 +39,11 @@
 /**
  * @typedef {object} TextEntry
  * @property {Element} el
- * @property {string} role         'title' | 'label' | 'body' | 'caption' | 'chip'
+ * @property {string} role         'title' | 'subtitle' | 'label' | 'body' | 'caption' | 'chip'
  * @property {boolean} critical
  * @property {string} ink          hex
- * @property {string | null} bg    hex of what is behind the text (null: unknown)
+ * @property {string | null} bg    hex of what is behind the text, opaque (a scrim composited over the background
+ *                                 below it; null: unknown)
  * @property {number} [alpha]      current opacity of the text (0 = not shown)
  * @property {number | boolean} [overflow]  px the text overflows its slot even at its minimum size (0: fits)
  * @property {string} [slot]       the `ResolvedLook.text_fit` key preflight's remedies address

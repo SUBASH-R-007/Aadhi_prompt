@@ -71,6 +71,12 @@ the test tools. It runs these steps against the checkout mounted at `/src`:
    `aadhi/compose/{ffmpeg,captions,video}.py`, the npm lockfile (the fonts) or the `Dockerfile` changed;
 4. the rest of the slow suite.
 
+The image also sets `AADHI_CONTAINER_TESTS=1`. With it, the tool and bundle checks of the Dynamic-video (B1) suites
+fail instead of skip: ffmpeg / ffprobe, Playwright, its Chromium and the stage bundle
+(`tests/compose/dynamic/helpers.missing`), the live app of `tests/api/test_render_dynamic_route.py` and the tools
+fixture of `test_render_slow.py` here. A broken image therefore fails the job; it cannot pass green by skipping those
+suites. On a developer machine without the tools they skip as before.
+
 The job has no `if:` and no `continue-on-error`. To make it block merging, mark "Container suites (Docker test
 image)" as a required check in the repository's branch protection settings.
 

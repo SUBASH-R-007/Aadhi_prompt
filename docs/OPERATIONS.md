@@ -92,9 +92,15 @@ check and the push after the merge inherits it; a direct push without a PR carri
 checks (`pytest -m container`; the image sets `AADHI_EXPECT_FFMPEG=5.1`, so a base image that moves Debian's ffmpeg
 fails) together with the Dynamic determinism suite of B1 (`tests/determinism/test_frame_hashes.py`: 300 frames of the
 real stage as 1x300, 3x100 and in reverse give identical hashes; it sets `DYNAMIC_ENABLED` itself and uses the image's
-Chromium and the checkout's `web/vendor` fonts), the differential pixel test (a second one with burned-in captions when the caption path changed) and the
-rest of the slow suite. Make "Container suites (Docker test image)" a
-required check in the repository's branch protection. Locally (needs a Docker daemon):
+Chromium and the checkout's `web/vendor` fonts; `test_kenburns_determinism.py` does the same for a Ken Burns still
+and `contain_blur` stills and clips), the differential pixel test (a second one with burned-in captions when the
+caption path changed) and the rest of the slow suite. The image sets `AADHI_CONTAINER_TESTS=1`: there a missing tool
+or bundle (ffmpeg / ffprobe, Playwright, its Chromium, the Dynamic stage bundle; `tests/compose/dynamic/helpers.missing`,
+also the live app of `tests/api/test_render_dynamic_route.py` and the tools of `tests/invariance/test_render_slow.py`)
+fails the B1 suites instead of skipping them, so the job cannot pass green by skipping; on a developer machine they
+skip as before. Make "Container suites (Docker test image)" a required check in the repository's branch protection.
+Locally (needs a Docker daemon; in PowerShell write `${PWD}`, put the command on one line and leave out `--user`,
+which uses the POSIX `id`):
 
 ```bash
 docker build --target test -t aadhi-eduengine:test .
@@ -108,8 +114,19 @@ Windows (for example `uvloop` from `uvicorn[standard]`); they are pinned with en
 `PLATFORM_PINS`, and the script fails when the Linux dependency closure needs one that is missing.
 
 Tests always force fake providers and blank every API key (`tests/conftest.py`), even when your
-`.env` holds real keys. Tests that need the network are marked `network` and only run with
+`.env` holds real keys. They also pin the motion engine's settings to their defaults (`DYNAMIC_ENABLED=false`,
+`RENDER_MOTION_WORKERS=0`, `RENDER_CPU_SLOTS=0`, `RENDER_SLOT_DIR` empty, `MOTION_X264_PRESET=veryfast`,
+`MOTION_X264_CRF=17`), so a developer `.env` cannot change what a test builds or renders; tests that need another
+value set it on their settings. Tests that need the network are marked `network` and only run with
 `AADHI_NETWORK_TESTS=1`.
+
+Slow suites that need more than Python: the Dynamic suites (`tests/determinism` and the slow tests of
+`tests/compose/motion` and `tests/compose/dynamic`) need ffmpeg and Playwright's Chromium and skip without them
+outside the Docker test image. `tests/web/test_player_controls_fit.py` (the control bar of a reel's box, in real
+Chromium) needs Playwright with its Chromium and the vendored fonts from `npm ci` (`web/vendor`, git-ignored); it
+skips without Playwright or `web/vendor`. On Windows, run the slow motion tests with a short `--basetemp` (for example
+`pytest -m slow --basetemp C:\t\pt`): their work files under pytest's default temp path can pass the 260-character
+`MAX_PATH`.
 
 ## 3. Configuration
 
@@ -163,14 +180,22 @@ Dynamic video, the motion render engine (batch B1; section 4.2 "Dynamic videos" 
 
 * `DYNAMIC_ENABLED` (off): the admin switch. On: a lecture with a `presentation` gets a Dynamic timeline and its MP4
   is captured frame by frame from `/render-dynamic` by the motion engine. Off: `/render-dynamic` answers 404 and such
-  a lecture is built, played and rendered as a classic lecture (its presentation is ignored). Classic lectures never
-  change. Flipping it takes effect at once, without rebuilding: a stored timeline built under the other value is
-  served rebuilt with the current flag (the Studio and watch players, public shares, the render page; the timeline
-  ETag carries the flag), exactly as the render job builds it, so the player and the MP4 always agree. Set it alike on
-  the API and on every render worker: the worker builds the timeline it renders with its own settings, while the
-  player and `/render-dynamic` are served by the API.
+  a lecture is built, played and rendered as a classic lecture (classic intro, `RENDER_FPS`, classic captions), with
+  one exception: its stage still follows `presentation.format` (`aadhi/compose/timeline.py`, a B0 decision), so a
+  portrait presentation gives a classic timeline on a 1080x1920 stage, rendered as a portrait classic MP4 while the
+  player shows it in its 16:9 box. Classic lectures never change. Flipping it takes effect at once, without
+  rebuilding: a build of the current revision made under the other value is served rebuilt with the current flag
+  (the Studio and watch players, public shares, the render page; the timeline ETag carries the flag), exactly as the
+  render job builds it, so the player and the MP4 always agree. A build that is already stale (the lecture was edited
+  since) is served as built until it is built again, except a Dynamic one while the flag is off, which is served
+  rebuilt as classic. Set it alike on the API and on every render worker: the worker builds the timeline it renders
+  with its own settings, while the player and `/render-dynamic` are served by the API, and the API decides from its
+  own flag whether a render request without `burn_captions` leaves the choice to the lecture's presentation. A worker
+  with the flag off would render such a lecture classic with no `burn_captions` in its payload, and the classic job
+  then burns captions as `RENDER_BURN_CAPTIONS` says instead of leaving them off.
 * `RENDER_MOTION_WORKERS` (0 = auto): capture workers per motion render; auto is `min(6, CPU quota - 1, physical
-  cores - 1)` read from the container's cgroup (Python's `os.cpu_count()` sees the host's cores, not the quota).
+  cores - 1, cpuset - 1)` read from the container's cgroup and, on Linux, the process's CPU affinity (Python's
+  `os.cpu_count()` sees the host's cores, not the quota).
 * `RENDER_CPU_SLOTS` (0 = physical cores - 1) and `RENDER_SLOT_DIR` (empty = `<render work dir>/cpu-slots`): every
   worker of every motion render on the host holds one slot (a lock file `slot-NNN.lock`); a render waits for at least
   one free slot and starts with what it got, so concurrent renders never oversubscribe the machine. Point every
@@ -310,8 +335,8 @@ noted; `aadhi.usage.pricing` holds them (section 4.6).
 | Setting | Default | Why, and the alternatives |
 |---|---|---|
 | `LLM_MODEL_PLAN`, `_SCRIPT`, `_CRITIC`, `_FAST` | `gemini-3.8-flash` | Stable (GA) and Google's recommendation for new projects; Gemini 2.5 models are served only to keys that used them before. $0.75 / $3.75, doubling to $1.50 / $7.50 on 2027-01-01. Planning uses it as well: `gemini-3.1-pro-preview` ($2 / $12) is still a preview, so it is an opt-in (`LLM_MODEL_PLAN=gemini-3.1-pro-preview`). `gemini-3.5-flash-lite` ($0.30 / $2.50) is a cheaper fast tier. |
-| `GEMINI_TTS_MODEL` | `gemini-3.8-flash-tts` | The 2.5 preview TTS models shut down on 2026-11-17. About $0.014 per minute of speech (double from 2027-01-01); `gemini-3.8-flash-lite-tts` costs two thirds of that. |
-| `OPENAI_TTS_MODEL` | `gpt-4o-mini-tts` | **Every model `/v1/audio/speech` accepts is scheduled to retire on 2027-01-06**: `tts-1`, `tts-1-hd` and the dated `gpt-4o-mini-tts-2025-*` snapshots by name, and the undated `gpt-4o-mini-tts` alias defaults to `gpt-4o-mini-tts-2025-12-15`, which is itself on that list. OpenAI names `gpt-realtime-2.1-mini` as the replacement, but it supports only `v1/realtime` (not `audio/speech`, Chat Completions or Responses). Before 2027-01-06, move deployments and lectures that use OpenAI voices to `TTS_PROVIDER=gemini` or `edge`, or build a Realtime-API TTS adapter: a failing speech call is not caught by any fallback, so each scene is built without narration (`assets.tts_failed`). $0.60 text + $12 audio per 1M tokens (about $0.015 per minute). |
+| `GEMINI_TTS_MODEL` | `gemini-3.8-flash-tts` | The 2.5 preview TTS models shut down on 2026-11-17. About $0.014 per minute of speech (double from 2027-01-01); `gemini-3.8-flash-lite-tts` costs two thirds of that. A retired or misspelt model (HTTP 404 / 410) no longer silences lectures: the adapter raises `ModelUnavailable` after that one request (not retried, nothing billed), and builds narrate with the free Edge voice for the lecture's language with an `assets.tts_fallback` warning until the setting is fixed; a rebuild then restores the chosen voice. Without Edge on the server the scenes fail with `assets.tts_failed`. |
+| `OPENAI_TTS_MODEL` | `gpt-4o-mini-tts` | **Every model `/v1/audio/speech` accepts is scheduled to retire on 2027-01-06**: `tts-1`, `tts-1-hd` and the dated `gpt-4o-mini-tts-2025-*` snapshots by name, and the undated `gpt-4o-mini-tts` alias defaults to `gpt-4o-mini-tts-2025-12-15`, which is itself on that list. OpenAI names `gpt-realtime-2.1-mini` as the replacement, but it supports only `v1/realtime` (not `audio/speech`, Chat Completions or Responses). Before 2027-01-06, move deployments and lectures that use OpenAI voices to `TTS_PROVIDER=gemini` or `edge`, or build a Realtime-API TTS adapter. After the retirement OpenAI answers `/v1/audio/speech` with HTTP 404 `model_not_found` (or 410); the adapter raises `ModelUnavailable` after that one request (not retried, nothing billed), and the asset build narrates with the free Edge voice for the lecture's language and adds one lecture-level `assets.tts_fallback` warning, as for a retired `GEMINI_TTS_MODEL`. OpenAI gives the same 404 when the API key has no access to the model, and the Edge fallback with its warning applies there too. Without Edge on the server the scenes still fail with `assets.tts_failed`. The advice to move stands: Edge is only a fallback, and each build first makes one unbilled 404 request per beat already in flight before it switches. $0.60 text + $12 audio per 1M tokens (about $0.015 per minute). |
 | `IMAGE_MODEL` | `gemini-nano-banana-2.1` | Stable (released 2026-10-06), recommended for new projects and listed as the successor of `gemini-3.1-flash-image`, at half its price ($0.034 per 1K image against $0.067). It always thinks (default level `medium`, it cannot be turned off): the prompt ($1.50) and the thinking tokens ($7.50 per 1M) are billed on top of the image and are counted in budgets. `gemini-3.1-flash-lite-image` is the low-latency option at the same price per image; `gemini-2.5-flash-image` is limited-access (shutdown from 2027-03-15) and Imagen was shut down on 2026-08-17. |
 | `VEO_MODEL` | `veo-3.1-fast-generate-preview` | Veo 2 and 3.0 were shut down on 2026-06-30. Veo 3.1 Fast costs $0.10 per second at 720p ($0.80 per 8-second clip); `veo-3.1-generate-preview` is $0.40/s and `veo-3.1-lite-generate-preview` $0.05/s (Lite takes no reference images). **All Veo 3.1 models are previews with an earliest shutdown of 2026-10-22**; Google names `gemini-omni-1.1-flash` as the replacement, supported as the `omni` video provider (next row, section 3.2): a chain with `veo` switches to it automatically once Veo is no longer served (not after a Veo timeout or rate limit). |
 | `OMNI_MODEL` | `gemini-omni-1.1-flash` | Gemini Omni video, served only through the Interactions API. $17.50 per 1M video output tokens at 5,792 tokens per second of 720p video (about $0.10 per second, like Veo 3.1 Fast), $1.50 per 1M input tokens; paid tier only. `gemini-omni-flash-preview` is priced the same. The adapter sends no clip length (the model picks it, up to 10 s) and writes Veo's exclusions into the prompt (Omni has no negative prompt). |
@@ -484,9 +509,14 @@ docker compose run --rm -T api python -m aadhi.cli set-password admin --password
   automatically fails with `preflight_blocked` and a teacher action, before any capture), then captures every frame
   with W parallel workers (one sandboxed headless Chromium and one x264 encoder each; one shared Playwright driver),
   joins the chunks and checks the file (`render_invalid` only when an automatic remedy failed). The render worker
-  needs the same Chromium seccomp profile as above. Errors: `dynamic_disabled` (a Dynamic timeline reached a worker
-  with the flag off), `preflight_blocked`, `render_invalid`, `render_unavailable`, `disk_full`. A failed attempt
-  keeps its encoded chunks in the workspace, so the retry captures only the missing ones.
+  needs the same Chromium seccomp profile as above. Its capture Chromium gets the classic capture's flags plus
+  `--disable-partial-raster` (frames that do not depend on the order they were rendered in; no measurable cost); the
+  classic capture's flags are unchanged. A remedy that captures chunks again after the file check waits for a CPU slot
+  of its own, like any worker. Errors: `dynamic_disabled` (a Dynamic timeline reached a worker with the flag off),
+  `preflight_blocked`, `render_invalid`, `render_unavailable`, `disk_full`. A failed attempt keeps its encoded chunks
+  in the workspace, so the retry captures only the missing ones. Side panels the Dynamic stage does not draw yet
+  (charts, graphs, 3D models, skill trees, quiz panels) are left out of the video with a render warning
+  (`panel_not_drawn`).
 * **The `motion` compose profile.** The default `render-worker` (4 CPUs, 6 GB, 1 GB shm) is too small for W workers.
   `render-worker-motion` takes the same jobs (classic renders too) with 8 CPUs, 10 GB and `shm_size: 2gb`, so run it
   instead of the default one:
@@ -499,24 +529,39 @@ docker compose run --rm -T api python -m aadhi.cli set-password admin --password
   the stack shares them; `RENDER_SLOT_DIR` overrides). The limits are the design's starting point; set them from the
   benchmark below run on the production host.
 * **Benchmark** (`scripts/bench_motion.py`, the production capture path against the real stage; never touches
-  `data/`, never calls a provider):
+  `data/`, never calls a provider). The production image has neither `scripts/` nor the showcase fixture under
+  `tests/` (the Dockerfile copies an allow-list, and `.dockerignore` leaves `tests` out), so run it with both
+  bind-mounted read-only: in the container the script's root is then `/app`, and it uses the image's `web/` with its
+  vendored fonts. Compose interpolates the whole file, so `BASE_URL`, `POSTGRES_PASSWORD` and `JWT_SECRET` must be
+  set (in `.env` or the shell; any value does, the benchmark uses no database) even with `--no-deps`:
 
   ```bash
+  docker compose --profile motion build render-worker-motion
   docker compose --profile motion run --rm --no-deps render-worker-motion \
-      python scripts/bench_motion.py --minutes 5 --json /data/app/bench-motion.json      # 5-minute 16:9 lesson
-  docker compose --profile motion run --rm --no-deps render-worker-motion \
-      python scripts/bench_motion.py --format portrait --minutes 3.5 --burn-captions    # 3.5-minute reel
+      python /app/docker/app/check_chromium.py                    # the Chromium sandbox works on this host
+  mkdir -p bench-out                                              # writable by the container user (uid 1000)
+  docker compose --profile motion run --rm --no-deps \
+      -v "$PWD/scripts:/app/scripts:ro" -v "$PWD/tests:/app/tests:ro" -v "$PWD/bench-out:/out" \
+      render-worker-motion python scripts/bench_motion.py --minutes 5 --json /out/bench-16x9.json   # 5-minute lesson
+  docker compose --profile motion run --rm --no-deps \
+      -v "$PWD/scripts:/app/scripts:ro" -v "$PWD/tests:/app/tests:ro" -v "$PWD/bench-out:/out" \
+      render-worker-motion python scripts/bench_motion.py --format portrait --minutes 3.5 --burn-captions \
+      --json /out/bench-9x16.json                                                                   # 3.5-minute reel
   ```
 
-  Options: `--workers N`, `--preset faster`, `--crf 17`, `--stage stub` (engine and capture only),
-  `--driver-per-worker`, `--disable-frame-rate-limit` (an experiment). It prints fps per worker and in aggregate, the
-  phases (boot, capture, mux, checks), peak memory of browsers, encoders and the driver, and projections for the
-  5-minute lesson and the 3.5-minute reel.
+  (PowerShell: `${PWD}` instead of `$PWD`, and the backslash continuations on one line.) Options: `--workers N`,
+  `--preset faster`, `--crf 17`, `--stage stub` (engine and capture only), `--driver-per-worker`,
+  `--disable-frame-rate-limit` (an experiment). It prints fps per worker and in aggregate, the phases (boot, capture,
+  mux, checks), peak memory of browsers, encoders and the driver, and projections for the 5-minute lesson and the
+  3.5-minute reel. Under the profile's limit of 8 CPUs the quota allows W = 6 (the host's physical cores and cpuset
+  can lower it). The benchmark renders the showcase through `board_generic` only, so run it again once B2's
+  templates exist (DYNAMIC_VIDEO_DESIGN §7.10).
 
   **Measured on the development laptop only** (i7-13650HX, 14 physical cores / 20 threads, 16.8 GB, Windows 11,
   chrome-headless-shell 153, ffmpeg 8.1.1; W = 6 auto; the same configuration varied by up to ±25% between runs).
-  **The production-image benchmark under the `motion` profile is still pending** (no Docker daemon on the
-  development machine), so P1 and the profile limits are not set yet:
+  **The production-image benchmark under the `motion` profile is still pending** (Docker Desktop is installed on the
+  development machine, but its C: drive has about 7 GB free, too little for the production image), so P1 and the
+  profile limits are not set yet:
 
   | Run | Frames | fps per worker | Aggregate | End to end | Per video minute |
   |---|---|---|---|---|---|

@@ -8,7 +8,8 @@ the server (429 ``render_queue_full``), both with ``Retry-After``; 0 disables a 
 skipped in the video (``hidden``) is refused with 409 ``all_scenes_hidden`` before a job is queued. In
 ``WORKER_MODE=inline`` the API host is the render host, so a host that cannot render (no
 ffmpeg/encoders/Chromium) answers 503 ``render_unavailable`` (the reasons only for admins); with external
-workers the API never refuses on its own host's tools.
+workers the API never refuses on its own host's tools. A request without ``burn_captions`` lets a Dynamic lecture's
+presentation decide (``captions_burn``, DYNAMIC_VIDEO_DESIGN §2.6) and keeps a classic one clean, as before.
 """
 
 from __future__ import annotations
@@ -47,17 +48,48 @@ class RenderBody(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    burn_captions: bool = False
+    # None (not sent): a Dynamic lecture burns its captions as its presentation says (``captions_burn``,
+    # DYNAMIC_VIDEO_DESIGN §2.6), a classic one does not (``false``, as before). See ``job_options``.
+    burn_captions: bool | None = None
     include_intro: bool = True
     soft_subtitles: bool | None = None  # selectable caption track in the MP4; None = RENDER_SOFT_SUBTITLES
     allow_degraded: bool = True  # False: refuse (409 render_preflight) when some scene would be silent
 
-    def job_options(self) -> dict[str, Any]:
-        """Options stored on the Render row and in the job payload (extras only when set)."""
-        out: dict[str, Any] = {"burn_captions": self.burn_captions, "include_intro": self.include_intro}
+    def job_options(self, *, dynamic: bool = False) -> dict[str, Any]:
+        """Options stored on the Render row and in the job payload (extras only when set).
+
+        ``burn_captions`` left unset is left out for a lecture the motion engine renders (``dynamic``,
+        ``render_presentation``), so the job burns captions as the lecture's presentation says
+        (``compose.motion.job.caption_modes``); a classic render stores ``false`` exactly as before the field was
+        optional, so ``RENDER_BURN_CAPTIONS`` and the classic output do not change for a request without it.
+        """
+        burn = self.burn_captions if self.burn_captions is not None or dynamic else False
+        out: dict[str, Any] = {} if burn is None else {"burn_captions": burn}
+        out["include_intro"] = self.include_intro
         if self.soft_subtitles is not None:
             out["soft_subtitles"] = self.soft_subtitles
         return out
+
+
+def render_presentation(version: ProjectVersion, settings: Settings) -> dict[str, Any] | None:
+    """The Dynamic presentation a render of ``version`` would use, or None when it renders classic.
+
+    The render job decides as ``compose.timeline.build_timeline`` does (and ``api.timelines.current_timeline`` when
+    serving): the screenplay has a ``presentation`` and ``DYNAMIC_ENABLED`` is on, so the motion engine renders it
+    (DYNAMIC_VIDEO_DESIGN §7.1). Returns ``{"style": "dynamic", "format", "captions_burn"}`` from the stored screenplay
+    (schema defaults ``landscape`` / ``true`` where a field is left out). The Studio's render dialogs pre-check
+    "Burn captions" from ``captions_burn`` (§2.6) and leave out the classic intro option (a Dynamic video has none).
+    """
+    from ...compose.presentation import dynamic_enabled
+
+    document = version.screenplay
+    pres = document.get("presentation") if isinstance(document, dict) else None
+    if not isinstance(pres, dict) or not dynamic_enabled(settings):
+        return None
+    fmt = pres.get("format")
+    burn = pres.get("captions_burn")
+    return {"style": "dynamic", "format": fmt if fmt in ("landscape", "portrait") else "landscape",
+            "captions_burn": burn if isinstance(burn, bool) else True}
 
 
 def lock_version_for_render(db: Session, version_id: int) -> tuple[int, int | None, bool, str] | None:
@@ -214,12 +246,13 @@ def start_render(
             db.rollback()
             raise ApiException(409, "render_preflight", f"{len(blocking)} scene(s) would be silent in the video.",
                                items=items)
+    options = opts.job_options(dynamic=render_presentation(version, settings) is not None)
     render = Render(
         version_id=version.id,
         status="queued",
         language=language,
         built_revision=built_revision,
-        options=opts.job_options(),
+        options=options,
     )
     db.add(render)
     db.flush()
@@ -229,7 +262,7 @@ def start_render(
         user=user,
         project_id=version.project_id,
         version_id=version.id,
-        payload={"render_id": render.id, **opts.job_options()},
+        payload={"render_id": render.id, **options},
     )
     render.job_id = job.id
     commit_and_notify(db, settings)
@@ -237,7 +270,7 @@ def start_render(
 
 
 @router.get("/api/versions/{vid}/render/preflight")
-def render_preflight(vid: int, user: CurrentUser, db: DbSession) -> dict[str, Any]:
+def render_preflight(vid: int, user: CurrentUser, db: DbSession, settings: AppSettings) -> dict[str, Any]:
     """What the MP4 of the built timeline would show differently from the editor (silent scenes,
     boards replacing missing media, panels shown as a title only), in scene order.
 
@@ -245,6 +278,9 @@ def render_preflight(vid: int, user: CurrentUser, db: DbSession) -> dict[str, An
     failures, at most a dozen; ``compose.preflight.quality_items``), listed before a render and never
     blocking it. They are kept out of ``items``, which says how the video itself differs from the editor. Issues of
     hidden scenes (skipped in the video) are not listed.
+
+    ``presentation``: ``render_presentation`` (the Dynamic presentation the render would use, null for a classic
+    render), for the render dialog's defaults.
 
     Each item's ``scene_index`` is its position in the timeline (hidden scenes left out); ``scene_number`` is its
     1-based position in the screenplay, as the editor numbers scenes (null for lecture-wide items)."""
@@ -263,6 +299,7 @@ def render_preflight(vid: int, user: CurrentUser, db: DbSession) -> dict[str, An
         "blocking": any(it.get("blocking") for it in items),
         "items": items,
         "quality": numbered(quality_items(version.issues or [], timeline, hidden_scene_ids(version.screenplay)), numbers),
+        "presentation": render_presentation(version, settings),
     }
 
 

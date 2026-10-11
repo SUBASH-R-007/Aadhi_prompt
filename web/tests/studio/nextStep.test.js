@@ -119,6 +119,32 @@ test('next step: "Make the video" asks for the options, then renders', async () 
   handle.destroy();
 });
 
+// A Dynamic lecture (the preflight's `presentation`: the motion engine renders it): "Burn captions" starts from the
+// lecture's caption policy (DYNAMIC_VIDEO_DESIGN §2.6), the choice is always sent, and there is no classic intro option.
+for (const burn of [true, false]) {
+  test(`next step: "Make the video" of a Dynamic lecture starts from its caption policy (captions_burn ${burn})`, async () => {
+    fresh();
+    const { container, handle, calls } = await mountPage({
+      'GET /api/projects/5': detail({ stage: 'ready_to_render', next_step: { action: 'render', label: 'Make the video', href: null } }),
+      'GET /api/versions/9/render/preflight': { version_id: 9, blocking: false, items: [], presentation: { style: 'dynamic', format: 'portrait', captions_burn: burn } },
+      'POST /api/versions/9/render': { status: 202, body: { render: { id: 3 }, job: { id: 42, kind: 'render_video', status: 'queued', progress: 0, version_id: 9 } } },
+    });
+    byText(card(container), 'Make the video', 'button').click();
+    await waitFor(() => document.querySelector('.modal'));
+    const dialog = document.querySelector('.modal');
+    const boxes = dialog.querySelectorAll('input[type="checkbox"]');
+    assert.equal(boxes.length, 1, 'only the captions choice');
+    assert.doesNotMatch(dialog.textContent, /Include the intro/);
+    assert.equal(boxes[0].checked, burn);
+    clickModal('Make the video');
+    await waitFor(() => calls.some((c) => c.method === 'POST' && c.path === '/api/versions/9/render'));
+    assert.deepEqual(jsonBody(calls.find((c) => c.path === '/api/versions/9/render')), { burn_captions: burn, allow_degraded: false });
+    await waitFor(() => /Making the video/.test(document.querySelector('.modal')?.textContent || ''));
+    closeAllModals();
+    handle.destroy();
+  });
+}
+
 test('next step: silent scenes offer "Fix first" (the editor) or "Make it anyway"', async () => {
   fresh();
   const pre = { version_id: 9, blocking: true, items: [{ scene_index: 1, scene_id: 's2', title: 'Ohm', reason: 'no_audio', blocking: true, message: 'No narration audio.' }] };

@@ -469,6 +469,26 @@ test('job progress follows SSE events and fires callbacks once', async () => {
   w.destroy();
 });
 
+test('job progress: the stepper of a Dynamic render follows the motion engine and never drops back to all pending', () => {
+  resetDom();
+  FakeEventSource.instances = [];
+  const job = { id: 6, kind: 'render_video', status: 'running', stage: 'preflight', progress: 0.01, message: 'Checking the lecture before rendering' };
+  const w = jobProgress(job);
+  document.body.appendChild(w.el);
+  const es = FakeEventSource.instances[0];
+  const steps = () => [...w.el.querySelectorAll('.stepper .step')].map((li) => `${li.querySelector('.step-label').textContent}:${li.className.replace(/^step step-/, '')}`);
+  assert.deepEqual(steps(), ['Check layout:active', 'Capture & encode:pending', 'Join & mix audio:pending', 'Check video:pending', 'Save video:pending']);
+  es.emit('job_event', { id: 1, created_at: new Date().toISOString(), level: 'info', stage: 'preflight', message: 'Preflight passed', progress: 0.02 });
+  es.emit('job', { ...job, stage: 'capture', progress: 0.4, message: 'Capturing 900 frames with 4 worker(s)' });
+  assert.deepEqual(steps(), ['Check layout:done', 'Capture & encode:active', 'Join & mix audio:pending', 'Check video:pending', 'Save video:pending']);
+  es.emit('job', { ...job, stage: 'check', progress: 0.9, message: 'Checking the video' });
+  assert.deepEqual(steps(), ['Check layout:done', 'Capture & encode:done', 'Join & mix audio:done', 'Check video:active', 'Save video:pending']);
+  es.emit('job', { ...job, stage: 'done', progress: 1, message: 'Video ready' });
+  assert.ok(steps().every((s) => s.endsWith(':done')), steps().join(', '));
+  assert.match(w.el.querySelector('.log-line').textContent, /Check layout/, 'the log names the stage in words');
+  w.destroy();
+});
+
 test('job progress falls back to polling when the stream is refused, and supports cancel/retry', async () => {
   resetDom();
   FakeEventSource.instances = [];

@@ -18,6 +18,15 @@ were (dropped if gone) and it is never listed stale. Job-level conditions (cance
 limits, a provider refusing the job owner's personal API key) propagate: a refused personal key
 fails the job (``personal_key_rejected``) instead of quietly building a lecture without media.
 
+Narration voice: one per build (``voice_config``: the lecture's TTS provider and voice, else the server's). A voice
+model the provider no longer serves (``ModelUnavailable``, e.g. a retired ``GEMINI_TTS_MODEL``, or ``OPENAI_TTS_MODEL``
+after OpenAI's 2027-01-06 speech-model retirement; design §10.3 H0) never leaves the lecture silent: the build
+switches to the free Edge voice for the lecture's language (``fallback_voice_config``) with a lecture-level
+``assets.tts_fallback`` warning, and the scene that met the error is narrated again in it. Every scene has one
+voice and every clip is keyed by the voice that spoke it (an Edge lecture's keys), so nothing is stored under the
+failed voice's keys or paid for twice. The next build tries the lecture's voice again: the scenes the fallback
+narrated are rebuilt, and their Edge clips come from the cache.
+
 Media paid with a personal API key is produced in its own in-flight de-duplication scope
 (``AssetStore.get_or_create(inflight_scope=...)``), so one user's provider outcome (e.g. a rejected
 key) is never handed to another user's concurrent job; the stored, content-addressed asset is shared.
@@ -91,6 +100,7 @@ from ..credentials import billed_to, personal_key_rejection
 from ..jobs.base import BudgetExceeded, JobCancelled
 from ..providers.base import (
     ContentBlocked,
+    ModelUnavailable,
     OperationLost,
     PaidSubmissionUncertain,
     ProviderNotConfigured,
@@ -298,14 +308,35 @@ class VoiceConfig:
     language: str
 
 
+FALLBACK_TTS_PROVIDER = "edge"  # free and keyless: narrates when the chosen voice model is no longer served (H0)
+
+
+def _tts_model(settings: Any, provider: str) -> str:
+    """The model setting a TTS provider speaks with ("" for providers without one, such as Edge)."""
+    return {"elevenlabs": settings.elevenlabs_model, "openai": settings.openai_tts_model,
+            "gemini": settings.gemini_tts_model}.get(provider, "")
+
+
 def voice_config(settings: Any, options: GenerationOptions, language: str, tts: Any) -> VoiceConfig:
     provider = getattr(tts, "name", None) or options.tts_provider or settings.tts_provider
     voice = options.tts_voice or (settings.tts_voice if language == settings.default_language else "") or ""
     voice = voice or integrations.default_voice(provider, language, tts)
-    model = {"elevenlabs": settings.elevenlabs_model, "openai": settings.openai_tts_model,
-             "gemini": settings.gemini_tts_model}.get(provider, "")
     return VoiceConfig(provider=provider, voice=voice, rate=options.tts_rate or settings.tts_rate or "+0%",
-                       model=model, language=language)
+                       model=_tts_model(settings, provider), language=language)
+
+
+def fallback_voice_config(settings: Any, language: str, tts: Any, rate: str) -> VoiceConfig:
+    """The Edge voice that narrates when the lecture's voice model is no longer served (``_Builder._model_fallback``).
+
+    ``TTS_VOICE`` when Edge is the server's provider and the lecture speaks ``DEFAULT_LANGUAGE`` (as ``voice_config``
+    picks it), else Edge's default voice for the lecture's language: never the lecture's own voice choice, which
+    names a voice of the provider that failed. Same rate as the failed voice, and keyed exactly like an Edge
+    lecture's clips (``clip_key``), so they are shared with it and never stored under the failed voice's keys."""
+    provider = getattr(tts, "name", None) or FALLBACK_TTS_PROVIDER
+    server = settings.tts_provider == provider and language == settings.default_language
+    server_voice = settings.tts_voice if server else ""
+    return VoiceConfig(provider=provider, voice=server_voice or integrations.default_voice(provider, language, tts),
+                       rate=rate, model=_tts_model(settings, provider), language=language)
 
 
 @dataclass
@@ -525,9 +556,10 @@ class _Builder:
     def speech(self, beat: Any) -> str:
         return integrations.speech_text(beat.spoken or beat.narration, self.sp.lexicon, self.language)
 
-    def clip_key(self, text: str) -> str:
-        """Content key of one beat's TTS clip (text + every voice setting that changes the audio)."""
-        v = self.voice
+    def clip_key(self, text: str, voice: VoiceConfig | None = None) -> str:
+        """Content key of one beat's TTS clip (text + every voice setting that changes the audio) in ``voice``
+        (default: the build's voice)."""
+        v = voice or self.voice
         return compute_key("tts", {"text": text, "voice": v.voice, "provider": v.provider, "rate": v.rate,
                                    "model": v.model, "language": v.language})
 
@@ -555,14 +587,46 @@ class _Builder:
         return True
 
     # --- TTS / audio ----------------------------------------------------------------
-    async def tts_clip(self, text: str) -> Any:
-        v = self.voice
-        key = self.clip_key(text)
+    def _model_fallback(self, failed: VoiceConfig, exc: ModelUnavailable) -> tuple[Any, VoiceConfig] | None:
+        """The ``(provider, voice)`` narrating the rest of this build once ``failed``'s model is no longer served: the
+        free Edge voice for the lecture's language (``fallback_voice_config``; design §10.3 H0: a retired
+        ``GEMINI_TTS_MODEL``, or ``OPENAI_TTS_MODEL`` once OpenAI retires its speech models, must not leave the
+        lecture silent). The build switches once, with a lecture-level ``assets.tts_fallback`` warning and a job-log
+        warning; a scene narrated before keeps its voice (one voice per scene). None when the failed voice is Edge's
+        own or Edge is not configured on this server (``ProviderNotConfigured``): the scene then fails as any other
+        narration failure (``assets.tts_failed``, no ``assets.tts_fallback`` warning)."""
+        if self.voice is not failed:  # another scene switched the build already
+            return self.tts, self.voice
+        if failed.provider == FALLBACK_TTS_PROVIDER:
+            return None
+        try:
+            tts = integrations.get_tts(FALLBACK_TTS_PROVIDER, self.settings)
+        except ProviderNotConfigured:
+            return None
+        voice = fallback_voice_config(self.settings, self.language, tts, failed.rate)
+        self.tts, self.voice = tts, voice
+        # "retired or renamed, or the API key has no access to it": OpenAI answers a model the key may not use with
+        # the same 404 model_not_found as a retired one (aadhi.providers.tts.openai); the job log keeps its message.
+        self.issues.append(Issue(
+            code="assets.tts_fallback", severity="warning", source="assets", fixable=False,
+            message=f"The voice model '{failed.model}' of the voice provider '{failed.provider}' is not available "
+                    f"(it was retired or renamed, or the API key has no access to it); the free Edge voice "
+                    f"'{voice.voice}' was used instead."))
+        # The model and the switch first: the cut at 500 characters may only shorten the provider's error text (up to
+        # about 450 characters with its detail), never what the build did.
+        self.ctx.log(self.settings.redact(f"The voice model '{failed.model}' of '{failed.provider}' is not available; "
+                                          f"this build narrates with the free Edge voice {voice.voice} instead "
+                                          f"({exc}).")[:500], level="warning")
+        return tts, voice
+
+    async def tts_clip(self, text: str, tts: Any, v: VoiceConfig) -> Any:
+        """One beat's clip spoken by ``tts`` in voice ``v`` (content-addressed by ``clip_key(text, v)``)."""
+        key = self.clip_key(text, v)
 
         async def produce() -> Produced:
             async with self.tts_sem, integrations.limit("tts"):
-                res = await self.tts.synthesize(text, voice=v.voice, language=v.language, rate=v.rate,
-                                                on_usage=self.ctx.record_usage)
+                res = await tts.synthesize(text, voice=v.voice, language=v.language, rate=v.rate,
+                                           on_usage=self.ctx.record_usage)
             words = [{"text": w.text, "start": w.start, "end": w.end} for w in res.words]
             return Produced(data=res.audio, mime=res.mime, duration_s=res.duration,
                             meta={"words": words, "voice": res.voice, "provider": res.provider,
@@ -573,13 +637,25 @@ class _Builder:
         return asset
 
     async def scene_audio(self, scene: Any) -> SceneAudio:
+        """The scene's narration in the build's voice. When that voice's model is no longer served
+        (``ModelUnavailable``) the build switches to the Edge voice (``_model_fallback``) and the whole scene is
+        narrated again in it: every scene has one voice, and every clip is keyed by the voice that spoke it."""
+        tts, voice = self.tts, self.voice
+        try:
+            return await self._narrate(scene, tts, voice)
+        except ModelUnavailable as exc:
+            fallback = self._model_fallback(voice, exc)
+            if fallback is None:
+                raise
+            return await self._narrate(scene, *fallback)
+
+    async def _narrate(self, scene: Any, tts: Any, v: VoiceConfig) -> SceneAudio:
         beats = scene.all_beats()
-        v = self.voice
         base = SceneAudio(scene_id=scene.id, provider=v.provider, voice=v.voice, language=self.language)
         if not beats:
             return base
         texts = [self.speech(b) for b in beats]
-        clips = await gather_all(self.tts_clip(t) for t in texts)
+        clips = await gather_all(self.tts_clip(t, tts, v) for t in texts)
         n_reveal = len(scene.reveal_beats) if isinstance(scene, QuizScene) else 0
         phases = ["main"] * (len(beats) - n_reveal) + ["reveal"] * n_reveal
         countdown = scene.countdown_seconds if isinstance(scene, QuizScene) else None

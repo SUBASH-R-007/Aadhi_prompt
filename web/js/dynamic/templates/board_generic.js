@@ -16,10 +16,10 @@
 import { h, svg } from '../../shared/dom.js';
 import { ease } from '../../motion/easing.js';
 import { progress } from '../../motion/track.js';
-import { mixOklch } from '../../motion/color.js';
+import { composite, contrastRatio, mixOklch, toOklch } from '../../motion/color.js';
 import { splitWords } from '../../motion/text.js';
 import { strokeDash } from '../../motion/draw.js';
-import { mountTex, plainText, renderRich } from '../../player/richtext.js';
+import { mountTex, parseRich, plainText, renderRich } from '../../player/richtext.js';
 import { icon } from '../../player/icons.js';
 import { planScene } from '../../player/schedule.js';
 import { fx } from '../core.js';
@@ -91,6 +91,21 @@ export const STACK_TABLE_COLUMNS = 2;
 export const MIN_DWELL = 1.5;
 /** Gap between cards of a crowded quiz (a long question): its option cards also lose some padding (`is-compact`). */
 export const COMPACT_GAP = Object.freeze({ landscape: 14, portrait: 10 });
+/** The quiz countdown ring's box (dynamic.css `.dyn-ring`, the SVG's 96 x 96 view box), stage px. */
+export const RING_SIZE = 96;
+/** In 16:9 the ring sits at the top right of the content box, level with the kicker and the first title line: the
+ * title block ends this far left of it (with the ring's width), so a long question or kicker never runs under it. */
+export const RING_GAP = 24;
+/** Opacity of the ring's track in the ink it sits on: with a light ink (dark families) and with a dark ink (light
+ * families) the track then makes the same step off the family's background (OKLab ΔL about 0.165, 1.7:1). A white
+ * track at 18% on a light family's background was invisible (1.02:1). */
+export const RING_TRACK_ALPHA = Object.freeze({ lightInk: 0.18, darkInk: 0.25 });
+/** The slots `texts()` reports the title block's text in (§7.12: preflight plans its remedies per reported slot): a
+ * scrim planned for either is the title block's scrim, behind the kicker, the title and a chapter card's subtitle.
+ * The subtitle is reported in slot `title`, so a scrim it needs is planned, and drawn, through slot `title`. */
+export const TITLE_BLOCK_SLOTS = Object.freeze(['kicker', 'title']);
+/** The title block's scrim (R-53 remedy): the scene's background tone at this alpha (0xc7, 78%; R-53: >= 55%). */
+export const SCRIM_ALPHA_HEX = 'c7';
 
 /**
  * Per-format layout (stage px). Sizes follow R-29: 16:9 body 52 (48-56), labels >= 40, headings 84-120; 9:16
@@ -472,6 +487,125 @@ function wordSpans(host, text, locale) {
   return out;
 }
 
+/** Stands for one TeX or code span in the plain text a rich title's words are found in: one unbreakable unit. */
+const OBJECT_CHAR = '\uFFFC';
+
+/**
+ * Split rich-lite text (a quiz question: `$TeX$`, `**bold**`, `*italic*`, `` `code` ``, `[[term]]`; the classic quiz
+ * renders it with renderRich) into word spans like `wordSpans`, keeping its markup. The words are found in its plain
+ * text, where a TeX or code span is one character (never split; it joins the word it touches), and each word span
+ * holds the part of the markup that word covers: a bold phrase becomes one <strong> per word, which looks the same
+ * (the stage styles `.rt-*` by weight and style only, dynamic.css). TeX goes through `mountTex` with the context's
+ * `pending` and `renderTex`, so the render page waits for it as it does for the cards' TeX (render.js converts every
+ * quiz question's TeX before `ready`).
+ * @param {TemplateContext} ctx
+ * @param {HTMLElement} host
+ * @param {import('../../player/richtext.js').RichNode[]} nodes   the parsed text
+ * @returns {{words: HTMLElement[], tex: boolean[]}}  `tex[i]`: word i holds TeX (an atomic picture: it may stand
+ *   taller than a line without being broken inside, and it overflows sideways when wider than the line)
+ */
+function richWordSpans(ctx, host, nodes) {
+  /** @typedef {{t: 'b' | 'i' | 'k', c: import('../../player/richtext.js').RichNode[]}} Mark */
+  /** @type {{node: {t: 'text' | 'code' | 'math', v: string}, marks: Mark[], at: number}[]} */
+  const leaves = [];
+  let plain = '';
+  /** @param {import('../../player/richtext.js').RichNode[]} list @param {Mark[]} marks */
+  const walk = (list, marks) => {
+    for (const n of list) {
+      if (n.t === 'text' || n.t === 'code' || n.t === 'math') {
+        leaves.push({ node: n, marks, at: plain.length });
+        plain += n.t === 'text' ? n.v : OBJECT_CHAR;
+      } else {
+        walk(n.c, [...marks, n]);
+      }
+    }
+  };
+  walk(nodes, []);
+  /** @type {number[]} the leaf of every character of `plain` */
+  const owner = [];
+  leaves.forEach((leaf, i) => {
+    const length = leaf.node.t === 'text' ? leaf.node.v.length : 1;
+    for (let k = 0; k < length; k++) owner.push(i);
+  });
+  /**
+   * Append the markup of plain[a, b) to `parent`: its leaves (or the part of a text leaf in the range) in order, each
+   * inside the elements of its marks; consecutive leaves share the marks they have in common.
+   * @param {Node} parent @param {number} a @param {number} b
+   * @returns {boolean} whether the range holds TeX
+   */
+  const fill = (parent, a, b) => {
+    /** @type {{mark: Mark, el: HTMLElement}[]} */
+    const open = [];
+    let tex = false;
+    let k = a;
+    while (k < b) {
+      const i = owner[k];
+      const leaf = leaves[i];
+      let end = k + 1;
+      while (end < b && owner[end] === i) end++;
+      let same = 0;
+      while (same < open.length && same < leaf.marks.length && open[same].mark === leaf.marks[same]) same++;
+      open.length = same;
+      for (const mark of leaf.marks.slice(same)) {
+        const el = document.createElement(mark.t === 'b' ? 'strong' : mark.t === 'i' ? 'em' : 'span');
+        el.className = mark.t === 'k' ? 'rt-k' : mark.t === 'b' ? 'rt-b' : 'rt-i';
+        (open.length ? open[open.length - 1].el : parent).appendChild(el);
+        open.push({ mark, el });
+      }
+      const into = open.length ? open[open.length - 1].el : parent;
+      const n = leaf.node;
+      if (n.t === 'text') {
+        into.appendChild(document.createTextNode(n.v.slice(k - leaf.at, end - leaf.at)));
+      } else if (n.t === 'code') {
+        into.appendChild(h('code', { class: 'rt-code', text: n.v }));
+      } else {
+        const span = document.createElement('span');
+        into.appendChild(span);
+        mountTex(span, n.v, false, { pending: ctx.pending, renderTex: ctx.renderTex });
+        tex = true;
+      }
+      k = end;
+    }
+    return tex;
+  };
+  /** @type {HTMLElement[]} */
+  const words = [];
+  /** @type {boolean[]} */
+  const tex = [];
+  for (const part of splitWords(plain, ctx.locale)) {
+    const end = part.index + part.text.length;
+    const span = h('span', { class: 'dyn-word' });
+    tex.push(fill(span, part.index, end));
+    words.push(span);
+    host.appendChild(span);
+    if (part.ws) fill(host, end, end + part.ws.length);
+  }
+  return { words, tex };
+}
+
+/**
+ * What text of `ink` over the title block's translucent `scrim` sits on: the scrim composited over each colour the
+ * background shows, the one with the least contrast against `ink` (R-53's worst case). Opaque hex, the colour
+ * preflight's contrast check then measures, so a scrim that helps reads as fixed.
+ * @param {string} scrim   #rrggbbaa
+ * @param {{bg: string, bgs?: string[]}} onBackground
+ * @param {string} ink
+ */
+export function scrimmedBg(scrim, onBackground, ink) {
+  const bgs = onBackground.bgs && onBackground.bgs.length ? onBackground.bgs : [onBackground.bg];
+  let worst = composite(scrim, bgs[0]);
+  let low = contrastRatio(ink, worst);
+  for (const b of bgs.slice(1)) {
+    const c = composite(scrim, b);
+    const ratio = contrastRatio(ink, c);
+    if (ratio < low) {
+      low = ratio;
+      worst = c;
+    }
+  }
+  return worst;
+}
+
 export default {
   id: 'board_generic',
 
@@ -484,7 +618,11 @@ export default {
     const variant = variantOf(scene, ctx.mode);
     const quiz = scene.quiz || null;
     const kicker = kickerOf(scene, ctx.timeline);
-    const titleText = quiz ? String(quiz.question || '') : String(scene.title || '');
+    // a quiz question is rich-lite (TeX, bold, terms, code); a scene title is plain text. A question with markup keeps
+    // it (richWordSpans); without, its plain text (an escaped `\$` shows as `$`, as renderRich shows it)
+    const question = quiz ? parseRich(String(quiz.question || '')) : null;
+    const richTitle = !!question && question.some((n) => n.t !== 'text');
+    const titleText = quiz ? plainText(String(quiz.question || '')) : String(scene.title || '');
     // preflight's remedies (§7.12) arrive through the look: `variant: "safe"` (the compact layout) and
     // `text_fit[slot]` ({size} px caps a slot's size, {scrim} puts a scrim behind text drawn on the background)
     const tuning = slotTuning(ctx.look, format);
@@ -499,15 +637,26 @@ export default {
     const header = h('div', { class: 'dyn-header', style: { '--kicker': `${L.kicker}px`, color: ctx.onBackground.ink2 } }, pip, kickerText);
     if (!kicker) header.classList.add('is-empty');
     const title = h('h2', { class: 'dyn-title', dir: 'auto', style: { color: ctx.onBackground.ink, '--lh': String(titleSpec.lh) } });
-    const words = wordSpans(title, titleText, ctx.locale);
+    /** @type {HTMLElement[]} */
+    let words;
+    /** @type {boolean[]} */
+    let wordTex;
+    if (richTitle && question) ({ words, tex: wordTex } = richWordSpans(ctx, title, question));
+    else {
+      words = wordSpans(title, titleText, ctx.locale);
+      wordTex = words.map(() => false);
+    }
     const subtitle = variant === 'title' && scene.subtitle
       ? h('p', { class: 'dyn-subtitle', dir: 'auto', text: String(scene.subtitle), style: { color: ctx.onBackground.ink2 } })
       : null;
     const titleBlock = h('div', { class: ['dyn-titleblock', `dyn-titleblock--${variant === 'title' ? 'center' : 'top'}`] }, header, title, subtitle);
-    if (tuning.scrim('title')) {
-      // R-53 remedy: a scrim of >= 55% opacity behind the title (the background tone, so it reads as the page)
+    // R-53 remedy: a scrim of >= 55% opacity behind the whole title block (the background tone, so it reads as the
+    // page) when preflight asked for one for any text in it: the kicker (critical on a chapter card), the title or
+    // the subtitle. texts() then reports that text on the scrim, so the second preflight pass measures the remedy.
+    const scrim = TITLE_BLOCK_SLOTS.some((slot) => tuning.scrim(slot)) ? `${ctx.roles.tokens.bg || '#000000'}${SCRIM_ALPHA_HEX}` : null;
+    if (scrim) {
       titleBlock.classList.add('has-scrim');
-      titleBlock.style.setProperty('--scrim', `${ctx.roles.tokens.bg || '#000000'}c7`);
+      titleBlock.style.setProperty('--scrim', scrim);
     }
 
     // cards
@@ -576,7 +725,12 @@ export default {
     let ring = null;
     if (quiz) {
       const r = 40;
-      const track = svg('circle', { cx: '48', cy: '48', r: String(r), class: 'dyn-ring-track' });
+      // the track in the ink it sits on, at the opacity that keeps it visible on dark and light families alike
+      const inkL = toOklch(ctx.onBackground.ink).l;
+      const trackAlpha = inkL >= 0.5 ? RING_TRACK_ALPHA.lightInk : RING_TRACK_ALPHA.darkInk;
+      const track = svg('circle', {
+        cx: '48', cy: '48', r: String(r), class: 'dyn-ring-track', stroke: ctx.onBackground.ink, 'stroke-opacity': fx(trackAlpha, 2),
+      });
       const arc = svg('circle', { cx: '48', cy: '48', r: String(r), class: 'dyn-ring-arc', stroke: roles.color('struct.accent') });
       const svgEl = svg('svg', { class: 'dyn-ring-svg', width: '96', height: '96', 'aria-hidden': 'true' }, track, arc);
       svgEl.setAttribute('viewBox', '0 0 96 96');
@@ -589,14 +743,14 @@ export default {
     root.appendChild(chipWrap);
     ctx.root.appendChild(root);
     return {
-      variant, root, header, kickerText, title, titleSpec, words, subtitle, titleBlock, chip, chipWrap, cards, cardsEl,
-      frame, mediaView, media, ring,
+      variant, root, header, kickerText, title, titleSpec, words, wordTex, subtitle, titleBlock, scrim, chip, chipWrap,
+      cards, cardsEl, frame, mediaView, media, ring,
       visibleMax: quiz ? cards.length : tuning.safe ? 1 : variant === 'split' ? L.splitMaxVisible : L.maxVisible,
       bodyPx, titleText,
       titleSize: titleSpec.max, titleOverflow: 0, cardsBox: /** @type {Box | null} */ (null),
       mediaBox: /** @type {Box | null} */ (null), fit: 1, mediaAlpha: 0, cardAlpha: cards.map(() => 0),
       exits: cards.map(() => Infinity), cardInk: cards.map(() => ink), ink, ink2, accent, surface, gap: L.gap, compact: false,
-      ok: roles.color('ok'), headerAlpha: 0, titleAlpha: 0, subtitleAlpha: 0,
+      ok: roles.color('ok'), headerAlpha: 0, titleAlpha: 0, subtitleAlpha: 0, ringAlpha: 0,
     };
   },
 
@@ -611,8 +765,11 @@ export default {
     const spec = v.titleSpec;
     // Title: the largest size (4 px steps) whose line count fits.
     const titleBox = v.variant === 'title' ? centeredTitleBox(zones) : zones.title;
+    // 16:9: the countdown ring is level with the kicker and the first title line at the right of the content box,
+    // so the title block keeps clear of it (9:16 puts the ring below the title, beside the options)
+    const ringRoom = v.ring && format === 'landscape' ? RING_SIZE + RING_GAP : 0;
     v.titleBlock.style.left = `${titleBox.x0}px`;
-    v.titleBlock.style.width = `${titleBox.x1 - titleBox.x0}px`;
+    v.titleBlock.style.width = `${titleBox.x1 - titleBox.x0 - ringRoom}px`;
     if (v.variant === 'title') {
       v.titleBlock.style.top = `${titleBox.y0}px`;
       v.titleBlock.style.height = `${titleBox.y1 - titleBox.y0}px`;
@@ -621,13 +778,22 @@ export default {
     }
     // A word span taller than one line has been broken inside (overflow-wrap: anywhere). Allowed only for a word that
     // is wider than the column even at the minimum size (a long Indic compound); every other word must stay whole.
-    const broken = (/** @type {number} */ s) => v.words.map((/** @type {HTMLElement} */ w) => w.offsetHeight > 1.5 * s * spec.lh);
+    // A word holding TeX is a picture: it may stand taller than a line (a fraction) and is never broken inside, but
+    // it runs out of the column sideways when wider than it, so that is what counts for it.
+    const broken = (/** @type {number} */ s) => v.words.map((/** @type {HTMLElement} */ w, /** @type {number} */ i) => (v.wordTex[i]
+      ? w.offsetWidth > v.title.clientWidth + 1
+      : w.offsetHeight > 1.5 * s * spec.lh));
     v.title.style.fontSize = `${spec.min}px`;
     const unavoidable = broken(spec.min);
+    // A TeX word wider than the column even at the minimum size runs out of it sideways at every size, the further the
+    // larger the title: the title is then held at the minimum, where that overflow is least (and is what preflight
+    // blocks at the floor), not drawn at the largest size whose line count fits. A plain word is broken inside the
+    // column instead (overflow-wrap), so its unavoidable break costs no size.
+    const texTooWide = unavoidable.some((b, i) => b && v.wordTex[i]);
     /** The largest size (4 px steps, the minimum itself last) at which the title takes at most `lines` lines with
      * whole words (an unavoidable break inside a word is not overflow: preflight would block it at the floor). */
     const fitLines = (/** @type {number} */ lines) => {
-      let s = spec.max;
+      let s = texTooWide ? spec.min : spec.max;
       for (;;) {
         v.title.style.fontSize = `${s}px`;
         const whole = broken(s).every((b, i) => !b || unavoidable[i]);
@@ -642,6 +808,10 @@ export default {
     const fits = best.fits;
     // px beyond its lines at the minimum size
     v.titleOverflow = fits ? 0 : Math.max(1, v.title.offsetHeight - spec.lines * size * spec.lh);
+    // ... or past the column's side: TeX wider than the column even at the minimum size, measured at that size, where
+    // texTooWide holds the title (never true of plain words, which overflow-wrap breaks)
+    const wide = Math.max(0, ...v.words.map((/** @type {HTMLElement} */ w, /** @type {number} */ i) => (v.wordTex[i] ? w.offsetWidth - v.title.clientWidth : 0)));
+    if (wide > 2) v.titleOverflow = Math.max(v.titleOverflow, wide); // 2 px: layout rounding
     v.titleSize = size;
     const titleBottom = v.variant === 'title' ? 0 : v.titleBlock.offsetTop + v.titleBlock.offsetHeight;
     let r = regions(v.variant, zones, titleBottom || zones.title.y0 + spec.min * spec.lh);
@@ -672,8 +842,9 @@ export default {
       Object.assign(v.frame.style, { left: `${Math.round(x)}px`, top: `${Math.round(y)}px`, width: `${Math.round(w)}px`, height: `${Math.round(fh)}px` });
     }
     if (v.ring) {
-      // 16:9: top right of the content box; 9:16: beside the options (its number stays left of x 888)
-      const rx = format === 'landscape' ? zones.critical[0].x1 - 96 : zones.textColumn.x1 + 32;
+      // 16:9: top right of the content box, right of the title block (ringRoom); 9:16: beside the options, below the
+      // title (its number stays left of x 888)
+      const rx = format === 'landscape' ? zones.critical[0].x1 - RING_SIZE : zones.textColumn.x1 + 32;
       const ry = format === 'landscape' ? zones.header.y0 - 4 : (r.cards ? r.cards.y0 : zones.body.y0);
       Object.assign(v.ring.el.style, { left: `${rx}px`, top: `${ry}px` });
     }
@@ -947,6 +1118,7 @@ export default {
       const secs = Math.max(0.001, Number(quiz.countdown_seconds));
       const shown = enter(cd0, 0.3) * (1 - move(Number(quiz.reveal_start), 0.3));
       const dash = strokeDash(v.ring.length, 1 - progress(t, cd0, secs));
+      v.ringAlpha = shown;
       p.style(v.ring.el, 'opacity', fx(shown));
       p.style(v.ring.el, 'visibility', shown > 0.001 ? 'visible' : 'hidden');
       p.attr(v.ring.arc, 'stroke-dasharray', dash.dasharray);
@@ -976,23 +1148,33 @@ export default {
     /** @type {TextEntry[]} */
     const out = [];
     const bg = ctx.onBackground.bg;
+    // text in the title block sits on its scrim when it has one: the scrim over the background (scrimmedBg)
+    const onBlock = (/** @type {string} */ ink) => (v.scrim ? scrimmedBg(v.scrim, ctx.onBackground, ink) : bg);
     const L = LAYOUT[ctx.format];
     const floor = MIN_TEXT[ctx.format];
     const kicker = v.kickerText.textContent || '';
     if (kicker) {
       // a chapter card's label ("Part 2") is part of its message: checked like the title (zones, R-53 contrast)
-      out.push({ el: v.kickerText, role: 'label', slot: 'kicker', critical: v.variant === 'title', ink: ctx.onBackground.ink2, bg,
-        alpha: v.headerAlpha, size: L.kicker, min: L.kicker, weight: 600, text: kicker });
+      out.push({ el: v.kickerText, role: 'label', slot: 'kicker', critical: v.variant === 'title', ink: ctx.onBackground.ink2,
+        bg: onBlock(ctx.onBackground.ink2), alpha: v.headerAlpha, size: L.kicker, min: L.kicker, weight: 600, text: kicker });
     }
     if (v.words.length) {
-      out.push({ el: v.title, role: 'title', slot: 'title', critical: true, ink: ctx.onBackground.ink, bg, alpha: v.titleAlpha,
-        overflow: v.titleOverflow, size: v.titleSize, min: v.titleSpec.min, weight: 700, text: v.titleText });
+      out.push({ el: v.title, role: 'title', slot: 'title', critical: true, ink: ctx.onBackground.ink, bg: onBlock(ctx.onBackground.ink),
+        alpha: v.titleAlpha, overflow: v.titleOverflow, size: v.titleSize, min: v.titleSpec.min, weight: 700, text: v.titleText });
     }
     if (v.subtitle && v.subtitle.textContent) {
       // the chapter card's subtitle (ink2 on the background): in the title block, so its scrim covers it too
       const sub = ctx.format === 'portrait' ? 48 : 52;
-      out.push({ el: v.subtitle, role: 'subtitle', slot: 'title', critical: true, ink: ctx.onBackground.ink2, bg,
-        alpha: v.subtitleAlpha, size: sub, min: sub, weight: ctx.format === 'portrait' ? 600 : 400, text: v.subtitle.textContent });
+      out.push({ el: v.subtitle, role: 'subtitle', slot: 'title', critical: true, ink: ctx.onBackground.ink2,
+        bg: onBlock(ctx.onBackground.ink2), alpha: v.subtitleAlpha, size: sub, min: sub,
+        weight: ctx.format === 'portrait' ? 600 : 400, text: v.subtitle.textContent });
+    }
+    if (v.ring && v.ring.num.textContent) {
+      // the countdown's number: a label on the background (R-29 floor). Not critical: the think time is the ring itself
+      // (R-07), and the ring sits outside the title block (16:9) or beside the options (9:16). Reported so preflight
+      // sees its box and size like any other text on screen.
+      out.push({ el: v.ring.num, role: 'label', slot: 'ring', critical: false, ink: ctx.onBackground.ink, bg, alpha: v.ringAlpha,
+        size: MIN_LABEL[ctx.format], weight: 700, text: v.ring.num.textContent });
     }
     const size = Math.max(floor, v.bodyPx * v.fit);
     const min = Math.max(floor, v.bodyPx * MIN_FIT[ctx.format]);

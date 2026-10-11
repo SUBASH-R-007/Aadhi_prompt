@@ -14,9 +14,9 @@ import { fx } from './core.js';
 
 /** The transitions this stage draws; any other kind is drawn as a cut until its release. */
 export const TRANSITIONS = Object.freeze(['cut', 'crossfade']);
-/** Crossfades are 300-500 ms (§4.9) and never shorter than 300 ms (R-54). */
+/** Crossfades are 300-500 ms (§4.9) and never shorter than 300 ms (R-54); a longer request is clamped to 500 ms. */
 export const CROSSFADE_MIN = 0.3;
-export const CROSSFADE_MAX = 0.8;
+export const CROSSFADE_MAX = 0.5;
 export const CROSSFADE_DEFAULT = 0.45;
 
 /**

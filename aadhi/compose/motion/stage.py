@@ -33,6 +33,7 @@ from urllib.parse import unquote
 
 from ...config import Settings
 from ..dynamic.stage_page import (
+    DETERMINISM_ARGS,
     JPEG_QUALITY,
     WEBGL_ARGS,
     StageBrowser,
@@ -105,7 +106,7 @@ class StageOptions:
 
     def chromium_args(self) -> list[str]:
         """The Chromium flags the page driver launches with (part of the chunk cache key)."""
-        return [*CHROMIUM_ARGS, *(WEBGL_ARGS if self.webgl else ()), *self.extra_args]
+        return [*CHROMIUM_ARGS, *DETERMINISM_ARGS, *(WEBGL_ARGS if self.webgl else ()), *self.extra_args]
 
     def capture_fingerprint(self) -> dict[str, Any]:
         """What changes the captured pixels besides the page and the timeline (part of the chunk cache key)."""
@@ -114,9 +115,13 @@ class StageOptions:
 
 
 def scene_mismatch(info: StageInfo, bounds: Sequence[tuple[int, int]]) -> str | None:
-    """Why the page's scene frame ranges differ from the timeline's (None when they agree frame by frame)."""
+    """Why the page's scene frame ranges differ from the timeline's (None when they agree frame by frame). A page
+    that lists no scenes for a timeline that has some disagrees too: an empty list would leave the layout unchecked
+    but for its total frame count."""
     got = [(s.f0, s.f1) for s in sorted(info.scenes, key=lambda s: s.index)]
-    if got and got != list(bounds):
+    if not got and bounds:
+        return "the stage reports no scene frame ranges"
+    if got != list(bounds):
         return "the stage's scene frame ranges differ from the timeline's"
     return None
 

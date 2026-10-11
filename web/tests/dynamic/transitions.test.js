@@ -8,12 +8,16 @@ import { dynamicTimeline } from './_fixture.js';
 /** @param {any} transition @param {number} [duration] */
 const sceneWith = (transition, duration = 5) => ({ scene_id: 'x', duration, look: { transition_in: transition } });
 
-test('transitionOf normalises the look: cut by default, crossfades clamped to 300-800 ms and the scene', () => {
+test('transitionOf normalises the look: cut by default, crossfades clamped to 300-500 ms (§4.9) and the scene', () => {
+  assert.deepEqual([CROSSFADE_MIN, CROSSFADE_DEFAULT, CROSSFADE_MAX], [0.3, 0.45, 0.5], '§4.9: 300-500 ms, R-54: never < 300 ms');
   assert.deepEqual(transitionOf(/** @type {any} */ ({ scene_id: 'x', duration: 5 })), { kind: 'cut', seconds: 0 });
   assert.deepEqual(transitionOf(/** @type {any} */ (sceneWith({ kind: 'whip', seconds: 0.35 }))), { kind: 'cut', seconds: 0 });
   assert.deepEqual(transitionOf(/** @type {any} */ (sceneWith({ kind: 'crossfade' }))), { kind: 'crossfade', seconds: CROSSFADE_DEFAULT });
   assert.equal(transitionOf(/** @type {any} */ (sceneWith({ kind: 'crossfade', seconds: 0.1 }))).seconds, CROSSFADE_MIN);
   assert.equal(transitionOf(/** @type {any} */ (sceneWith({ kind: 'crossfade', seconds: 3 }))).seconds, CROSSFADE_MAX);
+  assert.equal(transitionOf(/** @type {any} */ (sceneWith({ kind: 'crossfade', seconds: 0.6 }))).seconds, 0.5, 'never longer than 500 ms');
+  assert.equal(transitionOf(/** @type {any} */ (sceneWith({ kind: 'crossfade', seconds: 0.8 }))).seconds, 0.5);
+  assert.equal(transitionOf(/** @type {any} */ (sceneWith({ kind: 'crossfade', seconds: 0.4 }))).seconds, 0.4, 'inside the range: as asked');
   assert.equal(transitionOf(/** @type {any} */ (sceneWith({ kind: 'crossfade', seconds: 0.5 }, 0.2))).seconds, 0.2);
 });
 

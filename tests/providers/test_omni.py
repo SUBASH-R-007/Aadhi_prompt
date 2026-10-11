@@ -683,3 +683,31 @@ def test_clients_of_closed_loops_are_forgotten(gemini_settings) -> None:
     assert len(caller._clients) == 1  # the closed loop's client was forgotten when the next loop asked
     shared = GeminiCaller(gemini_settings, timeout_s=5, client_factory=lambda key: object())
     assert asyncio.run(shared.client(GEMINI_KEYS[0])) is asyncio.run(shared.client(GEMINI_KEYS[0]))  # one client
+
+
+# --- the SDK floor ------------------------------------------------------------------------------------------------
+
+
+def test_the_requirements_floor_is_the_sdk_the_interactions_client_was_verified_against() -> None:
+    """``requirements.txt`` never allows a google-genai older than 2.26: Omni's ``client.aio.interactions`` (and the
+    ``google.genai._gaos`` SDK behind it) was verified against 2.26, an older SDK fails every clip, and Gemini 3.8
+    TTS (the ``GEMINI_TTS_MODEL`` default) needs at least 2.25 (design §10.3 H0). Installs without the lock (a
+    plain ``pip install -r requirements.txt``) resolve within this range. The SDK checks name only what this adapter
+    uses (the ``interactions`` attribute and the modules it imports by name), never how the SDK implements them."""
+    import importlib.util
+    import pathlib
+    from importlib import metadata
+
+    from google.genai import client as genai_client
+    from packaging.requirements import Requirement
+
+    root = pathlib.Path(__file__).resolve().parents[2]
+    lines = [ln.split(" #", 1)[0].strip() for ln in (root / "requirements.txt").read_text(encoding="utf-8").splitlines()]
+    reqs = {Requirement(ln).name.lower(): Requirement(ln) for ln in lines if ln and not ln.startswith(("#", "-"))}
+    spec = reqs["google-genai"].specifier
+    assert spec.contains("2.26.0") and not spec.contains("2.25.0") and not spec.contains("2.25.99")
+    assert not spec.contains("3.0.0")
+    assert spec.contains(metadata.version("google-genai"))  # the installed (locked) SDK is inside the range
+    assert hasattr(genai_client.AsyncClient, "interactions")  # client.aio.interactions (interactions_of)
+    for module in (omni_mod._NEXTGEN_MODULE, omni_mod._COMPAT_ERRORS_MODULE):  # google.genai._gaos, imported by name
+        assert importlib.util.find_spec(module) is not None, module

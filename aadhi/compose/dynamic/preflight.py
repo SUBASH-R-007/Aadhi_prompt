@@ -2,7 +2,8 @@
 fixed automatically, block only with an action the teacher can take.
 
 **How.** The worker loads the stage once (``stage_page``; the timeline it holds is served to the page; media frames
-are 1x1 stand-ins, text does not depend on them) and seeks the sampled frames: 24 spread frames (the centres of 24
+are 1x1 stand-ins, text does not depend on them; the caption layer is the render's own, so caption boxes are drawn
+and checked only when the render burns captions) and seeks the sampled frames: 24 spread frames (the centres of 24
 equal parts), every scene's first frame, every scene's last frame (its fullest board: every item revealed; an
 addition to §7.12's list), every beat's settled frame (``BEAT_SETTLE_S`` after the beat starts: the card it reveals
 is in, and a card that later collapses is still on screen; also an addition, B1 integration) and, in 9:16, every
@@ -60,7 +61,7 @@ from ...config import Settings
 from ...jobs.base import FatalJobError
 from ...schemas.timeline import Timeline
 from ..base import timeline_stage
-from ..qa import expected_frame_count
+from ..motion.chunks import scene_frame_bounds, total_frames
 from .colour import text_contrast
 from .stage_page import StageInfo, StagePage, StageScene, placeholder_frames, stage_browser
 
@@ -589,7 +590,9 @@ def raise_if_blocked(result: PreflightResult) -> None:
 
 def _finalise(first: list[Finding], second: list[Finding] | None, planned: set[tuple[int, str, str]]) -> list[Finding]:
     """Statuses after the remedies: a remedied finding seen again is escalated (zones/overflow block, contrast warns),
-    one gone is ``fixed``; findings without a remedy are escalated at once; new findings of the second round too."""
+    one gone is ``fixed``; findings without a remedy are escalated at once; new findings of the second round too.
+    One finding per (check, scene, slot): the second round re-scans every frame of a touched scene, so it sees that
+    scene's warnings and unremedied findings again; those are the first round's, never a second item."""
 
     def escalate(f: Finding) -> Finding:
         if f.status == "open":
@@ -599,6 +602,7 @@ def _finalise(first: list[Finding], second: list[Finding] | None, planned: set[t
     final: list[Finding] = []
     again = {f.ident: f for f in (second or [])}
     for f in first:
+        later = again.pop(f.ident, None)  # every first-round finding claims its second-round sighting
         if f.status != "open":
             final.append(f)
             continue
@@ -606,8 +610,7 @@ def _finalise(first: list[Finding], second: list[Finding] | None, planned: set[t
             (f.remedy, f.scene_index, "" if f.remedy == "safe_variant" else f.slot) in planned)
         if not remedied or second is None:
             final.append(escalate(f))
-        elif f.ident in again:
-            later = again.pop(f.ident)
+        elif later is not None:
             later.remedy = f.remedy
             final.append(escalate(later))
         else:
@@ -670,6 +673,8 @@ async def run_preflight(
     ``served_timeline``: the timeline exactly as the page should receive it (resolved URLs); default
     ``timeline.model_dump(mode="json")``. ``token``: the scoped render token for the page's fragment. ``captions``:
     whether the render burns captions (default: ``presentation.captions_burn``): burned captions take their band.
+    The page draws exactly that caption layer (``setLayers`` after every load, as the capture's pages do), so the
+    caption boxes checked are the ones the MP4 will show: none when nothing is burned.
     Raises
     ``ValueError`` for a classic timeline and :class:`~aadhi.compose.dynamic.stage_page.StageError` when the page
     breaks its contract; a teacher-fixable problem never raises here (see :func:`raise_if_blocked`).
@@ -680,7 +685,10 @@ async def run_preflight(
     fmt = timeline.presentation.format
     size = timeline_stage(timeline)
     fps = int(timeline.fps)
-    frames_needed = expected_frame_count(timeline.total_duration, fps)
+    # The frame count the engine captures and the page reports (motion.chunks.scene_frame_bounds; web/js/dynamic/core.js
+    # stageInfo): every scene keeps at least one frame, so a scene shorter than half a frame at the end of the lecture
+    # makes it one more than the rounded duration.
+    frames_needed = total_frames(scene_frame_bounds(timeline, fps))
     served = served_timeline if served_timeline is not None else timeline.model_dump(mode="json")
     burned = bool(timeline.presentation.captions_burn) if captions is None else bool(captions)
     has_look = {s.index: s.look is not None for s in timeline.scenes}
@@ -691,6 +699,8 @@ async def run_preflight(
                              call_timeout_s=call_timeout_s, check_cancelled=check_cancelled) as browser:
         page = await browser.open(token=token, served_timeline=served, frames=placeholder_frames,
                                   ready_timeout_s=ready_timeout_s)
+        # A loaded page draws captions as the presentation says (render mode); the render's own choice wins.
+        await page.set_layers(captions=burned, stage=True)
         info = await page.info()
         info.check(size=size, fps=fps, frames=frames_needed)
         result.webgl = page.webgl
@@ -704,6 +714,7 @@ async def run_preflight(
                 log(f"Preflight: applying {len(remedies)} automatic fix(es) and checking again")
             served = apply_remedies(served, remedies)
             info = await page.load(served)
+            await page.set_layers(captions=burned, stage=True)  # a reload resets the layers to the presentation's
             info.check(size=size, fps=fps, frames=frames_needed)
             touched = {r.scene_index for r in remedies}
             again = [f for f in result.sampled if (sc := info.scene_at(f)) is not None and sc.index in touched]

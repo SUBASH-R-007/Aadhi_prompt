@@ -442,6 +442,131 @@ test('render: when the preflight cannot be loaded the request is unchanged (no a
   handle.destroy();
 });
 
+// A Dynamic lecture (the server's preflight says the motion engine renders it, DYNAMIC_VIDEO_DESIGN §7.1): "Burn
+// captions" starts from its caption policy (§2.6) instead of off, every caption choice is sent (an unsent one let the
+// job apply the policy and a clean file's default-on track whatever the boxes showed), and there is no classic intro.
+
+/** The render dialog's checkboxes by label. */
+function renderBoxes() {
+  /** @type {Record<string, HTMLInputElement>} */
+  const out = {};
+  for (const input of document.querySelectorAll('.modal input[type="checkbox"]')) {
+    const text = input.parentElement.parentElement.textContent;
+    if (/Burn captions/.test(text)) out.burn = input;
+    else if (/selectable caption track/.test(text)) out.soft = input;
+    else if (/Include the intro/.test(text)) out.intro = input;
+  }
+  return out;
+}
+
+/** @param {HTMLInputElement} box @param {boolean} on */
+function setBox(box, on) {
+  box.checked = on;
+  box.dispatchEvent(new window.Event('change'));
+}
+
+test('render: a Dynamic lecture starts from its caption policy, sends every choice and has no intro option', async () => {
+  freshTest();
+  const presentation = { style: 'dynamic', format: 'portrait', captions_burn: true };
+  const { renders } = renderRoutes({ blocking: false, items: [], presentation }, [BUSY]);
+  const { container, handle } = await mountEditor(fakeApp());
+  const open = async () => {
+    byText(container, 'Render MP4').click();
+    await waitFor(() => document.querySelector('.modal .modal-footer'));
+    return renderBoxes();
+  };
+  let boxes = await open();
+  assert.equal(boxes.intro, undefined, 'no classic intro in a Dynamic video');
+  assert.doesNotMatch(document.querySelector('.modal').textContent, /Include the intro/);
+  assert.equal(boxes.burn.checked, true, 'presentation.captions_burn');
+  assert.equal(boxes.soft.checked, false);
+  assert.equal(boxes.soft.disabled, true, 'not with burned captions');
+  clickModal('Render');
+  await waitFor(() => renders.length === 1);
+  assert.deepEqual(renders[0], { burn_captions: true, allow_degraded: false });
+
+  closeAllModals();
+  boxes = await open();
+  setBox(boxes.burn, false); // a clean file: its caption track is on by default (R-31), as the box now shows
+  assert.equal(boxes.soft.disabled, false);
+  assert.equal(boxes.soft.checked, true);
+  clickModal('Render');
+  await waitFor(() => renders.length === 2);
+  assert.deepEqual(renders[1], { burn_captions: false, soft_subtitles: true, allow_degraded: false });
+
+  closeAllModals();
+  boxes = await open();
+  setBox(boxes.burn, false);
+  setBox(boxes.soft, false);
+  clickModal('Render');
+  await waitFor(() => renders.length === 3);
+  assert.deepEqual(renders[2], { burn_captions: false, soft_subtitles: false, allow_degraded: false }, 'off is sent, not left to the default');
+  handle.destroy();
+});
+
+test('render: a Dynamic lecture whose captions stay clean starts unchecked, with the caption track', async () => {
+  freshTest();
+  const presentation = { style: 'dynamic', format: 'landscape', captions_burn: false };
+  const { renders } = renderRoutes({ blocking: false, items: [], presentation }, [BUSY]);
+  const { container, handle } = await mountEditor(fakeApp());
+  byText(container, 'Render MP4').click();
+  await waitFor(() => document.querySelector('.modal .modal-footer'));
+  const boxes = renderBoxes();
+  assert.equal(boxes.burn.checked, false);
+  assert.equal(boxes.soft.checked, true);
+  assert.equal(boxes.intro, undefined);
+  setBox(boxes.burn, true);
+  assert.equal(boxes.soft.checked, false);
+  clickModal('Render');
+  await waitFor(() => renders.length === 1);
+  assert.deepEqual(renders[0], { burn_captions: true, allow_degraded: false });
+  handle.destroy();
+});
+
+test('render: the server decides which render it is; without its answer the dialog is the classic one', async () => {
+  const sp = { ...sampleScreenplay(), presentation: { style: 'dynamic', format: 'portrait', captions_burn: true } };
+  const version = sampleVersion({ has_timeline: true, built_revision: 4, revision: 4, timeline_stale: false, screenplay: sp });
+  /** @param {any} preflight */
+  const run = async (preflight) => {
+    freshTest();
+    const renders = [];
+    editorRoutes(version, {
+      [`GET /api/versions/${VID}/render/preflight`]: preflight,
+      [`POST /api/versions/${VID}/render`]: ({ init }) => {
+        renders.push(JSON.parse(init.body));
+        return BUSY;
+      },
+    });
+    const { container, handle } = await mountEditor(fakeApp());
+    byText(container, 'Render MP4').click();
+    await waitFor(() => document.querySelector('.modal .modal-footer'));
+    const boxes = renderBoxes();
+    clickModal('Render');
+    await waitFor(() => renders.length === 1);
+    handle.destroy();
+    return { boxes, body: renders[0] };
+  };
+  // DYNAMIC_ENABLED off: the server says classic although the screenplay has a presentation -> the classic dialog
+  const classic = await run({ blocking: false, items: [], presentation: null });
+  assert.equal(classic.boxes.burn.checked, false);
+  assert.ok(classic.boxes.intro && classic.boxes.intro.checked);
+  assert.deepEqual(classic.body, { burn_captions: false, include_intro: true, allow_degraded: false });
+  // The check could not be made: the classic dialog, as on the project page (renderOptions.js dynamicRender takes the
+  // server's answer only). The editor's own screenplay is not asked: with DYNAMIC_ENABLED off it would show the
+  // Dynamic dialog (burn pre-checked, no intro choice) for a render that will be classic. What the teacher sees is
+  // sent: burn off, and the intro choice (which a Dynamic render ignores).
+  const failed = await run({ status: 500, body: { detail: 'boom', code: 'error' } });
+  assert.equal(failed.boxes.burn.checked, false);
+  assert.ok(failed.boxes.intro && failed.boxes.intro.checked, 'the intro choice is offered');
+  assert.equal(failed.boxes.soft.checked, false);
+  assert.deepEqual(failed.body, { burn_captions: false, include_intro: true });
+  // An answer without `presentation` (no Dynamic decision in it) is classic too.
+  const silentOnPresentation = await run({ blocking: false, items: [] });
+  assert.equal(silentOnPresentation.boxes.burn.checked, false);
+  assert.ok(silentOnPresentation.boxes.intro);
+  assert.deepEqual(silentOnPresentation.body, { burn_captions: false, include_intro: true, allow_degraded: false });
+});
+
 test('Choose from library is offered only in the user\'s own lecture (an admin may open someone else\'s)', async () => {
   const admin = { id: 8, username: 'boss', role: 'admin', must_change_password: false };
   const cases = [

@@ -5,7 +5,8 @@ The page is ``/render-dynamic`` (``web/render-dynamic.html`` + ``web/js/dynamic/
     window.aadhiStage = {version: 3, ready, info(), mediaPlan(f0, f1), seek(frame), textBoxes(), setLayers(spec)}
 
 This module opens it exactly like the classic capture opens ``/render-frame`` (``aadhi.compose.screenshot``): the same
-Chromium flags (``CHROMIUM_ARGS``; plus SwiftShader only when the plan has WebGL presets, §7.8), the Chromium sandbox,
+Chromium flags (``CHROMIUM_ARGS``, plus ``DETERMINISM_ARGS`` for order-independent frames and SwiftShader only when
+the plan has WebGL presets, §7.8), the Chromium sandbox,
 the network policy (app origin; GET media from the storage's media origins; everything else aborted, a dead proxy for
 everything the routing cannot see, WebSockets closed, an off-origin redirect fails the page) and the scoped token in
 the URL fragment. Differences, all from §7.4/§7.5: the context is NOT created with ``reduced_motion="reduce"``; CDP
@@ -54,6 +55,13 @@ FRAMES_PREFIX = "/__frames/"
 STAGE_VERSION = 3
 JPEG_QUALITY = 92  # §7.5
 WEBGL_ARGS = ("--use-angle=swiftshader", "--enable-unsafe-swiftshader")  # only when the plan has WebGL presets (§7.8)
+# Order-independent frames (§7.4, P2). With partial raster, Chromium re-rasterises only the invalidated part of a tile,
+# and Skia's antialiasing of a path over that smaller clip can differ from a full-tile raster by a few levels: the same
+# frame then depends on what was painted before it. Measured on the portrait QA fixture (tests/determinism): 76 of 300
+# frames differed between 1x300 and reverse (a MathJax glyph in a card that changed colour, <= 3 levels); with this
+# flag 0 differ in both formats, at no measurable capture cost (median 73-74 ms per frame either way). Dynamic stage
+# only: the classic capture keeps CHROMIUM_ARGS unchanged, so classic output cannot move (design §3.6).
+DETERMINISM_ARGS = ("--disable-partial-raster",)
 MAX_BOXES = 2000
 _MAX_MESSAGES = 50
 BOOT_ERROR_GRACE_S = 2.0  # an uncaught error before window.aadhiStage exists fails the load after this long
@@ -406,7 +414,8 @@ class StageBrowser:
     async def open(self, *, token: str, served_timeline: dict[str, Any] | None = None,
                    frames: FrameSource | None = None, ready_timeout_s: float = 120.0,
                    freeze_css_animations: bool = True) -> StagePage:
-        """Open a page, load the stage and wait for ``ready`` (see :meth:`StagePage.load`)."""
+        """Open a page, load the stage and wait for ``ready`` (see :meth:`StagePage.load`); a page that fails to come
+        up is closed before the error is raised, and only a loaded page joins :attr:`pages`."""
         try:
             page = await self.context.new_page()
         except Exception as exc:  # noqa: BLE001 - the browser died (a recycle after a crash): a retryable failure
@@ -444,23 +453,38 @@ class StageBrowser:
         page.on("pageerror", lambda err: sp._note(f"pageerror: {err}"))
         page.on("console", lambda msg: sp._note(f"console.{msg.type}: {msg.text}")
                 if msg.type in ("error", "assert") else None)
+        # A page that fails to come up is closed here: nobody else holds it, and a worker that retries on a fresh page
+        # (a chunk retry, a recycle after a crash) would otherwise leave one orphan renderer per failure in its browser.
         try:
-            await page.route("**/*", page_route)
-            sp.cdp = await self.context.new_cdp_session(page)
-        except Exception as exc:  # noqa: BLE001 - as above
-            raise _lost(self.settings, exc, "preparing a render page") from exc
-        if freeze_css_animations:  # backstop for stray CSS animation (§7.4 rule 4)
-            await sp._send("Animation.enable", None, "Animation.enable")
-            await sp._send("Animation.setPlaybackRate", {"playbackRate": 0}, "Animation.setPlaybackRate")
-        self.pages.append(sp)
-        try:
-            await sp.load(served_timeline)
-        except StageError as exc:
-            if sp.detail() and "| page:" not in str(exc):
-                raise StageError(f"{exc}{sp.detail()}", code=exc.code, retryable=exc.retryable) from exc
+            try:
+                await page.route("**/*", page_route)
+                sp.cdp = await self.context.new_cdp_session(page)
+            except Exception as exc:  # noqa: BLE001 - as above
+                raise _lost(self.settings, exc, "preparing a render page") from exc
+            if freeze_css_animations:  # backstop for stray CSS animation (§7.4 rule 4)
+                await sp._send("Animation.enable", None, "Animation.enable")
+                await sp._send("Animation.setPlaybackRate", {"playbackRate": 0}, "Animation.setPlaybackRate")
+            try:
+                await sp.load(served_timeline)
+            except StageError as exc:
+                if sp.detail() and "| page:" not in str(exc):
+                    raise StageError(f"{exc}{sp.detail()}", code=exc.code, retryable=exc.retryable) from exc
+                raise
+            self.check_policy()
+        except BaseException:
+            await _close_page(page)
             raise
-        self.check_policy()
+        self.pages.append(sp)
         return sp
+
+
+PAGE_CLOSE_TIMEOUT_S = 10.0
+
+
+async def _close_page(page: Any) -> None:
+    """Close a Playwright page, quietly and within :data:`PAGE_CLOSE_TIMEOUT_S` (its browser may be gone)."""
+    with contextlib.suppress(Exception):
+        await asyncio.wait_for(page.close(), PAGE_CLOSE_TIMEOUT_S)
 
 
 def _lost(settings: Settings, exc: BaseException, what: str) -> StageError:
@@ -543,7 +567,7 @@ async def stage_browser(
             try:
                 browser = await pw.chromium.launch(
                     headless=True, chromium_sandbox=True,
-                    args=[*CHROMIUM_ARGS, *(WEBGL_ARGS if webgl else ()), *extra_args],
+                    args=[*CHROMIUM_ARGS, *DETERMINISM_ARGS, *(WEBGL_ARGS if webgl else ()), *extra_args],
                     proxy={"server": f"http://127.0.0.1:{dead_proxy.getsockname()[1]}",
                            "bypass": policy.proxy_bypass()})
             except PlaywrightError as exc:

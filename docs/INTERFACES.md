@@ -281,6 +281,14 @@ assets.build_assets(ctx, screenplay, options, *, previous: AssetManifest | None 
 #   made keeps the latest stored earlier one (warning NEW_VERSION_UNAVAILABLE when generation is off on the server).
 #   Libraries (prefer_library_visuals, LIBRARY_AUTO_SAVE_GENERATED) only when the job's user owns the lecture.
 assets.carry_visual_variant(old_scene, new_scene) -> Scene   # keeps variant when the request is unchanged (repair.carry_over)
+assets.voice_config(settings, options, language, tts) -> VoiceConfig(provider, voice, rate, model, language)
+assets.FALLBACK_TTS_PROVIDER = "edge" ; assets.fallback_voice_config(settings, language, tts, rate) -> VoiceConfig
+#   the voice narrating once the lecture's voice model is no longer served (ModelUnavailable): TTS_VOICE when Edge is
+#   the server's provider and language == DEFAULT_LANGUAGE, else Edge's default voice for the language; same rate.
+#   The build switches once (lecture-level warning assets.tts_fallback + a job-log warning); the scene that met the
+#   error is narrated again wholly in it. Without Edge on the server: assets.tts_failed as before
+#   _Builder.clip_key(text, voice=None) -> key   # content key of one beat's clip in voice (default: the build's), so
+#   fallback clips are keyed exactly like an Edge lecture's
 #   build_assets never builds a hidden scene (not even when scene_ids names it) and never lists it stale; scene_hash
 #   ignores hidden and min_seconds (both kept by repair on regeneration), and the Dynamic look and the beats' overlays
 #   (cuts, speaker and voice_override_asset_key stay in: they change the audio); repair.carry_over keeps look and the
@@ -304,6 +312,10 @@ checkpoint.SceneCheckpoints(stages, stage_inputs) -> load(scene_id, attached) / 
 plan_state.load_plan(version: ProjectVersion) -> LecturePlan | None ; plan_state.save_plan(version, plan) -> None
 gen_models  # LLM response models; canonicalize.canonicalize_scene(planned, out, ...) -> Scene
 orchestrator  # registers generate_lecture, regenerate_scene, build_assets, translate
+#   translate copies the source version's ingest_key and source_overrides into the translation's generation_meta;
+#   regenerate_scene reads the extract its scenes cite (orchestrator._version_extract: the version's own, else, for
+#   an older translation, its source version's under _version_brief's rules); a RateLimited concept brief propagates
+#   (the job is retried) instead of planning without it
 fake_content.register_fake_responders() -> None               # realistic FakeLLM responses for dev/e2e
 ```
 
@@ -334,7 +346,9 @@ timeline.resolve_urls(timeline: Timeline, store: AssetStore, *, signed: bool = F
 #   also maps retired mascot clips (base.RETIRED_MASCOT_CLIPS) to their replacement (timeline.current_clip_url)
 #   and the retired intro logo (base.RETIRED_BRANDING_FILES, timeline.current_branding_url)
 timeline.default_branding(settings: Settings) -> Branding
-sync.SyncOptions.from_settings(settings) -> SyncOptions | None   # None with SYNC_WORD_ANCHORS=false
+sync.SyncOptions.from_settings(settings, *, fps=None) -> SyncOptions | None   # None with SYNC_WORD_ANCHORS=false;
+#   fps: the frame grid cues snap to (None = RENDER_FPS, every classic timeline; build_timeline passes DYNAMIC_FPS 30
+#   for a Dynamic timeline)
 sync.scene_sync_cues(beats, board, side_panel, duration, options) -> list[SyncCue]   # pure, sorted by start
 captions.to_srt(cues) -> str ; captions.to_vtt(cues) -> str
 captions.split_caption(text, words, *, start=None, end=None, width=MAX_LINE_CHARS) -> list[CaptionCue]   # <= 2 lines x width (42)
@@ -364,17 +378,28 @@ presentation.resolve_looks(screenplay, timed_scenes) -> list[ResolvedLook]      
 presentation.timeline_presentation(presentation, timed_scenes, total) -> TimelinePresentation   # engine_version 1
 presentation.dynamic_enabled(settings) -> bool ; presentation.seed_for(presentation, scene_id, purpose) -> int (31 bit)
 #   build_timeline: a screenplay with a presentation + the flag on -> Timeline.presentation, TimedScene.look, no intro,
-#   fps 30, 9:16 phrase captions at PORTRAIT_CAPTION_LINE_CHARS (16); flag off -> the classic timeline, unchanged
+#   fps 30 (timeline.DYNAMIC_FPS; sync cues on that grid), 9:16 phrase captions at PORTRAIT_CAPTION_LINE_CHARS (16);
+#   flag off -> the classic timeline, except that Timeline.width x height still follow presentation.format
+#   (stage_size: a portrait presentation gives a classic timeline on a 1080x1920 stage)
 presentation.portrait_caption_cues(text, words, *, start, speech_end, hold_end, width=16) -> [CaptionCue]
 #   9:16 only: minimum-cost grouping (no chunk under PORTRAIT_CAPTION_MIN_SECONDS 1.0 s where the beat allows it),
 #   long words split between grapheme clusters keeping their word's timing (captions.tokens_with_owner(text, width,
 #   clusters=True); split_caption(..., clusters=False) is the classic splitter, unchanged)
-api.timelines.current_timeline(version, settings) -> stored | rebuilt   # DYNAMIC_ENABLED applies when served: a stored
-#   timeline built under the other value is served as build_timeline builds it now (versions, shares, /api/render/
-#   timeline); timeline_etag carries the flag
+api.timelines.current_timeline(version, settings) -> stored | rebuilt   # DYNAMIC_ENABLED applies when served
+#   (versions, shares, /api/render/timeline): a build of the current revision whose engine differs from what the flag
+#   and the screenplay ask for now is served as build_timeline builds it now; a stale build is served as built,
+#   except a Dynamic build while the flag is off (rebuilt classic from the current screenplay); timeline_etag carries
+#   the flag
 video.render_video: timeline.presentation.style == "dynamic" -> motion.job.render_dynamic(ctx, job, payload, ws)
-motion.job.caption_modes(payload, timeline) -> (burn, soft)   # burn: payload, else presentation.captions_burn
-motion.job.dynamic_warnings(items) -> items                  # panel warnings worded for the motion engine
+motion.job.caption_modes(payload, timeline) -> (burn, soft)   # burn: payload["burn_captions"] when present, else
+#   presentation.captions_burn (POST /render leaves an unset burn_captions out of a Dynamic lecture's payload:
+#   api.routers.renders.RenderBody.job_options(dynamic=True)); soft: a clean file's default-on track unless the
+#   payload's soft_subtitles is false
+motion.job.dynamic_warnings(items, timeline=None, numbers=None) -> items   # video.render_warnings items worded for
+#   the motion engine; with timeline also undrawn_panel_warnings(timeline, numbers), every item in scene order
+motion.job.undrawn_panel_warnings(timeline, numbers=None) -> [{scene_index, scene_id, title, reason: "panel_not_drawn",
+#   blocking: False, message, scene_number?}]   # one per shown side panel of a kind in UNDRAWN_PANEL_KINDS (chart,
+#   graph, model_3d, skill_tree, quiz: the stage does not draw them yet); a template that draws a kind removes it
 motion.engine.render_motion(ctx, timeline, out_path, settings, *, burn_captions=False, soft_subtitles=False,
                             token=None, served=None, work_dir=None, cache=None, local_files=None, title=None,
                             config: MotionConfig | None = None, refresh_served=None) -> MotionResult
@@ -385,6 +410,12 @@ motion.engine.render_motion(ctx, timeline, out_path, settings, *, burn_captions=
 #   ContainerCheckFailed. MotionConfig(workers, chunk_min=240, chunk_max=600, recycle_frames=1800,
 #   recycle_slowdown=0.5, stage=StageOptions(), use_slots=True, sample_memory_seconds=2.0, encoder_timeout=600,
 #   shared_driver=True). MotionResult.summary() -> Render.options["qa"]["motion"] (docs/API.md)
+#   every worker's page (and the remedy's) must match the timeline before it captures: StageInfo.check(size, fps,
+#   frames) and motion.stage.scene_mismatch(info, bounds) (an empty scene list for a timeline with scenes mismatches:
+#   stage_contract); the rerender_chunks remedy acquires 1 CPU slot of its own (cancel-aware) and holds it until its
+#   browser is closed
+motion.engine.video_media_keys(timeline, *, overlays=OVERLAYS_DRAWN) -> [asset key]   # video media fetched before the
+#   capture (scene and panel media; overlay media only with overlays); OVERLAYS_DRAWN = False until B6's overlay layer
 motion.resources.motion_workers(settings, budget=None) -> int ; CpuBudget.detect() ; CpuSlots.from_settings(settings,
 #   budget).acquire(want, check_cancelled=, on_wait=) -> SlotLease(count).release()   # RENDER_SLOT_DIR/slot-NNN.lock
 motion.chunks.scene_frame_bounds(timeline, fps=None) -> [(f0, f1)] ; plan_chunks(bounds, min_frames, max_frames)
@@ -401,6 +432,8 @@ motion.encode.final_mux_command(MotionFinalSpec(video_list, audio, metadata, tot
 #   soft_subtitles=None, subtitle_language="und")) -> Command   # -c copy both, +faststart+negative_cts_offsets
 motion.stage.StageSession(settings=, size=, token=, served=, base_url=, media_origins=, options=StageOptions(
 #   webgl, jpeg_quality=92, ready_timeout, call_timeout, layers, extra_args=()), playwright=None, refresh_served=None)
+#   StageOptions.chromium_args() = [*CHROMIUM_ARGS, *DETERMINISM_ARGS, *(WEBGL_ARGS if webgl), *extra_args], part of
+#   capture_fingerprint() and so of the chunk key; stage_page.stage_browser launches with the same list
 #   a CDP capture on a dead renderer raises StageError("stage_crashed", retryable) (the chunk is captured again)
 #   /__frames/[<chunk>/]<media key>/<source frame>.jpg answered from FrameRegistry (route.fulfill); else 404
 dynamic.stage_page.stage_browser(settings, *, size, base_url=None, media_origins=(), webgl=False, call_timeout_s=60,
@@ -408,9 +441,16 @@ dynamic.stage_page.stage_browser(settings, *, size, base_url=None, media_origins
 #   StagePage: load(), info() -> StageInfo, seek(frame) -> key, text_boxes(), media_plan(f0, f1), set_layers(captions=,
 #   stage=), capture_jpeg(q=92), capture_png(transparent=); errors / guard_trips collected; StageError codes:
 #   render_page_* (boot), stage_contract (never retried), stage_call_failed (the page's code), stage_crashed (retryable)
+#   stage_page.DETERMINISM_ARGS = ("--disable-partial-raster",)   # Dynamic stage only, on top of
+#   screenshot.CHROMIUM_ARGS (order-independent frames, DYNAMIC_VIDEO_DESIGN §7.4); the classic capture never gets it.
+#   StageBrowser.open(...) closes a page that fails to come up before raising; only a loaded page joins .pages
 dynamic.preflight.run_preflight(settings, timeline, *, token, served_timeline=None, base_url=None, media_origins=(),
-#   check_cancelled=None, ...) -> PreflightResult(ok, timeline (served, with remedies), sampled, remedies, summary(),
-#   as_qa()); raise_if_blocked(result) -> PreflightBlocked (code preflight_blocked); sample_frames(info, timeline)
+#   check_cancelled=None, ..., captions=None) -> PreflightResult(ok, timeline (served, with remedies), sampled,
+#   remedies, summary(), as_qa()); captions: whether the render burns captions (None = presentation.captions_burn);
+#   the page's caption layer is set to it after every load (the remedy round's reload too), so caption boxes are
+#   checked only when burned; expected frames = motion.chunks.total_frames(scene_frame_bounds(timeline, fps)); one
+#   item per (check, scene, slot) across both rounds; raise_if_blocked(result) -> PreflightBlocked (code
+#   preflight_blocked); sample_frames(info, timeline)
 dynamic.container.inspect_container(path, *, settings, fps, expected_frames, expect_audio, expect_subtitles=False,
 #   chunks=(), loudness=None, size=None) -> ContainerQA ; verify_container(inspect, remedies) -> ContainerQA |
 #   ContainerCheckFailed (render_invalid) ; motion_qa(container, preflight) -> dict ; record_qa(ctx, render_id, qa)
@@ -451,6 +491,11 @@ health.provider_health() -> cooldowns per (provider, key scope) ; operations.PAY
 #   | completed | failed | abandoned | lost | ambiguous; JobCheckpoint.submitted / usage_recorded / sending / not_sent
 #   VeoVideo.reports_sending = True; ResumableVideoProvider.resume(..., checkpoint=None) notes its charge
 factory.available_tts_providers(settings) -> list[dict]       # [{id,label,configured,word_timings,voices}]
+base.ModelUnavailable(ProviderUnavailable)   # the provider no longer serves the configured model: HTTP 404 / 410 on a
+#   request naming it (retired, renamed, misspelt; for OpenAI also a model the key may not use: 404 model_not_found);
+#   nothing billed, never retried. Raised by tts.gemini.GeminiTTS.synthesize (GEMINI_TTS_MODEL) and
+#   tts.openai.OpenAITTS.synthesize (OPENAI_TTS_MODEL) after that one request (MODEL_GONE_STATUSES = (404, 410));
+#   the asset build then narrates with Edge (pipeline assets.fallback_voice_config)
 llm.anthropic.AnthropicLLM(settings, *, client_factory=None, sleep=None, max_attempts=4)   # name "anthropic"; LLMProvider; ProviderNotConfigured without ANTHROPIC_API_KEY (unless client_factory)
 #   Usage(provider="anthropic", model=<served model>, operation "llm" | "vision", input_tokens = input + cache writes + cache reads,
 #         output_tokens, meta={"cache_read_tokens", "cache_write_tokens", ...})
@@ -589,6 +634,11 @@ serializers.render_summary(render, job, version=None)   # + matches_current when
 timelines.media_url(store, settings, storage_key) -> str | None   # streamable URL of a public file (capability URL,
 #   or presigned on S3 without a CDN); GET /api/videos and GET /api/versions/{vid}/renders preview_url
 routers.renders.every_scene_hidden(version) -> bool   # POST .../render: 409 all_scenes_hidden
+routers.renders.render_presentation(version, settings) -> {"style": "dynamic", "format", "captions_burn"} | None
+#   the Dynamic presentation a render would use (stored screenplay has a presentation and DYNAMIC_ENABLED is on in
+#   THIS process; schema defaults "landscape" / true), None = classic; GET .../render/preflight "presentation"
+routers.renders.RenderBody.job_options(*, dynamic=False) -> dict   # burn_captions: None (unset) is left out when
+#   dynamic (the presentation decides, motion.job.caption_modes), else stored as false; an explicit value always kept
 main.create_app(settings: Settings | None = None) -> FastAPI ; main.app
 ```
 
@@ -596,8 +646,20 @@ main.create_app(settings: Settings | None = None) -> FastAPI ; main.app
 ```js
 // web/js/player/player.js (owner: player)
 export class Player { constructor(root, opts); load(timeline); play(); pause(); seek(s); seekScene(i);
-  on(evt, fn); destroy(); states(sceneIndex) /* [{t,key}] */; renderState({sceneIndex, t}) /* -> {state_key, media_rect, panel_media_rect, media_fit} */; renderIntro({t}) }
+  on(evt, fn); destroy(); states(sceneIndex) /* [{t,key}] */; renderState({sceneIndex, t}) /* -> {state_key, media_rect, panel_media_rect, media_fit} */; renderIntro({t});
+  get captionSize /* 's'|'m'|'l': the classic captions' size, else the viewer's kept preference */;
+  get captionSizeAdjustable /* false with a Dynamic stage: its captions keep their format's size */;
+  captionBottom /* stage px below a Dynamic stage's caption band (48 in 16:9, 680 in 9:16), null for classic */;
+  setCaptionSize(size) /* with a Dynamic stage only the preference is kept */ }
   // events include 'blocked' (narration play() refused without a user gesture; the player pauses with reason 'blocked')
+  // a stage that is not 1920x1080 (a Dynamic reel) marks the root: data-stage-shape ('portrait' | 'landscape' |
+  //   'square') and --ap-stage-w / --ap-stage-h (stage px), read by player.css .watch-player and studio.css .preview-box
+  //   (the `ap-shaped-box` size container); removed when the player goes back to 1920x1080
+export const MAX_STAGE_FAILURES = 20   // distinct Dynamic stage failures ('scene|message') reported per timeline
+// web/js/player/controls.js — captionLift(stageBottom, barTop, scale, captionBottom = CAPTION_BOTTOM) -> px (the lift
+//   that keeps captions above the shown bar, from where they end); CAPTION_SIZE_FIXED_LABEL = 'Caption size: set by
+//   this video' (the disabled size button while captionSizeAdjustable is false)
+// web/js/player/audio.js — BackgroundMusic.hasTrack (getter: a usable music URL; without it nothing plays)
 // web/js/player/mascot.js (owner: player)
 export class MascotController { setPosition(); setPlaying(); setLevel(); setVisible(); clipUrl(); loadRig(); tick(); getStatus();
   mountCue(root, position); setState(state, cue); destroy() }   // the cue bubble lives in the scene root (in render screenshots)
@@ -662,6 +724,13 @@ export function validateLibraryFile(file, maxMb, kind) -> string | null ; export
 // web/js/studio/views/editor/changes.js — HISTORY_LIMIT (200), editLabel(key), changesBySceneId(res),
 //   fieldWords(fields), changeBadge(change), restorePosition(all, removed)
 // web/js/studio/views/editor/timelineStrip.js — stripModel(timeline, sp), fallbackModel(sp), createTimelineStrip(opts)
+// web/js/studio/lib/jobStages.js — RENDER_STAGES {classic: [screenshots, segments, mux, check, store], motion:
+//   [preflight, capture, mux, check, store]}; renderEngine(job, seenStages) -> 'classic' | 'motion' (motion once
+//   'preflight' or 'capture' is seen); stagesFor(job, seenStages); stageStates(job, seenStages) ('done' marks every step
+//   done; an unknown stage never resets the steps already seen)
+// web/js/studio/lib/renderOptions.js — dynamicRender(preflight) -> {format, captionsBurn} | null: the Dynamic
+//   render of GET .../render/preflight "presentation" (null: classic, or no answer); the editor's and the project
+//   page's render dialogs take their Dynamic defaults from it
 // web/js/studio/components/shortcutsDialog.js — openShortcutsDialog(groups)
 // --- Dynamic video, B1 -------------------------------------------------------------------------------------------
 // web/js/motion/ (owner: motion) — pure ESM, no DOM at import time, no clock; index.js re-exports everything
@@ -672,7 +741,8 @@ export function validateLibraryFile(file, maxMb, kind) -> string | null ; export
 //              keyframe's ease shapes the segment ARRIVING at it; equal t = a jump; held before/after; progress(t,
 //              start, duration), interpolate, stagger(index, count, each, {from})
 //   color.js   parseColor (hex, rgb(), hsl(), oklch(), oklab()), toOklch, fromOklch, toHex, mixOklch(a, b, p) -> css
-//              (shorter hue arc, gamut-mapped as CSS Color 4), contrastRatio(a, b) (WCAG 2)
+//              (shorter hue arc, gamut-mapped as CSS Color 4), contrastRatio(a, b) (WCAG 2), composite(top, bottom)
+//              (source-over in gamma-encoded sRGB, the maths of aadhi/compose/dynamic/colour.py composite)
 //   text.js    segmentGraphemes(str, locale) (Intl.Segmenter; Indic conjuncts re-joined), splitWords(str, locale) ->
 //              [{text, ws, index, wordLike}] (punctuation attached, NBSP keeps "10 V" together),
 //              splitLines(str, maxWidth, measure, {locale, balance})
@@ -687,6 +757,21 @@ export function createDynamicStage(root, timeline, { mode /* 'live' | 'render' *
 //   refuses a timeline without presentation.style 'dynamic'; templates TEMPLATES {board_generic}, backgrounds
 //   BACKGROUNDS {mesh_drift, colour_block}; templates/board_generic.js mediaOf(scene, mode), variantOf(scene, mode),
 //   mediaBoxMax(scene, zones, mode = 'render'), cardSpecs(scene, format); media.js shownIn(ref, mode)
+//   stage.js syncClip(v, t, playing, frameInfo) (a live presenter clip: re-sought past LIVE_DRIFT, at the player's rate)
+//   the stage and every scene set --dyn-ink / --dyn-page (the roles' ink and page colour) for dynamic.css
+//   templates/types.js TemplateContext.onBackground {ink, ink2, bg (worst case against ink), bgs (every colour the
+//   background shows), block}; a template is {id, build, layout, update, focusRect, texts} (no ctx.cues before B2)
+//   board_generic.js TITLE_BLOCK_SLOTS ['kicker', 'title'] (a chapter card's subtitle reports in 'title'; a scrim
+//   planned for either covers the whole title block), SCRIM_ALPHA_HEX 'c7', scrimmedBg(scrim, onBackground, ink) (the
+//   scrim composited over the background, worst case against ink), RING_SIZE 96, RING_GAP 24 (16:9: the title block
+//   ends that far left of the ring), RING_TRACK_ALPHA {lightInk: 0.18, darkInk: 0.25}; a quiz question keeps its
+//   rich-lite markup word by word (bold at weight 900, dynamic.css .dyn-title .rt-b)
+//   media.js mediaFit(ref) -> 'cover' | 'contain' | 'contain_blur'; contain_blur: the medium over a blurred, darkened
+//   copy of its own frame in a canvas BACKDROP_WIDTH 64 px wide (BACKDROP_BLUR 2, BACKDROP_BRIGHTNESS 0.6), stretched
+//   over the box; backdropShown(sw, sh, bw, bh) (false when the medium covers its box to within 1 px a side: no
+//   backdrop, canvas hidden); coverCrop(w, h, cw, ch); no other frame is planned for it. MediaView (live) seeks a
+//   paused clip to the last requested time once it can ('loadedmetadata', 'seeked'), never twice for one time
+//   transitions.js CROSSFADE_MIN 0.3, CROSSFADE_MAX 0.5, CROSSFADE_DEFAULT 0.45 (seconds; never longer than the scene)
 // web/js/dynamic/render.js (owner: stage) — the render page web/render-dynamic.html, served at GET /render-dynamic:
 //   window.aadhiStage = { version: 3,
 //     ready,              Promise<{webgl}>: timeline fetched with the fragment token (as /render-frame), every font in
@@ -703,9 +788,14 @@ export function createDynamicStage(root, timeline, { mode /* 'live' | 'render' *
 //                         hash of every painted value
 //     textBoxes()         [{x, y, w, h, role, critical, ink, bg, overflow /* px: too tall, past the column with
 //                         the cards on screen with it, or clipped at the sides */, alpha, scene, slot?, size?, min?,
-//                         weight?, text?}] of the frame on screen (roles: title, subtitle, label, body, chip, caption)
+//                         weight?, text?}] of the frame on screen (roles: title, subtitle, label, body, chip, caption;
+//                         during a quiz countdown also a non-critical label in slot 'ring', the countdown number);
+//                         bg is opaque: for text over the title block's scrim, the scrim composited over the
+//                         background; the scrim remedy text_fit[slot].scrim for 'kicker' or 'title' scrims the
+//                         whole title block (the subtitle reports in slot 'title')
 //     setLayers(spec)     {captions, stage} -> the layers; {stage: false, captions: true} = the caption-only layer on a
-//                         transparent page; render mode starts with captions = presentation.captions_burn }
+//                         transparent page; render mode starts with captions = presentation.captions_burn, and the
+//                         engine and preflight set the render's own caption layer after every load }
 //   after ready: setTimeout / setInterval throw (guard.js), each trip recorded in window.aadhiStageGuard.trips and
 //   logged as "aadhi timer guard: ..."
 ```

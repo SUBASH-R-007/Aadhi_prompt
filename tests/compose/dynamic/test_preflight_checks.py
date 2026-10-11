@@ -1,9 +1,13 @@
 """Dynamic preflight (DYNAMIC_VIDEO_DESIGN §7.12) without a browser: text boxes, the three B1 checks (overflow, safe
-zones R-59, analytic contrast R-53), sampling, remedies, the second-round statuses and the result schema."""
+zones R-59, analytic contrast R-53), sampling, remedies, the second-round statuses and the result schema; and
+``run_preflight`` on a stand-in page (the caption layer the render burns, the frame count the stage reports)."""
 
 from __future__ import annotations
 
+import contextlib
 import json
+from collections.abc import AsyncIterator
+from typing import Any
 
 import pytest
 
@@ -23,13 +27,17 @@ from aadhi.compose.dynamic.preflight import (
     merge_findings,
     plan_remedies,
     raise_if_blocked,
+    run_preflight,
     sample_frames,
 )
 from aadhi.compose.dynamic.stage_page import StageError, StageInfo, StageScene
+from aadhi.compose.motion.chunks import scene_frame_bounds, total_frames
+from aadhi.compose.qa import expected_frame_count
 from aadhi.jobs.base import FatalJobError
 from aadhi.schemas.timeline import Timeline
 
-from .helpers import dynamic_timeline
+from ..motion.fixtures import dynamic_timeline as motion_timeline
+from .helpers import dynamic_timeline, settings
 
 INFO = StageInfo(1920, 1080, 30, 366, (StageScene(0, 0, 140), StageScene(1, 140, 279), StageScene(2, 279, 366)))
 
@@ -357,9 +365,13 @@ def test_finalise_statuses() -> None:
              _open("contrast", 3, "body", None),                   # no remedy (no look) -> warn
              Finding("text_overflow", 4, "deco", "deco", 1, [0, 0, 1, 1], None, status="warn")]
     second = [_open("text_overflow", 1, "headline", None), _open("contrast", 2, "body", "scrim"),
-              _open("safe_zones", 1, "body", "safe_variant")]  # new in round 2
+              _open("safe_zones", 1, "body", "safe_variant"),  # new in round 2
+              _open("text_overflow", 1, "body", None)]  # scene 1 was re-scanned: seen again, still one item
     planned = {("safe_variant", 0, ""), ("shrink", 1, "headline"), ("scrim", 2, "body")}
-    final = {(f.check, f.scene_index, f.slot): f for f in pf._finalise(first, second, planned)}
+    findings = pf._finalise(first, second, planned)
+    idents = [(f.check, f.scene_index, f.slot) for f in findings]
+    assert len(idents) == len(set(idents)), idents  # one finding per (check, scene, slot)
+    final = dict(zip(idents, findings, strict=True))
     assert final[("safe_zones", 0, "headline")].status == "fixed"
     assert final[("text_overflow", 1, "headline")].status == "block"
     assert final[("text_overflow", 1, "headline")].remedy == "shrink"
@@ -370,6 +382,33 @@ def test_finalise_statuses() -> None:
     assert final[("safe_zones", 1, "body")].status == "block" and final[("safe_zones", 1, "body")].remedy is None
     # without a second round (no remedies planned) everything open is escalated
     assert {f.status for f in pf._finalise([_open("safe_zones", 0, "h", "safe_variant")], None, set())} == {"block"}
+    assert len(findings) == 7 and set(idents) == {(f.check, f.scene_index, f.slot) for f in first} | {
+        ("safe_zones", 1, "body")}
+
+
+def test_finalise_never_duplicates_what_the_second_round_sees_again() -> None:
+    """The second round re-scans every sampled frame of a touched scene, so it sees that scene's warnings and its
+    findings without a remedy again: they stay one item each (no doubled items, problems, warnings or counts)."""
+    first = [_open("text_overflow", 1, "headline", "shrink"),  # remedied, gone in round 2 -> fixed
+             _open("text_overflow", 1, "body", None),  # at its floor: no remedy -> block
+             Finding("type_floor", 1, "chip", "chip", 1, [0, 0, 1, 1], None, status="warn"),
+             Finding("text_overflow", 1, "deco", "deco", 1, [0, 0, 1, 1], None, status="warn"),
+             _open("contrast", 1, "label", None)]  # no remedy (no look): warns
+    second = [_open("text_overflow", 1, "body", None),
+              Finding("type_floor", 1, "chip", "chip", 1, [0, 0, 1, 1], None, status="warn"),
+              Finding("text_overflow", 1, "deco", "deco", 1, [0, 0, 1, 1], None, status="warn"),
+              _open("contrast", 1, "label", None)]
+    findings = pf._finalise(first, second, {("shrink", 1, "headline")})
+    assert [(f.check, f.slot, f.status) for f in findings] == [
+        ("text_overflow", "headline", "fixed"), ("text_overflow", "body", "block"), ("type_floor", "chip", "warn"),
+        ("text_overflow", "deco", "warn"), ("contrast", "label", "warn")]
+    assert findings[1] is first[1] and findings[2] is first[2]  # the first round's own (all its frames) are kept
+    res = PreflightResult(format="landscape", frames=366, fps=30, rounds=2, findings=findings)
+    s = res.summary()
+    assert s["checks"]["text_overflow"] == {"status": "block", "count": 3}
+    assert s["checks"]["type_floor"] == {"status": "warn", "count": 1}
+    assert s["checks"]["contrast"] == {"status": "warn", "count": 1}
+    assert len(s["items"]) == 5 and len(s["problems"]) == 1 and len(s["warnings"]) == 3
 
 
 # --- result schema ---------------------------------------------------------------------------------------------
@@ -421,3 +460,123 @@ def test_raise_if_blocked() -> None:
     assert "scene 2" in str(ei.value) and "Shorten text" in str(ei.value) and ei.value.result is res
     res.findings = [f for f in res.findings if f.status != "block"]
     raise_if_blocked(res)  # warnings and fixes never block
+
+
+# --- run_preflight on a stand-in page: the caption layer the render burns, the stage's frame count ---------------
+
+
+class _Page:
+    """A loaded render page (stands in for ``stage_page.StagePage``), like the real stage (``web/js/dynamic``) where it
+    matters here: ``info()`` is ``core.js stageInfo`` (every scene keeps at least one frame), a render-mode page draws
+    captions as ``presentation.captions_burn`` says until ``setLayers()`` is called, and a reload starts over. Every
+    frame shows a headline (outside the safe area in the ``unsafe`` scenes until the scene is on its safe variant) and,
+    with the caption layer on, a caption at its smallest size that overflows its box (a block: nothing to shrink)."""
+
+    webgl = False
+
+    def __init__(self, served: dict[str, Any], unsafe: frozenset[int]) -> None:
+        self.unsafe = unsafe
+        self.calls: list[Any] = []
+        self.guard_trips: list[str] = []
+        self.frame = 0
+        self._boot(served)
+
+    def _boot(self, served: dict[str, Any]) -> None:
+        self.served = served
+        self.captions = bool((served.get("presentation") or {}).get("captions_burn"))
+        tl = Timeline.model_validate(served)
+        bounds = scene_frame_bounds(tl, tl.fps)
+        self.stage_info = StageInfo(tl.width, tl.height, tl.fps, total_frames(bounds),
+                                    tuple(StageScene(i, f0, f1) for i, (f0, f1) in enumerate(bounds)))
+
+    async def load(self, served: dict[str, Any]) -> StageInfo:
+        self.calls.append("load")
+        self._boot(served)
+        return self.stage_info
+
+    async def info(self) -> StageInfo:
+        return self.stage_info
+
+    async def set_layers(self, *, captions: bool = True, stage: bool = True) -> None:
+        self.calls.append(("set_layers", captions, stage))
+        self.captions = captions
+
+    async def seek(self, frame: int) -> str:
+        self.frame = frame
+        return ""
+
+    async def text_boxes(self) -> list[dict[str, Any]]:
+        sc = self.stage_info.scene_at(self.frame)
+        scene = sc.index if sc is not None else 0
+        look = self.served["scenes"][scene].get("look") or {}
+        x = 20 if scene in self.unsafe and look.get("variant") != "safe" else 200
+        boxes = [{"x": x, "y": 200, "w": 600, "h": 100, "role": "headline", "critical": True, "ink": "#F4F4FA",
+                  "bg": "#1B1F3B", "overflow": 0, "slot": "headline", "scene": scene}]
+        if self.captions:
+            boxes.append({"x": 160, "y": 940, "w": 1600, "h": 64, "role": "caption", "critical": False,
+                          "ink": "#FFFFFF", "bg": "#111118", "overflow": 40, "slot": "caption", "size": 48,
+                          "min": 48, "scene": scene})
+        return boxes
+
+
+def _stand_in(monkeypatch: pytest.MonkeyPatch, *, unsafe: frozenset[int] = frozenset()) -> list[_Page]:
+    """``run_preflight`` opens :class:`_Page` s instead of Chromium; returns the pages it opened."""
+    pages: list[_Page] = []
+
+    class _Browser:
+        async def open(self, *, token: str, served_timeline: dict[str, Any], frames: Any,
+                       ready_timeout_s: float) -> _Page:
+            pages.append(_Page(served_timeline, unsafe))
+            return pages[-1]
+
+        def check_policy(self) -> None:
+            return None
+
+    @contextlib.asynccontextmanager
+    async def browser(*args: Any, **kwargs: Any) -> AsyncIterator[_Browser]:
+        yield _Browser()
+
+    monkeypatch.setattr(pf, "stage_browser", browser)
+    return pages
+
+
+def _captions_burn(tl: Timeline, on: bool) -> Timeline:
+    return tl.model_copy(update={"presentation": tl.presentation.model_copy(update={"captions_burn": on})})
+
+
+@pytest.mark.parametrize(("presented", "burned"), [(False, True), (True, False), (True, True), (False, False)])
+async def test_preflight_checks_the_caption_layer_the_render_burns(monkeypatch: pytest.MonkeyPatch, presented: bool,
+                                                                   burned: bool) -> None:
+    """The page draws captions as the presentation says; the render's own choice (the request's ``burn_captions``
+    wins, ``motion.job.caption_modes``) must decide what is checked: captions burned but not presented were never
+    checked, and captions presented but not burned blocked a render that shows none."""
+    pages = _stand_in(monkeypatch)
+    res = await run_preflight(settings(), _captions_burn(dynamic_timeline("landscape"), presented), token="t",
+                              captions=burned)
+    assert pages[0].calls[0] == ("set_layers", burned, True)  # before the first frame is checked
+    caption_findings = [f for f in res.findings if f.role == "caption"]
+    assert bool(caption_findings) is burned and res.ok is not burned
+    assert all(f.check == "text_overflow" and f.status == "block" for f in caption_findings)
+
+
+async def test_the_reloaded_page_keeps_the_render_caption_layer(monkeypatch: pytest.MonkeyPatch) -> None:
+    """After the remedies the page is loaded again and starts over on the presentation's caption layer: the second
+    round must check the render's layer too, or it reports captions that are never burned (here: a block)."""
+    pages = _stand_in(monkeypatch, unsafe=frozenset({1}))
+    res = await run_preflight(settings(), _captions_burn(dynamic_timeline("landscape"), True), token="t",
+                              captions=False)
+    assert pages[0].calls == [("set_layers", False, True), "load", ("set_layers", False, True)]
+    assert res.ok and res.rounds == 2 and [(r.kind, r.scene_index) for r in res.remedies] == [("safe_variant", 1)]
+    assert [(f.check, f.scene_index, f.status) for f in res.findings] == [("safe_zones", 1, "fixed")]
+
+
+async def test_preflight_expects_the_stage_frame_count(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every scene keeps at least one frame (``scene_frame_bounds``, ``core.js stageInfo``), so a last scene shorter
+    than half a frame makes the video one frame longer than its rounded duration: the engine captures, and the page
+    reports, that many. Preflight expected the rounded duration and failed such a lecture as a broken stage."""
+    pages = _stand_in(monkeypatch)
+    tl = motion_timeline([2.0, 2.0, 0.01], size=(1920, 1080))
+    assert expected_frame_count(tl.total_duration, 30) == 120 and total_frames(scene_frame_bounds(tl)) == 121
+    res = await run_preflight(settings(), tl, token="t")
+    assert res.ok and res.frames == pages[0].stage_info.frames == 121
+    assert 120 in res.sampled  # the short scene's only frame is checked too

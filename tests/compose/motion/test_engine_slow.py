@@ -17,7 +17,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from aadhi.compose.capabilities import chromium_installed, resolve_tool
+from aadhi.compose.capabilities import resolve_tool
 from aadhi.compose.dynamic.stage_page import StageError
 from aadhi.compose.ffmpeg import FFmpegError
 from aadhi.compose.motion.cache import ChunkCache
@@ -25,6 +25,7 @@ from aadhi.compose.motion.engine import MotionConfig, MotionError, render_motion
 from aadhi.config import Settings
 from aadhi.jobs.base import JobCancelled
 
+from ..dynamic.helpers import missing, need_chromium
 from .fixtures import (
     AUDIO_KEY,
     CLIP_KEY,
@@ -45,11 +46,11 @@ CLIP_FRAMES = 60
 
 @pytest.fixture(scope="module")
 def ffmpeg() -> str:
+    """ffmpeg and Chromium, else skip (fail in the Docker test image, where they are part of the image)."""
     path = resolve_tool(Settings(_env_file=None).ffmpeg_path)
     if path is None or resolve_tool(Settings(_env_file=None).ffprobe_path) is None:
-        pytest.skip("ffmpeg/ffprobe are not installed")
-    if chromium_installed() is False:
-        pytest.skip("Playwright's Chromium is not installed")
+        missing("ffmpeg/ffprobe are not installed")
+    need_chromium()
     return path
 
 

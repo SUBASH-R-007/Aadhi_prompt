@@ -15,6 +15,7 @@ from aadhi.compose.dynamic.stage_page import (
     StageError,
     open_stage,
     placeholder_frames,
+    stage_browser,
     stage_url,
 )
 
@@ -158,3 +159,20 @@ async def test_a_missing_render_page_fails_at_once() -> None:
             async with open_stage(settings(), size=(1920, 1080), token=TOKEN, base_url=base + "/nowhere"):
                 pass
     assert ei.value.code == "render_page_http" and not ei.value.retryable and "404" in str(ei.value)
+
+
+async def test_pages_that_fail_to_load_are_closed() -> None:
+    """A failed load (a missing render page, a contract version mismatch) closes its page: a worker that retries on a
+    fresh page in the same browser keeps no orphan renderer per failure."""
+    tl = dynamic_timeline("landscape")
+    with serve_stage(TOKEN, tl.model_dump(mode="json"), config={"version": 2}) as (base, _):
+        async with stage_browser(settings(), size=(1920, 1080), base_url=base) as sb:
+            for _ in range(2):
+                with pytest.raises(StageError) as ei:
+                    await sb.open(token=TOKEN)
+                assert ei.value.code == "stage_contract"
+            assert sb.pages == [] and sb.context.pages == []
+        async with stage_browser(settings(), size=(1920, 1080), base_url=base + "/nowhere") as sb:
+            with pytest.raises(StageError) as ei:
+                await sb.open(token=TOKEN)
+            assert ei.value.code == "render_page_http" and sb.pages == [] and sb.context.pages == []

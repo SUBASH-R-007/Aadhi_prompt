@@ -106,7 +106,9 @@ def _free_port() -> int:
 @pytest.fixture()
 def live_app(app_env, monkeypatch: pytest.MonkeyPatch) -> Iterator[str]:
     """The real app (web dir of the repository, DYNAMIC_ENABLED on) served by uvicorn on an ephemeral port."""
-    pytest.importorskip("playwright.async_api")
+    from tests.compose.dynamic.helpers import need_chromium
+
+    need_chromium()  # skips on a developer machine without Chromium; fails in the container (AADHI_CONTAINER_TESTS)
     import uvicorn
 
     from aadhi.main import create_app
@@ -173,6 +175,7 @@ def _jpeg(size: tuple[int, int], n: int) -> bytes:
 async def _drive(base: str, fmt: str) -> dict[str, Any]:
     from playwright.async_api import async_playwright
 
+    from aadhi.compose.dynamic.stage_page import DETERMINISM_ARGS
     from aadhi.compose.screenshot import CHROMIUM_ARGS
 
     timeline = _timeline(fmt)
@@ -196,7 +199,7 @@ async def _drive(base: str, fmt: str) -> dict[str, Any]:
             await r.continue_()
 
     async with async_playwright() as pw:
-        browser = await pw.chromium.launch(headless=True, chromium_sandbox=True, args=list(CHROMIUM_ARGS))
+        browser = await pw.chromium.launch(headless=True, chromium_sandbox=True, args=[*CHROMIUM_ARGS, *DETERMINISM_ARGS])
         try:
             ctx = await browser.new_context(viewport={"width": w, "height": h}, device_scale_factor=1, color_scheme="dark")
             page = await ctx.new_page()
@@ -291,7 +294,8 @@ def test_the_stage_contract_in_chromium(live_app: str, fmt: str) -> None:
     assert not bad, bad[:3]
     for _, b in critical:
         assert re.match(r"^#[0-9A-Fa-f]{6}$", b["ink"]) and isinstance(b["overflow"], (int, float))
-        assert b["slot"] in ("title", "body", "caption") and b["size"] >= b["min"] > 0
+        # a chapter card's label ("Part 2") is critical too: it is part of the card's message (board_generic texts())
+        assert b["slot"] in ("title", "kicker", "body", "caption") and b["size"] >= b["min"] > 0
     # the simulation clip: frames planned, requested from the worker, never a <video>
     videos = [e for e in out["plan"] if e["kind"] == "video"]
     assert len(videos) == 1 and videos[0]["asset_key"] == "manim-sim" and videos[0]["srcFps"] == 30

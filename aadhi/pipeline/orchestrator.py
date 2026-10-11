@@ -23,10 +23,14 @@
   screenplay as ``generate_lecture`` / ``translate`` wrote it is kept as a private snapshot blob
   (``generation_meta['generated_snapshot_key']``, ``aadhi.changes``); scene regeneration never replaces it.
 * Before planning, ``brief.build_brief`` extracts the concepts to teach from the scoped source; the
-  planner builds the lecture from it. A failed brief is logged and planning continues from the source.
+  planner builds the lecture from it. A failed brief is logged and planning continues from the source; a
+  provider rate limit is not a failed brief: the attempt ends and the job is retried.
   The chunks the brief set aside as non-teaching material reach neither the planner nor the scene
   writers, repair and regeneration included (the brief is kept in ``generation_meta['brief']``; a
-  translation copies it from its source version, and older translations fall back to that version's).
+  translation copies it from its source version, and older translations fall back to that version's). A
+  translation likewise copies its source version's extract key and source-review corrections (``ingest_key``,
+  ``source_overrides``), so regenerating one of its scenes reads the chunks its scenes cite, never the source's
+  latest extract (``_version_extract``; older translations fall back to their source version's).
 * Document metadata found in the source (subject / unit / session) fills only the title-card fields
   the teacher left empty.
 * Source review (job payload ``review_source``, off by default): after ingest and the concept brief the
@@ -93,6 +97,8 @@ log = logging.getLogger(__name__)
 SCENE_HISTORY_LIMIT = 5
 ASSET_SOURCES = ("assets", "manim")
 GUARD_RECHECK_SECONDS = 5.0  # a paid generation re-reads the version's revision at most this often
+# generation_meta entries naming the extract a version's scenes cite and the teacher's corrections made on it
+EXTRACT_META_KEYS = ("ingest_key", source_review.OVERRIDES_KEY)
 
 
 # ---------------------------------------------------------------------------
@@ -361,6 +367,31 @@ async def _version_brief(ctx: Any, snap: dbops.VersionSnapshot) -> ConceptBrief 
     return None
 
 
+async def _version_extract(ctx: Any, snap: dbops.VersionSnapshot) -> dict[str, Any]:
+    """The extract a version's scenes cite: ``{"ingest_key": ..., "source_overrides": ...}`` (the teacher's
+    corrections only when there are any) from its own ``generation_meta``. A translation made before translations
+    carried them over (and a copy of one) has none: it uses those of the version it was translated from, under the
+    rules of ``_version_brief`` (same project and source document, at most 8 hops). ``{}`` when no version names
+    an extract (an imported lecture): the caller then reads the source's latest one, as before."""
+    current: dbops.VersionSnapshot | None = snap
+    seen: set[int] = set()
+    doc = snap.generation_meta.get("source_document_id")
+    while current is not None and current.id not in seen and len(seen) < 8:
+        seen.add(current.id)
+        meta = current.generation_meta
+        key = meta.get("ingest_key")
+        if isinstance(key, str) and key:
+            return {k: meta[k] for k in EXTRACT_META_KEYS if meta.get(k) is not None}
+        src_id = meta.get("source_version_id")
+        if not isinstance(src_id, int) or isinstance(src_id, bool):
+            return {}
+        current = await _db(ctx, dbops.load_version, src_id)
+        if current is None or current.project_id != snap.project_id or (
+                current.generation_meta.get("source_document_id") != doc):
+            return {}
+    return {}
+
+
 async def _load_ingest(ctx: Any, meta: dict[str, Any], project_id: int) -> IngestResult:
     """The IngestResult the version was generated from (its own extract, else the source's latest stored extract,
     else re-ingest, else empty). The version's own extract (``ingest_key``) comes first: a newer INGEST_VERSION
@@ -413,10 +444,14 @@ def teacher_meta(project: Any, ingest: IngestResult) -> TeacherMeta:
 
 
 async def _concept_brief(ctx: Any, ingest: IngestResult, options: GenerationOptions) -> ConceptBrief | None:
-    """The concept brief, or None (logged) when it cannot be built: the lecture never fails because of it."""
+    """The concept brief, or None (logged) when it cannot be built: the lecture never fails because of it.
+
+    A provider rate limit is a job-level condition, not a failed brief (as for the critic and the practice
+    problems): it propagates and the job is retried, because a lecture planned without its brief would let the
+    chunks the brief sets aside (admin, scaffolding, duplicates) reach the planner and the scene writers."""
     try:
         return await build_brief(ctx, ingest, options)
-    except (JobCancelled, BudgetExceeded):
+    except (JobCancelled, BudgetExceeded, RateLimited):
         raise
     except BriefUnavailable as exc:
         ctx.log(f"Planning directly from the source ({exc}).")
@@ -1014,8 +1049,9 @@ async def _regenerate(ctx: Any, vid: int, snap: dbops.VersionSnapshot) -> dict[s
     clock = StageClock()
     clock.start("script")
     ctx.progress("script", 0.05, "Rewriting the scene")
-    ingest = await _load_ingest(ctx, snap.generation_meta, snap.project_id)
-    ingest = _teacher_scoped(ingest, snap.generation_meta)  # parts set aside in a source review stay out
+    extract = {**snap.generation_meta, **await _version_extract(ctx, snap)}  # an older translation: its source's
+    ingest = await _load_ingest(ctx, extract, snap.project_id)
+    ingest = _teacher_scoped(ingest, extract)  # parts set aside in a source review stay out
     brief = await _version_brief(ctx, snap)  # its set-aside chunks stay out of the rewrite's context
     old_issues = _parse_issues(snap.issues)
     scene_issues = [i for i in old_issues if i.scene_id == scene_id and i.source in ("lint", "critic")]
@@ -1181,13 +1217,17 @@ async def _translate(ctx: Any, vid: int) -> dict[str, Any]:
     else:
         _reused(ctx, ckpt, "translate", "the translation")
     sp = res.screenplay
-    ingest = await _load_ingest(ctx, src.generation_meta, snap.project_id)
+    # The translation keeps the extract its scenes' source_refs (and the brief's set-aside chunk ids) point at, and
+    # the teacher's corrections made on it: regenerating a scene later reads that extract, never the source's
+    # latest one (a newer INGEST_VERSION re-chunks the source), and the set-aside parts stay out.
+    extract = await _version_extract(ctx, src)
+    ingest = await _load_ingest(ctx, {**src.generation_meta, **extract}, snap.project_id)
     issues = _lint(sp, options, ingest) + res.issues
     clock.stop()
     new_rev = base + 1
     meta = {
         "options": options.model_dump(mode="json"), "source_version_id": src.id,
-        "source_document_id": src.generation_meta.get("source_document_id"),
+        "source_document_id": src.generation_meta.get("source_document_id"), **extract,
         "translated_from": source_sp.language, "translate_board": translate_board,
         "models": {"translate": translate_model(options, ctx.settings),
                    "provider": integrations.llm_engine(options, ctx.settings)},

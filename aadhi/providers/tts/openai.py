@@ -10,6 +10,12 @@ not support it). The catalogue voices (``voices.OPENAI_VOICES``) work with every
 ``gpt-realtime-2.1-mini`` as the replacement of the retiring models, but that is a Realtime API model
 (``v1/realtime`` only) which the speech endpoint does not accept: before 2027-01-06 deployments need
 another ``TTS_PROVIDER`` or a Realtime-API adapter (docs/OPERATIONS.md section 3.3).
+
+A speech model OpenAI does not serve (the request answered 404 ``model_not_found`` or 410: ``OPENAI_TTS_MODEL``
+retired, renamed or misspelt) raises ``ModelUnavailable`` after that one request (never retried; nothing was
+generated, so nothing is billed): the asset build narrates with the free Edge voice instead, with a visible
+warning (design §10.3 H0), so a lecture is not left silent once these models retire. OpenAI gives the same 404
+when the API key has no access to the model; the Edge fallback with its warning is right there too.
 """
 
 from __future__ import annotations
@@ -21,14 +27,15 @@ from typing import Any
 from ...config import Settings
 from .._common import emit_usage, make_error
 from .._retry import SleepFn
-from ..base import ProviderError, SpeechResult, Usage, UsageSink
-from ..openai_common import ClientFactory, OpenAICaller
+from ..base import ModelUnavailable, ProviderError, ProviderUnavailable, SpeechResult, Usage, UsageSink
+from ..openai_common import OPENAI_HOST, ClientFactory, OpenAICaller
 from .audio_utils import probe_duration
 from .fake import rate_factor
 from .voices import default_voice, voices_for
 
 MAX_INPUT_CHARS = 4096
 _VOICE_RE = re.compile(r"^[a-z][a-z0-9_-]{1,31}$")
+MODEL_GONE_STATUSES = (404, 410)  # a speech request naming a model the API does not serve (404: model_not_found)
 
 
 async def _read_binary(resp: Any) -> bytes:
@@ -96,7 +103,19 @@ class OpenAITTS:
                 kwargs["speed"] = speed
             return await _read_binary(await client.audio.speech.create(**kwargs))
 
-        audio = await self._caller.call(request, what="speech synthesis")
+        try:
+            audio = await self._caller.call(request, what="speech synthesis")
+        except ProviderError as exc:
+            # 404 model_not_found / 410 (never retried: classify_openai_error): every /v1/audio/speech model is listed
+            # to shut down on 2027-01-06, after which each request is answered so. ModelUnavailable lets the asset
+            # build narrate with Edge, with a warning, instead of leaving every scene silent (design §10.3 H0). The
+            # same 404 also means "this API key has no access to the model": falling back with the warning is still
+            # right (the lecture is narrated, and the warning and the job log name the model to fix or enable).
+            if exc.status in MODEL_GONE_STATUSES and not isinstance(exc, ProviderUnavailable):
+                raise make_error(ModelUnavailable, self.name, f"the speech model {model} is not available (retired, "
+                                 "renamed, or not open to this API key; OPENAI_TTS_MODEL)", settings=self.settings,
+                                 status=exc.status, host=OPENAI_HOST, detail=str(exc)) from None
+            raise
         # Characters are billed once the request succeeded: report before probing can fail.
         await emit_usage(on_usage, Usage(provider="openai", model=model, operation="tts", characters=len(text),
                                          meta={"voice": voice}))

@@ -334,6 +334,83 @@ async def test_openai_tts_reports_usage_before_probe(make_settings, monkeypatch)
     assert [(u.provider, u.characters) for u in usages] == [("openai", 5)]
 
 
+OPENAI_TEST_KEY = "sk-test-123456789"
+# OpenAI's answer to a speech request naming a model it does not serve (retired, renamed, misspelt) or one the API key
+# has no access to (OpenAI's error format: {"error": {"message", "type", "param", "code"}})
+OPENAI_MODEL_NOT_FOUND = {"error": {"message": "The model `tts-1` does not exist or you do not have access to it.",
+                                    "type": "invalid_request_error", "param": None, "code": "model_not_found"}}
+
+
+def openai_speech_client(answer: httpx.Response, requests: list[httpx.Request]) -> Any:
+    """The real ``AsyncOpenAI`` SDK (its own status-error mapping) over a transport that gives every request
+    ``answer``; ``requests`` records them."""
+    import openai
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return answer
+
+    return openai.AsyncOpenAI(api_key=OPENAI_TEST_KEY, max_retries=0,
+                              http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status,body", [
+    (404, OPENAI_MODEL_NOT_FOUND),
+    (410, {"error": {"message": "The model `tts-1` has been shut down.", "type": "invalid_request_error",
+                     "param": None, "code": None}}),
+])
+async def test_openai_tts_model_no_longer_served_is_model_unavailable(make_settings, status, body) -> None:
+    """Every /v1/audio/speech model retires on 2027-01-06 (docs/OPERATIONS.md section 3.3): a request naming one is
+    then answered 404 model_not_found. One request, no retry, nothing billed, and an error the asset build recognises
+    (it narrates with Edge instead; design §10.3 H0) that is not a personal-key rejection."""
+    from aadhi.credentials import personal_key_rejection
+    from aadhi.providers.base import ModelUnavailable, ProviderUnavailable
+
+    settings = make_settings(openai_api_key=OPENAI_TEST_KEY, openai_tts_model="tts-1")
+    requests: list[httpx.Request] = []
+    client = openai_speech_client(httpx.Response(status, json=body), requests)
+    usages: list[Usage] = []
+    with pytest.raises(ModelUnavailable) as exc:
+        await OpenAITTS(settings, client_factory=lambda: client, sleep=no_sleep, max_attempts=4).synthesize(
+            "Vanakkam", voice="nova", language="ta-IN", on_usage=usages.append)
+    await client.close()
+    err = exc.value
+    assert isinstance(err, ProviderUnavailable) and isinstance(err, ProviderError)
+    assert err.status == status and err.provider == "openai"
+    assert "the speech model tts-1 is not available" in str(err) and "OPENAI_TTS_MODEL" in str(err)
+    assert "does not exist or you do not have access" in str(err) or status == 410  # OpenAI's reason: the job log
+    assert OPENAI_TEST_KEY not in str(err)
+    assert [r.url.path for r in requests] == ["/v1/audio/speech"] and usages == []  # not retried, nothing billed
+    assert personal_key_rejection(err, {"openai": "personal"}) is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status,body,rejected", [
+    (400, {"error": {"message": "Invalid value for 'voice'.", "type": "invalid_request_error", "param": "voice",
+                     "code": "invalid_value"}}, False),
+    (401, {"error": {"message": "Incorrect API key provided.", "type": "invalid_request_error", "param": None,
+                     "code": "invalid_api_key"}}, True),
+    (403, {"error": {"message": "You are not allowed to sample from this model.", "type": "invalid_request_error",
+                     "param": None, "code": None}}, True),
+])
+async def test_openai_tts_other_client_errors_stay_plain_provider_errors(make_settings, status, body,
+                                                                          rejected) -> None:
+    """Only 404 / 410 name a model the API does not serve: a bad request stays a plain narration failure, and a
+    refused key keeps the personal-key rejection path (the job fails; it never falls back to Edge)."""
+    from aadhi.credentials import personal_key_rejection
+    from aadhi.providers.base import ProviderUnavailable
+
+    requests: list[httpx.Request] = []
+    client = openai_speech_client(httpx.Response(status, json=body), requests)
+    with pytest.raises(ProviderError) as exc:
+        await OpenAITTS(make_settings(openai_api_key=OPENAI_TEST_KEY), client_factory=lambda: client,
+                        sleep=no_sleep).synthesize("x", voice="nova", language="en-IN")
+    await client.close()
+    assert exc.value.status == status and not isinstance(exc.value, ProviderUnavailable) and len(requests) == 1
+    assert (personal_key_rejection(exc.value, {"openai": "personal"}) is not None) is rejected
+
+
 # --- gemini -------------------------------------------------------------------------------------
 
 
@@ -386,6 +463,43 @@ async def test_gemini_tts_errors(gemini_settings) -> None:
     with pytest.raises(RateLimited):
         await GeminiTTS(gemini_settings, client_factory=factory, sleep=no_sleep, max_attempts=3).synthesize(
             "x", voice="Kore", language="en-IN")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status,code", [(404, "NOT_FOUND"), (410, "GONE")])
+async def test_gemini_tts_model_no_longer_served_is_model_unavailable(make_settings, status, code) -> None:
+    """A retired or misspelt GEMINI_TTS_MODEL (design §10.3 H0): one request, no retry, nothing billed, and an error
+    the asset build recognises (it narrates with Edge instead) that is not a personal-key rejection."""
+    from aadhi.credentials import personal_key_rejection
+    from aadhi.providers.base import ModelUnavailable, ProviderUnavailable
+
+    settings = make_settings(gemini_api_key=GEMINI_KEYS[0], gemini_tts_model="gemini-2.5-flash-preview-tts")
+    message = ("models/gemini-2.5-flash-preview-tts is not found for API version v1beta, or is not supported for "
+               "generateContent. Call ListModels to see the list of available models and their supported methods.")
+    factory, clients = gemini_factory({GEMINI_KEYS[0]: [gemini_error(status, message, code)] * 3})
+    usages: list[Usage] = []
+    with pytest.raises(ModelUnavailable) as exc:
+        await GeminiTTS(settings, client_factory=factory, sleep=no_sleep, max_attempts=3).synthesize(
+            "Vanakkam", voice="Kore", language="ta-IN", on_usage=usages.append)
+    err = exc.value
+    assert isinstance(err, ProviderUnavailable) and isinstance(err, ProviderError)
+    assert err.status == status and err.provider == "gemini"
+    assert "gemini-2.5-flash-preview-tts is not available" in str(err) and "GEMINI_TTS_MODEL" in str(err)
+    assert GEMINI_KEYS[0] not in str(err)
+    assert len(clients[GEMINI_KEYS[0]].models.calls) == 1 and usages == []  # not retried, nothing billed
+    assert personal_key_rejection(err, {"gemini": "personal"}) is None
+
+
+@pytest.mark.asyncio
+async def test_gemini_tts_other_client_errors_stay_plain_provider_errors(gemini_settings) -> None:
+    from aadhi.providers.base import ProviderUnavailable
+
+    factory, _ = gemini_factory({GEMINI_KEYS[0]: [gemini_error(400, "Request contains an invalid argument.",
+                                                               "INVALID_ARGUMENT")]})
+    with pytest.raises(ProviderError) as exc:
+        await GeminiTTS(gemini_settings, client_factory=factory, sleep=no_sleep).synthesize(
+            "x", voice="Kore", language="en-IN")
+    assert exc.value.status == 400 and not isinstance(exc.value, ProviderUnavailable)
 
 
 @pytest.mark.asyncio

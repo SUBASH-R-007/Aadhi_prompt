@@ -27,7 +27,9 @@ cryptography>=43  # Fernet encryption of API keys saved in the Studio (aadhi.sec
 httpx>=0.27,<1
 aiohttp>=3.10,<4
 tenacity>=9.0,<10
-google-genai>=2.0,<3
+# google-genai 2.26: Gemini 3.8 TTS (gemini-3.8-flash-tts, the GEMINI_TTS_MODEL default: H0) needs >=2.25, and Gemini
+# Omni (aadhi/providers/video/omni.py) needs client.aio.interactions + google.genai._gaos, verified against 2.26
+google-genai>=2.26,<3
 openai>=3.0,<4  # Responses API (client.responses)
 anthropic>=1.11,<2  # Claude: streamed beta Messages API (output_config, server-side refusal fallbacks)
 edge-tts>=7.0,<8

@@ -23,10 +23,14 @@ page is served by a small static server from ``web/`` (no API, database or CSP; 
 What it records (printed, and written as JSON with ``--json``): fps per worker and aggregate, end-to-end seconds
 with the phases (boot, capture, mux, checks), peak memory of the browsers, encoders and drivers, and a projection
 of the 5-minute 16:9 lesson (9,000 frames) and the 3.5-minute reel (6,300 frames) at the measured rates. Run it in
-the production render image under the ``motion`` compose profile for the numbers that set P1 and Q7::
+the production render image under the ``motion`` compose profile for the numbers that set P1 and Q7. That image has
+neither ``scripts/`` nor ``tests/`` (the showcase fixture), so bind-mount both (the script's root is then ``/app``,
+with the image's ``web/``); compose needs ``BASE_URL``, ``POSTGRES_PASSWORD`` and ``JWT_SECRET`` set even with
+``--no-deps`` (docs/OPERATIONS.md section 4.2)::
 
-    docker compose --profile motion run --rm --no-deps render-worker-motion \\
-        python scripts/bench_motion.py --minutes 5 --json /data/app/bench-motion.json
+    docker compose --profile motion run --rm --no-deps \\
+        -v "$PWD/scripts:/app/scripts:ro" -v "$PWD/tests:/app/tests:ro" -v "$PWD/bench-out:/out" \\
+        render-worker-motion python scripts/bench_motion.py --minutes 5 --json /out/bench-16x9.json
 
 Never touches ``data/`` (work files go to ``--out``, default a temporary directory) and never calls a provider.
 """
@@ -335,7 +339,8 @@ async def render(args: argparse.Namespace, prep: dict[str, Any]) -> Any:
     from aadhi.compose.motion.stage import StageOptions
 
     tl, out_dir = prep["timeline"], prep["out_dir"]
-    # an experiment only: production flags come from the page driver (CHROMIUM_ARGS)
+    # an experiment only: production flags come from the page driver (StageOptions.chromium_args(): CHROMIUM_ARGS +
+    # DETERMINISM_ARGS)
     extra = ("--disable-frame-rate-limit",) if args.disable_frame_rate_limit else ()
     config = MotionConfig(workers=args.workers or None, sample_memory_seconds=0.5,
                           chunk_min=args.chunk_min, chunk_max=args.chunk_max, stage=StageOptions(extra_args=extra),

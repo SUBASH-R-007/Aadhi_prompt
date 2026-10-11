@@ -3,9 +3,15 @@ import assert from 'node:assert/strict';
 
 import { installDom, uninstallDom } from '../player/_dom.js';
 import {
+  BACKDROP_BLUR,
+  BACKDROP_BRIGHTNESS,
+  BACKDROP_WIDTH,
   FRAMES_PREFIX,
   MediaView,
+  backdropShown,
+  coverCrop,
   frameUrl,
+  mediaFit,
   mediaKey,
   mediaPlan,
   mediaSize,
@@ -221,4 +227,337 @@ test('MediaView: GIFs are live only; pictures keep their Ken Burns transform', (
   const calm = new MediaView(/** @type {any} */ ({ kind: 'image', url: '/media/a.png', ken_burns: { end: { scale: 1.2 } } }), { mode: 'live', box: { w: 100, h: 100 }, sceneDuration: 10, fps: 30, reducedMotion: true });
   calm.update(p, 5);
   assert.equal(calm.img.style.transform, '', 'reduced motion switches Ken Burns off (live only)');
+});
+
+// --- fit: "contain_blur" ------------------------------------------------------------------------------------------
+
+/**
+ * A recording 2D context installed for canvases (jsdom has none): every drawImage with the state it was drawn in.
+ * @param {import('node:test').TestContext} t
+ */
+function fakeCanvas(t) {
+  const win = /** @type {any} */ (window);
+  const proto = win.HTMLCanvasElement.prototype;
+  const original = proto.getContext;
+  const hadCtor = 'CanvasRenderingContext2D' in win;
+  /** @type {any[]} */
+  const draws = [];
+  /** @type {WeakMap<object, any>} */
+  const contexts = new WeakMap();
+  win.CanvasRenderingContext2D = class {};
+  proto.getContext = function getContext() {
+    let g = contexts.get(this);
+    if (!g) {
+      const canvas = this;
+      /** @type {any[]} */
+      const stack = [];
+      g = {
+        filter: 'none',
+        imageSmoothingEnabled: true,
+        imageSmoothingQuality: 'low',
+        save() {
+          stack.push({ filter: g.filter, imageSmoothingEnabled: g.imageSmoothingEnabled, imageSmoothingQuality: g.imageSmoothingQuality });
+        },
+        restore() {
+          Object.assign(g, stack.pop() || {});
+        },
+        clearRect() {},
+        drawImage(/** @type {any[]} */ ...args) {
+          draws.push({
+            canvas, source: args[0], args: args.slice(1), filter: g.filter, smoothing: g.imageSmoothingEnabled,
+            quality: g.imageSmoothingQuality, size: [canvas.width, canvas.height],
+          });
+        },
+      };
+      contexts.set(this, g);
+    }
+    return g;
+  };
+  t.after(() => {
+    proto.getContext = original;
+    if (!hadCtor) delete win.CanvasRenderingContext2D;
+  });
+  return draws;
+}
+
+/** Make an <img> look loaded (jsdom loads no pictures): complete, with its natural size. @param {HTMLImageElement} img */
+function loaded(img, w = 1280, h = 720) {
+  Object.defineProperty(img, 'complete', { configurable: true, get: () => true });
+  Object.defineProperty(img, 'naturalWidth', { configurable: true, value: w });
+  Object.defineProperty(img, 'naturalHeight', { configurable: true, value: h });
+}
+
+test('mediaFit and coverCrop', () => {
+  assert.equal(mediaFit(/** @type {any} */ ({ fit: 'contain_blur' })), 'contain_blur');
+  assert.equal(mediaFit(/** @type {any} */ ({ fit: 'cover' })), 'cover');
+  assert.equal(mediaFit(/** @type {any} */ ({ fit: 'contain' })), 'contain');
+  assert.equal(mediaFit(/** @type {any} */ ({})), 'contain');
+  assert.equal(mediaFit(/** @type {any} */ ({ fit: 'stretch' })), 'contain');
+  // a 16:9 picture covering a 9:16 box: its full height, the middle of its width
+  const c = coverCrop(1280, 720, 64, 114);
+  assert.ok(Math.abs(c.h - 720) < 1e-9 && Math.abs(c.w - (720 * 64) / 114) < 1e-9);
+  assert.ok(Math.abs(c.x - (1280 - c.w) / 2) < 1e-9 && c.y === 0);
+  assert.deepEqual(coverCrop(800, 600, 800, 600), { x: 0, y: 0, w: 800, h: 600 });
+  const wide = coverCrop(600, 800, 64, 36); // a portrait picture behind a 16:9 box: its middle band
+  assert.ok(Math.abs(wide.w - 600) < 1e-9 && Math.abs(wide.h / wide.w - 36 / 64) < 1e-9 && wide.x === 0);
+});
+
+test('contain_blur: the clip contained over a canvas backdrop; contain and cover have none', () => {
+  const ref = { ...dynamicTimeline().scenes[3].media, fit: 'contain_blur' };
+  for (const mode of /** @type {const} */ (['render', 'live'])) {
+    const view = new MediaView(/** @type {any} */ (ref), { mode, box: { w: 1080, h: 1920 }, sceneDuration: 6, fps: 30 });
+    assert.ok(view.el.classList.contains('dyn-media--contain_blur'));
+    const [backdrop, el] = [...view.el.children];
+    assert.equal(backdrop.tagName, 'CANVAS');
+    assert.ok(backdrop.classList.contains('dyn-media-backdrop') && backdrop.getAttribute('aria-hidden') === 'true');
+    assert.equal(el, mode === 'render' ? view.img : view.video, 'the medium above it');
+    assert.equal(view.el.querySelectorAll('img, video').length, 1, 'one medium: the backdrop draws the same element');
+    assert.ok(view.el.classList.contains('dyn-media--clip'), 'a clip: dynamic.css gives its box a layer of its own');
+    view.destroy();
+  }
+  const picture = new MediaView(/** @type {any} */ ({ kind: 'image', url: '/media/a.png', fit: 'contain_blur' }), { mode: 'render', box: { w: 1080, h: 1920 }, sceneDuration: 6, fps: 30 });
+  assert.ok(picture.backdrop && !picture.el.classList.contains('dyn-media--clip'), 'a picture keeps no layer (Ken Burns scales it)');
+  for (const fit of ['contain', 'cover', undefined]) {
+    const view = new MediaView(/** @type {any} */ ({ ...ref, fit }), { mode: 'render', box: { w: 1080, h: 1920 }, sceneDuration: 6, fps: 30 });
+    assert.equal(view.el.querySelector('canvas'), null, String(fit));
+  }
+  const missing = new MediaView(/** @type {any} */ ({ ...ref, asset_key: null }), { mode: 'render', box: { w: 100, h: 100 }, sceneDuration: 6, fps: 30 });
+  assert.ok(missing.missing && missing.el.querySelector('canvas') === null, 'nothing to blur');
+});
+
+test('contain_blur needs no other frames: the same frame keys, sizes and frames as contain', () => {
+  const tl = dynamicTimeline();
+  const blur = dynamicTimeline();
+  blur.scenes[3].media.fit = 'contain_blur';
+  for (const [f0, f1] of [[0, 1200], [780, 870], [870, 960]]) {
+    assert.deepEqual(mediaPlan(blur, f0, f1, boxFor), mediaPlan(tl, f0, f1, boxFor), `frames ${f0}-${f1}`);
+  }
+  const portrait = (/** @type {any} */ scene) => mediaBoxMax(scene, ZONES.portrait);
+  assert.deepEqual(mediaPlan(blur, 0, 1200, portrait), mediaPlan(tl, 0, 1200, portrait));
+});
+
+test('contain_blur (render): the backdrop is the decoded frame itself, cover-fit, blurred and darkened in a small canvas', async (t) => {
+  const draws = fakeCanvas(t);
+  const ref = { ...dynamicTimeline().scenes[3].media, fit: 'contain_blur' };
+  const view = new MediaView(/** @type {any} */ (ref), { mode: 'render', box: { w: 1080, h: 1920 }, sceneDuration: 6, fps: 30 });
+  const img = /** @type {HTMLImageElement} */ (view.img);
+  const p = new Painter();
+  p.begin();
+  view.update(p, 1, { noFrames: true });
+  assert.equal(draws.length, 0, 'the boot paint shows no frame: nothing to blur');
+  view.update(p, 1);
+  assert.equal(img.getAttribute('src'), frameUrl(String(view.key), 30));
+  assert.equal(draws.length, 0, 'not before the frame is in (the <img> still shows the previous one meanwhile)');
+  loaded(img);
+  await view.ready();
+  assert.equal(draws.length, 1, 'drawn once the frame is decoded, before the capture');
+  const d = draws[0];
+  assert.equal(d.source, img, 'from the <img> of the planned frame: no other extraction');
+  const ch = Math.round((BACKDROP_WIDTH * 1920) / 1080);
+  assert.deepEqual(d.size, [BACKDROP_WIDTH, ch], "a small canvas at the box's aspect");
+  const crop = coverCrop(1280, 720, BACKDROP_WIDTH, ch);
+  const pad = 3 * BACKDROP_BLUR;
+  assert.deepEqual(d.args, [crop.x, crop.y, crop.w, crop.h, -pad, -pad, BACKDROP_WIDTH + 2 * pad, ch + 2 * pad]);
+  assert.equal(d.filter, `blur(${BACKDROP_BLUR}px) brightness(${BACKDROP_BRIGHTNESS})`);
+  assert.equal(d.quality, 'high');
+  assert.ok(d.smoothing);
+  // the same frame again (another seek of it, a repaint): the canvas already holds it
+  view.update(p, 1);
+  await view.ready();
+  assert.equal(draws.length, 1);
+  // the next frame, not yet in: Chromium then reports complete = false but still the previous picture's natural size
+  // (measured: naturalWidth is that of the old picture right after src changes), so the size alone would draw the
+  // previous frame under the new frame's key, and ready() would never draw again (the order of renders would show)
+  Object.defineProperty(img, 'complete', { configurable: true, get: () => false });
+  view.update(p, 2);
+  assert.equal(img.getAttribute('src'), frameUrl(String(view.key), 60));
+  assert.equal(img.naturalWidth, 1280, 'the previous picture is still reported');
+  assert.equal(draws.length, 1, 'not drawn from the previous picture while the new frame loads');
+  // drawn from it once it is in, exactly once
+  loaded(img);
+  await view.ready();
+  assert.equal(draws.length, 2);
+  assert.equal(draws[1].source, img);
+  await view.ready();
+  view.update(p, 2);
+  assert.equal(draws.length, 2, 'that frame is in the canvas already');
+  view.destroy();
+});
+
+test('contain_blur: a medium that covers its box has no backdrop (not drawn, its canvas not shown)', async (t) => {
+  // board_generic sizes a medium's frame to the medium's aspect when its size is known: nothing of a backdrop would
+  // show, so it costs no drawing and no composited canvas layer
+  assert.equal(backdropShown(1280, 720, 1280, 720), false);
+  assert.equal(backdropShown(640, 480, 722, 541), false, 'less than a pixel at each side');
+  assert.equal(backdropShown(1280, 720, 1284, 720), true, 'two pixels: shown');
+  assert.equal(backdropShown(1280, 720, 1080, 1920), true);
+  assert.equal(backdropShown(1600, 1200, 1600, 900), true, 'a 4:3 picture in a 16:9 box: bands at its sides');
+  const draws = fakeCanvas(t);
+  const ref = { ...dynamicTimeline().scenes[3].media, fit: 'contain_blur' }; // a 1280 x 720 clip
+  const view = new MediaView(/** @type {any} */ (ref), { mode: 'render', box: { w: 1280, h: 720 }, sceneDuration: 6, fps: 30 });
+  const img = /** @type {HTMLImageElement} */ (view.img);
+  const canvas = /** @type {HTMLCanvasElement} */ (view.backdrop);
+  const p = new Painter();
+  p.begin();
+  view.update(p, 1);
+  loaded(img);
+  await view.ready();
+  assert.equal(draws.length, 0, 'covered: not drawn');
+  assert.equal(canvas.style.display, 'none', 'and not shown');
+  // laid out anew in a box of another aspect: the backdrop shows, drawn from the frame already in
+  Object.defineProperty(view.el, 'clientWidth', { configurable: true, get: () => 1080 });
+  Object.defineProperty(view.el, 'clientHeight', { configurable: true, get: () => 1920 });
+  view.update(p, 1);
+  assert.equal(canvas.style.display, '');
+  assert.equal(draws.length, 1);
+  assert.deepEqual(draws[0].size, [BACKDROP_WIDTH, Math.round((BACKDROP_WIDTH * 1920) / 1080)]);
+  view.destroy();
+});
+
+test('contain_blur (live): the backdrop follows the playing clip, never a frame from before a seek', (t) => {
+  const draws = fakeCanvas(t);
+  const ref = { ...dynamicTimeline().scenes[3].media, fit: 'contain_blur' };
+  const view = new MediaView(/** @type {any} */ (ref), { mode: 'live', box: { w: 1600, h: 1200 }, sceneDuration: 6, fps: 30 });
+  const v = /** @type {HTMLVideoElement} */ (view.video);
+  Object.defineProperty(v, 'videoWidth', { configurable: true, value: 1280 });
+  Object.defineProperty(v, 'videoHeight', { configurable: true, value: 720 });
+  const p = new Painter();
+  view.update(p, 1, { playing: true, rate: 1, seeked: true });
+  assert.equal(draws.length, 1);
+  assert.equal(draws[0].source, v);
+  assert.deepEqual(draws[0].size, [BACKDROP_WIDTH, 48], 'a 16:9 clip in a 4:3 box: the backdrop above and below it');
+  view.update(p, 1, { playing: true, rate: 1 });
+  assert.equal(draws.length, 1, 'the same clip time: nothing new to draw');
+  v.currentTime = 1.04; // played on
+  view.update(p, 1.04, { playing: true, rate: 1 });
+  assert.equal(draws.length, 2);
+  // a seek: the element takes the new time at once, its frame comes later (seeking until then)
+  let seeking = true;
+  Object.defineProperty(v, 'seeking', { configurable: true, get: () => seeking });
+  v.currentTime = 3;
+  view.update(p, 3, { playing: true, rate: 1, seeked: true });
+  assert.equal(draws.length, 2, 'while seeking the element still shows the old frame: not drawn');
+  seeking = false;
+  view.update(p, 3, { playing: true, rate: 1 });
+  assert.equal(draws.length, 3, 'the frame at the new time is in: drawn');
+  view.destroy();
+});
+
+/**
+ * A live clip that behaves like Chromium's <video> (measured with Playwright): no seek before its metadata; setting
+ * currentTime starts a seek (`seeking` until the test ends it), and a seek past the clip's real end is clamped there.
+ * @param {HTMLVideoElement} v
+ * @param {{readyState?: number, end?: number}} [opts]
+ */
+function browserClip(v, opts = {}) {
+  const clip = { readyState: opts.readyState ?? 0, seeking: false, time: 0, end: opts.end ?? Infinity, sought: /** @type {number[]} */ ([]) };
+  Object.defineProperty(v, 'readyState', { configurable: true, get: () => clip.readyState });
+  Object.defineProperty(v, 'seeking', { configurable: true, get: () => clip.seeking });
+  Object.defineProperty(v, 'currentTime', {
+    configurable: true,
+    get: () => clip.time,
+    set: (/** @type {number} */ x) => {
+      clip.sought.push(Number(x));
+      clip.time = Math.min(Number(x), clip.end);
+      clip.seeking = true;
+    },
+  });
+  Object.defineProperty(v, 'videoWidth', { configurable: true, value: 1280 });
+  Object.defineProperty(v, 'videoHeight', { configurable: true, value: 720 });
+  /** the seek in flight ends: its frame is in (readyState 4 at 'seeked', as Chromium reports it) */
+  const seeked = () => {
+    clip.seeking = false;
+    clip.readyState = 4;
+    v.dispatchEvent(new window.Event('seeked'));
+  };
+  return { clip, seeked };
+}
+
+test('contain_blur (live, paused): the backdrop is drawn when the clip frame arrives, with no repaint', (t) => {
+  // the paused live player paints once per seek or relayout: a frame that arrives after that paint is drawn by the
+  // clip's own events ('loadeddata', 'seeked'), else the backdrop kept the frame before the seek (or nothing) until play
+  const draws = fakeCanvas(t);
+  const ref = { ...dynamicTimeline().scenes[3].media, fit: 'contain_blur' };
+  const view = new MediaView(/** @type {any} */ (ref), { mode: 'live', box: { w: 1600, h: 1200 }, sceneDuration: 6, fps: 30 });
+  const v = /** @type {HTMLVideoElement} */ (view.video);
+  const { clip, seeked } = browserClip(v, { readyState: 1 });
+  const p = new Painter();
+  // the first paint of a paused scene at its start: the clip has its metadata, not yet a frame
+  view.update(p, 0, { playing: false });
+  assert.deepEqual(clip.sought, [], 'already at its start');
+  assert.equal(draws.length, 0, 'no frame to blur yet');
+  clip.readyState = 2;
+  v.dispatchEvent(new window.Event('loadeddata'));
+  assert.equal(draws.length, 1, 'its first frame is in: drawn without another paint');
+  assert.equal(draws[0].source, v);
+  // a paused seek: the one paint finds the clip seeking (it still shows the old frame then)
+  view.update(p, 3, { playing: false, seeked: true });
+  assert.deepEqual(clip.sought, [3]);
+  assert.equal(draws.length, 1, 'not drawn while seeking');
+  seeked();
+  assert.equal(draws.length, 2, 'the frame at the new time is in: drawn once, with no further paint');
+  assert.equal(draws[1].source, v);
+  v.dispatchEvent(new window.Event('seeked'));
+  assert.equal(draws.length, 2, 'the same frame again: the canvas already holds it');
+  // a destroyed view no longer listens
+  view.destroy();
+  clip.time = 1;
+  v.dispatchEvent(new window.Event('seeked'));
+  v.dispatchEvent(new window.Event('loadeddata'));
+  assert.equal(draws.length, 2);
+});
+
+test('MediaView (live, paused): the clip takes the time the stage asked for last as soon as it can seek', () => {
+  const ref = dynamicTimeline().scenes[3].media; // a 4 s clip, frozen on its end
+  const view = new MediaView(ref, { mode: 'live', box: { w: 1280, h: 720 }, sceneDuration: 6, fps: 30 });
+  const v = /** @type {HTMLVideoElement} */ (view.video);
+  const { clip, seeked } = browserClip(v, { readyState: 0, end: 3.5 });
+  const p = new Painter();
+  // a paused seek into the scene paints once, before the clip has its metadata: it cannot seek then
+  view.update(p, 2, { playing: false, seeked: true });
+  assert.deepEqual(clip.sought, [], 'no metadata yet');
+  clip.readyState = 1;
+  v.dispatchEvent(new window.Event('loadedmetadata'));
+  assert.deepEqual(clip.sought, [sourceTime(ref, 2)], 'sought to the time asked for once it can, with no repaint');
+  // a scrub while that seek is in flight: one paint per position, none of which can seek now ...
+  view.update(p, 2.5, { playing: false, seeked: true });
+  view.update(p, 3, { playing: false, seeked: true });
+  assert.equal(clip.sought.length, 1);
+  seeked();
+  assert.deepEqual(clip.sought.slice(1), [3], '... the last position is applied when the seek ends');
+  seeked();
+  assert.equal(clip.sought.length, 2, 'and that seek done, nothing more');
+  // a clip shorter than its declared duration: the browser clamps the seek to its end; that time is never chased
+  view.update(p, 5, { playing: false, seeked: true });
+  assert.equal(clip.sought.at(-1), sourceTime(ref, 5));
+  assert.equal(clip.time, 3.5, 'clamped');
+  seeked();
+  seeked();
+  assert.equal(clip.sought.length, 3, 'no seek loop');
+  // playing: every animation frame syncs the clip, so its events re-apply nothing
+  view.update(p, 1, { playing: true, rate: 1, seeked: true });
+  assert.equal(clip.sought.length, 4);
+  view.update(p, 1.5, { playing: true, rate: 1 });
+  seeked();
+  assert.equal(clip.sought.length, 4);
+  view.destroy();
+});
+
+test('a picture shown contain_blur on the stage: its backdrop is in the media frame, the plan unchanged', async () => {
+  const { createDynamicStage } = await import('../../js/dynamic/stage.js');
+  for (const format of /** @type {const} */ (['landscape', 'portrait'])) {
+    const tl = dynamicTimeline(format);
+    tl.scenes[4].side_panel.media = { ...tl.scenes[4].side_panel.media, fit: 'contain_blur', width: null, height: null };
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const stage = createDynamicStage(root, tl, { mode: 'render', texIdle: () => Promise.resolve(), frame: () => Promise.resolve() });
+    await stage.seek(Math.round((32 + 3) * 30));
+    const media = stage.el.querySelector('.dyn-scene[data-scene="4"] .dyn-frame .dyn-media--contain_blur');
+    assert.ok(media, `${format}: the picture is shown contain_blur`);
+    assert.equal(media.firstElementChild?.tagName, 'CANVAS');
+    assert.match(String(media.querySelector('img')?.getAttribute('src')), /\/media\/circuit\.png$/, 'the picture itself is the medium');
+    assert.deepEqual(stage.mediaPlan(0, 1200), mediaPlan(dynamicTimeline(format), 0, 1200, (/** @type {any} */ s) => mediaBoxMax(s, ZONES[format])));
+    stage.destroy();
+    root.remove();
+  }
 });

@@ -2485,6 +2485,27 @@ input[type='radio'] {
   background: #000;
 }
 
+/* A stage of another shape (a Dynamic 9:16 reel; the player sets the attribute and --ap-stage-w/-h on this box, see
+   player.css .watch-player): the box takes the stage's shape, at most 60% of the window tall so the tools, issues and
+   changes below stay in reach, centred in the pane. The frame then gives the box its own edge and shadow instead of
+   a black band around it. Classic and 16:9 lectures never get the attribute. The box is the `ap-shaped-box` size
+   container: the player's control bar follows its width (player.css section 12: the phone bar, and fewer parts in
+   the narrowest boxes, e.g. 259 px wide at 1366x768). */
+.preview-box[data-stage-shape] {
+  width: min(100%, calc(60vh * var(--ap-stage-w) / var(--ap-stage-h)));
+  aspect-ratio: var(--ap-stage-w) / var(--ap-stage-h);
+  margin-inline: auto;
+  border-radius: 12px;
+  box-shadow: 0 0 0 1px rgba(255, 215, 0, 0.2), 0 10px 28px rgba(0, 0, 0, 0.5);
+  container: ap-shaped-box / inline-size;
+}
+
+.preview-frame:has(> .preview-box[data-stage-shape]) {
+  overflow: visible;
+  background: transparent;
+  box-shadow: none;
+}
+
 .preview-box:focus {
   outline: none;
 }

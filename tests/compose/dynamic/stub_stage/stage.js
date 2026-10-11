@@ -3,11 +3,16 @@
 // headline (critical), a body line (critical) and the caption of the moment, crossfades scenes whose
 // look.transition_in.kind is "crossfade", and reports textBoxes() like the real stage.
 //
-// Faults (window.STUB.faults = {"<scene index>": ["overflow" | "unsafe" | "contrast"]}) make a scene fail one
-// preflight check; window.STUB.honour = ["shrink", "safe", "scrim"] lists the remedies the stub applies when the
-// timeline asks for them (look.text_fit[slot].size, look.variant == "safe", look.text_fit[slot].scrim).
+// Faults (window.STUB.faults = {"<scene index>": ["overflow" | "unsafe" | "contrast" | "caption_overflow"]}) make a
+// scene fail one preflight check ("caption_overflow": its captions run out of the caption box);
+// window.STUB.honour = ["shrink", "safe", "scrim"] lists the remedies the stub applies when the timeline asks for them
+// (look.text_fit[slot].size, look.variant == "safe", look.text_fit[slot].scrim; the headline and the body only).
 // window.STUB.random adds Math.random() jitter (a non-deterministic stage); window.STUB.strayTimer calls setTimeout
 // inside seek().
+//
+// As the real stage (web/js/dynamic/stage.js, core.js stageInfo): every scene has at least one frame (a scene shorter
+// than half a frame still gets one, which can make the video one frame longer than its rounded duration), and a
+// render-mode page draws captions as presentation.captions_burn says until setLayers() is called.
 
 const cfg = () => /** @type {any} */ (window).STUB || {};
 
@@ -26,14 +31,15 @@ export function createDynamicStage(root, timeline, { mode = 'render' } = {}) {
   const W = timeline.width;
   const H = timeline.height;
   const portrait = H > W;
-  const frames = Math.floor(timeline.total_duration * fps + 0.5);
-  const scenes = timeline.scenes.map((s) => ({
-    index: s.index,
-    f0: Math.floor(s.start * fps + 0.5),
-    f1: Math.floor((s.start + s.duration) * fps + 0.5),
-    s,
-  }));
-  let layers = { captions: true, stage: true };
+  const edges = [...timeline.scenes.map((s) => s.start), timeline.total_duration].map((e) => Math.floor(e * fps + 0.5));
+  const scenes = [];
+  timeline.scenes.forEach((s, i) => {
+    const f0 = i ? scenes[i - 1].f1 : edges[0];
+    scenes.push({ index: s.index, f0, f1: Math.max(f0 + 1, edges[i + 1]), s });
+  });
+  const frames = scenes.length ? scenes[scenes.length - 1].f1 : 0;
+  const presentation = timeline.presentation || {};
+  let layers = { captions: mode === 'render' ? !!presentation.captions_burn : true, stage: true };
   let shown = null;
 
   root.textContent = '';
@@ -120,7 +126,8 @@ export function createDynamicStage(root, timeline, { mode = 'render' } = {}) {
     // the caption-only layer (setLayers({stage: false})) is captured as a transparent PNG
     document.documentElement.style.background = document.body.style.background = layers.stage ? '' : 'transparent';
     // caption band
-    const text = layers.captions ? captionAt(t, sc) : '';
+    const said = layers.captions ? captionAt(t, sc) : '';
+    const text = said && f.includes('caption_overflow') ? `${said} ${'and much more text than the box holds '.repeat(4)}` : said;
     cap.textContent = text;
     Object.assign(cap.style, portrait
       ? { left: '120px', top: '1060px', width: '660px', height: '140px', whiteSpace: 'pre', lineHeight: '1.2',

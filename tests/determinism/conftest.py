@@ -7,7 +7,9 @@ local run does.
 
 ``real_app`` serves the real application (``create_app`` under uvicorn on a free loopback port, a temporary data dir
 and database, ``DYNAMIC_ENABLED`` on) for the tests that drive the real render page ``/render-dynamic``; they skip
-while the stage bundle (``web/render-dynamic.html``, ``web/js/dynamic/stage.js``) is absent.
+while the stage bundle (``web/render-dynamic.html``, ``web/js/dynamic/stage.js``) is absent. In the Docker test image
+(``AADHI_CONTAINER_TESTS=1``) a missing bundle, Playwright or Chromium fails these tests instead of skipping them
+(``tests.compose.dynamic.helpers.missing``).
 """
 
 from __future__ import annotations
@@ -37,9 +39,13 @@ class RealApp:
 
 
 def need_real_stage() -> None:
-    missing = [p.name for p in STAGE_FILES if not p.is_file()]
-    if missing:
-        pytest.skip(f"the Dynamic stage bundle is not in this build ({', '.join(missing)})")
+    """The real stage bundle, else skip (fail in the Docker test image, ``AADHI_CONTAINER_TESTS=1``: there a missing
+    bundle is a broken image and the blocking CI job must not pass by skipping the determinism suite)."""
+    from tests.compose.dynamic.helpers import missing
+
+    absent = [p.name for p in STAGE_FILES if not p.is_file()]
+    if absent:
+        missing(f"the Dynamic stage bundle is not in this build ({', '.join(absent)})")
 
 
 @pytest.fixture(scope="module")

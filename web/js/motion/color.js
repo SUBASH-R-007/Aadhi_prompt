@@ -306,6 +306,24 @@ export function mixOklch(a, b, p) {
 }
 
 /**
+ * `top` painted over `bottom` (source-over in gamma-encoded sRGB, the way browsers blend), as CSS hex: `#rrggbb`
+ * when the result is opaque, else `#rrggbbaa`. The same maths as `composite` in aadhi/compose/dynamic/colour.py,
+ * so a colour the stage reports (a scrim over its background, §7.12) is what preflight measures.
+ * @param {ColorLike} top
+ * @param {ColorLike} bottom
+ * @returns {string}
+ */
+export function composite(top, bottom) {
+  const t = mustParse(top, 'composite');
+  const b = mustParse(bottom, 'composite');
+  const a = t.a + b.a * (1 - t.a);
+  if (a <= 0) return '#00000000';
+  /** @param {number} x @param {number} y */
+  const mix = (x, y) => (x * t.a + y * b.a * (1 - t.a)) / a;
+  return toHex({ r: mix(t.r, b.r), g: mix(t.g, b.g), b: mix(t.b, b.b), a });
+}
+
+/**
  * WCAG 2 relative luminance of an opaque colour (alpha ignored).
  * @param {ColorLike} color
  * @returns {number}

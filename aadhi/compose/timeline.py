@@ -725,10 +725,12 @@ def _assemble(
     branding: Branding | None,
     preview: bool,
 ) -> Timeline:
-    ctx = _Ctx(figures={f.id: f for f in screenplay.figures}, sync=SyncOptions.from_settings(settings))
     # Dynamic video (design §6.7): only a screenplay with a presentation, and only while DYNAMIC_ENABLED is on. It has
-    # no classic intro, and a reel's phrase captions are shorter (R-32). Classic timelines take none of these paths.
+    # no classic intro, a reel's phrase captions are shorter (R-32), and it is 30 fps whatever RENDER_FPS says
+    # (DYNAMIC_FPS), so its word-anchored cues snap to that frame grid. Classic timelines take none of these paths.
     dynamic = screenplay.presentation is not None and dynamic_enabled(settings)
+    ctx = _Ctx(figures={f.id: f for f in screenplay.figures},
+               sync=SyncOptions.from_settings(settings, fps=DYNAMIC_FPS if dynamic else None))
     if dynamic and screenplay.presentation is not None and screenplay.presentation.format == "portrait":
         ctx.caption_width = PORTRAIT_CAPTION_LINE_CHARS
     intro = build_intro(screenplay) if include_intro and not dynamic else None

@@ -36,10 +36,13 @@ def tools() -> Settings:
 
     settings = Settings(_env_file=None)
     caps = render_capabilities(settings, browser=True, force=True)
+    # a developer machine without the tools skips; the Docker test image (AADHI_CONTAINER_TESTS) fails instead
+    from tests.compose.dynamic.helpers import missing
+
     if not caps.ok:
-        pytest.skip("rendering is unavailable here: " + " ".join(caps.reasons))
+        missing("rendering is unavailable here: " + " ".join(caps.reasons))
     if not (ROOT_DIR / "web" / "vendor" / "manifest.json").is_file():
-        pytest.skip("web/vendor is missing (npm ci)")
+        missing("web/vendor is missing (npm ci)")
     return settings
 
 

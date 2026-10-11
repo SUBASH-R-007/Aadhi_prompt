@@ -181,7 +181,10 @@ def test_lock_satisfies_requirement_ranges(lock):
 def test_requirement_floors_match_the_verified_versions():
     reqs = {Requirement(line).name.lower(): Requirement(line) for line in _req_lines("requirements.txt")}
     assert not reqs["openai"].specifier.contains("2.9.0") and reqs["openai"].specifier.contains("3.22.1")
-    assert not reqs["google-genai"].specifier.contains("1.99.0") and reqs["google-genai"].specifier.contains("2.26.0")
+    # google-genai: 2.26 is the SDK Omni's client.aio.interactions was verified against (Gemini 3.8 TTS, the
+    # GEMINI_TTS_MODEL default, needs >= 2.25; design §10.3 H0); tests/providers/test_omni.py checks the same floor
+    genai = reqs["google-genai"].specifier
+    assert genai.contains("2.26.0") and not any(genai.contains(v) for v in ("1.99.0", "2.25.0", "2.25.99", "3.0.0"))
     assert not reqs["sqlalchemy"].specifier.contains("2.0.40") and reqs["sqlalchemy"].specifier.contains("2.1.1")
     assert str(reqs["manim"].specifier) == "==0.21.*"
     sandbox = _text("docker/manim-sandbox/Dockerfile")

@@ -273,6 +273,195 @@ def test_unconfigured_tts_provider_falls_back_to_server_default(env, monkeypatch
     assert intro.provider == "fake" and intro.voice != "Rachel"  # the requested voice belongs to the other provider
 
 
+# --- a voice model the provider no longer serves (design §10.3 H0) ---------------------------------------------------
+
+RETIRED_MODEL = "gemini-2.5-flash-preview-tts"
+
+
+class RetiredTTS:
+    """A TTS provider whose voice model is no longer served: every request is refused (HTTP 404), nothing billed."""
+
+    supports_word_timings = False
+
+    def __init__(self, name: str = "gemini") -> None:
+        self.name = name
+        self.texts: list[str] = []
+
+    def default_voice(self, language: str) -> str:
+        return "Kore"
+
+    def voices(self, language: str | None = None) -> list[dict[str, str]]:
+        return []
+
+    async def synthesize(self, text: str, *, voice: str, language: str, rate: str = "+0%", on_usage=None):
+        from aadhi.providers.base import ModelUnavailable
+
+        self.texts.append(text)
+        await asyncio.sleep(0)  # answered later: the build's other scenes are in flight meanwhile
+        raise ModelUnavailable(f"{self.name}: the speech model {RETIRED_MODEL} is not available (shut down or renamed; "
+                               "GEMINI_TTS_MODEL) (HTTP 404)", status=404, provider=self.name)
+
+
+def retired_voice(env: dict[str, Any], monkeypatch, gemini: Any) -> dict[str, Any]:
+    """The lecture asks for Gemini voice Kore, served by ``providers["gemini"]`` (a ``RetiredTTS`` or a working
+    fake); ``providers["edge"]`` is an offline Edge stand-in. Returns the providers (tests may swap one)."""
+    from aadhi.pipeline import integrations
+    from tests.pipeline.fakes import FakeTTS
+
+    providers = {"gemini": gemini, "edge": FakeTTS(name="edge")}
+    monkeypatch.setattr(integrations, "get_tts", lambda name, settings: providers[name or "gemini"])
+    env["ctx"].settings = env["ctx"].settings.model_copy(update={"gemini_tts_model": RETIRED_MODEL})
+    env["opts"] = env["opts"].model_copy(update={"tts_provider": "gemini", "tts_voice": "Kore"})
+    return providers
+
+
+def clip_keys(manifest: AssetManifest, scene_id: str) -> list[str | None]:
+    return [b.clip_asset_key for b in manifest.audio[scene_id].beats]
+
+
+def test_a_retired_tts_model_narrates_with_edge_and_warns(env, monkeypatch):
+    retired = RetiredTTS()
+    edge = retired_voice(env, monkeypatch, retired)["edge"]
+    res = build(env)
+    m, sp = res.manifest, env["sp"]
+    voiced = [s.id for s in sp.scenes if s.all_beats()]
+    assert retired.texts and edge.texts  # the chosen voice was tried, then Edge narrated
+    assert {(m.audio[sid].provider, m.audio[sid].voice) for sid in voiced} == {("edge", "en-IN-NeerjaNeural")}
+    assert m.audio["intro"].beats[0].words  # Edge word timings reach the captions
+    assert set(m.scene_hashes) == {s.id for s in sp.scenes} and m.stale_scenes == []  # complete: nothing to retry
+    fallback = [i for i in res.issues if i.code == "assets.tts_fallback"]
+    assert len(fallback) == 1 and fallback[0].scene_id is None and fallback[0].severity == "warning"
+    assert f"'{RETIRED_MODEL}'" in fallback[0].message and "'gemini'" in fallback[0].message
+    assert "'en-IN-NeerjaNeural'" in fallback[0].message
+    assert not [i for i in res.issues if i.code == "assets.tts_failed"]
+    logs = [e for e in env["ctx"].events if e["type"] == "log" and e["level"] == "warning"]
+    assert any("free Edge voice en-IN-NeerjaNeural" in e["message"] and RETIRED_MODEL in e["message"] for e in logs)
+    # the Edge clips are keyed exactly like an Edge lecture's: one made with Edge chosen reuses every clip
+    n_edge = len(edge.texts)
+    env["opts"] = env["opts"].model_copy(update={"tts_provider": "edge", "tts_voice": None})
+    chosen = build(env)
+    assert len(edge.texts) == n_edge  # nothing synthesised (or paid) again
+    assert all(clip_keys(chosen.manifest, sid) == clip_keys(m, sid) for sid in voiced)
+    assert not [i for i in chosen.issues if i.code == "assets.tts_fallback"]
+
+
+def test_the_next_build_tries_the_chosen_voice_again_and_reuses_the_edge_clips(env, monkeypatch):
+    retired = RetiredTTS()
+    edge = retired_voice(env, monkeypatch, retired)["edge"]
+    first = build(env).manifest
+    n_edge, n_retired = len(edge.texts), len(retired.texts)
+    again = build(env, previous=first)
+    assert len(retired.texts) > n_retired and len(edge.texts) == n_edge  # tried again (unbilled), Edge from the cache
+    assert again.manifest.audio == first.audio
+    assert len([i for i in again.issues if i.code == "assets.tts_fallback"]) == 1  # still visible
+
+
+def test_a_scene_is_narrated_in_one_voice_when_the_model_retires_mid_lecture(env, monkeypatch):
+    from tests.pipeline.fakes import FakeTTS
+
+    providers = retired_voice(env, monkeypatch, FakeTTS(name="gemini"))  # the model still works at first
+    edge = providers["edge"]
+    first = build(env).manifest
+    assert first.audio["intro"].provider == "gemini" and first.audio["intro"].voice == "Kore"
+    data = env["sp"].model_dump(mode="json")
+    data["scenes"][0]["beats"][1]["narration"] = "It has exactly three terminals."
+    edited = Screenplay.model_validate(data)
+    providers["gemini"] = RetiredTTS()  # Google shuts the model down; the first beat's clip is still cached
+    res = build(env, sp=edited, previous=first)
+    assert res.built == ["intro"]
+    intro = res.manifest.audio["intro"]
+    assert (intro.provider, intro.voice) == ("edge", "en-IN-NeerjaNeural")
+    # both beats in Edge, in either order: clip lookups run in threads, so synthesis order is not fixed (beat order
+    # is pinned by the manifest's clip keys above)
+    assert sorted(edge.texts) == sorted(["Look at the B J T circuit here.", "It has exactly three terminals."])
+    assert clip_keys(res.manifest, "intro")[0] != clip_keys(first, "intro")[0]
+    assert res.manifest.audio["quiz"] == first.audio["quiz"]  # unchanged scenes keep their narration
+    assert len([i for i in res.issues if i.code == "assets.tts_fallback"]) == 1
+
+
+def test_the_edge_voice_follows_the_servers_edge_voice_and_the_lectures_language(env):
+    from types import SimpleNamespace
+
+    from aadhi.pipeline.assets import fallback_voice_config
+
+    edge = SimpleNamespace(name="edge", default_voice=lambda language: "unused")
+    base = env["ctx"].settings.model_copy(update={"default_language": "en-IN"})
+    server_edge = base.model_copy(update={"tts_provider": "edge", "tts_voice": "en-IN-PrabhatNeural"})
+    v = fallback_voice_config(server_edge, "en-IN", edge, "+10%")
+    assert (v.provider, v.voice, v.rate, v.model, v.language) == ("edge", "en-IN-PrabhatNeural", "+10%", "", "en-IN")
+    assert fallback_voice_config(server_edge, "ta-IN", edge, "+0%").voice == "ta-IN-PallaviNeural"
+    server_gemini = base.model_copy(update={"tts_provider": "gemini", "tts_voice": "Kore"})
+    assert fallback_voice_config(server_gemini, "en-IN", edge, "+0%").voice == "en-IN-NeerjaNeural"  # never "Kore"
+    assert fallback_voice_config(server_gemini, "hi-IN", edge, "+0%").voice == "hi-IN-SwaraNeural"
+
+
+def test_edge_failing_the_same_way_is_a_narration_failure_not_a_loop(env, monkeypatch):
+    from aadhi.pipeline import integrations
+    from aadhi.providers.base import ProviderNotConfigured
+
+    retired_edge = RetiredTTS(name="edge")
+    monkeypatch.setattr(integrations, "get_tts", lambda name, settings: retired_edge)
+    env["opts"] = env["opts"].model_copy(update={"tts_provider": "edge"})
+    res = build(env)
+    assert ("assets.tts_failed", "intro") in {(i.code, i.scene_id) for i in res.issues}
+    assert not [i for i in res.issues if i.code == "assets.tts_fallback"] and "intro" not in res.manifest.audio
+
+    def no_edge(name, settings):
+        if name == "edge":
+            raise ProviderNotConfigured("edge: off", provider="edge")
+        return RetiredTTS()
+
+    monkeypatch.setattr(integrations, "get_tts", no_edge)
+    env["opts"] = env["opts"].model_copy(update={"tts_provider": "gemini"})
+    res = build(env)
+    assert ("assets.tts_failed", "intro") in {(i.code, i.scene_id) for i in res.issues}
+    assert not [i for i in res.issues if i.code == "assets.tts_fallback"]
+
+
+def test_a_retired_openai_speech_model_narrates_with_edge_too(env, monkeypatch):
+    """Every OpenAI /v1/audio/speech model retires on 2027-01-06 (docs/OPERATIONS.md section 3.3). The real adapter
+    over the real SDK turns OpenAI's answer (404 model_not_found, also its answer for a model the key has no access
+    to) into ModelUnavailable, so the build narrates with Edge and warns instead of leaving every scene silent."""
+    import httpx
+    import openai
+
+    from aadhi.pipeline import integrations
+    from aadhi.providers.tts.openai import OpenAITTS
+    from tests.pipeline.fakes import FakeTTS
+
+    requests: list[httpx.Request] = []
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(404, json={"error": {
+            "message": "The model `tts-1` does not exist or you do not have access to it.",
+            "type": "invalid_request_error", "param": None, "code": "model_not_found"}})
+
+    client = openai.AsyncOpenAI(api_key="sk-test-123456789", max_retries=0,
+                                http_client=httpx.AsyncClient(transport=httpx.MockTransport(answer)))
+    env["ctx"].settings = env["ctx"].settings.model_copy(update={"openai_tts_model": "tts-1"})
+    edge = FakeTTS(name="edge")
+    providers = {"openai": OpenAITTS(env["ctx"].settings, client_factory=lambda: client), "edge": edge}
+    monkeypatch.setattr(integrations, "get_tts", lambda name, settings: providers[name or "openai"])
+    env["opts"] = env["opts"].model_copy(update={"tts_provider": "openai", "tts_voice": "nova"})
+    try:
+        res = build(env)
+    finally:
+        asyncio.run(client.close())
+    m = res.manifest
+    voiced = [s.id for s in env["sp"].scenes if s.all_beats()]
+    assert requests and {r.url.path for r in requests} == {"/v1/audio/speech"} and edge.texts
+    assert {(m.audio[sid].provider, m.audio[sid].voice) for sid in voiced} == {("edge", "en-IN-NeerjaNeural")}
+    assert not [u for u in env["ctx"].usages if u.provider == "openai"]  # every refused request was free
+    fallback = [i for i in res.issues if i.code == "assets.tts_fallback"]
+    assert len(fallback) == 1 and "'tts-1'" in fallback[0].message and "'openai'" in fallback[0].message
+    assert "the API key has no access to it" in fallback[0].message  # the same 404: not necessarily retired
+    assert not [i for i in res.issues if i.code == "assets.tts_failed"]
+    logs = [e["message"] for e in env["ctx"].events if e["type"] == "log" and e["level"] == "warning"]
+    switch = [msg for msg in logs if "free Edge voice en-IN-NeerjaNeural" in msg]
+    assert len(switch) == 1 and "'tts-1'" in switch[0] and "model_not_found" in switch[0]  # OpenAI's reason kept
+
+
 def test_cached_ai_video_is_reused_without_a_budget_check(env):
     first = build(env).manifest
     assert first.media["video1"].main.source == "veo"

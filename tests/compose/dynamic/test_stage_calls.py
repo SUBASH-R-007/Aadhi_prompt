@@ -108,3 +108,74 @@ async def test_the_engine_retries_a_chunk_whose_capture_crashed() -> None:
     with pytest.raises(StageError) as ei:
         await page.capture_jpeg()
     assert _retryable(ei.value)
+
+
+# --- a page that fails to come up is closed (``StageBrowser.open``) -------------------------------------------------
+
+
+class _NewPage:
+    """A fresh Playwright page stand-in for ``StageBrowser.open``: ``fail`` picks the step that breaks."""
+
+    def __init__(self, fail: str | None) -> None:
+        self.fail = fail
+        self.closed = False
+
+    def on(self, event: str, handler: Any) -> None:
+        return None
+
+    async def route(self, pattern: str, handler: Any) -> None:
+        if self.fail == "route":
+            raise Exception("Target page, context or browser has been closed")
+
+    async def goto(self, url: str, **kwargs: Any) -> Any:
+        if self.fail == "goto":
+            raise Exception("net::ERR_CONNECTION_REFUSED")
+        return None
+
+    async def evaluate(self, js: str, arg: Any = None) -> Any:
+        from aadhi.compose.dynamic import stage_page as sp
+
+        answers = {sp._HAS_STAGE_JS: True, sp._VERSION_JS: 2 if self.fail == "version" else 3,
+                   sp._READY_JS: {"ok": True, "value": {"webgl": False}},
+                   sp._INFO_JS: {"width": 320, "height": 180, "fps": 30, "frames": 30,
+                                 "scenes": [{"index": 0, "f0": 0, "f1": 30}]}}
+        return answers[js]
+
+    async def close(self) -> None:
+        self.closed = True
+
+
+class _Context:
+    def __init__(self, page: _NewPage) -> None:
+        self.page = page
+
+    async def new_page(self) -> _NewPage:
+        return self.page
+
+    async def new_cdp_session(self, page: Any) -> _Cdp:
+        return _Cdp(Exception("Protocol error (Animation.enable): Internal error") if self.page.fail == "cdp" else None)
+
+
+@pytest.mark.parametrize(("fail", "code"), [("route", "stage_crashed"), ("cdp", "stage_crashed"),
+                                            ("goto", "render_page_not_ready"), ("version", "stage_contract")])
+async def test_a_page_that_fails_to_open_is_closed(fail: str, code: str) -> None:
+    """Every failed open (a chunk retry, a recycle after a crash) used to leave its page, and its renderer, open in
+    the worker's browser until the render ended."""
+    from aadhi.compose.dynamic.stage_page import StageBrowser
+
+    page = _NewPage(fail)
+    browser = StageBrowser(settings=settings(), context=_Context(page), base_url="http://127.0.0.1:9", size=(320, 180),
+                           deadline=_Deadline(5.0, None), violations=[])
+    with pytest.raises(StageError) as ei:
+        await browser.open(token="t")
+    assert ei.value.code == code and page.closed and browser.pages == []
+
+
+async def test_a_page_that_opens_is_kept() -> None:
+    from aadhi.compose.dynamic.stage_page import StageBrowser
+
+    page = _NewPage(None)
+    browser = StageBrowser(settings=settings(), context=_Context(page), base_url="http://127.0.0.1:9", size=(320, 180),
+                           deadline=_Deadline(5.0, None), violations=[])
+    opened = await browser.open(token="t")
+    assert not page.closed and browser.pages == [opened] and (await opened.info()).frames == 30

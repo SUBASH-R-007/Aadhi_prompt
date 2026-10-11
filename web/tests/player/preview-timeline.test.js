@@ -96,6 +96,26 @@ test('the shown scene is kept by id when a refresh changes positions; a failed r
   pane.destroy();
 });
 
+test("a reel's preview box takes the 9:16 shape across refreshes; a classic preview gets its 16:9 box back", async () => {
+  const { dynamicTimeline, classicTimeline } = await import('../dynamic/_fixture.js');
+  serve(dynamicTimeline('portrait'));
+  const { pane } = mountPane();
+  const box = /** @type {HTMLElement} */ (pane.el.querySelector('.preview-box'));
+  await pane.refresh();
+  assert.ok(box.querySelector('.dyn-stage'), 'the real Dynamic stage');
+  assert.equal(box.dataset.stageShape, 'portrait');
+  assert.equal(box.style.getPropertyValue('--ap-stage-w'), '1080');
+  assert.equal(box.style.getPropertyValue('--ap-stage-h'), '1920');
+  await pane.refresh(); // the next player takes over the same box (the old one gives it back first)
+  assert.equal(box.dataset.stageShape, 'portrait');
+  serve(classicTimeline());
+  await pane.refresh();
+  assert.equal(box.dataset.stageShape, undefined);
+  assert.equal(box.style.getPropertyValue('--ap-stage-w'), '');
+  assert.equal(box.style.getPropertyValue('--ap-stage-h'), '');
+  pane.destroy();
+});
+
 test('the strip model reads the real timeline: scene spans, beats and an intro before the first scene', () => {
   const timeline = loadTimeline();
   const m = stripModel(timeline, null);

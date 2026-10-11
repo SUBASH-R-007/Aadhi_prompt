@@ -413,7 +413,7 @@ y=1920  └───────────────────────
 - **Constants** in `aadhi/compose/dynamic/zones.py` (versioned): `YT_SHORTS = (288, 672, 48, 192)`, `META_REELS = (269, 672, 65, 65)`, `TIKTOK = (240, 660, 120, 120, rail=(300, y ≥ 840))`, and `UNIVERSAL` = their intersection. Below y 840 the intersection is x 120–780, which is why the caption band uses it.
 - **Measured fit.** At 96 px, "Why doesn't the Moon fall down to Earth?" (8 words) wraps to 4 lines in the 696 px column (≈ 403 px tall), and "Can a wire stop current?" to 2 lines. The hook band therefore holds 4 lines; the old 220 px band held 2. At 60 px, "Voltage equals current" measures 670 px and does not fit one 660 px caption line, so captions wrap by measurement, never by character count (§4.6).
 - **Captions keep one position** for the whole video [R-34]. Moving them between the top and bottom per template, as the review suggested, would make viewers search for them; the visual gains its room from the one-line headline and the tall variant instead (Appendix C, T-16).
-- **Inserted 16:9 clips** shown `contain_blur` sit at y 360–968 (1080×608) with captions below on the blur, so captions never cover the footage.
+- **Inserted 16:9 clips** shown `contain_blur` sit at y 360–968 (1080×608) with captions below on the blur, so captions never cover the footage. *As built (B1), hand-over to B2/B6:* the stage's `MediaView` (`web/js/dynamic/media.js`) always centres the medium in its box and has no anchor or position option, so this layout (a full-frame blur with the clip placed at y 360–968) needs one first: an object position, or a separate medium rect inside the backdrop's box.
 - **Studio overlay.** The preview can overlay the zones (§9.6).
 
 ### 2.6 Caption policy and "Where will students watch?"
@@ -985,6 +985,8 @@ Both cues are anchored events. ≤ 2 cues concurrent; ≤ 1 new cue per 2 s; a c
 
 **Reduced motion** [RV T-22]. When the viewer's device prefers reduced motion, the live player turns whips and zoom-throughs into crossfades, camera pushes and punch-zooms into the outline form of `cue.look_here`, and switches off parallax and Ken Burns. This is the second allowed live/MP4 difference (§7.3). The render option **Calm motion** (W2) applies the same mapping to the MP4.
 
+**As built (B1): emphasis inside a title.** A Dynamic quiz question keeps its rich-lite markup (TeX, `**bold**`, `[[term]]`, code), drawn word by word by `board_generic`. Emphasis there is by weight only: `**bold**` is drawn at weight 900 against the 700 title (`web/css/dynamic.css` `.dyn-title .rt-b`; Outfit 900 is vendored and preloaded by the render page). With the Inter display face, and in Indic scripts, whose heaviest vendored face is 700, it falls back to that 700 face without a synthesised bold, so there it does not stand out. A `[[term]]` in a title keeps the title's weight until B2's `cue.term` (`cues.js`) draws term emphasis; templates must not add colour or highlight emphasis of their own.
+
 ### 4.9 Transitions
 
 All transitions are rendered in the page. During `[0, d)` of the incoming scene B, the stage paints the final state of scene A (a pure function of time) with B's state and combines them. The timeline time base is unchanged, because the fade stays inside the incoming scene [CB §1].
@@ -1037,11 +1039,11 @@ All SFX are **synthesised in-house**, deterministically, in `aadhi/compose/sound
 | `minimal_lower` | Small phrase chunks low in the band | Chalk | W2 |
 | `glow_outline` | Soft outer glow (pre-computed text shadow, no blur filter) | Cinematic | W2 |
 
-**In-page rendering.** Captions are part of the stage, so the live player and the MP4 match. The MP4 never relies on libass for Dynamic videos. Sidecar `.srt`/`.vtt` files carry the phrase captions for accessibility tools and platforms.
+**In-page rendering.** Captions are part of the stage, so the live player and the MP4 match. The MP4 never relies on libass for Dynamic videos. Sidecar `.srt`/`.vtt` files carry the phrase captions for accessibility tools and platforms. For the same reason the live player offers no caption-size choice for a Dynamic video (as built in B1, §9.7): its captions keep their format's size, as in the MP4.
 
 ### 4.12 Icons, illustrations, fonts and data
 
-All are vendored (CSP `script-src 'self'`), pinned with SRI in `web/vendor/manifest.json`, with licences in `THIRD_PARTY_NOTICES` (Apache NOTICE files included) [MR §6].
+All are vendored (CSP `script-src 'self'`), pinned with SRI in `web/vendor/manifest.json`, with licences in `THIRD_PARTY_NOTICES` (Apache NOTICE files included) [MR §6]. *As built (B1):* `THIRD_PARTY_NOTICES` does not exist yet; `scripts/vendor.mjs` copies the pinned libraries and fonts and writes the SRI manifest only. It is still to be generated; B2 vendors the next fonts and icons.
 
 | Asset set | Licence | Verdict | Use |
 |---|---|---|---|
@@ -1071,7 +1073,7 @@ All are vendored (CSP `script-src 'self'`), pinned with SRI in `web/vendor/manif
 |---|---|---|---|---|---|---|
 | **Edge** (`edge-tts` 7.2.8, LGPLv3) | Default provider; 24 voices in `voices.py` | Extend the catalogue (bn-IN, mr-IN, gu-IN, ur-IN and ≈ 25 English voices) in B3 | 322 live voices; en-IN has 2 speakers (Neerja, Prabhat) | Yes (`WordBoundary`) | $0 | Unofficial consumer service with no SLA or licence grant. **Development, demo and free tier only** if Q8 chooses Azure |
 | **Azure AI Speech** | — | New adapter in **B3** when Q8 = Azure [RV E-27, T-7] | The Edge voices under licence, HD voices, SSML styles. en-IN: 14 standard + 6 HD voices (list fetched by the review) | Yes: Speech SDK `WordBoundary` events, or batch synthesis with `wordBoundaryEnabled` over REST if the SDK's licence or Linux dependencies are unsuitable (checked in B3) | ≈ $0.07; 0.5 M chars/month free | The licensed equivalent of Edge; recommended production default |
-| **Gemini** | `gemini-2.5-flash-preview-tts`, **shuts down 17 Nov 2026** (`main:server.py:758`; v2 `aadhi/config.py:179`) | **Hotfix H0 this week:** `gemini-3.8-flash-tts` for finals, `gemini-3.8-flash-lite-tts` for previews; `requirements.txt` floor `google-genai>=2.25` (the lock already has 2.26.0) | 30 prebuilt voices; 130+ languages | No → synthesise per sentence | $0.068 / $0.045; both double on 1 Jan 2027 | `speech_metadata.style` and pause tags. Terms: users 18+, apps "likely accessed by" under-18s excluded (Q3) |
+| **Gemini** | `gemini-2.5-flash-preview-tts`, **shuts down 17 Nov 2026** (`main:server.py:758`; v2 has used `gemini-3.8-flash-tts` since H0, `aadhi/config.py:180`) | **Hotfix H0 this week:** `gemini-3.8-flash-tts` for finals, `gemini-3.8-flash-lite-tts` for previews; `requirements.txt` floor `google-genai>=2.26` (3.8 TTS needs 2.25; Omni's Interactions API was verified against 2.26, the version the lock pins) | 30 prebuilt voices; 130+ languages | No → synthesise per sentence | $0.068 / $0.045; both double on 1 Jan 2027 | `speech_metadata.style` and pause tags. Terms: users 18+, apps "likely accessed by" under-18s excluded (Q3) |
 | **OpenAI** | `tts-1-hd` | `gpt-4o-mini-tts` (snapshot `-2025-12-15`) in B3, with `instructions` | 13 | No | ≈ $0.075 | Input ≤ 2,000 tokens, so chunks ≤ 1,500. AI voice **must be disclosed** |
 | **ElevenLabs** | `eleven_multilingual_v2`; key only from `.env` | `eleven_v4` / `eleven_flash_v2_5` in B3, voices from `GET /v1/voices`, **personal and server keys** (§5.7) | Voice library | `/with-timestamps`: probe on v4, else per-sentence | price row re-read in B0 | Free plan non-commercial: exports blocked on free-plan keys |
 | Google Chirp 3 HD | — | B7; needs Google Cloud credentials (a service account), a new credential type — not the Gemini key | 30 voices in 9 Indian locales | No | $0.14 | |
@@ -1869,6 +1871,8 @@ window.aadhiStage = {
 
 There are no fixed sleeps.
 
+*As built (B1).* The frozen contract with its additions (`mediaPlan` fields, `textBoxes()` roles and slots, the render-mode caption layer) is in `docs/INTERFACES.md`. The engine checks the page of **every** capture worker, and the remedy capture's page, against the timeline before it captures: `info()` must give the stage size, the rate, the total frames and every scene's frame range exactly (`compose/motion/engine.py` `_check_layout`); a page that lists no scenes for a timeline that has some is a `stage_contract` mismatch too (`stage.scene_mismatch`).
+
 **Live player.** `web/js/dynamic/stage.js` plugs into the existing player shell (controls, clock, captions toggle, analytics, checkpoint interaction). Each `requestAnimationFrame` reads `t` from `clock.js` and calls `stage.update(t)`. Media play as real `<video>` elements using proxies (§8.4), re-sought when drift exceeds 0.1 s [ED §8]. The narration `<audio>` stays the master clock.
 
 **Allowed live/MP4 differences** (both flagged in analytics):
@@ -1894,9 +1898,15 @@ There are no fixed sleeps.
    - **(b) Parity:** live player against MP4 at 20 random instants, SSIM ≥ 0.98 (`evals/render_parity.py`).
    - **(c) Windows development:** Windows renders are compared only with Windows previews; DirectWrite and FreeType rasterise text differently [MR §5].
 
+*As built (B1).* Measured necessities, each found because frames depended on the order they were rendered in:
+- **No `will-change`**, whole-pixel positions and no scale for moving cards, and a media frame that enters by rising, never by scaling (`board_generic.js`). The one `will-change` in the stage is a `contain_blur` clip's box (`.dyn-media--contain_blur.dyn-media--clip` in `web/css/dynamic.css`; `MediaView` adds `dyn-media--clip` to video views). Chromium composites every shown 2D canvas as a layer of its own (CDP reason "Canvas", even with `--disable-gpu`), so the backdrop canvas (§7.7) gave the clip above it a layer whose contents depended on render order: 93 of 120 16:9 frames differed between a forward and a reverse render, by up to 62 levels. With the box promoted (it has no transform of its own) none differ in either format. Pictures, stills with Ken Burns included, must not be promoted: with the box promoted, the Ken Burns still failed 62 of 120 9:16 frames.
+- **Ken Burns** scales a still inside its frame with a CSS scale and translate (`web/js/player/kenburns.js`); measured order-independent on Windows in both formats, across the 50% scale where Chromium changes mip level (`tests/determinism/test_kenburns_determinism.py`); its run in the container is pending with the CI `container` job.
+- **No partial raster.** Chromium re-rasterised only the invalidated part of a tile, and Skia's antialiasing over that smaller clip differed (≤ 3 levels) from a full-tile raster: a MathJax glyph in a card that changed colour then depended on what was painted before it, and 76 of 300 frames of the portrait QA fixture differed between 1×300 and reverse. The Dynamic stage's Chromium is therefore launched with `DETERMINISM_ARGS = ("--disable-partial-raster",)` (`aadhi/compose/dynamic/stage_page.py`) on top of `CHROMIUM_ARGS`: 0 frames differ in either format, at no measurable capture cost (median 73–74 ms per frame with and without the flag on the development laptop, whose timings are noisy). The classic capture keeps `CHROMIUM_ARGS` unchanged (§3.6).
+- **Tests.** (a) is `tests/determinism/test_frame_hashes.py` (the QA fixture in both formats) and `test_kenburns_determinism.py` (a Ken Burns still, a `contain_blur` still and a `contain_blur` clip from pre-extracted frames served through `/__frames/`, the clip both with its backdrop shown and in a frame that fits it), all marked `slow` and `container`. `tests/compose/motion/test_launch_args.py` pins the capture worker's real launch flags to `StageOptions.chromium_args()`, which is part of the chunk cache key (§7.6): a new launch flag goes into both `stage_page.stage_browser` and `StageOptions.chromium_args()`.
+
 ### 7.5 Capture and encode
 
-**Capture.** Each worker runs one chrome-headless-shell process with one page and a CDP session: viewport = format size at DPR 1; `Page.captureScreenshot {format: "jpeg", quality: 92, optimizeForSpeed: true}` [MR C11]; today's `CHROMIUM_ARGS` (plus `--use-angle=swiftshader --enable-unsafe-swiftshader` only when the plan has WebGL presets, W2). Never `--run-all-compositor-stages-before-draw`, which spins ≈ 3.3 cores while idle [MR C12]. Not launched with `reduced_motion="reduce"`. Whether `--disable-frame-rate-limit` is safe and useful in production is decided by the B1 benchmark.
+**Capture.** Each worker runs one chrome-headless-shell process with one page and a CDP session: viewport = format size at DPR 1; `Page.captureScreenshot {format: "jpeg", quality: 92, optimizeForSpeed: true}` [MR C11]; today's `CHROMIUM_ARGS` (plus `--use-angle=swiftshader --enable-unsafe-swiftshader` only when the plan has WebGL presets, W2). Never `--run-all-compositor-stages-before-draw`, which spins ≈ 3.3 cores while idle [MR C12]. Not launched with `reduced_motion="reduce"`. Whether `--disable-frame-rate-limit` is safe and useful in production is decided by the B1 benchmark. *As built (B1):* the flags are `CHROMIUM_ARGS` plus `DETERMINISM_ARGS` (`--disable-partial-raster`, §7.4) plus the SwiftShader pair only with WebGL presets; the launch (`stage_page.stage_browser`) and the chunk cache key (`StageOptions.chromium_args()`) use the same list. `--disable-frame-rate-limit` is not used (inconclusive in the B1 measurements). x264 also gets `-threads 4` (§10.3 B1).
 
 **Encode.** Every chunk uses identical parameters, so every chunk starts with an IDR frame and concatenation is safe:
 
@@ -1919,16 +1929,17 @@ ffmpeg -f image2pipe -c:v mjpeg -framerate 30 -i pipe:0
 ### 7.6 Parallelism, chunks and caching
 
 **Workers** [RV E-4].
-- `W = min(6, ⌊cgroup CPU quota⌋ − 1, physical cores − 1)`, at least 1; override with `RENDER_MOTION_WORKERS`. Inside a container, Python 3.11's `os.cpu_count()` and psutil report the host's cores and ignore the CPU quota, so the quota is read from cgroup v2 `cpu.max` (or v1 `cpu.cfs_quota_us / cpu.cfs_period_us`). An "8-vCPU" server usually has 4 physical cores, which gives W = 3.
+- `W = min(6, ⌊cgroup CPU quota⌋ − 1, physical cores − 1, cpuset − 1)`, at least 1 (as built, `compose/motion/resources.py` `CpuBudget.auto_workers`: a Linux cpuset from `sched_getaffinity` bounds it too); override with `RENDER_MOTION_WORKERS`. Inside a container, Python 3.11's `os.cpu_count()` and psutil report the host's cores and ignore the CPU quota, so the quota is read from cgroup v2 `cpu.max` (or v1 `cpu.cfs_quota_us / cpu.cfs_period_us`). An "8-vCPU" server usually has 4 physical cores, which gives W = 3.
 - Going from 4 to 6 workers gained only 12% [MR D15].
 - **Host-wide CPU slots.** Motion renders take slots from `RENDER_CPU_SLOTS` (default = physical cores − 1), implemented as `flock`ed slot files in `RENDER_SLOT_DIR`, a host directory bind-mounted into every render container on the host, so concurrent renders in several containers do not oversubscribe the machine.
 - **Correction to revision 1:** `RENDER_CONCURRENCY` limits concurrent segment encodes inside one classic render (`compose/video.py:535–549, 861–869`; `OPERATIONS.md` §4.2); jobs per container are capped by `WORKER_CONCURRENCY` (render worker default 1).
 - **Compose profile.** The shipped `render-worker` limits (`RENDER_WORKER_CPUS` 4, memory 6g, shm 1gb) are too small for W workers plus encoders plus the 0.5 GB mix. A `motion` profile in `docker-compose.yml` sets ≥ 8 CPUs, ≥ 10 GB and `shm_size: 2gb`; `OPERATIONS.md` documents it. The final numbers come from the B1 container benchmark.
 - A page is recycled after 1,800 frames, or when its fps falls below 50% of its first chunk [MR §3].
+- *As built (B1):* every worker's page is checked against the timeline before the capture (§7.3), not only the first one's; a page that fails to come up is closed before the error is raised, so a retry on a fresh page leaves no orphan renderer. The post-render remedy that captures chunks again (§7.12) runs after the capture's slots were released, so it waits for a CPU slot of its own (cancel-aware) and holds it until its browser is closed.
 
 **Chunks.** Scene-aligned, 240–600 frames (8–20 s); long scenes split mid-scene; assigned longest-first.
 
-**Cache key.** `sha256` of: the stage bundle hash (`web/js/dynamic`, `web/js/motion`, `dynamic.css`, fonts, vendor manifest); `engine_version`; the frame range; the timeline slices that affect those frames (the scene, the outgoing scene's final state, the global presentation); the media asset keys; the encoder parameters; the Chromium version. Chunks live in the render workspace (`compose/workspace.py`); a retry or a one-scene edit re-renders only the chunks it touches [CB §1]. Settled looks (§4.4) keep untouched scenes' chunks valid across edits.
+**Cache key.** `sha256` of: the stage bundle hash (`web/js/dynamic`, `web/js/motion`, `dynamic.css`, fonts, vendor manifest); `engine_version`; the frame range; the timeline slices that affect those frames (the scene, the outgoing scene's final state, the global presentation); the media asset keys; the encoder parameters; the Chromium version. Chunks live in the render workspace (`compose/workspace.py`); a retry or a one-scene edit re-renders only the chunks it touches [CB §1]. Settled looks (§4.4) keep untouched scenes' chunks valid across edits. *As built (B1):* the key also holds the capture parameters (JPEG quality, layers and the Chromium launch flags, `StageOptions.capture_fingerprint`), and chunks are reused only by a retry of the same render (a new render gets a new workspace); the full field list is in `docs/INTERFACES.md` (`motion.chunks.chunk_key`).
 
 **Disk.** JPEG frames are piped, never written. Media frames are extracted per chunk and deleted after it. `RENDER_MIN_FREE_GB` still applies.
 
@@ -1938,7 +1949,12 @@ ffmpeg -f image2pipe -c:v mjpeg -framerate 30 -i pipe:0
 - **Serving** [RV E-18]. The page requests `/__frames/<chunk>/<media>/<n>.jpg`; the worker's existing request handler (`context.route`, `screenshot.py:433`) answers with `route.fulfill(path=…)` from its local workspace. No API route, no shared volume and no extra load on the API container (≈ 30 requests/s per worker otherwise).
 - **Frame selection.** Source frame `floor((t − media_start + trim_in) · srcFps + 1e-6)`, then looped, frozen or clamped by `end_behavior` [MR §2.2].
 - **Sources:** Veo videos, Manim videos, inserted clips (30 fps mezzanines, §8.4), Aadhi clips (24 fps; extracted once per clip, crop and size, and cached as branding derivatives). GIPHY GIFs stay live-only.
-- **Images** are plain `<img>` elements; Ken Burns is a CSS transform computed from `t`.
+- **Images** are plain `<img>` elements; Ken Burns is a CSS transform computed from `t`. A medium shown `contain_blur` (as built in B1, `web/js/dynamic/media.js` `BACKDROP_WIDTH`) is contained in its box over a blurred, darkened copy of the same frame: the copy is drawn into a canvas 64 px wide (the box's aspect) with the canvas's own `blur(2px) brightness(0.6)`, drawn slightly larger than the canvas so its edges average picture, and the canvas is stretched over the box, whose smooth upscaling does the rest of the blur. It reads the element the medium itself shows (the pre-extracted frame's `<img>`, a still, or the live `<video>`), so `mediaPlan` lists no extra frames and no extra extraction runs. When the medium covers its box to within 1 px at each side (`backdropShown`) no backdrop is drawn and its canvas is not shown; `board_generic` sizes a frame to the medium's aspect whenever that size is known, so this is the usual case there. Every shown canvas is a composited layer, which is why a `contain_blur` clip's box carries the stage's one `will-change` (§7.4). The classic player still draws `contain_blur` as `contain`.
+
+*As built (B1):*
+- **Overlays** (`TimedOverlay`) are not drawn by the stage before B6, so `mediaPlan` never lists them and the engine fetches no overlay clip before the capture (`compose/motion/engine.py` `OVERLAYS_DRAWN = False`; `video_media_keys(timeline, *, overlays=OVERLAYS_DRAWN)`): a missing overlay asset cannot fail a render it would not appear in. B6 sets `OVERLAYS_DRAWN = True` with the stage's overlay layer, and overlay clips are then required like scene and panel clips.
+- **Cleanup.** A chunk's extracted media frames are removed, and no longer served, when the chunk fails anywhere from its media plan on (a broken plan, a failed extraction or encoder start), as after a capture.
+- **Live clips.** A paused clip that cannot seek when it is painted (its metadata not in yet, or a scrub's seek still in flight) is sought to the last requested time once it can (`MediaView._resync` on `loadedmetadata` and `seeked`), never while playing and never again for a time it was already sought to (a browser that clamps the seek to a shorter clip's end would otherwise loop). The `contain_blur` backdrop of a live clip is drawn again on `loadeddata` and `seeked`, with no stage repaint. A live clip plays at the player's rate (`MediaView`, and `stage.js` `syncClip` for the presenter clip). Hand-over to B2: the live presenter clip (`syncClip`) needs the same seek-when-ready treatment once `ResolvedLook.presenter` carries a live `url`.
 
 ### 7.8 WebGL policy
 
@@ -1967,6 +1983,8 @@ ffmpeg -f image2pipe -c:v mjpeg -framerate 30 -i pipe:0
 | 720p draft | ≈ 0.5× the final time | [MR §4.4] |
 
 **B1 acceptance benchmark** [RV E-5]: inside the production render image, under the `motion` compose profile, through the production capture path (route interception, `/render-dynamic`, rAF wait in `seek()`, the chosen x264 preset), on four real templates: `formula_focus` (MathJax), `chart_build` (Chart.js), `media_split` with a 1080p clip, and a scene with burned captions. It records fps per worker, end-to-end time for a 5-minute fixture, and memory. If the budget is missed: try `veryfast`/`faster` at CRF 17, then 720p drafts by default for previews, then static-run deduplication (B9), and reopen Q7 with the measured numbers.
+
+*As built (B1):* `scripts/bench_motion.py` renders the showcase lecture with a synthetic presentation through `board_generic` only (the only template B1 has), with a narration tone on every scene, a 1080p 30 fps test clip on every AI-video and simulation scene and, with `--burn-captions`, burned captions; Chart.js is not exercised (the stage draws no chart panel before B2). `formula_focus`, `chart_build` and `media_split` arrive in B2, so the benchmark is to be run again after B2. The production app image carries neither `scripts/` nor `tests/` (the showcase fixture), so the benchmark runs with both bind-mounted into the container (`docs/OPERATIONS.md` §4.2).
 
 - **Performance regression job.** A non-blocking CI job on a fixed self-hosted runner (when the owner provides one) re-runs the benchmark per merge and posts the numbers; shared runners are too noisy for a blocking gate [RV E-14].
 - **Render estimate in the Studio:** `frames / (benchmark_fps × W × 0.85)`, calibrated by a 60-frame benchmark when a worker starts.
@@ -2005,6 +2023,14 @@ The video chunks carry no audio. The master track is built from the whole edited
 
 **Post-render warnings** (the MP4 is kept): contrast estimated from the captured pixels (a ring around each sampled box) — a critical box below threshold triggers one automatic re-render of its chunks with the scrim forced; static stretches; black edges; the optional 3-frame determinism spot check. Results are stored in `Render.options["qa"]` as today.
 
+*As built (B1)* (`compose/dynamic/preflight.py`; the checks and the stored document: `docs/ARCHITECTURE.md` §14, `docs/API.md`):
+- **Sampling** also takes every scene's last frame and every beat's settled frame; in 9:16 every phrase caption's first frame. The checks are text overflow, safe zones, analytic contrast and the R-29 type floor (warn only).
+- **Captions** are checked only when the render burns them: the page draws exactly the render's caption layer (`setLayers` after every load, the second round's reload included), and the request's `burn_captions` wins over `presentation.captions_burn`. With burned captions no other critical text may reach into the caption band.
+- **Frame count.** Preflight expects the frames the engine captures and the page reports: the scene-bounds total (`motion.chunks.scene_frame_bounds`, `web/js/dynamic/core.js` `stageInfo`). Every scene keeps at least one frame, so a final scene shorter than half a frame makes it one more than the rounded duration.
+- **Two rounds, one item each.** Remedies are written into the served timeline's looks and the touched scenes are checked again. One item is kept per (check, scene, slot) across both rounds: the second round re-scans every frame of a touched scene and sees its other findings again, which stay the first round's items.
+- **Remedy slots.** The title block reports its text in the slots `kicker` and `title` only; a chapter card's subtitle is reported in slot `title` and is remedied through it. A scrim planned for either slot scrims the whole title block (kicker, title and subtitle; a centred block's scrim stays centred), and `textBoxes()` then reports the scrim composited over the background as the text's `bg`, so the second round measures the remedy and a contrast finding it fixes ends `fixed`. A TeX word wider than the column even at the title's minimum size holds the title at that minimum, and its sideways overflow is reported at that size, so preflight blocks at the floor without a shrink round. A quiz's countdown number is reported as a non-critical label (slot `ring`).
+- **Post-render remedies.** Chunks with a wrong frame count are captured again on a fresh browser that waits for a CPU slot of its own (cancel-aware), since the capture's slots were released when it ended; the audio is encoded again; the MP4 is muxed again. Loudness is not checked in B1 (the engine passes `inspect_container` no target; `qa.loudness` is null).
+
 ### 7.13 Library and licence verdicts
 
 | Library | Version | Licence | Verdict |
@@ -2028,7 +2054,7 @@ The video chunks carry no audio. The master track is built from the whole edited
 | `soundfile` | — | BSD wrapper, bundles LGPL libsndfile | **Not added**: WAV via the standard `wave` module (§5.11) |
 | Mediabunny, ffmpeg.wasm, WebCodecs stacks | — | MPL-2.0 / — | Not needed: the server renders |
 
-Every vendored library is pinned with SRI in `web/vendor/manifest.json` through `scripts/vendor.mjs`; `THIRD_PARTY_NOTICES` is generated and includes the Apache NOTICE files [MR §8.16].
+Every vendored library is pinned with SRI in `web/vendor/manifest.json` through `scripts/vendor.mjs`; `THIRD_PARTY_NOTICES` is generated and includes the Apache NOTICE files [MR §8.16]. *As built (B1):* not yet; `vendor.mjs` writes only the SRI manifest and no notices file exists (§4.12).
 
 ---
 
@@ -2284,6 +2310,7 @@ When the scope check pauses a generation (§6.4), the project page shows, in pla
 
 - **Actions** (`projectDetail.js`): **Make a reel from this lecture** (§6.10); **Remake as Dynamic video** for classic lectures; **Generate again**, which keeps the look, voice and music unless **Fresh look** is ticked (§5.3).
 - **Render dialog:** destination (pre-filled), captions (burned or clean), **Also export the other version**, loudness (−14 / −16 LUFS, pre-filled by destination), draft or final, sound effects on/off, Calm motion (W2), **Export as 2 parts** (reels, §2.7), and the preflight results with their one-click fixes before anything is captured (§7.12).
+  *As built (B1):* the editor's "Render MP4" and the project page's "Make the video" tell a Dynamic render from a classic one only by the server's answer, `GET /api/versions/{vid}/render/preflight` `presentation` (null for a classic render, including a lecture with a presentation while `DYNAMIC_ENABLED` is off; `web/js/studio/lib/renderOptions.js` `dynamicRender(preflight)`). Without that answer (the request failed, or the editor did not check a stale lecture) the classic dialog is shown. The Dynamic dialog pre-checks "Burn captions" from `captions_burn`, always sends `burn_captions`, has no intro option and, in the editor, sends `soft_subtitles` explicitly when the captions are not burned (pre-checked: a clean file's default-on track, R-31). The other options of this dialog are not built yet.
 - **Downloads:** the MP4(s), `.srt`, `.vtt`, the chapters and description draft, the thumbnail or cover, `credits.txt`, and a short **"Which file goes where"** note [RV L-9]: YouTube → the clean MP4 + `.srt`; LMS → the burned MP4 (+ `.vtt` if the LMS takes captions); WhatsApp, Drive or a projector → the burned MP4.
 
 ### 9.6 Previews
@@ -2300,6 +2327,12 @@ When the scope check pauses a generation (§6.4), the project page shows, in pla
 - **Checkpoints** (`predict`, `check`) pause for an answer, with **Show answer**; the MP4 uses the timed think hold [LS G3].
 - **Reduced motion** is honoured (§4.8).
 - **Analytics events**, added to the existing per-scene drop-off data: checkpoint answered or skipped and whether correct; prediction made; music level changed; captions toggled; seek-backs per scene. They feed E1–E4 and L1 (§1.3).
+
+*As built (B1)* (`web/js/player/player.js`, `controls.js`, `web/css/player.css` §12–13, `web/css/studio.css`):
+- **The box takes the stage's shape.** The player sizes a Dynamic stage from the timeline and marks its root (`data-stage-shape` plus `--ap-stage-w` / `--ap-stage-h`) while the stage is not 1920×1080, so the watch page's `.watch-player` and the Studio preview's `.preview-box` take a 9:16 reel's shape instead of a pillar in a 16:9 box; classic and 16:9 boxes are unchanged. The reel's watch box height is measured on the small viewport (`100svh`, the browser's toolbars shown), with `100vh` as the fallback; the Studio's box is at most 60% of the window tall.
+- **The control bar fits the box.** A reel's box is the `ap-shaped-box` size container, so its bar follows the box's width, not the viewport's: up to 720 px the phone bar; at 410 px and below no mute; at 370 px no time (the seek bar shows the progress); at 260 px no scene list; at 220 px no speed. Play/pause, the seek bar, captions and fullscreen always stay. Below 136 px (a phone held sideways) the bar wraps onto a second line, and anything that still does not fit wraps instead of being clipped; fullscreen shows the full bar. Typical boxes: 518 px wide at 1920×1080 (the full phone bar), 342 px at 1366×768 and 259 px in the Studio preview (parts dropped). `tests/web/test_player_controls_fit.py` checks this in Chromium. Known classic limits, unchanged: the classic Studio preview (16:9, about 431 px wide) clips Captions, Caption size, Speed, Scenes and Fullscreen, and the classic watch page on 360–375 px phones clips Fullscreen.
+- **No caption-size choice for Dynamic videos.** Their captions are part of the stage, drawn at their format's size in its band (§4.11, R-34) exactly as in the MP4, so the size button is disabled and says "Caption size: set by this video"; the viewer's size preference is kept for their classic lectures. The lift that keeps captions above the shown control bar is measured from the format's caption band (`Player.captionBottom`: 48 stage px above the bottom in 16:9, 680 in 9:16, which a bar rarely reaches).
+- **Less work for a Dynamic lecture.** It preloads no quiz tick or ding, computes the classic scene state only to duck the branding music, paints nothing in a hidden tab except at scene changes, and reports a stage that fails to paint once per scene and message (at most 20 per timeline, `MAX_STAGE_FAILURES`).
 
 ### 9.8 Teacher defaults and the brand kit
 
@@ -2355,9 +2388,11 @@ B4 ─► B9 measurement and tuning                (continuous)
 #### H0. Gemini TTS hotfix (this week, standalone)
 
 `gemini-2.5-flash-preview-tts` shuts down on **17 Nov 2026** (Google's deprecations page; prices of the replacements double on 1 Jan 2027). `main` is the default and deployed branch, and v2 is unmerged, so bundling the fix into B0 on v2 would miss the deadline [RV E-1].
-- **Scope.** On `main`: `server.py:758` → `gemini-3.8-flash-tts`, and `test_gemini.py`. On `overhaul/v2`: `aadhi/config.py:179` (`gemini_tts_model`) → `gemini-3.8-flash-tts`; `requirements.txt` floor `google-genai>=2.25` (the lock already pins 2.26.0); the pricing row with the 2027 step. A missing-model error falls back to Edge with a visible warning.
+- **Scope.** On `main`: `server.py:758` → `gemini-3.8-flash-tts`, and `test_gemini.py`. On `overhaul/v2`: `aadhi/config.py:180` (`gemini_tts_model`) → `gemini-3.8-flash-tts`; `requirements.txt` floor `google-genai>=2.26` (Gemini 3.8 TTS needs 2.25, but Gemini Omni's Interactions API, `client.aio.interactions` and `google.genai._gaos`, was verified against 2.26, and the floors in `requirements.txt` are the verified versions; the lock pins 2.26.0); the pricing row with the 2027 step. A missing-model error falls back to Edge with a visible warning; this covers a retired OpenAI speech model too (`OPENAI_TTS_MODEL`: every `/v1/audio/speech` model retires on 2027-01-06).
 - **Acceptance.** Tests pass on both branches with recorded fixtures; the owner runs a real-key smoke test on the deployed instance; deployed well before 17 Nov.
 - **Estimate.** 0.5–1 day. The adapter's style and pause-tag improvements wait for B3.
+- **Status (2026-10-11).** Done on `overhaul/v2`: the `gemini-3.8-flash-tts` default, the pricing row, the `google-genai>=2.26` floor and the Edge fallback with a warning. **Open on `main`**, the deployed branch, which still calls `gemini-2.5-flash-preview-tts` (`server.py:758`) and stops narrating when it shuts down on 17 Nov 2026: the `main` hotfix is the owner's decision.
+- **As built (v2).** `ModelUnavailable` (`aadhi/providers/base.py`, a `ProviderUnavailable`) is raised by both speech adapters for HTTP 404 / 410 on a request naming the configured model: `GeminiTTS` (`GEMINI_TTS_MODEL` shut down, renamed or misspelt) and `OpenAITTS` (`OPENAI_TTS_MODEL` retired, renamed or misspelt, or a model the API key has no access to, which OpenAI answers with the same 404 `model_not_found`). It comes after that one request, never retried, with nothing generated or billed. On it, `aadhi/pipeline/assets.py` switches the build once to the free Edge voice for the lecture's language (`fallback_voice_config`: `TTS_VOICE` when Edge is the server's provider and the lecture speaks `DEFAULT_LANGUAGE`, else Edge's default voice for the language; same rate) and adds one lecture-level `assets.tts_fallback` warning ("The voice model '<model>' of the voice provider '<provider>' is not available (it was retired or renamed, or the API key has no access to it); the free Edge voice '<voice>' was used instead.") and a job-log warning that names the model and the switch first. The scene that met the error is narrated again wholly in Edge (every scene has one voice), and the fallback clips are keyed exactly like an Edge lecture's (`_Builder.clip_key(text, voice)`), so nothing is stored under the failed voice's keys. The next build tries the lecture's voice again: the scenes the fallback narrated are rebuilt and their Edge clips come from the cache. Without Edge on the server (`ProviderNotConfigured`) the scenes still fail with `assets.tts_failed`.
 
 #### B0. Foundations and safety (no visible change)
 
@@ -2404,7 +2439,11 @@ B4 ─► B9 measurement and tuning                (continuous)
   writes refuse a newer stored asset manifest before writing. The asset-key lookup batches its keys (SQLite's bind limit).
 - The CI job `container` selects the ffmpeg checks by the `container` marker; the test image sets
   `AADHI_EXPECT_FFMPEG=5.1` (the version pin) and `AADHI_CONTAINER_TESTS=1`. "Container suites (Docker test image)"
-  must be made a required check in the repository's branch protection (an owner setting).
+  must be made a required check in the repository's branch protection (an owner setting). Since the B1 completion
+  pass, `AADHI_CONTAINER_TESTS=1` also makes the B1 suites' tool and bundle checks fail instead of skip
+  (`tests/compose/dynamic/helpers.missing`: ffmpeg / ffprobe, Playwright, its Chromium, the stage bundle; also the
+  live-app fixture of `tests/api/test_render_dynamic_route.py` and the tools fixture of
+  `tests/invariance/test_render_slow.py`), so the blocking job cannot pass green by skipping them.
 - Added outside the plan: the Gemini Omni video provider (`aadhi/providers/video/omni.py`, `VIDEO_PROVIDERS`,
   `OMNI_MODEL`). Google lists the Veo 3.1 previews for shutdown from 2026-10-22 with `gemini-omni-1.1-flash` as the
   replacement; a chain that has `veo` gets `omni` as its last backup unless `VIDEO_PROVIDERS` sets the order. That
@@ -2422,10 +2461,13 @@ B4 ─► B9 measurement and tuning                (continuous)
 - B4: widen `PlannedScene.narrative_role` to the v3 roles (§6.5); until then a rebuilt plan maps them.
 - Assets: an Omni or Veo create that got no answer within the live job still ends `failed` in the job's operation
   record (only a crash leaves it `submitting`); consider keeping such a record ambiguous (`_submit_video`).
-- The CI job `container` has not run yet (no Docker daemon on the development machine): its first run may surface
-  ffmpeg 5.1 differences; the branch-protection setting is the owner's.
-- B1/B6 player: `end_behavior="clamp"`, `fit="contain_blur"` and a portrait `Player` (today only the render page is
-  sized from the timeline).
+- The CI job `container` has not run yet (Docker Desktop is installed on the development machine, but its C: drive
+  has about 7 GB free, too little for the production image): its first run may surface ffmpeg 5.1 differences; the
+  branch-protection setting is the owner's.
+- B1/B6 player: done in B1 for the Dynamic stage. The portrait `Player` sizes its stage from the timeline and the
+  watch and Studio preview boxes take its shape (§9.7); `fit="contain_blur"` (§7.7) and `end_behavior="clamp"` are
+  drawn by the Dynamic stage. The classic player and renderer have neither (the classic player draws `contain_blur`
+  as `contain`); B6's inserted clips need an anchor for `contain_blur` (§2.5).
 - B3/B6: call `record_asset_refs` for generated music, `normalize_clip` mezzanines, tus narration uploads and stock or
   link imports, with kinds `music` / `clip` / `narration_upload`; add each kind to `GC_ASSET_KINDS` with its batch.
 - B5 editor: keep `Beat.answers` and the hook valid in `sanitizeScreenplayRefs`, `deleteBoardItem`, `removeBeat`,
@@ -2456,12 +2498,15 @@ B4 ─► B9 measurement and tuning                (continuous)
 
 **Estimate:** 3–4 weeks.
 
-**Status (B1 integration, 2026-10-10): built and integrated; acceptance met on the development laptop except the
-container benchmark, which is still pending.** Contracts as frozen above (stage contract v3, `/render-dynamic`, the
-settings, the chunk cache key, the preflight result schema 1). Classic output unchanged: the goldens pass, and the
-differential pixel test of the showcase against the pre-B1 tree gave 9,701 of 9,701 frames identical, identical
-audio and an equal timeline (Windows, ffmpeg 8.1). Details: `ARCHITECTURE.md` §14, `INTERFACES.md`, `API.md`, `OPERATIONS.md` §3,
-§4.2.
+**Status (B1 integration 2026-10-10, completion pass 2026-10-11): built and integrated; the acceptance renders and
+the automated parity and determinism checks pass on the development laptop. Still open: the production-image
+benchmark under the `motion` profile, the first run of the CI `container` job and the owner's frame-by-frame
+review.** Contracts as frozen above (stage contract v3, `/render-dynamic`, the settings, the chunk cache key, the
+preflight result schema 1). Classic output unchanged: the goldens pass, and the differential pixel test of the
+showcase against the pre-B1 tree gave 9,701 of 9,701 frames identical, identical audio and an equal timeline
+(Windows, ffmpeg 8.1); the completion pass keeps the classic capture's Chromium flags (`CHROMIUM_ARGS`) and a
+classic render's options as they were. Details: `ARCHITECTURE.md` §14, `INTERFACES.md`, `API.md`, `OPERATIONS.md`
+§3, §4.2.
 - **Acceptance.** The showcase (16 scenes, 5.2 min, three AI clips and a simulation as test clips, a quiz, two chapter
   cards) with a synthetic presentation rendered through the real `render_video` job in a throwaway app with fake
   providers: 16:9 burned, 16:9 clean with the caption track, and 9:16 burned. Preflight passed (117 / 289 sampled
@@ -2500,21 +2545,73 @@ audio and an equal timeline (Windows, ffmpeg 8.1). Details: `ARCHITECTURE.md` §
   checked); 9:16 card text is weight 600 and labels ≥ 44 px (40 px in 16:9), with a warn-only `type_floor` preflight
   check (an added key in the schema-1 `checks`); `DYNAMIC_ENABLED` now applies when a timeline is served, so the
   player and the MP4 never show different engines and turning it off stops the Dynamic stage at once.
+- **Closed in the B1 completion pass (2026-10-11)** (each with a regression test):
+  - *Preflight and engine:* findings are no longer duplicated across the two rounds (one item per check, scene and
+    slot); preflight draws and checks the render's own caption layer (`setLayers` after every load, the reload
+    included), not `presentation.captions_burn`; it expects the engine's scene-bounds frame count (a final scene under
+    half a frame keeps one frame); every worker's page, and the remedy's, is checked against the timeline, and an
+    empty `info().scenes` is a `stage_contract` mismatch; a page that fails to open is closed; a failed chunk leaves
+    no extracted media frames; overlay clips are not fetched before the capture until B6 (`engine.OVERLAYS_DRAWN`);
+    the `rerender_chunks` remedy waits for and holds one CPU slot; chart, graph, 3D model, skill tree and quiz side
+    panels, which the stage does not draw, give a render warning (reason `panel_not_drawn`) instead of being dropped
+    silently; Dynamic word-anchored sync cues snap to the 30 fps grid (`DYNAMIC_FPS`), not `RENDER_FPS`.
+  - *Determinism:* Chromium's partial raster made frames depend on render order (76 of 300 portrait QA-fixture
+    frames differed between 1×300 and reverse, ≤ 3 levels); the Dynamic stage now launches with
+    `--disable-partial-raster` (`stage_page.DETERMINISM_ARGS`, also in the chunk key): 0 mismatches in both formats,
+    no measurable capture cost (§7.4, §7.5). Ken Burns stills and `contain_blur` stills and clips are covered by
+    `tests/determinism/test_kenburns_determinism.py` (Windows, both formats); `tests/compose/motion/test_launch_args.py`
+    keeps the launch flags and the cache key's flags equal.
+  - *Stage:* `fit: "contain_blur"` is drawn (§7.7); crossfades are clamped to 300–500 ms (`transitions.js`
+    `CROSSFADE_MAX` 0.5, was 0.8); quiz questions keep their rich-lite markup (TeX, bold, terms, code) word by word,
+    bold at weight 900 (§4.8); a scrim that preflight plans for the kicker, the title or the subtitle scrims the whole
+    title block and `textBoxes()` reports the composited scrim colour, so contrast remedies end `fixed`, and a centred
+    block's scrim stays centred; in 16:9 the title block ends 24 px left of the 96 px quiz ring (120 px narrower),
+    `textBoxes()` reports the countdown number as a non-critical label, and in 9:16 the number is 44 px (R-29); light
+    families: `dynamic.css` has no family-dependent literal colours left (the stage and each scene set `--dyn-ink` and
+    `--dyn-page`, which drive the stage, the scene and the matte around contained media; the ring track is the ink at
+    18% for a light ink, 25% for a dark one); the live presenter clip follows the playback rate; a paused live clip
+    is sought once it can seek (§7.7).
+  - *Player and Studio:* the portrait Player is done: the watch and Studio preview boxes take a reel's shape, the
+    control bar fits the box, and Dynamic captions keep their format's size (§9.7); the render dialogs take a Dynamic
+    lecture's defaults from `GET .../render/preflight` `presentation` (§9.5); the job stepper follows the engine
+    (classic: screenshots, segments, mux, check, store; motion: preflight, capture, mux, check, store).
+  - *API:* `POST /render` without `burn_captions` lets a Dynamic lecture's `presentation.captions_burn` decide (the
+    field was always stored as `false`, so the presentation never applied); a classic render still stores `false`.
+  - *Tests:* `tests/conftest.py` also pins `DYNAMIC_ENABLED`, `RENDER_MOTION_WORKERS`, `RENDER_CPU_SLOTS`,
+    `RENDER_SLOT_DIR`, `MOTION_X264_PRESET` and `MOTION_X264_CRF` to their defaults; in the Docker test image
+    (`AADHI_CONTAINER_TESTS=1`) a missing tool or bundle fails the B1 suites instead of skipping them (§10.3 B0, as
+    built), `tests/api/test_render_dynamic_route.py`'s live app and `tests/invariance/test_render_slow.py`'s tools
+    included; that route's contract test launches with `DETERMINISM_ARGS` and accepts a chapter card's critical
+    `kicker` slot.
+  - *Alongside:* H0 on v2 (`ModelUnavailable` and the Edge fallback for retired Gemini and OpenAI speech models,
+    `google-genai>=2.26`, §10.3 H0); a provider rate limit while building the concept brief ends the attempt and the
+    job is retried, instead of planning without the brief; a translation copies its source version's `ingest_key` and
+    `source_overrides`, so regenerating one of its scenes reads the extract its scenes cite; a recap moved after the
+    hook no longer leaves an empty chapter behind.
 - **Deviations from this design:** `-threads 4` added to §7.5 (x264's default took 765 MB per encoder and 4 encoders
   reached 67 fps together; with 4 threads 290 MB and 156 fps); chunks are reused only by a retry of the same render
-  (§7.6: a new render gets a new workspace); preflight also samples scene ends and beats (§7.12); no `will-change`,
-  whole-pixel positions and rising (never scaling) pictures, all needed for order-independent frames; `mesh_drift`
-  paints on a 1/8 canvas stepping every 0.2 s; `--disable-frame-rate-limit` is not used (inconclusive in the B1
-  measurements).
+  (§7.6: a new render gets a new workspace); preflight also samples scene ends and beats (§7.12); no `will-change`
+  (except a `contain_blur` clip's box), whole-pixel positions, media frames that rise instead of scaling, and
+  `--disable-partial-raster` on the Dynamic stage's Chromium, all needed for order-independent frames (§7.4);
+  `mesh_drift` paints on a 1/8 canvas stepping every 0.2 s; `--disable-frame-rate-limit` is not used (inconclusive
+  in the B1 measurements); the template contract adds `layout()` / `texts()` to §4.2 and has no `ctx.cues` yet
+  (B2's `cues.js`); `TemplateContext.onBackground` also carries `bgs` (every background colour).
 - **Measured on the development laptop** (i7-13650HX, Windows, chrome-headless-shell 153, ffmpeg 8.1; W = 6; runs of
   one configuration varied by up to ±25%): one page 41-64 ms per 1080p frame (`seek()` 4-8 ms + CDP JPEG 37-55 ms;
   budget 45 ms; the background canvas costs 8-20 ms of it); 6 workers 6-12 fps each, 35-60 fps together; the 5-minute
   16:9 benchmark in 163-170 s, the 3.5-minute reel in 144 s, the 5.2-minute showcase through the job in 193-281 s;
   fixed costs per render 10-25 s (preflight 4-12 s); memory 0.6-1.0 GB per worker plus one 0.2-0.3 GB driver.
-- **Open (owner or later batches):** the reviewer's frame-by-frame side-by-side of MP4 and live player (2 transitions,
-  3 scenes; the automated parity and chunk-join tests pass); the B1 container benchmark in the production image under the `motion` profile,
-  which sets P1, the profile limits and answers Q7 (no Docker daemon on the development machine); the CI `container`
-  job's first run on ffmpeg 5.1 (it now includes the determinism suite); preflight's remedies reach only the MP4
+- **Open (owner or later batches):** the owner's frame-by-frame side-by-side of MP4 and live player (2 transitions,
+  3 scenes; the automated parity and chunk-join tests pass); the B1 container benchmark in the production image
+  under the `motion` profile, which sets P1, the profile limits and answers Q7, and the CI `container` job's first
+  run on ffmpeg 5.1 (it includes the determinism suites, which have so far run on Windows only). Neither ran
+  locally: Docker Desktop is installed, but the development machine's C: drive has about 7 GB free, too little for
+  the production image. The app image has no `scripts/` or `tests/`, so the benchmark runs with both bind-mounted
+  (the command is in `OPERATIONS.md` §4.2). Hand-overs: B2's `chart_build` removes `"chart"` from
+  `compose/motion/job.py` `UNDRAWN_PANEL_KINDS` (and so for any other panel kind a B2 template draws); B6 sets
+  `engine.OVERLAYS_DRAWN = True` with the overlay layer; B2 gives `ResolvedLook.presenter` a live `url` and the live
+  presenter clip the paused-seek handling of `MediaView` (§7.7); B2/B6 add an anchor to `MediaView` for the 9:16
+  inserted-clip layout (§2.5). Also open: preflight's remedies reach only the MP4
   until B2/B4 store them in the lecture (an allowed difference until then); a 9:16 split layout shows its picture
   small when the cards are tall, and a 9:16 terminal card can still collapse before its last line (B2's
   `media_split` and `code_terminal`); the analytics flags for the allowed live/MP4 differences and the low-end
@@ -2533,7 +2630,7 @@ audio and an equal timeline (Windows, ffmpeg 8.1). Details: `ARCHITECTURE.md` §
 - The 6 R1 backgrounds with the hold freeze; cut, crossfade, push, colour wipe and shared-element morph; the Crisp and Soft personalities; `cues.js`.
 - `textfit.py` (including the Pillow WOFF2 check in the container) and `zones.py` with the safe-zone overlay.
 - `kinetic.py` (phrase chunks, measured widths, blanking, the key-term rule) and the `clean_pill` and `bold_outline` caption styles.
-- **The 23 R1 template modules** (§4.3) in both formats, including the four 16:9 intro layouts, the 9:16 card and the Aadhi frame-extraction cache.
+- **The 23 R1 template modules** (§4.3) in both formats, including the four 16:9 intro layouts, the 9:16 card and the Aadhi frame-extraction cache. A template that draws a side-panel kind B1 leaves out removes that kind from `aadhi/compose/motion/job.py` `UNDRAWN_PANEL_KINDS` (`chart_build`: `"chart"`), so its `panel_not_drawn` render warning goes with it.
 - `direct.py` (classes, locks, bounded post-pass, entity mapping, accents, backgrounds) and `events.py` (anchoring, cue limits, R-49 SFX policy).
 - A dev-only **template gallery** (`web/dynamic/gallery.html`): every template × format × the 4 families, with the longest allowed text and Tamil and Hindi text.
 
@@ -2601,7 +2698,7 @@ audio and an equal timeline (Windows, ffmpeg 8.1). Details: `ARCHITECTURE.md` §
 
 #### B6. Editor II: external clips and recordings
 
-**Scope:** the tus endpoint and client (CSRF header) and the proxy body-limit documentation; the `normalize_clip` job (proxy first; `ALL_JOB_KINDS`, compose `WORKER_KINDS`, docs; GC kinds); `ClipScene` (duration rule, `end_behavior`) through the `ai_video` blast-radius checklist [CB §6.2]; overlays (clamp, Extend the scene, reveal shortening, `keep_full_length`) and `TimedOverlay`; the two-step insert dialog with in-browser trim and the Adjust panel, "Replace this scene's picture", sentence snapping and `continues_from`; all sources of §8.4 (upload, library, Pexels and Pixabay with server keys, SSRF-safe links, screen, camera, own narration); `Permissions-Policy` for Studio pages; clip audio modes; clip captions (import, Transcribe); rights and credits; the `clip.*` lints; media extraction for clips; clips in the live player via proxies; the fake stock provider; enabling the `clip` and `overlays` features.
+**Scope:** the tus endpoint and client (CSRF header) and the proxy body-limit documentation; the `normalize_clip` job (proxy first; `ALL_JOB_KINDS`, compose `WORKER_KINDS`, docs; GC kinds); `ClipScene` (duration rule, `end_behavior`) through the `ai_video` blast-radius checklist [CB §6.2]; overlays (clamp, Extend the scene, reveal shortening, `keep_full_length`) and `TimedOverlay`; the two-step insert dialog with in-browser trim and the Adjust panel, "Replace this scene's picture", sentence snapping and `continues_from`; all sources of §8.4 (upload, library, Pexels and Pixabay with server keys, SSRF-safe links, screen, camera, own narration); `Permissions-Policy` for Studio pages; clip audio modes; clip captions (import, Transcribe); rights and credits; the `clip.*` lints; media extraction for clips; clips in the live player via proxies; the fake stock provider; enabling the `clip` and `overlays` features. The stage's overlay layer sets `aadhi/compose/motion/engine.py` `OVERLAYS_DRAWN = True`, so `video_media_keys` then requires overlay clips before the capture (B1 fetches none, since it draws no overlay); a `contain_blur` inserted clip needs a medium anchor in `MediaView` first (§2.5).
 
 **Contracts frozen:** the tus routes; the `normalize_clip` payload; `ClipScene` and `Overlay` (enabled); the stock proxy endpoints.
 
@@ -2852,7 +2949,7 @@ Every finding of the three revision-2 reviews, in their order. **Accepted** mean
 
 | # | Finding | Verdict | Resolution | Where |
 |---|---|---|---|---|
-| E-1 | Gemini fix on the wrong branch | Accepted | Standalone hotfix H0 this week on `main` (`server.py:758`, `test_gemini.py`) and v2 (`config.py:179`); `google-genai>=2.25` floor | §5.1, §10.3 H0 |
+| E-1 | Gemini fix on the wrong branch | Accepted | Standalone hotfix H0 this week on `main` (`server.py:758`, `test_gemini.py`) and v2 (`config.py:180`); `google-genai>=2.26` floor (2.25 for 3.8 TTS; 2.26 is the version Omni was verified against) | §5.1, §10.3 H0 |
 | E-2 | New asset-key fields bypass per-project authorisation | Accepted | `asset_uses` extended for clip, overlay, music and narration keys; `AssetRef` rows; 422 and import-strip tests (B0) | §6.7, §8.10 |
 | E-3 | Dynamic and edit data lost silently on older builds and transforms | Accepted | All future fields inert in B0 with write gates; `schema_version` 3 and `newer_document` refusal; B0 as rollback floor; transform-survival property test; deploy order | §6.7, §10.3 B0 |
 | E-4 | Render-worker limits and W computed wrongly | Accepted | cgroup-aware W; `motion` compose profile (≥ 8 CPUs, ≥ 10 GB, 2 GB shm); host-wide `flock` slots; `render_concurrency` description corrected; mix memory budgeted; P1 re-measured in B1 | §7.6, §7.10 |

@@ -87,7 +87,7 @@ def test_preflight_endpoint(api):
     _, c, _, version = setup_version(api)
     clean = c.get(f"/api/versions/{version.id}/render/preflight").json()
     assert clean == {"version_id": version.id, "has_timeline": True, "timeline_stale": False, "blocking": False,
-                     "items": [], "quality": []}
+                     "items": [], "quality": [], "presentation": None}  # a classic lecture
     _degrade(api, version.id)
     body = c.get(f"/api/versions/{version.id}/render/preflight").json()
     assert body["blocking"] is True

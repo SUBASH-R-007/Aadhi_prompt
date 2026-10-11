@@ -76,6 +76,32 @@ def test_classic_timelines_are_byte_identical_with_the_flag_on(flag_on: Settings
     assert "presentation" not in on.model_dump(mode="json")
 
 
+def test_word_anchored_cues_snap_to_the_frame_grid_of_the_video(flag_on: Settings, flag_off: Settings,
+                                                                 monkeypatch: pytest.MonkeyPatch) -> None:
+    """A Dynamic timeline is 30 fps whatever ``RENDER_FPS`` says (25 here): its sync cues merge onto beat boundaries
+    and each other within one frame of that grid, the one the video is captured on. Classic timelines keep
+    ``RENDER_FPS`` (with the flag on, and for a presentation while the flag is off)."""
+    from aadhi.compose import timeline as timeline_mod
+    from aadhi.compose.sync import SyncOptions
+
+    assert SyncOptions.from_settings(flag_on) == SyncOptions(fps=25)
+    assert SyncOptions.from_settings(flag_on, fps=DYNAMIC_FPS) == SyncOptions(fps=30)
+    seen: list[int] = []
+    real = timeline_mod.scene_sync_cues
+
+    def spy(beats: Any, board: Any, side_panel: Any, duration: float, options: SyncOptions) -> Any:
+        seen.append(options.fps)
+        return real(beats, board, side_panel, duration, options)
+
+    monkeypatch.setattr(timeline_mod, "scene_sync_cues", spy)
+    for sp, settings, fps in ((dynamic_screenplay(), flag_on, 30), (dynamic_screenplay("portrait"), flag_on, 30),
+                              (Screenplay.model_validate(screenplay_dict()), flag_on, 25),
+                              (dynamic_screenplay(), flag_off, 25)):
+        seen.clear()
+        tl = build(sp, settings)
+        assert tl.fps == fps and seen and set(seen) == {fps}, (sp.presentation, settings.dynamic_enabled)
+
+
 def test_with_the_flag_off_a_presentation_builds_as_before(flag_off: Settings) -> None:
     sp = dynamic_screenplay()
     tl = build(sp, flag_off)

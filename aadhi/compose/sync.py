@@ -96,12 +96,14 @@ class SyncOptions:
     auto_emphasis: bool = False
 
     @classmethod
-    def from_settings(cls, settings: Any) -> SyncOptions | None:
-        """Options from ``Settings``; None when word anchors are switched off."""
+    def from_settings(cls, settings: Any, *, fps: int | None = None) -> SyncOptions | None:
+        """Options from ``Settings``; None when word anchors are switched off. ``fps``: the frame rate of the timeline
+        being built when it is not ``RENDER_FPS`` (a Dynamic timeline is always 30 fps, ``timeline.DYNAMIC_FPS``), so
+        cues snap to the frame grid the video is captured on; None (every classic timeline) = ``RENDER_FPS``."""
         if not getattr(settings, "sync_word_anchors", True):
             return None
-        return cls(fps=max(1, int(getattr(settings, "render_fps", 30) or 30)),
-                   auto_emphasis=bool(getattr(settings, "sync_auto_emphasis", False)))
+        rate = fps if fps is not None else getattr(settings, "render_fps", 30)
+        return cls(fps=max(1, int(rate or 30)), auto_emphasis=bool(getattr(settings, "sync_auto_emphasis", False)))
 
     @property
     def frame(self) -> float:

@@ -21,6 +21,7 @@ from aadhi.compose.motion.engine import _extract_media, _Files
 from aadhi.compose.motion.media import LOOKAHEAD_FRAMES, MediaRequest
 from aadhi.config import Settings
 
+from ..dynamic.helpers import missing
 from .fixtures import BITS, CLIP_KEY, decode_bits, make_bits_video
 
 pytestmark = pytest.mark.slow
@@ -34,7 +35,7 @@ def clip24(tmp_path_factory: pytest.TempPathFactory) -> Path:
     settings = Settings(_env_file=None)
     ffmpeg = resolve_tool(settings.ffmpeg_path)
     if ffmpeg is None or resolve_tool(settings.ffprobe_path) is None:
-        pytest.skip("ffmpeg/ffprobe are not installed")
+        missing("ffmpeg/ffprobe are not installed")  # fails instead in the Docker test image
     return make_bits_video(ffmpeg, tmp_path_factory.mktemp("rate24") / "veo24.mp4", SOURCE_FRAMES, SIZE, fps=24)
 
 

@@ -10,6 +10,7 @@ import {
   mixOklch,
   gamutMapOklch,
   contrastRatio,
+  composite,
   relativeLuminance,
   ACHROMATIC_CHROMA,
 } from '../../js/motion/color.js';
@@ -168,5 +169,29 @@ describe('contrastRatio', () => {
 
   test('bad colours throw', () => {
     assert.throws(() => contrastRatio('nope', '#fff'), TypeError);
+  });
+});
+
+describe('composite', () => {
+  test('source-over in gamma-encoded sRGB, the same as aadhi/compose/dynamic/colour.py composite', () => {
+    // expected values computed with colour.py: to_hex(composite(parse_colour(top), parse_colour(bottom)))
+    const PY = [
+      ['#10132Cc7', '#5A6070', '#20243b'], // the title block's scrim (bg at 78%) over a background colour
+      ['#FDF2DDc7', '#BE3D70', '#efcac5'],
+      ['#FFFFFF2E', '#10132C', '#3b3e52'],
+      ['#14182240', '#FDF2DD', '#c3bbae'],
+      ['#10132Cc7', '#FF936D', '#442f3a'],
+    ];
+    for (const [top, bottom, want] of PY) assert.equal(composite(top, bottom), want, `${top} over ${bottom}`);
+    // translucent over translucent: colour.py gives (0.66754, 0, 0.33246, 0.75196)
+    assert.equal(composite('#ff000080', '#0000ff80'), '#aa0055c0');
+  });
+
+  test('opaque on top hides the bottom; transparent on top leaves it; the contrast of text on the result', () => {
+    assert.equal(composite('#123456', '#abcdef'), '#123456');
+    assert.equal(composite('transparent', '#abcdef'), '#abcdef');
+    assert.equal(composite('transparent', 'transparent'), '#00000000');
+    close(contrastRatio('#F3F5F9', composite('#10132Cc7', '#5A6070')), contrastRatio('#F3F5F9', '#20243b'), 1e-12);
+    assert.throws(() => composite('nope', '#fff'), TypeError);
   });
 });

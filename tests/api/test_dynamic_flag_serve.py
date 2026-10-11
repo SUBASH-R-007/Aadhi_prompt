@@ -48,10 +48,9 @@ def _screenplay(*, presentation: bool) -> Any:
 
 def _store(harness: Api, *, built_dynamic: bool, presentation: bool = True, stale: bool = False) -> tuple[int, int]:
     """A version whose stored timeline was built with ``DYNAMIC_ENABLED == built_dynamic``; ``(project, version)``."""
-    from aadhi.compose.timeline import build_timeline
-
     from sqlalchemy import select
 
+    from aadhi.compose.timeline import build_timeline
     from aadhi.models import User
 
     with harness.db() as db:

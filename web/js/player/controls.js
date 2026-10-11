@@ -5,7 +5,9 @@
  * speed 0.75-1.5x, a scene list drawer and fullscreen. Keyboard: space/k play-pause, arrows seek
  * (left/right) and volume (up/down), j/l -/+10 s, shift+arrows or p/n previous/next scene,
  * c captions, m mute, f fullscreen, Esc closes the drawer. Controls auto-hide while playing.
- * Everything is built with shared/dom.js (text only).
+ * Everything is built with shared/dom.js (text only). A Dynamic video's captions (drawn by its stage, DYNAMIC_VIDEO_DESIGN
+ * §4.11) keep the size of their format: the size button is disabled and says so, and the lift above the control bar
+ * starts from the stage's caption band.
  */
 
 import { Disposer, h } from '../shared/dom.js';
@@ -30,15 +32,21 @@ const CAPTION_GAP = 14;
  * @param {number} stageBottom   client y of the stage's bottom edge
  * @param {number} barTop        client y of the top of the visible control bar
  * @param {number} scale         stage scale (CSS px per stage px)
+ * @param {number} [captionBottom]  stage px from the captions' bottom edge to the stage's bottom: the classic caption
+ *   box by default; a Dynamic stage's caption band ends higher (Player.captionBottom: 48 in 16:9, 680 in 9:16, where
+ *   a bar rarely reaches it, so its captions do not move into the content above the band)
  * @returns {number}
  */
-export function captionLift(stageBottom, barTop, scale) {
+export function captionLift(stageBottom, barTop, scale, captionBottom = CAPTION_BOTTOM) {
   if (!(scale > 0) || !Number.isFinite(stageBottom) || !Number.isFinite(barTop)) return 0;
+  const bottom = Number.isFinite(captionBottom) && captionBottom >= 0 ? captionBottom : CAPTION_BOTTOM;
   const covered = (stageBottom - barTop) / scale;
-  return Math.max(0, Math.round(covered - CAPTION_BOTTOM + CAPTION_GAP));
+  return Math.max(0, Math.round(covered - bottom + CAPTION_GAP));
 }
 const CAPTION_SIZES = /** @type {const} */ (['s', 'm', 'l']);
 const CAPTION_SIZE_LABEL = { s: 'Small', m: 'Medium', l: 'Large' };
+/** The size button while a Dynamic stage draws the captions (Player.captionSizeAdjustable is false). */
+export const CAPTION_SIZE_FIXED_LABEL = 'Caption size: set by this video';
 
 const TYPE_LABELS = /** @type {Record<string, string>} */ ({
   title: 'Introduction',
@@ -97,7 +105,8 @@ export class Controls {
     this.dragging = false;
     /** @type {ReturnType<typeof setTimeout> | null} */
     this.idleTimer = null;
-    this.captionSize = /** @type {'s' | 'm' | 'l'} */ (player.captions ? player.captions.size : 'm');
+    /** The viewer's caption size (a Dynamic stage keeps it unchanged: Player.captionSize). @type {'s' | 'm' | 'l'} */
+    this.captionSize = player.captionSize;
 
     // --- buttons -------------------------------------------------------------------------
     /** @type {HTMLButtonElement} */
@@ -331,15 +340,19 @@ export class Controls {
     const on = this.player.captionsOn;
     this.ccBtn.classList.toggle('is-on', on);
     this.ccBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
-    this.captionSize = /** @type {'s' | 'm' | 'l'} */ (this.player.captions ? this.player.captions.size : this.captionSize);
-    this.sizeBtn.textContent = `Aa ${this.captionSize.toUpperCase()}`;
-    this.sizeBtn.setAttribute('aria-label', `Caption size: ${CAPTION_SIZE_LABEL[this.captionSize]}`);
+    this.captionSize = this.player.captionSize;
+    // A Dynamic stage draws its captions at the size of their format (as the MP4): the button stays, disabled, and
+    // says why; the viewer's size is kept for their classic lectures.
+    const fixed = !this.player.captionSizeAdjustable;
+    this.sizeBtn.textContent = fixed ? 'Aa' : `Aa ${this.captionSize.toUpperCase()}`;
+    this.sizeBtn.setAttribute('aria-label', fixed ? CAPTION_SIZE_FIXED_LABEL : `Caption size: ${CAPTION_SIZE_LABEL[this.captionSize]}`);
     this.sizeBtn.title = this.sizeBtn.getAttribute('aria-label') || '';
-    this.sizeBtn.disabled = !on;
+    this.sizeBtn.disabled = fixed || !on;
     this.emitPrefs();
   }
 
   cycleCaptionSize() {
+    if (!this.player.captionSizeAdjustable) return;
     const idx = CAPTION_SIZES.indexOf(this.captionSize);
     this.player.setCaptionSize(CAPTION_SIZES[(idx + 1) % CAPTION_SIZES.length]);
   }
@@ -575,14 +588,18 @@ export class Controls {
     }, this.opts.idleMs ?? 2600);
   }
 
-  /** Keep captions above the control bar while it is shown (they drop back when it auto-hides). */
+  /**
+   * Keep captions above the control bar while it is shown (they drop back when it auto-hides), measured from where
+   * the player's captions end (a Dynamic stage's caption band: Player.captionBottom).
+   */
   updateCaptionLift() {
     if (this.host.classList.contains('is-idle') || !this.player.stage) {
       this.player.setCaptionLift(0);
       return;
     }
     const stage = this.player.stage;
-    const lift = captionLift(stage.el.getBoundingClientRect().bottom, this.scrubber.getBoundingClientRect().top, stage.scale);
+    const bottom = this.player.captionBottom;
+    const lift = captionLift(stage.el.getBoundingClientRect().bottom, this.scrubber.getBoundingClientRect().top, stage.scale, bottom ?? CAPTION_BOTTOM);
     this.player.setCaptionLift(lift);
   }
 

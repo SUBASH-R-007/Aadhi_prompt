@@ -1,10 +1,13 @@
 /* Dynamic video stage (web/js/dynamic, DYNAMIC_VIDEO_DESIGN §4, §7). Everything inside .dyn-stage is in stage pixels
    (1920x1080 or 1080x1920), identical in the live player and the render page. Every moving value is written per
    frame by the stage's painter as a pure function of time, so this file declares no time-based effects at all
-   (the determinism scan of §7.4 checks it). Colours arrive as custom properties from the colour roles (§4.7);
-   the only literal colours here are neutral shadows and the caption pill.
+   (the determinism scan of §7.4 checks it). Colours arrive as custom properties from the colour roles (§4.7): the
+   stage and each scene set --dyn-ink and --dyn-page (stage.js), a card its --surface/--ink/--border (board_generic);
+   the only literal colours here are neutral shadows and the captions (white on a dark pill or outline, and the
+   key-term yellow until B2's `mark` role; §4.11, R-53), which must not change with the family.
    No `will-change`: a promoted layer keeps the raster of its first scale and state, so a frame would depend on the
-   frames painted before it (measured: renders in reverse order differed); every frame must depend on its time only. */
+   frames painted before it (measured: renders in reverse order differed); every frame must depend on its time only.
+   The one exception is a contain_blur clip's box, which has no transform or scale of its own (see there). */
 
 /* The stage resets everything it inherits, so the live pages (base.css, player.css) and the bare render page lay it
    out identically (live/MP4 parity, §7.4.7b). */
@@ -40,8 +43,8 @@
   font-variant-ligatures: common-ligatures;
   text-rendering: geometricPrecision;
   -webkit-font-smoothing: antialiased;
-  color: #fff;
-  background: #000;
+  color: var(--dyn-ink);
+  background: var(--dyn-page);
   user-select: none;
 }
 
@@ -64,6 +67,7 @@
 
 .dyn-scene {
   overflow: hidden;
+  color: var(--dyn-ink); /* the ink on this scene's background (stage.js), for text without a colour of its own */
 }
 
 /* --- backgrounds (§4.5) --------------------------------------------------------------------------------------- */
@@ -149,9 +153,13 @@
 
 .dyn-titleblock.has-scrim {
   padding: 10px 24px 14px;
-  margin-left: -24px;
+  margin-left: -24px; /* a top block's text stays on the zone edge, the scrim reaches 24 px past it */
   border-radius: 24px;
   background: var(--scrim);
+}
+
+.dyn-titleblock--center.has-scrim {
+  margin-left: 0; /* a centred block keeps its centre: the padding comes out of both sides */
 }
 
 .dyn-header.is-empty .dyn-kicker-text {
@@ -611,6 +619,16 @@
   text-shadow: none;
 }
 
+/* **bold** in a title (a rich-lite quiz question) is heavier than the 700 title around it, or it would not show
+   (emphasis by weight only, §4.8). The display face Outfit has a 900 face (web/vendor/fonts.css, preloaded by the
+   render page: render/fonts.js BASE_FONTS). A face whose heaviest is 700 (Inter, the Noto Indic faces) draws 900 with
+   that 700 face, so there the bold does not stand out, but it is never a synthesised (smeared) bold: Chromium
+   synthesises only for a family with no face of 600 or more (measured: Inter and Noto Sans Tamil / Devanagari glyphs
+   at 900 are pixel-identical to 700). A [[term]] keeps the title's weight: B2's cue.term draws it (cues.js). */
+.dyn-stage .dyn-title .rt-b {
+  font-weight: 900;
+}
+
 .dyn-stage .rt-i {
   font-style: italic;
 }
@@ -647,11 +665,13 @@
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.32);
 }
 
+/* the matte around contained media is the scene's own page colour (stage.js --dyn-page): a light family's page, not
+   a dark hole in it */
 .dyn-media {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background: #0b0d14;
+  background: var(--dyn-page);
 }
 
 .dyn-figure .dyn-media {
@@ -667,6 +687,32 @@
 
 .dyn-media--cover .dyn-media-el {
   object-fit: cover;
+}
+
+/* contain_blur (media.js BACKDROP_WIDTH): the medium contained over a blurred, darkened copy of the same frame. The copy
+   is a small canvas stretched over the box (its smooth upscaling is part of the blur); the medium is positioned too,
+   so it paints above it (document order) */
+.dyn-media-backdrop {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.dyn-media--contain_blur .dyn-media-el {
+  position: relative;
+}
+
+/* The one promoted layer (see the header), a contain_blur clip's box: Chromium composites every 2D canvas, so the
+   clip painted above the backdrop gets a layer of its own, and without a layer for the box around both, what shares
+   that layer changes while the frame enters and as text comes and goes; a clip shows a new picture every frame, and
+   that picture was then drawn differently depending on the frames painted before it (measured: 93 of 120 16:9 frames
+   differed between a forward and a reverse render, by up to 62 levels; none with this, in either format). The box
+   has no transform of its own. Clips only: a picture (one picture, Ken Burns scaling it inside the box) is
+   order-independent without it and not with it (measured: 62 of 120 9:16 frames differed with the box promoted). */
+.dyn-media--contain_blur.dyn-media--clip {
+  will-change: transform;
 }
 
 .dyn-media-el.is-broken {
@@ -709,9 +755,9 @@
   transform: rotate(-90deg);
 }
 
+/* stroke and stroke-opacity: the ink it sits on (board_generic RING_TRACK_ALPHA), for dark and light families */
 .dyn-ring-track {
   fill: none;
-  stroke: rgba(255, 255, 255, 0.18);
   stroke-width: 8;
 }
 
@@ -727,7 +773,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 40px;
+  font-size: var(--min-label, 40px); /* R-29: a label, >= 40 px in 16:9 and >= 44 px in 9:16 */
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }

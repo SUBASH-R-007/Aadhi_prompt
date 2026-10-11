@@ -233,11 +233,15 @@ newest save of each lesson:
 
 ```
 aadhi/      backend (FastAPI app, jobs, pipeline, providers, manim, compose, auth, storage)
-web/        frontend (Studio, Player, render page, p5 sandbox) — native ES modules
+web/        frontend (Studio, Player, render pages, the Dynamic video stage, p5 sandbox) — native ES modules
 alembic/    database migrations
 evals/      evaluation fixtures and results (python -m aadhi.evals); video_qa.py (MP4 checks),
             render_parity.py (preview vs MP4 comparison: python evals/render_parity.py)
-tests/      pytest suites (tests/invariance: the classic invariance harness);  web/tests/: node --test suites
+scripts/    vendoring, generated files (.env.example, seccomp profile, lock), the offline demo server, the mascot
+            clip cleaner and the motion render benchmark
+tests/      pytest suites (tests/invariance: the classic invariance harness; tests/determinism: the Dynamic video
+            engine's determinism and parity suites; tests/web: page checks in real Chromium);
+            web/tests/: node --test suites
 docs/       ARCHITECTURE, API, INTERFACES, SECURITY, OPERATIONS, PROMPTS, EVALS, INTEGRATION_ANDRYAN,
             DYNAMIC_VIDEO_DESIGN (the Dynamic video mode, built in batches) and research/ (the reports behind it)
 ```

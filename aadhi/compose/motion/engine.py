@@ -8,8 +8,9 @@ a classic timeline):
    branding BGM; encoded once to AAC, ``encode.master_audio_command``);
 2. take ``W`` workers (``resources.motion_workers``: cgroup-aware, ``RENDER_MOTION_WORKERS``) limited by the
    host-wide CPU slots (``resources.CpuSlots``: ``RENDER_CPU_SLOTS`` lock files in ``RENDER_SLOT_DIR``), and start
-   one :class:`~.stage.StageSession` per worker on ``/render-dynamic``; the first one's ``info()`` must agree with
-   the timeline frame by frame;
+   one :class:`~.stage.StageSession` per worker on ``/render-dynamic``; every one's ``info()`` must agree with the
+   timeline frame by frame (the media the stage may ask for are fetched first; overlay clips only once the stage
+   draws overlays, B6);
 3. workers take chunks longest first. A chunk whose content address (``chunks.chunk_key``) is in the workspace's
    chunk cache is reused (a retry); otherwise its media frames are extracted (``media``), then for every frame
    ``seek(frame)`` -> CDP JPEG capture -> the encoder's stdin (``encode.EncoderSpec``: image2pipe -> x264 ->
@@ -18,8 +19,9 @@ a classic timeline):
 4. the chunks are joined (concat demuxer, ``-c copy``) and muxed once with the master audio (``-c copy``), the
    chapters and an optional default-on ``mov_text`` caption track (``+faststart+negative_cts_offsets``);
 5. the container checks run (``dynamic.container.verify_container``) with this engine's remedies: chunks with a
-   wrong frame count are captured again, the audio is mixed again, the MP4 is muxed again; a problem its remedy does
-   not fix fails the render (``render_invalid``).
+   wrong frame count are captured again (on a fresh browser holding a CPU slot of its own: the capture's slots were
+   released when it ended), the audio is mixed again, the MP4 is muxed again; a problem its remedy does not fix fails
+   the render (``render_invalid``).
 
 Captions are drawn by the stage (``setLayers({captions})``), never burned by libass. Determinism is the stage's job
 (§7.4): the engine asks for frames in ascending order within a chunk and chunks in any order. Cancellation
@@ -423,11 +425,19 @@ def _log(ctx: Any, message: str, level: str = "info") -> None:
 # ---------------------------------------------------------------------------
 
 
-def video_media_keys(timeline: Timeline) -> list[str]:
-    """Asset keys of the video media the stage may ask frames of (scene media, panel media, overlays)."""
+# Overlays (``TimedOverlay``, B0 schema) are not drawn by the stage before B6: its media plan lists only the scene's
+# media and the side panel's (web/js/dynamic/media.js). Their clips are therefore not fetched before the capture, so a
+# missing overlay asset cannot fail a render it would not appear in. B6 turns this on with the stage's overlay layer.
+OVERLAYS_DRAWN = False
+
+
+def video_media_keys(timeline: Timeline, *, overlays: bool = OVERLAYS_DRAWN) -> list[str]:
+    """Asset keys of the video media the stage may ask frames of (scene media, panel media; overlays once the stage
+    draws them, :data:`OVERLAYS_DRAWN`)."""
     keys: set[str] = set()
     for s in timeline.scenes:
-        refs = [s.media, s.side_panel.media if s.side_panel is not None else None, *(o.media for o in s.overlays)]
+        refs = [s.media, s.side_panel.media if s.side_panel is not None else None,
+                *(o.media for o in (s.overlays if overlays else ()))]
         for ref in refs:
             if ref is not None and ref.kind == "video" and ref.asset_key and ref.render_in_mp4:
                 keys.add(ref.asset_key)
@@ -680,30 +690,34 @@ async def _capture_chunk(run: _Run, session: StageSession, chunk: Chunk, worker:
     started = time.monotonic()
     stat = ChunkStat(chunk.index, chunk.f0, chunk.f1, worker)
     media_dir = work / "media" / chunk.name
-    raw = await session.media_plan(chunk.f0, min(run.total, chunk.f1 + LOOKAHEAD_FRAMES))
-    try:
-        plan = parse_media_plan(raw, stage=run.capture_size)
-    except MediaPlanError as exc:
-        raise MotionError(f"the render stage broke its contract: {exc}", code="stage_contract") from exc
-    unknown = sorted(r.asset for r in plan if r.asset not in run.media_allowed)
-    if unknown:  # never fetch an asset (or branding file) the lecture does not name
-        raise MotionError(f"the render stage asked for media the lecture does not name ({unknown[0][:48]})",
-                          code="stage_contract")
-    entries, stat.media_frames, warnings = await _extract_media(plan, run.files, media_dir, settings=settings,
-                                                                rates=run.rates, check_cancelled=check)
-    run.warnings.extend(w for w in warnings if w not in run.warnings)
-    session.frames.set(entries)
-    stat.media_seconds = time.monotonic() - started
     part = work / f"{chunk.name}.part.ts"
-    await asyncio.to_thread(_unlink, part)  # a fresh file: never write through a hard link into the cache
-    args = [*ffmpeg_pipe_base(settings), *run.enc.chunk_args(frames=chunk.frames, output=part.name,
-                                                               capture=run.capture_size)]
-    encoder = _PipeEncoder(args, cwd=work, settings=settings)
-    await encoder.start()
     keys = hashlib.sha256()
-    t0 = time.monotonic()
+    encoder: _PipeEncoder | None = None
+    t0 = started
     done = 0
+    # Everything from the media plan on is inside the cleanup: a failed plan, extraction or encoder start must not
+    # leave this chunk's extracted frames on disk (or served by the worker) any more than a failed capture does.
     try:
+        raw = await session.media_plan(chunk.f0, min(run.total, chunk.f1 + LOOKAHEAD_FRAMES))
+        try:
+            plan = parse_media_plan(raw, stage=run.capture_size)
+        except MediaPlanError as exc:
+            raise MotionError(f"the render stage broke its contract: {exc}", code="stage_contract") from exc
+        unknown = sorted(r.asset for r in plan if r.asset not in run.media_allowed)
+        if unknown:  # never fetch an asset (or branding file) the lecture does not name
+            raise MotionError(f"the render stage asked for media the lecture does not name ({unknown[0][:48]})",
+                              code="stage_contract")
+        entries, stat.media_frames, warnings = await _extract_media(plan, run.files, media_dir, settings=settings,
+                                                                    rates=run.rates, check_cancelled=check)
+        run.warnings.extend(w for w in warnings if w not in run.warnings)
+        session.frames.set(entries)
+        stat.media_seconds = time.monotonic() - started
+        await asyncio.to_thread(_unlink, part)  # a fresh file: never write through a hard link into the cache
+        args = [*ffmpeg_pipe_base(settings), *run.enc.chunk_args(frames=chunk.frames, output=part.name,
+                                                                   capture=run.capture_size)]
+        encoder = _PipeEncoder(args, cwd=work, settings=settings)
+        await encoder.start()
+        t0 = time.monotonic()
         for frame in range(chunk.f0, chunk.f1):
             if check is not None:
                 check()
@@ -715,7 +729,8 @@ async def _capture_chunk(run: _Run, session: StageSession, chunk: Chunk, worker:
         await encoder.finish(run.cfg.encoder_timeout)
     except BaseException:
         run.done_frames = max(0, run.done_frames - done)  # this attempt's frames are captured again
-        await encoder.kill()
+        if encoder is not None:
+            await encoder.kill()
         raise
     finally:
         session.frames.clear()
@@ -823,6 +838,18 @@ async def _start_sessions(sessions: list[StageSession]) -> None:
         raise
 
 
+async def _check_layout(sessions: Sequence[StageSession], *, size: tuple[int, int], fps: int, total: int,
+                        bounds: Sequence[tuple[int, int]]) -> None:
+    """Every worker's page must lay out the timeline's stage frame by frame (size, rate, frames, scene ranges): each
+    one captures its own chunks, so one page that disagrees would put its frames at the wrong times."""
+    for session in sessions:
+        info = await session.info()
+        info.check(size=size, fps=fps, frames=total)
+        problem = scene_mismatch(info, bounds)
+        if problem:
+            raise MotionError(f"the render stage does not match the timeline: {problem}", code="stage_contract")
+
+
 def _media_identities(timeline_data: Mapping[str, Any], settings: Settings) -> dict[str, str]:
     """Identity of media keys that are branding file names (not content addresses): name, size, mtime."""
     out: dict[str, str] = {}
@@ -846,6 +873,7 @@ class _Assembly:
     mux_args: list[str]
     side: dict[str, str]
     reopen: Callable[[], StageSession]
+    slots: CpuSlots | None = None  # the host's CPU slots (None: MotionConfig.use_slots off)
     applied: list[str] = field(default_factory=list)
 
     async def mux(self) -> None:
@@ -854,21 +882,36 @@ class _Assembly:
                        timeout=900 + 2 * run.total / max(1, run.timeline.fps), check_cancelled=_check(run.ctx))
 
     async def rerender_chunks(self, indices: Sequence[int]) -> None:
-        """Capture these chunks again on a fresh page (bypassing the cache), then join and mux again."""
+        """Capture these chunks again on a fresh page (bypassing the cache), then join and mux again. The capture's
+        slots were released when it ended, and this one is a Chromium plus an encoder like any worker: it waits for
+        a CPU slot of its own (cancel-aware) and holds it until its browser is closed."""
         self.applied.append("rerender_chunks")
         run = self.run
+        check = _check(run.ctx)
         by_index = {c.index: c for c in self.chunks}
-        session = self.reopen()
-        await session.start()
+        lease: SlotLease | None = None
+        if self.slots is not None:
+            def waiting() -> None:
+                _progress(run.ctx, "check", 0.9, "Waiting for a free render slot on this server")
+
+            lease = await self.slots.acquire(1, check_cancelled=check, on_wait=waiting)
         try:
-            for i in indices:
-                chunk = by_index[i]
-                if run.cache is not None:
-                    await asyncio.to_thread(run.cache.discard, run.keys[i])
-                run.done_frames = max(0, run.done_frames - chunk.frames)
-                run.stats[i] = await _capture_chunk(run, session, chunk, -1)
+            session = self.reopen()
+            await session.start()
+            try:
+                await _check_layout([session], size=run.capture_size, fps=int(run.timeline.fps), total=run.total,
+                                    bounds=self.bounds)
+                for i in indices:
+                    chunk = by_index[i]
+                    if run.cache is not None:
+                        await asyncio.to_thread(run.cache.discard, run.keys[i])
+                    run.done_frames = max(0, run.done_frames - chunk.frames)
+                    run.stats[i] = await _capture_chunk(run, session, chunk, -1)
+            finally:
+                await session.close()
         finally:
-            await session.close()
+            if lease is not None:
+                lease.release()
         await self.mux()
 
     async def reencode_audio(self) -> None:
@@ -931,6 +974,7 @@ async def render_motion(ctx: Any, timeline: Timeline, out_path: Path, settings: 
     sampler = _MemorySampler(cfg.sample_memory_seconds)
     sampler.start()
     lease: SlotLease | None = None
+    slots: CpuSlots | None = None
     n_slots = 0
     sessions: list[StageSession] = []
     audio_task: asyncio.Future[str] | None = None
@@ -974,11 +1018,7 @@ async def render_motion(ctx: Any, timeline: Timeline, out_path: Path, settings: 
                     for i in range(n_workers)]
         await _start_sessions(sessions)
         timings["boot"] = time.monotonic() - t0
-        info = await sessions[0].info()
-        info.check(size=capture_size, fps=fps, frames=total)
-        problem = scene_mismatch(info, bounds)
-        if problem:
-            raise MotionError(f"the render stage does not match the timeline: {problem}", code="stage_contract")
+        await _check_layout(sessions, size=capture_size, fps=fps, total=total, bounds=bounds)
         chromium = sessions[0].chromium_version
         bundle = await asyncio.to_thread(bundle_digest, Path(settings.web_dir))
         identities = await asyncio.to_thread(_media_identities, data, settings)
@@ -1026,7 +1066,8 @@ async def render_motion(ctx: Any, timeline: Timeline, out_path: Path, settings: 
         assembly = _Assembly(run=run, chunks=chunks, bounds=bounds, script_flag=script_flag, master=master,
                              mux_args=mux.args, side={**side, **mux.files},
                              reopen=lambda: _session(run, token=str(token), served=served, origins=origins,
-                                                     options=options, label="remedy"))
+                                                     options=options, label="remedy"),
+                             slots=slots)
         t0 = time.monotonic()
         await assembly.mux()
         timings["mux"] = time.monotonic() - t0

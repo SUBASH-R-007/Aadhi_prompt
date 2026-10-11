@@ -2,11 +2,17 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { installDom, uninstallDom } from '../player/_dom.js';
-import { BACKGROUNDS, TEMPLATES, blockInk2, createDynamicStage, fontStacks, isDynamic, templateFor } from '../../js/dynamic/stage.js';
+import { readFileSync } from 'node:fs';
+
+import { BACKGROUNDS, TEMPLATES, blockInk2, createDynamicStage, fontStacks, isDynamic, syncClip, templateFor } from '../../js/dynamic/stage.js';
 import { Painter, makeRoles, stageInfo, insideAny, ZONES } from '../../js/dynamic/core.js';
 import { blockColors } from '../../js/dynamic/backgrounds/colour_block.js';
-import { contrastRatio } from '../../js/motion/color.js';
-import boardGeneric, { BODY_WEIGHT, CARD_EXIT, LABELS, MIN_DWELL, MIN_LABEL, QUIZ_CLEAR, cardSpecs, kickerOf, mediaBoxMax, regions, slotTuning, variantOf } from '../../js/dynamic/templates/board_generic.js';
+import { composite, contrastRatio, toOklch } from '../../js/motion/color.js';
+import { splitWords } from '../../js/motion/text.js';
+import boardGeneric, {
+  BODY_WEIGHT, CARD_EXIT, LABELS, MIN_DWELL, MIN_LABEL, QUIZ_CLEAR, RING_GAP, RING_SIZE, RING_TRACK_ALPHA, SCRIM_ALPHA_HEX, TITLE_BLOCK_SLOTS,
+  cardSpecs, kickerOf, mediaBoxMax, regions, scrimmedBg, slotTuning, variantOf,
+} from '../../js/dynamic/templates/board_generic.js';
 import { classicTimeline, dynamicTimeline } from './_fixture.js';
 
 before(() => installDom());
@@ -533,4 +539,476 @@ test('live mode: update(t) paints any time, lays scenes out and asks for a repai
   stage.update(28); // the clip scene plays a <video> live
   assert.ok(stage.el.querySelector('video'));
   stage.destroy();
+});
+
+// --- rich-lite quiz questions (TeX, bold, terms, code) ------------------------------------------------------------
+
+const RICH_QUESTION = 'If $V = IR$ and **R** doubles, what happens to the [[current]] `I`?';
+
+/** A TeX converter for the tests: a marked element per TeX string; resolves once `gate` does. */
+function fakeTex(/** @type {Promise<unknown>} */ gate = Promise.resolve()) {
+  /** @type {string[]} */
+  const seen = [];
+  /** @param {string} tex @param {boolean} display */
+  const renderTex = async (tex, display) => {
+    seen.push(tex);
+    await gate;
+    const el = document.createElement('span');
+    el.className = 'fake-tex';
+    el.dataset.tex = tex;
+    el.dataset.display = String(display);
+    el.textContent = 'TEX';
+    return el;
+  };
+  return { renderTex, seen };
+}
+
+/** @param {any} tl @param {any} [opts] */
+function stageOf(tl, opts = {}) {
+  const root = document.createElement('div');
+  document.body.appendChild(root);
+  const stage = createDynamicStage(root, tl, { mode: 'render', ...fast, ...opts });
+  return { root, stage };
+}
+
+test('a quiz question keeps its rich-lite markup: TeX, bold, a [[term]] and code, word by word', async () => {
+  for (const format of /** @type {const} */ (['landscape', 'portrait'])) {
+    const tl = dynamicTimeline(format);
+    tl.scenes[2].quiz.question = RICH_QUESTION;
+    const tex = fakeTex();
+    const { root, stage } = stageOf(tl, { renderTex: tex.renderTex });
+    await stage.seek(Math.round((14 + 2.5) * 30)); // 2.5 s into the quiz: the question is in
+    const title = /** @type {HTMLElement} */ (stage.el.querySelector('.dyn-scene[data-scene="2"] .dyn-title'));
+    const text = title.textContent || '';
+    for (const literal of ['$', '**', '[[', ']]', '`']) assert.ok(!text.includes(literal), `${format}: no literal ${literal} in "${text}"`);
+    assert.deepEqual(tex.seen, ['V = IR'], 'the TeX went through the stage renderer (the render page converted it before ready)');
+    const math = /** @type {HTMLElement} */ (title.querySelector('.rt-math'));
+    assert.ok(math && !math.classList.contains('is-pending'), `${format}: the TeX is converted`);
+    assert.equal(/** @type {HTMLElement} */ (math.querySelector('.fake-tex')).dataset.tex, 'V = IR');
+    assert.equal(math.dataset.display, '0', 'inline TeX');
+    assert.equal(title.querySelector('.rt-b')?.textContent, 'R');
+    assert.equal(title.querySelector('.rt-k')?.textContent, 'current');
+    assert.equal(title.querySelector('code.rt-code')?.textContent, 'I');
+    // one word span per word of the plain text, a TeX or code span counting as one unit with what touches it
+    const words = [...title.querySelectorAll('.dyn-word')];
+    assert.deepEqual(words.map((w) => (w.textContent || '').replace('TEX', '{tex}')),
+      ['If', '{tex}', 'and', 'R', 'doubles,', 'what', 'happens', 'to', 'the', 'current', 'I?']);
+    assert.ok(words[1].querySelector('.rt-math') && words[10].querySelector('code.rt-code'));
+    assert.ok(words.every((w) => w.parentElement === title || w.parentElement?.closest('.dyn-title') === title));
+    assert.ok(words.every((w) => Number(w.style.opacity) === 1), 'all in after 2.5 s');
+    // the entrance is still word by word: early on the first word is in, the last not yet
+    await stage.seek(Math.round((14 + 0.2) * 30));
+    const early = [...stage.el.querySelectorAll('.dyn-scene[data-scene="2"] .dyn-title .dyn-word')].map((w) => Number(/** @type {HTMLElement} */ (w).style.opacity));
+    assert.ok(early[0] > 0 && early[10] === 0, `${format}: words enter one after another (${early.join(', ')})`);
+    stage.destroy();
+    root.remove();
+  }
+});
+
+test('the render page waits for a quiz question\'s TeX before the frame is done (as it does for the cards)', async () => {
+  const tl = dynamicTimeline();
+  tl.scenes[2].quiz.question = RICH_QUESTION;
+  /** @type {() => void} */
+  let release = () => undefined;
+  const tex = fakeTex(new Promise((r) => { release = () => r(undefined); }));
+  const { root, stage } = stageOf(tl, { renderTex: tex.renderTex });
+  let settled = false;
+  const pending = stage.seek(Math.round((14 + 2.5) * 30)).then((x) => {
+    settled = true;
+    return x;
+  });
+  for (let i = 0; i < 5; i++) await new Promise((r) => setImmediate(r));
+  assert.equal(settled, false, 'the frame waits for the question\'s TeX');
+  release();
+  assert.match((await pending).key, /^[0-9a-f]{16}$/);
+  assert.ok(stage.el.querySelector('.dyn-title .rt-math .fake-tex'), 'and shows it once converted');
+  stage.destroy();
+  root.remove();
+});
+
+test('the title of a rich question is reported as its plain text; a plain one is drawn as before', () => {
+  for (const [question, plain] of [
+    [RICH_QUESTION, 'If V = IR and R doubles, what happens to the current I?'],
+    ['We double the voltage. What happens to the current?', 'We double the voltage. What happens to the current?'],
+    ['Is it worth \\$5 at 2 * 3 A?', 'Is it worth $5 at 2 * 3 A?'], // an escape shows as the character (renderRich)
+  ]) {
+    const tl = dynamicTimeline();
+    const scene = tl.scenes[2];
+    scene.quiz.question = question;
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const ctx = /** @type {any} */ ({
+      scene, index: 2, timeline: tl, look: scene.look, roles: makeRoles(tl.presentation, scene.look), zones: ZONES.landscape,
+      format: 'landscape', mode: 'render', reducedMotion: false, root, paint: new Painter(), pending: [],
+      media: () => { throw new Error('no media'); }, onBackground: { ink: '#F3F5F9', ink2: '#B9BEC7', bg: '#181D37', block: false },
+      rectOf: () => null, locale: 'en', rng: () => 0.5, renderTex: fakeTex().renderTex,
+    });
+    ctx.view = boardGeneric.build(ctx);
+    boardGeneric.layout(ctx);
+    boardGeneric.update(ctx, 3, /** @type {any} */ ({ terminalLines: [], countdownRemaining: 5 }));
+    const title = boardGeneric.texts(ctx).find((e) => e.role === 'title');
+    assert.equal(title?.text, plain);
+    if (question !== RICH_QUESTION) {
+      // the plain path: exactly the word spans of the plain text, nothing else inside the title
+      assert.deepEqual(ctx.view.words.map((/** @type {HTMLElement} */ w) => w.textContent), splitWords(plain, 'en').map((w) => w.text));
+      assert.equal(ctx.view.title.querySelector('.rt-b, .rt-k, .rt-math, code'), null);
+    }
+    root.remove();
+  }
+});
+
+test('a TeX word wider than the column even at the minimum size holds the question there; its overflow is measured there', () => {
+  // jsdom lays nothing out: the title column is COLUMN px wide, every word one line high, a TeX word `perPx` x the
+  // font size wide (a plain word 2 x: it always fits). The title's line count fits at every size.
+  const COLUMN = 900;
+  for (const format of /** @type {const} */ (['landscape', 'portrait'])) {
+    const spec = format === 'landscape' ? { max: 76, min: 56 } : { max: 68, min: 50 }; // LAYOUT[format].titleQuiz
+    for (const [perPx, size, overflow, why] of [
+      [20, spec.min, 20 * spec.min - COLUMN, 'wider than the column at the minimum: held there, overflow at that size'],
+      // 14 x size: too wide at 76/72/68 (16:9) and 68 (9:16), fits at 64 (896 px) in both; avoidable at the minimum
+      [14, 64, 0, 'too wide only when large: the largest size it fits at, no overflow'],
+    ]) {
+      const tl = dynamicTimeline(format);
+      const scene = tl.scenes[2];
+      scene.quiz.question = 'Which is larger, $\\frac{a}{b}$ or 1?';
+      const root = document.createElement('div');
+      document.body.appendChild(root);
+      const ctx = /** @type {any} */ ({
+        scene, index: 2, timeline: tl, look: scene.look, roles: makeRoles(tl.presentation, scene.look), zones: ZONES[format],
+        format, mode: 'render', reducedMotion: false, root, paint: new Painter(), pending: [],
+        media: () => { throw new Error('no media'); }, onBackground: { ink: '#F3F5F9', ink2: '#B9BEC7', bg: '#181D37', block: false },
+        rectOf: () => null, locale: 'en', rng: () => 0.5, renderTex: fakeTex().renderTex,
+      });
+      ctx.view = boardGeneric.build(ctx);
+      const v = ctx.view;
+      assert.deepEqual([v.titleSpec.max, v.titleSpec.min], [spec.max, spec.min], `${format}: the quiz title spec`);
+      assert.equal(v.wordTex.filter(Boolean).length, 1, 'one TeX word');
+      const px = () => Number.parseFloat(v.title.style.fontSize) || 0;
+      const line = () => px() * v.titleSpec.lh;
+      Object.defineProperty(v.title, 'clientWidth', { configurable: true, get: () => COLUMN });
+      Object.defineProperty(v.title, 'offsetHeight', { configurable: true, get: line });
+      v.words.forEach((/** @type {HTMLElement} */ w, /** @type {number} */ i) => {
+        Object.defineProperty(w, 'offsetWidth', { configurable: true, get: () => (v.wordTex[i] ? perPx : 2) * px() });
+        Object.defineProperty(w, 'offsetHeight', { configurable: true, get: line });
+      });
+      boardGeneric.layout(ctx);
+      assert.equal(v.titleSize, size, `${format}, ${why}: size`);
+      assert.equal(px(), size, `${format}: drawn at that size`);
+      assert.equal(v.titleOverflow, overflow, `${format}, ${why}: overflow`);
+      const title = boardGeneric.texts(ctx).find((e) => e.role === 'title');
+      assert.equal(title?.size, size);
+      assert.equal(title?.overflow, overflow, 'what preflight reads (at the floor: blocked, no remedy round)');
+      root.remove();
+    }
+  }
+});
+
+// --- preflight's contrast remedy: the title block's scrim ----------------------------------------------------------
+
+/**
+ * The chapter card (title variant: its kicker is critical) built by the template alone, with `textFit` as the look's
+ * remedies and a background whose colours are `bgs` (the worst against the ink first).
+ * @param {Record<string, any> | null} textFit @param {string[]} bgs @param {string} ink2
+ */
+function chapterTexts(textFit, bgs, ink2) {
+  const tl = dynamicTimeline();
+  const scene = tl.scenes[1];
+  if (textFit) scene.look.text_fit = textFit;
+  const root = document.createElement('div');
+  document.body.appendChild(root);
+  const ctx = /** @type {any} */ ({
+    scene, index: 1, timeline: tl, look: scene.look, roles: makeRoles(tl.presentation, scene.look), zones: ZONES.landscape,
+    format: 'landscape', mode: 'render', reducedMotion: false, root, paint: new Painter(), pending: [],
+    media: () => { throw new Error('no media'); }, onBackground: { ink: '#F3F5F9', ink2, bg: bgs[0], bgs, block: false },
+    rectOf: () => null, locale: 'en', rng: () => 0.5,
+  });
+  ctx.view = boardGeneric.build(ctx);
+  boardGeneric.layout(ctx);
+  boardGeneric.update(ctx, 3, /** @type {any} */ ({ terminalLines: [], countdownRemaining: null }));
+  const texts = boardGeneric.texts(ctx);
+  root.remove();
+  return { texts, view: ctx.view, ctx };
+}
+
+test('a scrim for the kicker, the title or the subtitle puts one scrim behind the whole title block', () => {
+  assert.deepEqual([...TITLE_BLOCK_SLOTS], ['kicker', 'title']);
+  const bgs = ['#5A6070', '#10132C'];
+  // preflight plans its remedies per slot texts() reports (§7.12): the title block's slots are exactly the slots its
+  // text is reported in (the subtitle in slot 'title'), so none is listed that preflight could never plan a scrim for
+  const { texts: reported, view: card } = chapterTexts(null, bgs, '#B9BEC7');
+  const inBlock = reported.filter((e) => card.titleBlock.contains(e.el));
+  assert.deepEqual(inBlock.map((e) => e.role), ['label', 'title', 'subtitle'], 'the kicker, the title and the subtitle');
+  assert.deepEqual(inBlock.map((e) => e.slot), ['kicker', 'title', 'title'], 'the subtitle is remedied through slot title');
+  assert.deepEqual([...new Set(inBlock.map((e) => e.slot))], [...TITLE_BLOCK_SLOTS]);
+  for (const slot of TITLE_BLOCK_SLOTS) {
+    const { view } = chapterTexts({ [slot]: { scrim: true } }, bgs, '#B9BEC7');
+    assert.ok(view.titleBlock.classList.contains('has-scrim'), `a ${slot} scrim`);
+    assert.equal(view.titleBlock.style.getPropertyValue('--scrim'), `#10132C${SCRIM_ALPHA_HEX}`, 'the scene background at 78%');
+  }
+  for (const fit of [null, { body: { scrim: true } }, { kicker: { size: 40 } }, { title: { scrim: false } }, { subtitle: { scrim: true } }]) {
+    const { view, texts } = chapterTexts(fit, bgs, '#B9BEC7');
+    assert.equal(view.titleBlock.classList.contains('has-scrim'), false, JSON.stringify(fit));
+    assert.ok(texts.filter((e) => e.slot === 'kicker' || e.slot === 'title').every((e) => e.bg === bgs[0]), 'no scrim: the background');
+  }
+});
+
+test('text over the scrim is reported on the scrim, so preflight measures the remedy and reports it fixed (R-53)', () => {
+  // a kicker (40 px, weight 600: R-53 asks 3:1 of large text) in a grey too close to the background's lightest colour
+  const ink2 = '#8C919B';
+  const bgs = ['#5A6070', '#10132C', '#3A3F55'];
+  const before = chapterTexts(null, bgs, ink2).texts.find((e) => e.slot === 'kicker');
+  assert.ok(before && before.critical, 'a chapter label is critical');
+  assert.equal(before.bg, '#5A6070');
+  assert.ok(contrastRatio(ink2, before.bg) < 3, `the finding: ${contrastRatio(ink2, before.bg).toFixed(2)}:1`);
+  const { texts } = chapterTexts({ kicker: { scrim: true } }, bgs, ink2);
+  const after = texts.find((e) => e.slot === 'kicker');
+  // the scrim (#10132C at 0xc7) over the background colour that is worst for the ink; the value aadhi/compose/dynamic/
+  // colour.py gives: to_hex(composite(parse_colour('#10132Cc7'), parse_colour('#5A6070')))
+  assert.equal(after?.bg, '#20243b');
+  assert.ok(contrastRatio(ink2, /** @type {string} */ (after?.bg)) >= 3, 'the second pass measures the scrim: fixed');
+  // the title and the subtitle are in the block too: on the scrim, each against its own ink's worst case
+  const title = texts.find((e) => e.role === 'title');
+  const sub = texts.find((e) => e.role === 'subtitle');
+  assert.equal(title?.bg, scrimmedBg(`#10132C${SCRIM_ALPHA_HEX}`, { bg: bgs[0], bgs }, '#F3F5F9'));
+  assert.equal(sub?.bg, after?.bg, 'the subtitle shares the kicker\'s ink (ink2)');
+  for (const e of [after, title, sub]) assert.match(String(e?.bg), /^#[0-9a-f]{6}$/i, 'opaque: preflight can measure it');
+});
+
+test('scrimmedBg: the scrim over each background colour, the worst one for the ink', () => {
+  const scrim = '#10132Cc7';
+  const bgs = ['#10132C', '#5A6070', '#3A3F55'];
+  const got = scrimmedBg(scrim, { bg: bgs[0], bgs }, '#F3F5F9');
+  const all = bgs.map((b) => composite(scrim, b));
+  assert.ok(all.includes(got));
+  assert.equal(Math.min(...all.map((c) => contrastRatio('#F3F5F9', c))), contrastRatio('#F3F5F9', got));
+  assert.equal(scrimmedBg(scrim, { bg: '#5A6070' }, '#F3F5F9'), '#20243b', 'without bgs: the declared worst background');
+});
+
+test('the stage passes every background colour to the template: textBoxes reports the kicker on its scrim', async (t) => {
+  const proto = window.HTMLElement.prototype;
+  const original = proto.getBoundingClientRect;
+  proto.getBoundingClientRect = function rect() {
+    const w = this.classList && this.classList.contains('dyn-stage') ? 1920 : 100;
+    return /** @type {any} */ ({ left: 0, top: 0, width: w, height: 50, right: w, bottom: 50, x: 0, y: 0 });
+  };
+  t.after(() => {
+    proto.getBoundingClientRect = original;
+  });
+  const kickerAt = async (/** @type {any} */ fit) => {
+    const tl = dynamicTimeline();
+    if (fit) tl.scenes[1].look.text_fit = fit;
+    const { root, stage } = stageOf(tl);
+    await stage.seek(12 * 30); // the chapter card (a colour block), settled
+    const box = stage.textBoxes().find((b) => b.slot === 'kicker');
+    stage.destroy();
+    root.remove();
+    return box;
+  };
+  const plain = await kickerAt(null);
+  const scrimmed = await kickerAt({ kicker: { scrim: true } });
+  // what the stage computes: the block's colours (colour_block) and the ink2 on them (blockInk2)
+  const tl = dynamicTimeline();
+  const roles = makeRoles(tl.presentation, tl.scenes[1].look);
+  const { base, highlight } = blockColors(roles);
+  const ink2 = blockInk2(roles.inkOn([base, highlight]), [base, highlight]);
+  assert.equal(scrimmed.ink, ink2);
+  assert.equal(scrimmed.bg, scrimmedBg(`${roles.tokens.bg}${SCRIM_ALPHA_HEX}`, { bg: base, bgs: [base, highlight] }, ink2));
+  assert.notEqual(scrimmed.bg, plain.bg);
+  assert.ok(contrastRatio(ink2, scrimmed.bg) > contrastRatio(ink2, plain.bg));
+});
+
+// --- the quiz countdown ring and the question ----------------------------------------------------------------------
+
+const LONG_QUESTION = 'A circuit runs on a 12 V battery and we swap it for a 24 V battery while the resistance stays exactly the same: what happens to the current that flows through the lamp?';
+
+test('16:9: the title block keeps clear of the countdown ring, so a long question or kicker never runs under it', async () => {
+  const tl = dynamicTimeline('landscape');
+  tl.scenes[2].quiz.question = LONG_QUESTION;
+  tl.scenes[2].title = 'A very long checkpoint title that would reach the right edge of the frame';
+  for (const fit of [null, { title: { scrim: true } }]) {
+    if (fit) tl.scenes[2].look.text_fit = fit;
+    const { root, stage } = stageOf(tl);
+    await stage.seek((14 + 4) * 30); // the countdown runs (3..8 s)
+    const scene = /** @type {HTMLElement} */ (stage.el.querySelector('.dyn-scene[data-scene="2"]'));
+    const block = /** @type {HTMLElement} */ (scene.querySelector('.dyn-titleblock'));
+    const ring = /** @type {HTMLElement} */ (scene.querySelector('.dyn-ring'));
+    assert.equal(ring.style.visibility, 'visible');
+    const px = (/** @type {string} */ v) => Number.parseFloat(v);
+    const ringLeft = px(ring.style.left);
+    const zone = ZONES.landscape.critical[0];
+    assert.equal(ringLeft + RING_SIZE, zone.x1, 'the ring at the right of the content box');
+    // the block's right edge (its scrim's margin-left: -24 px only moves it further left)
+    const right = px(block.style.left) + px(block.style.width);
+    assert.ok(right <= ringLeft - RING_GAP, `title block ends at ${right}, the ring starts at ${ringLeft}`);
+    assert.equal(px(block.style.left), zone.x0);
+    assert.ok(block.contains(scene.querySelector('.dyn-header')) && block.contains(scene.querySelector('.dyn-title')), 'kicker and question');
+    stage.destroy();
+    root.remove();
+  }
+  // a scene without a ring keeps the full width
+  const { root, stage } = stageOf(dynamicTimeline('landscape'));
+  await stage.seek(5 * 30);
+  const block = /** @type {HTMLElement} */ (stage.el.querySelector('.dyn-scene[data-scene="0"] .dyn-titleblock'));
+  assert.equal(block.style.width, `${ZONES.landscape.title.x1 - ZONES.landscape.title.x0}px`);
+  stage.destroy();
+  root.remove();
+});
+
+test('9:16: the ring sits below the question, right of the option column; the title keeps the whole column', async () => {
+  const tl = dynamicTimeline('portrait');
+  tl.scenes[2].quiz.question = LONG_QUESTION;
+  const { root, stage } = stageOf(tl);
+  await stage.seek((14 + 4) * 30);
+  const scene = /** @type {HTMLElement} */ (stage.el.querySelector('.dyn-scene[data-scene="2"]'));
+  const block = /** @type {HTMLElement} */ (scene.querySelector('.dyn-titleblock'));
+  const ring = /** @type {HTMLElement} */ (scene.querySelector('.dyn-ring'));
+  const cards = /** @type {HTMLElement} */ (scene.querySelector('.dyn-cards'));
+  const z = ZONES.portrait;
+  assert.equal(block.style.width, `${z.title.x1 - z.title.x0}px`);
+  assert.equal(Number.parseFloat(ring.style.left), z.textColumn.x1 + 32, 'right of the column (x 780 + 32)');
+  assert.ok(Number.parseFloat(ring.style.left) >= Number.parseFloat(cards.style.left) + Number.parseFloat(cards.style.width), 'beside the options, not on them');
+  assert.equal(ring.style.top, cards.style.top, 'level with the first option, below the question');
+  assert.ok(Number.parseFloat(ring.style.left) + RING_SIZE / 2 < 888, 'its number left of the 9:16 safe edge (x 888)');
+  stage.destroy();
+  root.remove();
+});
+
+test('the countdown number is reported as a label (not critical) at the R-29 label size while it shows', () => {
+  for (const format of /** @type {const} */ (['landscape', 'portrait'])) {
+    const tl = dynamicTimeline(format);
+    const scene = tl.scenes[2];
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const ctx = /** @type {any} */ ({
+      scene, index: 2, timeline: tl, look: scene.look, roles: makeRoles(tl.presentation, scene.look), zones: ZONES[format],
+      format, mode: 'render', reducedMotion: false, root, paint: new Painter(), pending: [],
+      media: () => { throw new Error('no media'); }, onBackground: { ink: '#F3F5F9', ink2: '#B9BEC7', bg: '#181D37', block: false },
+      rectOf: () => null, locale: 'en', rng: () => 0.5,
+    });
+    ctx.view = boardGeneric.build(ctx);
+    boardGeneric.layout(ctx);
+    boardGeneric.update(ctx, 5, /** @type {any} */ ({ terminalLines: [], countdownRemaining: 3 }));
+    const ring = boardGeneric.texts(ctx).find((e) => e.slot === 'ring');
+    assert.ok(ring, `${format}: the number is reported`);
+    assert.deepEqual([ring.role, ring.critical, ring.text, ring.size, ring.weight, ring.ink], ['label', false, '3', MIN_LABEL[format], 700, '#F3F5F9']);
+    assert.ok(Number(ring.alpha) > 0.99);
+    boardGeneric.update(ctx, 11, /** @type {any} */ ({ terminalLines: [], countdownRemaining: null }));
+    assert.equal(boardGeneric.texts(ctx).find((e) => e.slot === 'ring'), undefined, `${format}: gone after the reveal`);
+    root.remove();
+  }
+  // the stylesheet draws it at that size: the label floor of each format (R-29)
+  const css = readFileSync(new URL('../../css/dynamic.css', import.meta.url), 'utf8');
+  assert.match(css, /\.dyn-ring-num \{[^}]*font-size: var\(--min-label, 40px\)/);
+  assert.match(css, /\.dyn-board--portrait \{[^}]*--min-label: 44px/);
+});
+
+// --- light families (paper_ink, mint_studio): no dark literal colour on the stage -----------------------------------
+
+const LIGHT = {
+  content: { ink: '#141822', ink2: '#484D58', 'entity:0': '#0267C7', 'entity:1': '#80369E', 'entity:2': '#870C62', warn: '#9F4503', ok: '#016F50', mark: '#F2D935', focus: '#141822' },
+  // aadhi/compose/presentation.py structure_tokens(paper_ink, its first accent)
+  tokens: { 'struct.accent': '#BE3D70', bg: '#FDF2DD', 'bg-alt': '#F3E8D3', 'bg-tint': '#FFEAEF', surface: '#FFFDFA' },
+};
+
+/** The fixture in the light paper_ink family. @param {'landscape' | 'portrait'} [format] */
+function lightTimeline(format = 'landscape') {
+  const tl = dynamicTimeline(format);
+  tl.presentation.content = { ...LIGHT.content };
+  for (const s of tl.scenes) s.look.tokens = { ...LIGHT.tokens };
+  return tl;
+}
+
+test('light family: the stage, each scene and the ring track take their colours from the roles', async () => {
+  const { root, stage } = stageOf(lightTimeline());
+  assert.equal(stage.el.style.getPropertyValue('--dyn-ink'), '#141822');
+  assert.equal(stage.el.style.getPropertyValue('--dyn-page'), '#FDF2DD');
+  await stage.seek((14 + 4) * 30); // the quiz (background tone bg-alt) during its countdown
+  const scene = /** @type {HTMLElement} */ (stage.el.querySelector('.dyn-scene[data-scene="2"]'));
+  assert.equal(scene.style.getPropertyValue('--dyn-page'), LIGHT.tokens['bg-alt'], 'the matte around media: the scene\'s own page');
+  assert.equal(scene.style.getPropertyValue('--dyn-ink'), '#141822');
+  const track = /** @type {SVGElement} */ (scene.querySelector('.dyn-ring-track'));
+  assert.equal(track.getAttribute('stroke'), '#141822');
+  assert.equal(Number(track.getAttribute('stroke-opacity')), RING_TRACK_ALPHA.darkInk);
+  // the track holds a visible step off the light page; the old white at 18% was invisible on it
+  const page = LIGHT.tokens['bg-alt'];
+  const drawn = composite(`#141822${Math.round(RING_TRACK_ALPHA.darkInk * 255).toString(16)}`, page);
+  assert.ok(contrastRatio(drawn, page) >= 1.6, `track ${contrastRatio(drawn, page).toFixed(2)}:1`);
+  assert.ok(contrastRatio(composite('#FFFFFF2e', page), page) < 1.05, 'the literal it replaces');
+  assert.ok(Math.abs(toOklch(drawn).l - toOklch(page).l) > 0.15);
+  stage.destroy();
+  root.remove();
+  // dark family: ink at 18% (as before, within a level of the old white)
+  const dark = stageOf(dynamicTimeline());
+  await dark.stage.seek((14 + 4) * 30);
+  const darkTrack = /** @type {SVGElement} */ (dark.stage.el.querySelector('.dyn-scene[data-scene="2"] .dyn-ring-track'));
+  assert.equal(darkTrack.getAttribute('stroke'), '#F3F5F9');
+  assert.equal(Number(darkTrack.getAttribute('stroke-opacity')), RING_TRACK_ALPHA.lightInk);
+  assert.equal(dark.stage.el.style.getPropertyValue('--dyn-page'), '#10132C');
+  dark.stage.destroy();
+  dark.root.remove();
+});
+
+test('dynamic.css: no literal colour but neutral shadows and the captions; the stage, matte and ring come from roles', () => {
+  const css = readFileSync(new URL('../../css/dynamic.css', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  /** @type {Map<string, string>} */
+  const rules = new Map();
+  for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) rules.set(m[1].trim(), m[2]);
+  const decl = (/** @type {string} */ sel, /** @type {string} */ prop) => {
+    const body = rules.get(sel) || '';
+    const m = new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`).exec(body);
+    return m ? m[1].trim() : null;
+  };
+  assert.equal(decl('.dyn-stage', 'color'), 'var(--dyn-ink)');
+  assert.equal(decl('.dyn-stage', 'background'), 'var(--dyn-page)');
+  assert.equal(decl('.dyn-media', 'background'), 'var(--dyn-page)');
+  assert.equal(decl('.dyn-ring-track', 'stroke'), null, 'the track colour is the ink, set by the template');
+  const LITERAL = /#[0-9a-f]{3,8}\b|rgba?\(/gi;
+  for (const [sel, body] of rules) {
+    for (const d of body.split(';')) {
+      const [prop] = d.split(':');
+      if (!LITERAL.test(d)) continue;
+      LITERAL.lastIndex = 0;
+      const shadow = /^\s*box-shadow\s*$/.test(prop);
+      const caption = /\.dyn-caption/.test(sel);
+      assert.ok(shadow || caption, `literal colour outside shadows and captions: ${sel} { ${d.trim()} }`);
+    }
+  }
+});
+
+// --- the live presenter clip follows the player's rate -------------------------------------------------------------
+
+test('syncClip plays a live clip at the player\'s rate (1x without one)', () => {
+  const v = document.createElement('video');
+  v.setAttribute('src', '/media/aadhi.mp4');
+  syncClip(v, 1, true, { playing: true, rate: 1.5, seeked: true });
+  assert.equal(v.playbackRate, 1.5);
+  assert.equal(v.paused, false);
+  syncClip(v, 1.2, true, { playing: true, rate: 0.75 });
+  assert.equal(v.playbackRate, 0.75);
+  syncClip(v, 1.3, true, { playing: true });
+  assert.equal(v.playbackRate, 1);
+  syncClip(v, 1.3, false, { playing: false, rate: 2 });
+  assert.equal(v.playbackRate, 2);
+  assert.equal(v.paused, true);
+});
+
+test('live presenter: the clip plays at the player\'s rate, so it neither drifts nor is re-sought at 1.5x', () => {
+  const tl = dynamicTimeline();
+  tl.scenes[0].look.presenter = { clip_key: 'aadhi_left_clean.mp4', rect: [0, 0, 720, 720], t_exit: 6, src_fps: 24, url: '/media/aadhi_left.mp4' };
+  const root = document.createElement('div');
+  document.body.appendChild(root);
+  const stage = createDynamicStage(root, tl, { mode: 'live' });
+  stage.update(1, { playing: true, rate: 1.5, seeked: true });
+  const v = /** @type {HTMLVideoElement} */ (stage.el.querySelector('.dyn-presenter video'));
+  assert.ok(v && v.muted);
+  assert.equal(v.playbackRate, 1.5);
+  assert.equal(v.paused, false);
+  // played on at 1.5x for 0.5 s of stage time: the clip moved as far, so no re-seek
+  v.currentTime = 1.75;
+  stage.update(1.75, { playing: true, rate: 1.5 });
+  assert.equal(v.currentTime, 1.75);
+  stage.update(2, { playing: true, rate: 1 });
+  assert.equal(v.playbackRate, 1);
+  stage.destroy();
+  root.remove();
 });

@@ -78,6 +78,17 @@ class ProviderUnavailable(ProviderError):
     detection is unchanged either way."""
 
 
+class ModelUnavailable(ProviderUnavailable):
+    """The provider no longer serves the configured model: a request naming it was answered HTTP 404 / 410 (shut
+    down, renamed or misspelt, e.g. ``GEMINI_TTS_MODEL`` once Google retires ``gemini-2.5-flash-preview-tts``, or
+    ``OPENAI_TTS_MODEL`` once OpenAI retires its ``/v1/audio/speech`` models on 2027-01-06). OpenAI answers a model
+    the API key has no access to with the same 404 ``model_not_found``, so that case is one too. Nothing was
+    generated or billed, and retrying cannot help until the setting (or the key's access) changes. A
+    ``ProviderUnavailable`` (long cooldown in a media chain); an asset build narrates with the free Edge voice
+    instead, with a warning (``aadhi.pipeline.assets``, design §10.3 H0). Raised by the Gemini and OpenAI speech
+    adapters (``aadhi.providers.tts.gemini`` / ``.openai``)."""
+
+
 class InvalidMediaOutput(ProviderError):
     """The provider answered, but the media is unusable (not decodable, too small, too large, too
     short). Another provider may do better: the media chain may fall back."""

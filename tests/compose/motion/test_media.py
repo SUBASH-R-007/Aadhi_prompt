@@ -111,7 +111,8 @@ def test_resolve_media_file(tmp_path: Path) -> None:
 
 def test_stage_options_flags_and_fingerprint() -> None:
     opts = StageOptions()
-    assert opts.chromium_args() == list(CHROMIUM_ARGS)
+    # the stage's own launch flags: CHROMIUM_ARGS plus the order-independence flag (part of the chunk cache key)
+    assert opts.chromium_args() == [*CHROMIUM_ARGS, "--disable-partial-raster"]
     assert "--run-all-compositor-stages-before-draw" not in opts.chromium_args()  # spins ~3.3 cores idle (§7.5)
     webgl = StageOptions(webgl=True)
     assert webgl.chromium_args()[-2:] == ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"]
@@ -123,7 +124,10 @@ def test_scene_mismatch() -> None:
     info = StageInfo(320, 180, 30, 210, (StageScene(1, 90, 210), StageScene(0, 0, 90)))
     assert scene_mismatch(info, [(0, 90), (90, 210)]) is None
     assert scene_mismatch(info, [(0, 91), (91, 210)]) is not None
-    assert scene_mismatch(StageInfo(320, 180, 30, 210, ()), [(0, 210)]) is None  # no scene list: nothing to compare
+    # a page that lists no scenes for a timeline that has some disagrees (it used to pass on its total alone)
+    assert scene_mismatch(StageInfo(320, 180, 30, 210, ()), [(0, 210)]) == "the stage reports no scene frame ranges"
+    assert scene_mismatch(StageInfo(320, 180, 30, 210, ()), []) is None
+    assert scene_mismatch(StageInfo(320, 180, 30, 210, (StageScene(0, 0, 210),)), [(0, 90), (90, 210)]) is not None
 
 
 def test_timeline_helpers() -> None:

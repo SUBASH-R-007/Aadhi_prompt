@@ -2085,6 +2085,84 @@ button.ap-quiz-opt:disabled {
   }
 }
 
+/* A box of another shape (a Dynamic 9:16 reel, DYNAMIC_VIDEO_DESIGN §2.1: .watch-player / .preview-box with
+   `data-stage-shape`, set by Player._markStageShape) is narrow on a desktop page too: 518 px wide at 1920x1080,
+   342 px at 1366x768, 259 px in the Studio preview. Such a box is the `ap-shaped-box` size container (section 13 and
+   studio.css .preview-box), so its bar follows the box's own width, not the viewport's, in the queries below.
+   Up to 720 px wide it is the phone bar of the 640 px query above (the full bar needs 663 px with its padding, 679 px
+   from 10:00 on). Narrower boxes drop the parts a viewer needs least, one at a time: mute (the device's volume, `m`),
+   then the time (the seek bar shows the progress, as on the reel platforms), then the scene list (`p` / `n`), then
+   the speed. Play/pause, the seek bar, captions and fullscreen always stay, and fullscreen (a wide box) brings the
+   full bar back. Each step starts at least 5 px before the bar it replaces stops fitting (measured with the vendored
+   Inter and JetBrains Mono, for a time up to 59:59). A part that still does not fit (a longer time, fallback fonts,
+   a box under 136 px) wraps the bar onto a second line, in the 9:16 platform UI zone (§2.5), instead of pushing
+   buttons past the box, which clips them (overflow: hidden). Classic and 16:9 boxes never get the attribute: they
+   are no `ap-shaped-box` container, and none of these rules reaches them. tests/web/test_player_controls_fit.py
+   checks all of it in Chromium. */
+@container ap-shaped-box (max-width: 720px) {
+  .ap-controls {
+    padding: 24px 8px 6px;
+  }
+
+  .ap-volume,
+  .ap-controls-center,
+  .ap-btn--text,
+  .ap-controls-left .ap-btn:nth-child(2),
+  .ap-controls-left .ap-btn:nth-child(3) {
+    display: none;
+  }
+
+  .ap-btn {
+    width: 34px;
+    height: 34px;
+  }
+
+  .ap-bigplay {
+    width: 72px;
+    height: 72px;
+    margin: -36px 0 0 -36px;
+  }
+
+  .ap-controls-row {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+
+  .ap-controls-right {
+    margin-left: auto;
+  }
+}
+
+/* The phone bar needs 389 px (404 from 10:00 on): without mute, 349 px (364). */
+@container ap-shaped-box (max-width: 410px) {
+  .ap-vol {
+    display: none;
+  }
+}
+
+/* Without the time as well: 251 px. */
+@container ap-shaped-box (max-width: 370px) {
+  .ap-time {
+    display: none;
+  }
+}
+
+/* Without the scene list (the right group's 4th child; controls.js builds captions, size, speed, scenes,
+   fullscreen): 211 px. */
+@container ap-shaped-box (max-width: 260px) {
+  .ap-controls-right .ap-btn:nth-child(4) {
+    display: none;
+  }
+}
+
+/* Without the speed: play/pause | captions, fullscreen, 136 px. A narrower box (a phone held sideways: 129 px)
+   puts captions and fullscreen on a second line. */
+@container ap-shaped-box (max-width: 220px) {
+  .ap-speed {
+    display: none;
+  }
+}
+
 /* ===========================================================================================
    13. Watch / preview page chrome
    =========================================================================================== */
@@ -2210,6 +2288,21 @@ button.ap-quiz-opt:disabled {
   box-shadow:
     0 30px 80px rgba(0, 0, 0, 0.6),
     0 0 0 1px rgba(255, 215, 0, 0.18);
+}
+
+/* A stage of another shape (a Dynamic 9:16 reel: Player._markStageShape sets the attribute and --ap-stage-w/-h on this
+   box): the box takes the stage's shape, as large as the viewport allows with the same 160 px kept for the page
+   chrome, so a reel fills a phone instead of a small pillar in a 16:9 box. Classic and 16:9 lectures never get the
+   attribute: the rule above is theirs alone. Before the fullscreen rule, which still wins (same specificity).
+   A reel's box is limited by its height, so it is measured on the small viewport (100svh: the browser's toolbars
+   shown), where the bottom of the reel, with the control bar, stays on screen on a phone; 100vh is the large one
+   (toolbars retracted). The 100vh line is the fallback for browsers without svh. The box is the `ap-shaped-box` size
+   container that fits the control bar to the box (section 12). */
+.watch-player[data-stage-shape] {
+  width: min(100%, 1400px, calc((100vh - 160px) * var(--ap-stage-w) / var(--ap-stage-h)));
+  width: min(100%, 1400px, calc((100svh - 160px) * var(--ap-stage-w) / var(--ap-stage-h)));
+  aspect-ratio: var(--ap-stage-w) / var(--ap-stage-h);
+  container: ap-shaped-box / inline-size;
 }
 
 .watch-player:fullscreen {

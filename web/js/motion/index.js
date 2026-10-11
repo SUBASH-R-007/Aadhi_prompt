@@ -13,6 +13,7 @@ export {
   toHex,
   mixOklch,
   mixOklchValues,
+  composite,
   gamutMapOklch,
   linearSrgbToOklab,
   oklabToLinearSrgb,

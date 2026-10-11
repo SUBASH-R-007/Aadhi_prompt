@@ -47,12 +47,60 @@ DYNAMIC_MESSAGES = {
     "panel_not_in_video": "This side panel (an online GIF) is not included in the video: the scene is laid out "
                           "without it.",
 }
+# Side panels the Dynamic stage does not draw yet. board_generic shows a panel's picture or clip and the terminal card
+# (web/js/dynamic/templates/board_generic.js mediaOf, cardSpecs) and lays the scene out without any other panel, in the
+# live player and the MP4 alike; the classic render draws them. Each such panel gets a render warning (G10: nothing is
+# dropped silently). Remove a kind when a template draws it (B2's chart_build: "chart").
+UNDRAWN_PANEL_KINDS = {
+    "chart": "a chart",
+    "graph": "a graph",
+    "model_3d": "a 3D model",
+    "skill_tree": "a skill tree",
+    "quiz": "a quiz question",
+}
+UNDRAWN_PANEL_REASON = "panel_not_drawn"
+UNDRAWN_PANEL_MESSAGE = ("This side panel ({what}) is not shown in Dynamic videos yet: the scene is laid out without "
+                         "it.")
 
 
-def dynamic_warnings(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """``video.render_warnings`` items worded for the motion engine (see ``DYNAMIC_MESSAGES``)."""
-    return [{**it, "message": DYNAMIC_MESSAGES[it["reason"]]} if it.get("reason") in DYNAMIC_MESSAGES else it
-            for it in items]
+def undrawn_panel_warnings(timeline: Any, numbers: dict[str, int] | None = None) -> list[dict[str, Any]]:
+    """A ``video.render_warnings``-style item for every shown side panel the Dynamic stage leaves out
+    (:data:`UNDRAWN_PANEL_KINDS`), in scene order; with ``numbers`` (scene id -> the editor's 1-based position) each
+    item also carries ``scene_number``."""
+    items: list[dict[str, Any]] = []
+    for scene in timeline.scenes:
+        sp = scene.side_panel
+        if sp is None or not scene.layout.show_side_panel:
+            continue
+        what = UNDRAWN_PANEL_KINDS.get(sp.panel.kind)
+        if what is None:
+            continue
+        item: dict[str, Any] = {"scene_index": scene.index, "scene_id": scene.scene_id,
+                                "title": scene.title or scene.scene_id, "reason": UNDRAWN_PANEL_REASON,
+                                "blocking": False, "message": UNDRAWN_PANEL_MESSAGE.format(what=what)}
+        if numbers is not None:
+            item["scene_number"] = numbers.get(scene.scene_id)
+        items.append(item)
+    return items
+
+
+def dynamic_warnings(items: list[dict[str, Any]], timeline: Any = None,
+                     numbers: dict[str, int] | None = None) -> list[dict[str, Any]]:
+    """``video.render_warnings`` items worded for the motion engine (see ``DYNAMIC_MESSAGES``); with ``timeline``,
+    plus :func:`undrawn_panel_warnings` (``numbers`` as there), every item in scene order."""
+    out = [{**it, "message": DYNAMIC_MESSAGES[it["reason"]]} if it.get("reason") in DYNAMIC_MESSAGES else it
+           for it in items]
+    if timeline is None:
+        return out
+    added = undrawn_panel_warnings(timeline, numbers)
+    if not added:
+        return out
+
+    def order(it: dict[str, Any]) -> tuple[bool, int]:
+        index = it.get("scene_index")
+        return (not isinstance(index, int), index if isinstance(index, int) else 0)
+
+    return sorted([*out, *added], key=order)  # stable: the items of one scene keep their order
 
 
 def caption_modes(payload: dict[str, Any], timeline: Any) -> tuple[bool, bool]:
@@ -120,7 +168,7 @@ async def render_dynamic(ctx: JobContext, job: Any, payload: Any, ws: RenderWork
             raise FatalJobError(f"Not enough free disk space to render ({free:.1f} GB free, {min_free:g} GB needed).",
                                 code="disk_full")
     burn, soft = caption_modes(dict(ctx.payload or {}), tl)
-    warnings = dynamic_warnings(render_warnings(tl, numbers=job.numbers))
+    warnings = dynamic_warnings(render_warnings(tl, numbers=job.numbers), tl, numbers=job.numbers)
     _log_warnings(ctx, warnings)
     token = _mint_token(settings, job.version_id, TOKEN_TTL_SECONDS, render_id=job.render_id,
                         include_intro=payload.include_intro)
