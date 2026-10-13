@@ -119,10 +119,10 @@ def test_render_job_refresher_signs_again_and_keeps_the_remedies(monkeypatch: py
     assert refresh is not None
     first, second = refresh(), refresh()
     assert first["scenes"][0]["media"]["url"].endswith("=1") and second["scenes"][0]["media"]["url"].endswith("=2")
-    for body in (first, second):  # both channels, on every page load (plan §1.2)
-        assert body["scenes"][0]["look"]["text_fit"] == {"body": {"size": 44.0}, "title": {"scrim": True}}
+    for body in (first, second):  # the fixes channel, on every page load (plan §1.2); the legacy fields untouched
         assert body["scenes"][0]["look"]["fixes"] == {"safe": False,
                                                       "slots": {"body": {"size": 44.0}, "title": {"scrim": True}}}
+        assert "text_fit" not in body["scenes"][0]["look"] and "variant" not in body["scenes"][0]["look"]
 
 
 def test_engine_sessions_carry_the_refresher() -> None:

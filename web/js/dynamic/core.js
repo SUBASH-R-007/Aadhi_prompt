@@ -2,12 +2,20 @@
 /**
  * Shared pieces of the Dynamic stage (DYNAMIC_VIDEO_DESIGN §7.3, §7.4): frame math that matches the motion
  * engine's chunk planner, the painter every per-frame DOM write goes through (it also hashes the frame's visual
- * inputs for `seek()`'s key), the colour roles a template may use (§4.2), and the safe zones of both formats (R-59).
+ * inputs for `seek()`'s key), the colour roles a template may use (§4.2, B2 plan §1.9), preflight's remedies as the
+ * stage reads them (§7.12, plan §1.2), and the safe zones and type floors of both formats (R-59, R-29).
+ *
+ * The one reader of the generated catalogue (web/js/dynamic/catalogue.gen.js, plan §1.1): the stage's zones, its role
+ * names, the R-29 floors and the template slots come from it. Its runtime use is GEOMETRY ONLY: colours, durations and
+ * personality values reach the stage through the timeline alone (presentation.content, look.tokens, ...), so a stored
+ * timeline keeps its look when the catalogue changes (the source scan keeps every other module from importing it and
+ * every module from reading its families, content palettes, personalities and cue colours).
  *
  * Pure: no DOM access at import time and no clock. Everything a frame shows is a function of (timeline, t).
  */
 
 import { contrastRatio, fromOklch, mixOklch, toOklch } from '../motion/color.js';
+import { CATALOGUE } from './catalogue.gen.js';
 
 /** @typedef {import('../shared/types.js').Timeline} Timeline */
 /** @typedef {import('../shared/types.js').TimedScene} TimedScene */
@@ -223,14 +231,21 @@ export function fx(v, digits = 3) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Colour roles (§4.2, §4.7)
+// Colour roles (§4.2, §4.7; B2 plan §1.2, §1.9)
 // ---------------------------------------------------------------------------------------------
 
-/** The closed list of roles a template may ask for. */
-export const ROLES = Object.freeze([
-  'ink', 'ink2', 'surface', 'entity:0', 'entity:1', 'entity:2', 'warn', 'ok', 'mark', 'focus',
-  'struct.accent', 'struct.tint', 'struct.border', 'struct.pip',
-]);
+/** The closed list of roles a template may ask for (plan §1.9; the catalogue's `roles.colour`, themes.py's order). */
+export const ROLES = CATALOGUE.roles.colour;
+
+/**
+ * The block roles (plan §1.2, §1.9; the catalogue's `roles.block`): a colour block's base and highlight, the ink and
+ * the quieter ink drawn on it, and the title block's scrim (#RRGGBBAA). An engine_version 2 look stores each of them
+ * (`look.tokens`, computed by aadhi/compose/dynamic/themes.py); the stage derives one a look lacks as B1 did.
+ */
+export const BLOCK_ROLES = CATALOGUE.roles.block;
+
+/** The content roles: the presentation's palette (the rest of ROLES are structure: the scene's look). */
+const CONTENT_ROLES = Object.freeze(['ink', 'ink2', 'entity:0', 'entity:1', 'entity:2', 'warn', 'ok', 'mark', 'focus']);
 
 /** Fallback content tokens (dark mode, §4.7) for a timeline that carries none. */
 const DARK_CONTENT = Object.freeze({
@@ -241,21 +256,57 @@ const DARK_STRUCT = Object.freeze({
   'struct.accent': '#FF936D', bg: '#10132C', 'bg-alt': '#181D37', 'bg-tint': '#22121C', surface: '#252A3F',
 });
 const HEX = /^#[0-9a-f]{6}$/i;
+/** A colour with its alpha (the stored scrim, `#RRGGBBC7`). */
+const HEX_ALPHA = /^#[0-9a-f]{8}$/i;
 
 /** Text colours offered for text drawn straight on a saturated block (bumpers, colour blocks). */
 const ON_BLOCK = Object.freeze(['#FFFFFF', '#14161C']);
 
+/** Large text on a colour block (the chapter subtitle, the kicker) keeps at least this contrast (R-53: 3:1 large). */
+export const BLOCK_INK2_CONTRAST = 3;
+
+/** The title block's scrim (R-53 remedy): the scene's background tone at this alpha (0xc7, 78%; R-53: >= 55%). */
+export const SCRIM_ALPHA_HEX = 'c7';
+
+/**
+ * The quieter ink on a colour block: the strongest mix of `ink` toward the block (at most 25%, R-52's step back) that
+ * still holds 3:1 against every block colour, else `ink` itself (the ink already has only ~4:1 on a saturated block).
+ * @param {string} ink
+ * @param {string[]} bgs  the block's colours
+ */
+export function blockInk2(ink, bgs) {
+  for (const p of [0.25, 0.2, 0.15, 0.1, 0.05]) {
+    const c = mixOklch(ink, bgs[0], p);
+    if (Math.min(...bgs.map((b) => contrastRatio(c, b))) >= BLOCK_INK2_CONTRAST) return c;
+  }
+  return ink;
+}
+
 /**
  * @typedef {object} Roles
- * @property {(role: string) => string} color   hex of a role (unknown roles throw: a typo fails in tests)
+ * @property {(role: string) => string} color   hex of a role: one of ROLES or BLOCK_ROLES (anything else throws, so a
+ *   typo fails in tests)
  * @property {'dark' | 'light'} mode
- * @property {Record<string, string>} tokens   the scene's structure tokens (bg, bg-alt, bg-tint, struct.accent, surface)
+ * @property {Record<string, string>} tokens   the scene's structure tokens (bg, bg-alt, bg-tint, struct.accent,
+ *   surface; from engine_version 2 also the stored block colours, #RRGGBB)
  * @property {(bg: string | string[]) => string} inkOn   the most legible of ink, white and near-black on a background
  *   (on several colours: the one whose worst contrast over them is best)
+ * @property {(mode: 'dark' | 'light') => Roles} on   the roles of text drawn on a surface of `mode` (plan §1.9): these
+ *   roles for the scene's own mode; for the other one, the content roles of `presentation.content_alt` (a light
+ *   family's dark code editor) with the scene's structure roles. Throws when the timeline carries no complete palette
+ *   of that mode.
  */
 
 /**
  * The colour roles of one scene: content tokens from the presentation, structure tokens from the scene's look.
+ *
+ * Block roles, the scrim and the card surface are the look's stored tokens when it has them (engine_version 2, plan
+ * §1.2: themes.py computed them, R-54's red lowering and the hold-safe block.ink2 included), each one on its own: the
+ * stage feature-detects every field and never branches on the engine version. A look without one (a B1 look) gets the
+ * value the B1 stage derived at run time, by the same maths: the block is the accent deepened 38% toward the
+ * background in dark families (the accent itself in light ones) with a highlight 35% back toward the accent (10% toward
+ * white); block.ink is `inkOn` over both; block.ink2 is `blockInk2` of that ink; the scrim is the background tone at
+ * SCRIM_ALPHA_HEX; the surface the background mixed 10% toward the ink (85% toward white in light families).
  * @param {TimelinePresentation | null | undefined} presentation
  * @param {ResolvedLook | null | undefined} look
  * @returns {Roles}
@@ -267,37 +318,163 @@ export function makeRoles(presentation, look) {
   /** @type {Record<string, string>} */
   const tokens = { ...DARK_STRUCT };
   for (const [k, v] of Object.entries((look && look.tokens) || {})) if (HEX.test(String(v))) tokens[k] = String(v);
-  const mode = contrastRatio(content.ink, '#000000') > contrastRatio(content.ink, '#FFFFFF') ? 'dark' : 'light';
+  const mode = modeOfInk(content.ink);
   // a look without a card surface (B2 may resolve it per video only): derived from the scene's background
   if (!(look && look.tokens && HEX.test(String(look.tokens.surface)))) {
     tokens.surface = mode === 'light' ? mixOklch(tokens.bg, '#FFFFFF', 0.85) : mixOklch(tokens.bg, content.ink, 0.1);
   }
+  const storedScrim = look && look.tokens ? String(look.tokens.scrim || '') : '';
   /** @type {Record<string, string>} */
-  const table = {
-    ...content,
+  const structure = {
     surface: tokens.surface,
     'struct.accent': tokens['struct.accent'],
     'struct.tint': tokens['bg-tint'],
     'struct.border': tokens['struct.accent'],
     'struct.pip': tokens['struct.accent'],
   };
+  const inkOn = inkChooser(content.ink);
+  /** @type {Record<string, string> | null} block roles, computed on first use (most scenes have no block) */
+  let block = null;
+  const blockRoles = () => {
+    if (block) return block;
+    const accent = tokens['struct.accent'];
+    const base = tokens['block.base'] || (mode === 'dark' ? mixOklch(accent, tokens.bg || '#000000', 0.38) : accent);
+    const highlight = tokens['block.highlight']
+      || (mode === 'dark' ? mixOklch(base, accent, 0.35) : mixOklch(base, '#FFFFFF', 0.1));
+    const ink = tokens['block.ink'] || inkOn([base, highlight]);
+    const ink2 = tokens['block.ink2'] || blockInk2(ink, [base, highlight]);
+    const scrim = HEX_ALPHA.test(storedScrim) ? storedScrim : `${tokens.bg || '#000000'}${SCRIM_ALPHA_HEX}`;
+    block = { 'block.base': base, 'block.highlight': highlight, 'block.ink': ink, 'block.ink2': ink2, scrim };
+    return block;
+  };
+  /** @type {Partial<Record<'dark' | 'light', Roles>>} */
+  const others = {};
+  /** @type {Roles} */
+  const roles = rolesOf(content, mode, tokens, structure, blockRoles, inkOn, (m) => {
+    if (m === mode) return roles;
+    if (!others[m]) others[m] = alternateRoles(presentation, m, tokens, structure, blockRoles, roles);
+    return /** @type {Roles} */ (others[m]);
+  });
+  return roles;
+}
+
+/**
+ * The mode a content ink belongs to: dark families draw light ink.
+ * @param {string} ink
+ * @returns {'dark' | 'light'}
+ */
+function modeOfInk(ink) {
+  return contrastRatio(ink, '#000000') > contrastRatio(ink, '#FFFFFF') ? 'dark' : 'light';
+}
+
+/**
+ * `inkOn` for a palette whose ink is `ink`.
+ * @param {string} ink
+ * @returns {(bg: string | string[]) => string}
+ */
+function inkChooser(ink) {
+  return (bg) => {
+    const bgs = Array.isArray(bg) ? bg : [bg];
+    const worst = (/** @type {string} */ c) => Math.min(...bgs.map((b) => contrastRatio(c, b)));
+    const options = [ink, ...ON_BLOCK];
+    let best = options[0];
+    for (const c of options) if (worst(c) > worst(best)) best = c;
+    return best;
+  };
+}
+
+/**
+ * A Roles object over a content palette and the scene's structure.
+ * @param {Record<string, string>} content
+ * @param {'dark' | 'light'} mode
+ * @param {Record<string, string>} tokens
+ * @param {Record<string, string>} structure
+ * @param {() => Record<string, string>} blockRoles
+ * @param {(bg: string | string[]) => string} inkOn
+ * @param {(mode: 'dark' | 'light') => Roles} on
+ * @returns {Roles}
+ */
+function rolesOf(content, mode, tokens, structure, blockRoles, inkOn, on) {
+  /** @type {Record<string, string>} */
+  const table = { ...content, ...structure };
   return {
     mode,
     tokens,
     color(role) {
+      if (BLOCK_ROLES.includes(role)) return blockRoles()[role];
       const v = table[role];
       if (!v || !ROLES.includes(role)) throw new RangeError(`unknown colour role: ${role}`);
       return v;
     },
-    inkOn(bg) {
-      const bgs = Array.isArray(bg) ? bg : [bg];
-      const worst = (/** @type {string} */ c) => Math.min(...bgs.map((b) => contrastRatio(c, b)));
-      const options = [content.ink, ...ON_BLOCK];
-      let best = options[0];
-      for (const c of options) if (worst(c) > worst(best)) best = c;
-      return best;
+    inkOn,
+    on(m) {
+      if (m !== 'dark' && m !== 'light') throw new RangeError(`unknown colour mode: ${String(m)}`);
+      return on(m);
     },
   };
+}
+
+/**
+ * The roles of text on a surface of the scene's other mode (plan §1.3 `content_alt`): that mode's content palette, the
+ * scene's structure. Throws when the timeline has no complete palette of that mode (a B1 timeline has none; no B1
+ * template asks for one).
+ * @param {TimelinePresentation | null | undefined} presentation
+ * @param {'dark' | 'light'} mode
+ * @param {Record<string, string>} tokens
+ * @param {Record<string, string>} structure
+ * @param {() => Record<string, string>} blockRoles
+ * @param {Roles} own   the scene's own roles (what `on` gives for the scene's mode)
+ * @returns {Roles}
+ */
+function alternateRoles(presentation, mode, tokens, structure, blockRoles, own) {
+  const p = /** @type {any} */ (presentation);
+  const alt = /** @type {Record<string, unknown>} */ ((p && p.content_alt) || {});
+  /** @type {Record<string, string>} */
+  const content = {};
+  for (const role of CONTENT_ROLES) if (HEX.test(String(alt[role]))) content[role] = String(alt[role]);
+  if (CONTENT_ROLES.some((role) => !content[role]) || modeOfInk(content.ink) !== mode) {
+    throw new RangeError(`the timeline has no ${mode} content palette (presentation.content_alt)`);
+  }
+  const on = (/** @type {'dark' | 'light'} */ m) => (m === mode ? roles : own);
+  /** @type {Roles} */
+  const roles = rolesOf(content, mode, tokens, structure, blockRoles, inkChooser(content.ink), on);
+  return roles;
+}
+
+/**
+ * Preflight's remedies of one scene as the stage reads them (§7.12): the fixes channel first (`look.fixes`, plan
+ * §1.2, deviation 2), B1's legacy fields second (`look.variant === "safe"`, `look.text_fit[slot]`), so an
+ * engine_version 1 timeline remedied before B2a keeps its remedies. A slot's size cap is the fixes channel's when it
+ * is a positive number, else the legacy one's (else none); a slot's scrim and the safe layout hold when either channel
+ * asks for them (tests/compose/dynamic/stub_stage/stage.js mirrors this rule for the preflight tests).
+ * @typedef {object} Fixes
+ * @property {boolean} safe   the template's compact, zone-safe layout (R-59)
+ * @property {Record<string, {size: number | null, scrim: boolean}>} slots   text slot -> its remedies
+ */
+
+/**
+ * @param {ResolvedLook | null | undefined} look
+ * @returns {Fixes}
+ */
+export function fixesOf(look) {
+  const l = /** @type {any} */ (look);
+  const fixes = l && l.fixes && typeof l.fixes === 'object' ? l.fixes : {};
+  const fixed = fixes.slots && typeof fixes.slots === 'object' ? fixes.slots : {};
+  const legacy = l && l.text_fit && typeof l.text_fit === 'object' ? l.text_fit : {};
+  /** @param {unknown} s */
+  const size = (s) => {
+    const v = s && typeof s === 'object' ? Number(/** @type {any} */ (s).size) : NaN;
+    return Number.isFinite(v) && v > 0 ? v : null;
+  };
+  /** @param {unknown} s */
+  const scrim = (s) => !!(s && typeof s === 'object' && /** @type {any} */ (s).scrim === true);
+  /** @type {Record<string, {size: number | null, scrim: boolean}>} */
+  const slots = {};
+  for (const slot of new Set([...Object.keys(fixed), ...Object.keys(legacy)])) {
+    const own = size(fixed[slot]);
+    slots[slot] = { size: own !== null ? own : size(legacy[slot]), scrim: scrim(fixed[slot]) || scrim(legacy[slot]) };
+  }
+  return { safe: fixes.safe === true || (!!l && l.variant === 'safe'), slots };
 }
 
 /**
@@ -339,7 +516,7 @@ export function canvas2d(canvas, settings) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Zones (R-59, §2.5)
+// Zones (R-59, §2.5) and type floors (R-29): the catalogue's geometry
 // ---------------------------------------------------------------------------------------------
 
 /**
@@ -353,38 +530,92 @@ export function canvas2d(canvas, settings) {
  * @property {Box} header       kicker / pips row
  * @property {Box} title        title or headline slot
  * @property {Box} body         the content stage (cards, media)
- * @property {Box} textColumn   where card text may sit (narrower than shapes in 9:16)
+ * @property {Box} textColumn   where card text may sit (narrower than shapes in 9:16: in 9:16, text below y 840 stays
+ *                              left of the TikTok action rail at x 780, one column for the whole stack)
  */
 
+/**
+ * A box of the catalogue as the stage's own frozen copy, in B1's key order (x0, y0, x1, y1).
+ * @param {Box} b
+ * @returns {Box}
+ */
+function box(b) {
+  return Object.freeze({ x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1 });
+}
+
+/**
+ * The zones of a format: aadhi/compose/dynamic/zones.py (FormatZones.as_stage_dict) through the catalogue, in B1's
+ * key order (web/tests/dynamic/catalogue.test.js pins them against B1's literals, value for value and in order).
+ * @param {'landscape' | 'portrait'} format
+ * @returns {Zones}
+ */
+function catalogueZones(format) {
+  const z = CATALOGUE.zones[format];
+  return Object.freeze({
+    format,
+    width: z.width,
+    height: z.height,
+    critical: /** @type {Box[]} */ (Object.freeze(z.critical.map(box))),
+    caption: box(z.caption),
+    header: box(z.header),
+    title: box(z.title),
+    body: box(z.body),
+    textColumn: box(z.textColumn),
+  });
+}
+
 /** @type {Readonly<Record<'landscape' | 'portrait', Zones>>} */
-export const ZONES = Object.freeze({
-  landscape: Object.freeze({
-    format: 'landscape',
-    width: 1920,
-    height: 1080,
-    critical: [{ x0: 96, y0: 54, x1: 1824, y1: 912 }],
-    caption: { x0: 96, y0: 924, x1: 1824, y1: 1032 },
-    header: { x0: 96, y0: 54, x1: 1824, y1: 102 },
-    title: { x0: 96, y0: 112, x1: 1824, y1: 352 },
-    body: { x0: 96, y0: 300, x1: 1824, y1: 900 },
-    textColumn: { x0: 96, y0: 300, x1: 1824, y1: 900 },
-  }),
-  portrait: Object.freeze({
-    format: 'portrait',
-    width: 1080,
-    height: 1920,
-    critical: [
-      { x0: 192, y0: 288, x1: 888, y1: 840 },
-      { x0: 120, y0: 840, x1: 780, y1: 1248 },
-    ],
-    caption: { x0: 120, y0: 1040, x1: 780, y1: 1240 },
-    header: { x0: 192, y0: 296, x1: 888, y1: 336 },
-    title: { x0: 192, y0: 340, x1: 888, y1: 460 },
-    body: { x0: 60, y0: 470, x1: 1020, y1: 1020 },
-    // text below y 840 must stay left of the TikTok action rail (x 780): one column for the whole stack
-    textColumn: { x0: 192, y0: 470, x1: 780, y1: 1020 },
-  }),
-});
+export const ZONES = Object.freeze({ landscape: catalogueZones('landscape'), portrait: catalogueZones('portrait') });
+
+/**
+ * R-29's type floors of a format (zones.py TypeFloors through the catalogue): text never below `text_min` px, labels
+ * never below `label_min`; ranges as [min, max] px (null where R-29 sets none); in 9:16 text at <= `heavy_max_px` px is
+ * at least `heavy_min_weight`.
+ * @typedef {object} TypeFloors
+ * @property {number} text_min
+ * @property {number} label_min
+ * @property {number[]} body
+ * @property {number} body_default
+ * @property {number[] | null} heading
+ * @property {number[] | null} display
+ * @property {number[] | null} hook
+ * @property {number[]} caption
+ * @property {number} caption_min
+ * @property {number | null} heavy_max_px
+ * @property {number | null} heavy_min_weight
+ */
+
+/** @type {Readonly<Record<'landscape' | 'portrait', TypeFloors>>} */
+export const TYPE_FLOORS = CATALOGUE.type.floors;
+
+/**
+ * One text slot of a template in one format and variant (aadhi/compose/dynamic/templates.py SlotSpec): box width,
+ * line count, size range [min, max] px, role, face role, weight, line height, tracking and copy limits.
+ * @typedef {object} SlotSpec
+ * @property {number | null} w
+ * @property {number | null} max_lines
+ * @property {number[]} size
+ * @property {string} role
+ * @property {string} face
+ * @property {number} weight
+ * @property {number} line_height
+ * @property {number} tracking_em
+ * @property {number | null} max_words
+ * @property {number | null} max_chars
+ * @property {number | null} prefer_lines
+ * @property {boolean} critical
+ */
+
+/**
+ * A template's text slots from the catalogue's registry (slot -> format -> variant -> SlotSpec), or null for an id it
+ * does not list. Geometry only, as every runtime read of the catalogue.
+ * @param {string} id
+ * @returns {Readonly<Record<string, Record<string, Record<string, SlotSpec>>>> | null}
+ */
+export function templateSlots(id) {
+  const templates = /** @type {Record<string, {slots: any}>} */ (CATALOGUE.templates);
+  return Object.prototype.hasOwnProperty.call(templates, id) ? templates[id].slots : null;
+}
 
 /**
  * The zones of a timeline's format (portrait when the stage is taller than wide).

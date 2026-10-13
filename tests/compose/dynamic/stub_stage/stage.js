@@ -6,10 +6,12 @@
 // Faults (window.STUB.faults = {"<scene index>": ["overflow" | "unsafe" | "contrast" | "caption_overflow"]}) make a
 // scene fail one preflight check ("caption_overflow": its captions run out of the caption box);
 // window.STUB.honour = ["shrink", "safe", "scrim"] lists the remedies the stub applies when the timeline asks for them
-// (the headline and the body only), read as board_generic reads them from B2a: the fixes channel first
-// (look.fixes.slots[slot].size, look.fixes.safe, look.fixes.slots[slot].scrim), B1's legacy fields second
-// (look.text_fit[slot].size, look.variant == "safe", look.text_fit[slot].scrim). window.STUB.channel = "fixes" or
-// "legacy" reads only that channel (the preflight tests prove each one carries every remedy alone).
+// (the headline and the body only), read exactly as the real stage reads them (web/js/dynamic/core.js fixesOf, used by
+// board_generic's slotTuning): the fixes channel first, B1's legacy fields second. A slot's size is
+// look.fixes.slots[slot].size when it is a positive number, else look.text_fit[slot].size; its scrim and the safe
+// layout hold when either channel asks (fixes.slots[slot].scrim / text_fit[slot].scrim === true; fixes.safe === true /
+// variant === "safe"). window.STUB.channel = "fixes" or "legacy" reads only that channel (preflight writes only fixes
+// from B2a step B: a legacy-only stage never sees a remedy).
 // window.STUB.random adds Math.random() jitter (a non-deterministic stage); window.STUB.strayTimer calls setTimeout
 // inside seek().
 //
@@ -70,8 +72,18 @@ export function createDynamicStage(root, timeline, { mode = 'render' } = {}) {
   const reads = (channel) => !cfg().channel || cfg().channel === channel;
   const fixes = (s) => (reads('fixes') && s.look && s.look.fixes) || {};
   const legacy = (s, slot) => (reads('legacy') && s.look && s.look.text_fit && s.look.text_fit[slot]) || {};
-  // one slot's remedies: the fixes channel's keys first, the legacy ones where fixes has none
-  const fit = (s, slot) => ({ ...legacy(s, slot), ...((fixes(s).slots || {})[slot] || {}) });
+  const sizeOf = (entry) => {
+    const v = entry && typeof entry === 'object' ? Number(entry.size) : NaN;
+    return Number.isFinite(v) && v > 0 ? v : undefined;
+  };
+  // one slot's remedies (core.js fixesOf): the fixes channel's size when it has one, else the legacy one; a scrim
+  // from either channel
+  const fit = (s, slot) => {
+    const own = (fixes(s).slots || {})[slot] || {};
+    const old = legacy(s, slot);
+    const size = sizeOf(own) !== undefined ? sizeOf(own) : sizeOf(old);
+    return { size, scrim: own.scrim === true || old.scrim === true };
+  };
   const safeLayout = (s) => fixes(s).safe === true || (reads('legacy') && !!s.look && s.look.variant === 'safe');
 
   function sceneAt(t) {

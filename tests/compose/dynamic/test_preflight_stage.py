@@ -49,27 +49,36 @@ async def test_clean_timeline_passes_in_one_round(fmt: str) -> None:
 
 @pytest.mark.parametrize("channel", [None, "fixes", "legacy"])
 async def test_remedies_fix_what_the_stage_honours(channel: str | None) -> None:
-    """The remedies reach the page through both channels (plan §1.2): a stub reading fixes first and legacy second
-    (as board_generic from B2a step B), one reading only ``look.fixes``, and one reading only B1's fields."""
+    """The remedies reach the page through the fixes channel only (plan §1.2, from B2a step B): a stub reading fixes
+    first and legacy second (as the stage, web/js/dynamic/core.js fixesOf) and one reading only ``look.fixes`` draw
+    them; one reading only B1's fields (no such stage is left) never sees them, so the problems stay and preflight
+    ends them as blocks and warnings, as for a stage that ignores every remedy."""
     tl = dynamic_timeline("landscape")
     config: dict = {"faults": FAULTS, "honour": ["shrink", "safe", "scrim"]}
     if channel is not None:
         config["channel"] = channel
     with serve_stage(TOKEN, {}, config=config) as (base, state):
         res = await run_preflight(settings(), tl, token=TOKEN, base_url=base)
-    assert res.ok and res.rounds == 2 and _page_loads(state) == 2  # reloaded once with the fixed timeline
+    assert res.rounds == 2 and _page_loads(state) == 2  # reloaded once with the remedied timeline
+    assert sorted((r.kind, r.scene_index) for r in res.remedies) == [
+        ("safe_variant", 1), ("scrim", 2), ("shrink", 1)]
+    look1, look2 = res.timeline["scenes"][1]["look"], res.timeline["scenes"][2]["look"]
+    assert look1["fixes"] == {"safe": True, "slots": {"headline": {"size": 36}}}  # the stage's slot minimum
+    assert look2["fixes"] == {"safe": False, "slots": {"body": {"scrim": True}}}
+    for before, after in zip(tl.model_dump(mode="json")["scenes"], res.timeline["scenes"], strict=True):
+        assert after["look"]["variant"] == before["look"]["variant"] != "safe", "never the legacy variant"
+        assert after["look"]["text_fit"] == before["look"]["text_fit"], "never the legacy text_fit"
+    Timeline.model_validate(res.timeline)  # the capture can use it as is
+    if channel == "legacy":
+        assert not res.ok
+        assert {(i["check"], i["scene_index"], i["status"]) for i in res.items()} == {
+            ("text_overflow", 1, "block"), ("safe_zones", 1, "block"), ("contrast", 2, "warn")}
+        return
+    assert res.ok
     raise_if_blocked(res)
     assert {(i["check"], i["scene_index"], i["status"], i["remedy"]) for i in res.items()} == {
         ("text_overflow", 1, "fixed", "shrink"), ("safe_zones", 1, "fixed", "safe_variant"),
         ("contrast", 2, "fixed", "scrim")}
-    assert sorted((r.kind, r.scene_index) for r in res.remedies) == [
-        ("safe_variant", 1), ("scrim", 2), ("shrink", 1)]
-    look1, look2 = res.timeline["scenes"][1]["look"], res.timeline["scenes"][2]["look"]
-    assert look1["variant"] == "safe" and look1["text_fit"]["headline"]["size"] == 36  # the stage's slot minimum
-    assert look2["text_fit"]["body"]["scrim"] is True
-    assert look1["fixes"] == {"safe": True, "slots": {"headline": {"size": 36}}}
-    assert look2["fixes"] == {"safe": False, "slots": {"body": {"scrim": True}}}
-    Timeline.model_validate(res.timeline)  # the capture can use it as is
     assert res.summary()["checks"]["safe_zones"]["status"] == "fixed"
 
 

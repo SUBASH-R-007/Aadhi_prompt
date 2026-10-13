@@ -19,14 +19,16 @@ import { progress } from '../../motion/track.js';
 import { composite, contrastRatio, mixOklch, toOklch } from '../../motion/color.js';
 import { splitWords } from '../../motion/text.js';
 import { strokeDash } from '../../motion/draw.js';
-import { mountTex, parseRich, plainText, renderRich } from '../../player/richtext.js';
+import { mathSpans, mountTex, parseRich, plainText, renderRich } from '../../player/richtext.js';
 import { icon } from '../../player/icons.js';
 import { planScene } from '../../player/schedule.js';
-import { fx } from '../core.js';
+import { SCRIM_ALPHA_HEX, TYPE_FLOORS, fixesOf, fx, templateSlots } from '../core.js';
 import { shownIn } from '../media.js';
 import { itemTimings, INITIAL_DELAY, INITIAL_STAGGER, REVEAL_LEAD } from '../state.js';
 
 /** @typedef {import('./types.js').TemplateContext} TemplateContext */
+/** @typedef {import('./types.js').TemplateModule} TemplateModule */
+/** @typedef {import('./types.js').FocusRect} FocusRect */
 /** @typedef {import('./types.js').TextEntry} TextEntry */
 /** @typedef {import('../../shared/types.js').TimedScene} TimedScene */
 /** @typedef {import('../../shared/types.js').BoardItem} BoardItem */
@@ -76,12 +78,24 @@ export const QUIZ_CLEAR = 0.9;
 /** Smallest font scale when fitting a crowded stack; text never goes below 36 px in 16:9 or 40 px in 9:16 (R-29;
  * the CSS `--min-text` floor). */
 export const MIN_FIT = Object.freeze({ landscape: 0.75, portrait: 0.72 });
+/**
+ * A per-format table of one of R-29's floors (aadhi/compose/dynamic/zones.py TYPE_FLOORS, through core.js).
+ * @param {'text_min' | 'label_min'} key
+ */
+const floors = (key) => Object.freeze({ landscape: TYPE_FLOORS.landscape[key], portrait: TYPE_FLOORS.portrait[key] });
 /** Text never goes below these sizes (R-29: "never < 36" in 16:9, "never < 40" in 9:16). */
-export const MIN_TEXT = Object.freeze({ landscape: 36, portrait: 40 });
+export const MIN_TEXT = floors('text_min');
 /** Labels (the chip, card labels, option letters) never go below these sizes (R-29; the CSS `--min-label`). */
-export const MIN_LABEL = Object.freeze({ landscape: 40, portrait: 44 });
-/** Card text weight (R-29: in 9:16, text at <= 64 px is at least 600; dynamic.css). */
-export const BODY_WEIGHT = Object.freeze({ landscape: 400, portrait: 600 });
+export const MIN_LABEL = floors('label_min');
+/** This template's text slots in the catalogue's registry (aadhi/compose/dynamic/templates.py, which mirrors LAYOUT
+ * below; web/tests/dynamic/catalogue.test.js pins the two against each other). */
+const SLOTS = /** @type {Record<string, Record<string, Record<string, import('../core.js').SlotSpec>>>} */ (
+  templateSlots('board_generic'));
+/** Card text weight (R-29: in 9:16, text at <= 64 px is at least 600; dynamic.css): the catalogue's body slot. */
+export const BODY_WEIGHT = Object.freeze({
+  landscape: SLOTS.body.landscape.default.weight,
+  portrait: SLOTS.body.portrait.default.weight,
+});
 /** A full stack may shrink this far before fewer cards are shown at a time instead. */
 export const GENTLE_FIT = 0.86;
 /** In 9:16 a table with more columns than this is drawn one line per row (`stackedTable`), not as a grid. */
@@ -104,8 +118,17 @@ export const RING_TRACK_ALPHA = Object.freeze({ lightInk: 0.18, darkInk: 0.25 })
  * scrim planned for either is the title block's scrim, behind the kicker, the title and a chapter card's subtitle.
  * The subtitle is reported in slot `title`, so a scrim it needs is planned, and drawn, through slot `title`. */
 export const TITLE_BLOCK_SLOTS = Object.freeze(['kicker', 'title']);
-/** The title block's scrim (R-53 remedy): the scene's background tone at this alpha (0xc7, 78%; R-53: >= 55%). */
-export const SCRIM_ALPHA_HEX = 'c7';
+/** The title block's scrim (R-53 remedy) is the scene's `scrim` role (core.js): the look's stored scrim, else the
+ * scene's background tone at this alpha (0xc7, 78%; R-53: >= 55%). */
+export { SCRIM_ALPHA_HEX };
+/** Corner radius of a card (dynamic.css `.dyn-card`; the catalogue's layout radius `card`), stage px: `focusRect`'s. */
+export const CARD_RADIUS = 24;
+/** Corner radius of the media frame (dynamic.css `.dyn-frame`: B1's 28, not the catalogue's 24; A2 open item 6). */
+export const FRAME_RADIUS = 28;
+/** A figure card's picture is sized for this box (its height LAYOUT[format].figureMax): `mediaBox` slot 'figure'. */
+export const FIGURE_BOX_WIDTH = 1200;
+/** The `ctx.media` slot of a figure card's picture (scene.figures; media.js sceneClips lists no figure). */
+export const FIGURE_SLOT = 'figure';
 
 /**
  * Per-format layout (stage px). Sizes follow R-29: 16:9 body 52 (48-56), labels >= 40, headings 84-120; 9:16
@@ -306,18 +329,62 @@ export function mediaBoxMax(scene, zones, mode = 'render') {
 }
 
 /**
- * Kicker text above the title: a scene-type badge, else the chapter the scene is in.
+ * Kicker text above the title: a scene-type badge, else the title of the chapter the scene is in (`ctx.chapter`, the
+ * stage's state.js chapterTitleAt), unless it repeats the scene's own title.
  * @param {TimedScene} scene
- * @param {import('../../shared/types.js').Timeline} timeline
+ * @param {string} chapter
  */
-export function kickerOf(scene, timeline) {
+export function kickerOf(scene, chapter) {
   if (scene.type === 'chapter_card') return String(scene.chapter_label || '');
   if (scene.quiz) return String(scene.title || LABELS.quiz);
   const badge = LABELS.badges[String(scene.type)];
   if (badge && !normalize(scene.title).includes(normalize(badge))) return badge;
-  let title = '';
-  for (const c of timeline.chapters || []) if (Number(c.start) <= Number(scene.start) + 1e-3) title = String(c.title || '');
+  const title = String(chapter || '');
   return normalize(title) === normalize(scene.title) ? '' : title;
+}
+
+/**
+ * Every TeX string this template renders for a scene, with its display mode (the static `tex` hook; render.js
+ * converts them before `ready`, B2 plan §1.4, §2): a formula item's LaTeX (display) and its variables' symbols
+ * (inline), and the `$...$` spans of the rich-lite text of the items (text, term, justification, caption, table headers
+ * and cells) and of a quiz (question, explanation, options): every string `build` puts through mountTex / renderRich
+ * (B1's render.js field list, unchanged, now the template's own), in that order, repeats included (render.js keeps
+ * the first).
+ * @param {TimedScene} scene
+ * @returns {{tex: string, display: boolean}[]}
+ */
+export function texOf(scene) {
+  /** @type {{tex: string, display: boolean}[]} */
+  const out = [];
+  /** @param {string | null | undefined} tex @param {boolean} display */
+  const add = (tex, display) => {
+    if (typeof tex === 'string' && tex.trim()) out.push({ tex, display });
+  };
+  /** @param {unknown} text */
+  const spans = (text) => {
+    if (typeof text === 'string' && text.includes('$')) for (const tex of mathSpans(text)) add(tex, false);
+  };
+  for (const item of scene.board || []) {
+    if (item.kind === 'formula') add(item.latex, true);
+    for (const v of item.variables || []) add(v.symbol_latex, false);
+    const cells = [...(item.headers || []), ...(item.rows || []).flat()];
+    for (const text of [item.text, item.term, item.justification, item.caption, ...cells]) spans(text);
+  }
+  const quiz = scene.quiz;
+  if (quiz) for (const text of [quiz.question, quiz.explanation, ...(quiz.options || [])]) spans(text);
+  return out;
+}
+
+/**
+ * The card a target names (B2 plan §1.7): `option:<i>` the quiz option, `<item>` or `<item>:<part>` the item's card
+ * (in 9:16 a misconception's first card, its myth), else null.
+ * @param {any} v   the view
+ * @param {string} target
+ */
+function cardOf(v, target) {
+  const t = String(target || '');
+  const id = /^option:\d+$/.test(t) ? t : t.split(':')[0];
+  return v.cards.find((/** @type {any} */ c) => c.spec.id === id) || null;
 }
 
 /** @param {unknown} s */
@@ -435,7 +502,8 @@ function itemBody(ctx, item, counter, parts, part = undefined) {
         return h('div', { class: 'dyn-i dyn-i-figure is-missing' }, h('div', { class: 'dyn-figure-missing', text: LABELS.figureMissing }), cap);
       }
       const L = LAYOUT[ctx.format];
-      const view = ctx.media(media, { box: { w: 1200, h: L.figureMax }, alt: plainText(item.caption) || 'Figure' });
+      // sized by the template's mediaBox for FIGURE_SLOT (FIGURE_BOX_WIDTH x figureMax)
+      const view = ctx.media(media, { slot: FIGURE_SLOT, alt: plainText(item.caption) || 'Figure' });
       parts.figure = view;
       const aspect = Number(media.width) > 0 && Number(media.height) > 0 ? Number(media.width) / Number(media.height) : 16 / 9;
       const frame = h('div', { class: 'dyn-figure', style: { height: L.figureMax, '--aspect': fx(aspect, 4) } }, view.el);
@@ -606,6 +674,7 @@ export function scrimmedBg(scrim, onBackground, ink) {
   return worst;
 }
 
+/** @type {TemplateModule} */
 export default {
   id: 'board_generic',
 
@@ -613,11 +682,11 @@ export default {
    * @param {TemplateContext} ctx
    */
   build(ctx) {
-    const { scene, zones, format, roles } = ctx;
+    const { scene, format, roles } = ctx;
     const L = LAYOUT[format];
     const variant = variantOf(scene, ctx.mode);
     const quiz = scene.quiz || null;
-    const kicker = kickerOf(scene, ctx.timeline);
+    const kicker = kickerOf(scene, ctx.chapter);
     // a quiz question is rich-lite (TeX, bold, terms, code); a scene title is plain text. A question with markup keeps
     // it (richWordSpans); without, its plain text (an escaped `\$` shows as `$`, as renderRich shows it)
     const question = quiz ? parseRich(String(quiz.question || '')) : null;
@@ -653,7 +722,8 @@ export default {
     // R-53 remedy: a scrim of >= 55% opacity behind the whole title block (the background tone, so it reads as the
     // page) when preflight asked for one for any text in it: the kicker (critical on a chapter card), the title or
     // the subtitle. texts() then reports that text on the scrim, so the second preflight pass measures the remedy.
-    const scrim = TITLE_BLOCK_SLOTS.some((slot) => tuning.scrim(slot)) ? `${ctx.roles.tokens.bg || '#000000'}${SCRIM_ALPHA_HEX}` : null;
+    // Its colour is the scene's `scrim` role: the look's stored scrim, else the background tone at SCRIM_ALPHA_HEX.
+    const scrim = TITLE_BLOCK_SLOTS.some((slot) => tuning.scrim(slot)) ? roles.color('scrim') : null;
     if (scrim) {
       titleBlock.classList.add('has-scrim');
       titleBlock.style.setProperty('--scrim', scrim);
@@ -707,7 +777,8 @@ export default {
     /** @type {import('../media.js').MediaView | null} */
     let mediaView = null;
     if (media && frame) {
-      mediaView = ctx.media(media.ref, { box: mediaBoxMax(scene, zones, ctx.mode), start: media.start, alt: String(scene.title || '') });
+      // sized by this template's mediaBox (mediaBoxMax), the box mediaPlan extracts the clip at
+      mediaView = ctx.media(media.ref, { slot: media.slot, start: media.start, alt: String(scene.title || '') });
       frame.appendChild(mediaView.el);
       if (mediaView.missing) {
         // shownIn() said yes but the element has nothing to load (an unsafe URL): the panel's title on the card
@@ -1128,14 +1199,89 @@ export default {
   },
 
   /**
-   * Stage rect of a target (a card by item id), for cues (B2).
+   * Where cue.look_here points (B2 plan §1.4, §1.5, §1.7): the card of `<item>` / `<item>:<part>` / `option:<i>`, or
+   * the media frame for `panel` / `panel:...` (board_generic draws a panel as its picture or clip). Its box as laid out
+   * and painted now (read after `update`), its edges rounded to whole stage px (§P: translates on whole pixels), a
+   * rectangle with the element's own corner radius (cues.js adds the outline's outset). Null for anything else, or
+   * when the element is not on the page.
    * @param {TemplateContext} ctx
-   * @param {string} targetId
+   * @param {string} target
+   * @returns {FocusRect | null}
    */
-  focusRect(ctx, targetId) {
-    const id = String(targetId || '').split(':')[0];
-    const card = ctx.view.cards.find((/** @type {any} */ c) => c.spec.id === id);
-    return card ? ctx.rectOf(card.el) : null;
+  focusRect(ctx, target) {
+    const v = ctx.view;
+    const t = String(target || '');
+    const panel = t === 'panel' || t.startsWith('panel:');
+    const card = panel ? null : cardOf(v, t);
+    const el = panel ? v.frame : card ? card.el : null;
+    const r = el ? ctx.rectOf(el) : null;
+    if (!r) return null;
+    const x0 = Math.round(r.x);
+    const y0 = Math.round(r.y);
+    const x1 = Math.round(r.x + r.w);
+    const y1 = Math.round(r.y + r.h);
+    const radius = panel ? FRAME_RADIUS : CARD_RADIUS;
+    return { rect: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, shape: 'rect', radius };
+  },
+
+  /**
+   * The element holding an item's text, where cue.term finds its [[term]] spans (`.rt-k`, kept by renderRich): the
+   * body of the item's card (`option:<i>`: the option's), as `cardOf` finds it. Null for anything else.
+   * @param {TemplateContext} ctx
+   * @param {string} itemId
+   */
+  itemEl(ctx, itemId) {
+    const card = cardOf(ctx.view, itemId);
+    return card ? card.body : null;
+  },
+
+  /**
+   * The content groups cue.look_here dims to 70% (all but the one holding its target): the title block, the media
+   * frame and every card, in the page's order.
+   * @param {TemplateContext} ctx
+   * @returns {Element[]}
+   */
+  dimGroups(ctx) {
+    const v = ctx.view;
+    return [v.titleBlock, v.frame, ...v.cardsEl.children].filter(Boolean);
+  },
+
+  /**
+   * The shared-element morph's anchor (§4.4 shared anchor, B2 plan §1.4): none. The fallback template draws no anchor
+   * visual of its own; the morph pairs templates that do (B2f), and a scene without one is entered without it.
+   * @param {TemplateContext} _ctx
+   * @returns {null}
+   */
+  anchor(_ctx) {
+    return null;
+  },
+
+  /**
+   * Static: the box a medium of `slot` is sized for (B2 plan §1.4): a figure card's picture FIGURE_BOX_WIDTH x
+   * LAYOUT[format].figureMax; the scene's picture or clip (slot 'main' or 'panel': the frame shows one of them)
+   * `mediaBoxMax` of `mode`'s layout. The stage sizes `ctx.media`'s views and `mediaPlan`'s clips with this, so every
+   * frame key the page asks for is planned. B1's boxes exactly (B1 passed them to ctx.media itself); the frame's box
+   * depends on neither the slot nor preflight's fixes.
+   * @param {TimedScene} scene
+   * @param {Zones} zones
+   * @param {'live' | 'render'} mode
+   * @param {string | undefined} slot
+   * @param {import('../core.js').Fixes} _fixes
+   * @returns {{w: number, h: number}}
+   */
+  mediaBox(scene, zones, mode, slot, _fixes) {
+    if (slot === FIGURE_SLOT) return { w: FIGURE_BOX_WIDTH, h: LAYOUT[zones.format].figureMax };
+    return mediaBoxMax(scene, zones, mode);
+  },
+
+  /**
+   * Static: every TeX string this template renders for the scene (`texOf`; the same in both formats).
+   * @param {TimedScene} scene
+   * @param {import('../../shared/types.js').ResolvedLook | null} _look
+   * @param {'landscape' | 'portrait'} _fmt
+   */
+  tex(scene, _look, _fmt) {
+    return texOf(scene);
   },
 
   /**
@@ -1193,19 +1339,24 @@ export default {
 };
 
 /**
- * The remedies preflight wrote into a look (§7.12): `variant: "safe"` and `text_fit[slot]` ({size, scrim}).
+ * The remedies preflight wrote into a look (§7.12), as core.js `fixesOf` reads them: the fixes channel first
+ * (`look.fixes`: `{safe}`, `slots[slot].size`, `slots[slot].scrim`; B2 plan §1.2, deviation 2), B1's legacy fields
+ * second (`variant: "safe"`, `text_fit[slot]` {size, scrim}), so a timeline remedied before B2a keeps its remedies. A
+ * size caps the slot (never below the R-29 floor); `safe` is the compact layout (the title at its minimum, one card
+ * at a time); a scrim of either title-block slot goes behind the whole block.
  * @param {import('../../shared/types.js').ResolvedLook | null | undefined} look
  * @param {'landscape' | 'portrait'} format
  */
 export function slotTuning(look, format) {
-  const fit = (look && look.text_fit && typeof look.text_fit === 'object' ? look.text_fit : {}) || {};
+  const fixes = fixesOf(look);
   const floor = MIN_TEXT[format];
-  const safe = !!look && look.variant === 'safe';
+  const safe = fixes.safe;
+  /** @param {string} slot */
+  const fixOf = (slot) => (Object.prototype.hasOwnProperty.call(fixes.slots, slot) ? fixes.slots[slot] : null);
   /** @param {string} slot */
   const cap = (slot) => {
-    const s = fit[slot];
-    const v = s && typeof s === 'object' ? Number(s.size) : NaN;
-    return Number.isFinite(v) && v > 0 ? Math.max(floor, v) : null;
+    const s = fixOf(slot);
+    return s && s.size !== null ? Math.max(floor, s.size) : null;
   };
   return {
     safe,
@@ -1223,8 +1374,8 @@ export function slotTuning(look, format) {
     },
     /** @param {string} slot */
     scrim(slot) {
-      const s = fit[slot];
-      return !!(s && typeof s === 'object' && s.scrim === true);
+      const s = fixOf(slot);
+      return !!(s && s.scrim);
     },
   };
 }

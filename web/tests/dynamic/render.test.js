@@ -3,9 +3,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
 
-import { STAGE_VERSION, boot, installStageApi, probeWebgl, timelineTex } from '../../js/dynamic/render.js';
+import { STAGE_VERSION, boot, installStageApi, pageTexRenderer, probeWebgl, timelineTex } from '../../js/dynamic/render.js';
+import { ENGINE_VERSION } from '../../js/dynamic/engine.js';
+import boardGeneric from '../../js/dynamic/templates/board_generic.js';
 import { TIMELINE_ENDPOINT } from '../../js/render/render.js';
-import { classicTimeline, dynamicTimeline } from './_fixture.js';
+import { R1_PALETTES, classicTimeline, dynamicTimeline } from './_fixture.js';
 
 const TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJ0eXAiOiJzY29wZWQifQ.c2lnbmF0dXJlLXNpZ25hdHVyZQ';
 
@@ -178,6 +180,7 @@ test('installStageApi defines aadhiStage at once (the worker waits for it), not 
   const { api, reject } = installStageApi(w);
   assert.equal(w.aadhiStage.version, 3);
   assert.throws(() => api.info(), /not ready/);
+  assert.throws(() => api.texConversions(), /not ready/, 'B2a: additive, and not ready either');
   await assert.rejects(api.seek(0), /not ready/);
   reject(Object.assign(new Error('x'), { code: 'boot_failed' }));
   assert.equal((await failure(api.ready)).code, 'boot_failed');
@@ -197,4 +200,138 @@ test('render-dynamic.html: module script only, the stage root, dynamic.css, no i
   assert.equal((html.match(/<script/g) || []).length, 1);
   assert.doesNotMatch(html, /player\.css|panels\.css/, 'no stylesheet with live-player animations');
   assert.match(html, /name="referrer" content="no-referrer"/);
+});
+
+// --- B2a: the look-engine generation, the templates' TeX, the post-ready conversion counter ----------------------------
+
+test('a timeline of a newer look engine is refused with timeline_invalid before anything loads (engine.js)', async () => {
+  for (const v of [3, 40]) {
+    const { w, loads } = makePage();
+    const tl = dynamicTimeline();
+    tl.presentation.engine_version = v;
+    const { api } = await bootWith(w, tl);
+    const err = await failure(api.ready);
+    assert.equal(err.code, 'timeline_invalid');
+    assert.match(err.message, new RegExp(`look engine ${v}; this page draws up to ${ENGINE_VERSION}`));
+    assert.equal(api.error.code, 'timeline_invalid');
+    assert.deepEqual(loads, [], 'no font was loaded for it');
+    assert.equal(w.document.querySelector('.dyn-stage'), null, 'nothing was drawn');
+    assert.throws(() => api.info(), /not ready/);
+  }
+});
+
+test('B2\'s look engine (a v2 timeline with its stored tokens), B1\'s and an unversioned timeline boot', async () => {
+  for (const v of [2, 1, undefined]) {
+    const { w } = makePage();
+    const tl = dynamicTimeline();
+    tl.presentation.engine_version = v;
+    if (v === 2) for (const s of tl.scenes) s.look.tokens = { ...R1_PALETTES[0].stored };
+    const { api } = await bootWith(w, tl);
+    assert.deepEqual(await api.ready, { webgl: false }, String(v));
+    assert.equal(api.error, null);
+  }
+});
+
+test('timelineTex is the union of each scene\'s template tex(), first occurrence first', () => {
+  const tl = dynamicTimeline();
+  const tex = /** @type {any} */ (boardGeneric).tex;
+  /** @type {any[]} */
+  const calls = [];
+  /** @type {any} */ (boardGeneric).tex = (/** @type {any} */ scene, /** @type {any} */ look, /** @type {string} */ fmt) => {
+    calls.push([scene.scene_id, look === scene.look, fmt]);
+    return [{ tex: `x_${scene.index}`, display: false }, { tex: 'shared', display: true }, { tex: ' ', display: false }, { tex: 'shared', display: true }];
+  };
+  try {
+    assert.deepEqual(timelineTex(tl), [
+      { tex: 'x_0', display: false }, { tex: 'shared', display: true }, { tex: 'x_1', display: false },
+      { tex: 'x_2', display: false }, { tex: 'x_3', display: false }, { tex: 'x_4', display: false },
+    ]);
+    assert.deepEqual(calls.map((c) => c[0]), tl.scenes.map((/** @type {any} */ s) => s.scene_id), 'every scene asks its own template');
+    assert.ok(calls.every((c) => c[1] && c[2] === 'landscape'));
+  } finally {
+    /** @type {any} */ (boardGeneric).tex = tex;
+  }
+  assert.deepEqual(timelineTex(dynamicTimeline('portrait')), [], 'the fixture shows no TeX');
+});
+
+/** The fixture with TeX in the first scene (a formula, rich-lite text), the quiz (an option) and the last scene. */
+function texTimeline() {
+  const tl = dynamicTimeline();
+  tl.scenes[0].board.push({ id: 'fx', kind: 'formula', latex: 'V = IR', variables: [{ symbol_latex: 'V', meaning: 'voltage' }] });
+  tl.scenes[0].board[1].text = 'Ohm: $I = V/R$ and **bold**';
+  tl.scenes[2].quiz.options[0] = 'It is $2I$';
+  tl.scenes[4].board[0].text = 'Follow $I$ round the loop';
+  return tl;
+}
+
+/** Boot `tl` with a counting TeX converter; seek every scene's first, middle and last frame. */
+async function bootAndPlay(/** @type {any} */ tl) {
+  const { w } = makePage();
+  /** @type {string[]} */
+  const converted = [];
+  const { api } = await bootWith(w, tl, {
+    renderTex: async (/** @type {string} */ tex) => {
+      converted.push(tex);
+      return w.document.createElement('span');
+    },
+  });
+  await api.ready;
+  const atReady = converted.length;
+  for (const s of api.info().scenes) for (const f of [s.f0, Math.floor((s.f0 + s.f1) / 2), s.f1 - 1]) await api.seek(f).catch(() => undefined);
+  return { api, converted, atReady };
+}
+
+test('texConversions: 0 when every TeX string the frames show was converted before ready (each string once)', async () => {
+  const { api, converted, atReady } = await bootAndPlay(texTimeline());
+  assert.deepEqual(converted, ['I = V/R', 'V = IR', 'V', '2I', 'I'], 'each string converted once, all before ready');
+  assert.equal(atReady, converted.length);
+  assert.equal(api.texConversions(), 0);
+  // the stage really drew it: the converted nodes are clones in the cards
+  assert.ok(converted.length > 0);
+});
+
+test('texConversions counts TeX converted after ready (a template that renders TeX its tex() does not declare)', async () => {
+  const tex = /** @type {any} */ (boardGeneric).tex;
+  /** @type {any} */ (boardGeneric).tex = () => [];
+  try {
+    const { api, converted, atReady } = await bootAndPlay(texTimeline());
+    // the first scene's TeX is converted for the first frame (before ready); the quiz's and the last scene's later
+    assert.equal(atReady, 3);
+    assert.deepEqual(converted.slice(atReady), ['2I', 'I']);
+    assert.equal(api.texConversions(), 2);
+  } finally {
+    /** @type {any} */ (boardGeneric).tex = tex;
+  }
+});
+
+test('the page converter: one conversion per string and display mode, clones handed out, a failure tried again', async () => {
+  const { w } = makePage();
+  let n = 0;
+  let fail = true;
+  const page = pageTexRenderer(async (tex, display) => {
+    n += 1;
+    if (tex === 'bad' && fail) throw new Error('no');
+    const el = w.document.createElement('span');
+    el.textContent = `${tex}|${display}`;
+    return el;
+  });
+  const a = await page.renderTex('x', false);
+  const b = await page.renderTex('x', false);
+  assert.notEqual(a, b, 'clones');
+  assert.equal(a.textContent, 'x|false');
+  assert.equal(n, 1);
+  await page.renderTex('x', true);
+  assert.equal(n, 2, 'display mode is part of the key');
+  assert.equal(page.conversionsAfterReady(), 0);
+  page.markReady();
+  await page.renderTex('x', false);
+  assert.equal(page.conversionsAfterReady(), 0, 'a cache hit is no conversion');
+  await assert.rejects(page.renderTex('bad', false));
+  fail = false;
+  assert.equal((await page.renderTex('bad', false)).textContent, 'bad|false', 'tried again after a failure');
+  assert.equal(page.conversionsAfterReady(), 2);
+  const sync = pageTexRenderer(() => {
+    throw new Error('sync');
+  });
+  await assert.rejects(sync.renderTex('y', false), /sync/, 'a converter that throws rejects');
 });

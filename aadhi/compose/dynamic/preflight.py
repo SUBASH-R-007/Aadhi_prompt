@@ -38,12 +38,11 @@ more on the reloaded page; the capture must use :attr:`PreflightResult.timeline`
 simply leaves the problem in place, and the second round turns it into a block or a warning as above.
 
 **The fixes channel** (plan B2 §1.2, deviation 2). Remedies go to ``look.fixes`` (``schemas.timeline.LookFixes``:
-``{safe, slots: {slot: {size?, scrim?}}}``), a channel of their own: in B2 ``look.variant`` is direct.py's choice and
-``look.text_fit`` textfit.py's. B1's stage read them from ``look.variant = "safe"`` and ``look.text_fit[slot]``
-(``board_generic`` slotTuning), and keeps reading those for engine_version 1 timelines. Until the stage reads
-``fixes`` (B2a step B), :func:`apply_remedies` writes BOTH channels with the same values, so a remedy works on every
-stage at every step; the legacy writes go once the stage reads ``fixes`` (the legacy reads stay). A scene is already
-on its safe layout when either channel says so (:func:`look_is_safe`).
+``{safe, slots: {slot: {size?, scrim?}}}``) and only there, a channel of their own: in B2 ``look.variant`` is
+direct.py's choice (never ``"safe"``) and ``look.text_fit`` textfit.py's. B1 wrote them to ``look.variant = "safe"``
+and ``look.text_fit[slot]``; the stage reads ``fixes`` first and those legacy fields second (``web/js/dynamic/core.js``
+``fixesOf``, ``board_generic`` slotTuning), so an engine_version 1 timeline remedied before B2a keeps its remedies,
+and a scene is already on its safe layout when either channel says so (:func:`look_is_safe`).
 
 **Result.** :meth:`PreflightResult.summary` is the frozen preflight schema (``PREFLIGHT_SCHEMA``), stored in
 ``Render.options["qa"]["preflight"]`` (``container.motion_qa``; :meth:`PreflightResult.as_qa` when the render stops
@@ -77,7 +76,7 @@ PREFLIGHT_SCHEMA = 1
 SPREAD_FRAMES = 24
 # A card enters 0.12 s before its beat and takes 0.5 s (board_generic): settled this long after the beat starts.
 BEAT_SETTLE_S = 0.6
-SAFE_VARIANT = "safe"  # B1's legacy channel: look.variant of a scene forced onto its safe layout
+SAFE_VARIANT = "safe"  # B1's legacy channel, read only from B2a: look.variant of a scene forced onto its safe layout
 
 # R-59 from zones.py (the one source of the zones; core.js draws with the same boxes): (y0, y1, x0, x1) in stage px.
 # A box must lie inside the union of its bands, and every band its vertical extent overlaps must hold its
@@ -451,10 +450,10 @@ def apply_remedies(timeline: dict[str, Any], remedies: Iterable[Remedy]) -> dict
     """A copy of the (served) timeline dict with the remedies written into each scene's ``look``. Scenes without a
     look are left alone.
 
-    Each remedy is written to BOTH channels (see the module docstring): the fixes channel (``look.fixes = {safe,
-    slots: {slot: {size?, scrim?}}}``: ``safe = true``; ``slots[slot].size``; ``slots[slot].scrim = true``) and B1's
-    legacy fields (``look.variant = "safe"``; ``look.text_fit[slot].size``; ``look.text_fit[slot].scrim = true``),
-    with the same values. Other keys already there (``text_fit[slot].lines``, an earlier fix) are kept."""
+    Each remedy is written to the fixes channel only (see the module docstring): ``look.fixes = {safe, slots: {slot:
+    {size?, scrim?}}}`` with ``safe = true``, ``slots[slot].size`` or ``slots[slot].scrim = true``. ``look.variant``
+    and ``look.text_fit`` are never touched (a remedied scene's variant stays what direct.py chose). Other keys already
+    in ``fixes`` (an earlier fix) are kept."""
     out = copy.deepcopy(timeline)
     scenes = out.get("scenes") if isinstance(out, dict) else None
     if not isinstance(scenes, list):
@@ -467,7 +466,6 @@ def apply_remedies(timeline: dict[str, Any], remedies: Iterable[Remedy]) -> dict
             continue
         if r.kind == "safe_variant":
             _fixes(look)["safe"] = True
-            look["variant"] = SAFE_VARIANT  # legacy channel (B1 stage)
             continue
         if r.kind == "shrink" and r.size is not None:
             values: dict[str, Any] = {"size": r.size}
@@ -476,7 +474,6 @@ def apply_remedies(timeline: dict[str, Any], remedies: Iterable[Remedy]) -> dict
         else:
             continue
         _entry(_fixes(look)["slots"], r.slot).update(values)
-        _entry(_entry(look, "text_fit"), r.slot).update(values)  # legacy channel (B1 stage)
     return out
 
 

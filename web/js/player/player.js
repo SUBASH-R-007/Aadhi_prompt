@@ -47,6 +47,7 @@ import { Analytics } from './analytics.js';
 import { buildPanel, loadPanelModule } from './panel-loader.js';
 import { ensureFonts } from './fonts.js';
 import { mathSpans, texNode } from './richtext.js';
+import { engineProblem } from '../dynamic/engine.js';
 
 /** @typedef {import('../shared/types.js').Timeline} Timeline */
 /** @typedef {import('../shared/types.js').TimedScene} TimedScene */
@@ -323,6 +324,10 @@ export class Player {
     if (!timeline || !Array.isArray(timeline.scenes) || !Number.isFinite(timeline.total_duration)) {
       throw new TypeError('invalid timeline: expected {scenes: [...], total_duration: number}');
     }
+    // a Dynamic timeline of a newer look engine than this page's stage draws (a newer server than the cached page):
+    // refused before anything is built, as the render page refuses it (timeline_invalid; dynamic/engine.js)
+    const newer = this.mode !== 'render' && isDynamicTimeline(timeline) ? engineProblem(timeline) : null;
+    if (newer) throw Object.assign(new TypeError(`invalid timeline: ${newer}`), { code: 'timeline_invalid' });
     const seq = ++this._loadSeq; // a newer load() supersedes this one while it awaits
     if (this.timeline) this._teardownTimeline();
     this.timeline = timeline;

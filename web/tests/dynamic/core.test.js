@@ -2,12 +2,16 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  BLOCK_ROLES,
   DEFAULT_FPS,
   Hasher,
   Painter,
   ROLES,
+  SCRIM_ALPHA_HEX,
   ZONES,
+  blockInk2,
   desaturate,
+  fixesOf,
   frameOf,
   fx,
   insideAny,
@@ -18,8 +22,9 @@ import {
   toneColor,
   zonesFor,
 } from '../../js/dynamic/core.js';
-import { contrastRatio, toOklch } from '../../js/motion/color.js';
-import { dynamicTimeline } from './_fixture.js';
+import { ENGINE_VERSION, engineProblem, engineVersion } from '../../js/dynamic/engine.js';
+import { contrastRatio, mixOklch, toOklch } from '../../js/motion/color.js';
+import { OWNER_DECISION, R1_PALETTES, STAGE_VECTORS, dynamicTimeline } from './_fixture.js';
 
 test('frame numbers use the motion engine rounding (floor(t * fps + 0.5))', () => {
   assert.equal(frameOf(0, 30), 0);
@@ -144,4 +149,129 @@ test('zones follow R-59 and the format', () => {
   assert.ok(insideAny({ x: col.x0, y: 300, w: col.x1 - col.x0, h: 500 }, ZONES.portrait.critical));
   assert.ok(insideAny({ x: col.x0, y: 900, w: col.x1 - col.x0, h: 100 }, ZONES.portrait.critical));
   assert.ok(!insideAny({ x: 800, y: 900, w: 80, h: 40 }, ZONES.portrait.critical), 'the TikTok rail is outside');
+});
+
+// --- B2a: block roles from the look's stored tokens (plan §1.2, §1.9), content_alt, fixes, the engine generation -----
+
+const BASE_KEYS = ['struct.accent', 'bg', 'bg-alt', 'bg-tint', 'surface'];
+
+test('block roles: a look\'s stored tokens; without them, exactly what the B1 stage derived (colour vectors)', () => {
+  assert.equal(R1_PALETTES.length, 12, 'four R1 families, three palette slots each');
+  const changed = new Map();
+  for (const { name, stored, b1: v1 } of R1_PALETTES) {
+    assert.ok(v1, `${name}: a B1 vector`);
+    const presentation = /** @type {any} */ ({ content: v1.content });
+    for (const k of BASE_KEYS) assert.equal(stored[k], v1.tokens[k].toUpperCase(), `${name} ${k}: B1's token`);
+    // engine_version 2: the ten stored tokens are drawn as they are
+    const v2 = makeRoles(presentation, /** @type {any} */ ({ tokens: stored }));
+    for (const role of BLOCK_ROLES) assert.equal(v2.color(role), stored[role], `${name} ${role}: stored`);
+    assert.equal(v2.color('surface'), stored.surface);
+    // a B1 look (the five tokens): the B1 stage's run-time derivation, string for string
+    const b1 = makeRoles(presentation, /** @type {any} */ ({ tokens: v1.tokens }));
+    /** @type {Record<string, string>} */
+    const derived = {
+      'block.base': v1.block.base, 'block.highlight': v1.block.highlight, 'block.ink': v1.block.ink,
+      'block.ink2': v1.block.ink2, scrim: v1.scrim,
+    };
+    for (const role of BLOCK_ROLES) assert.equal(b1.color(role), derived[role], `${name} ${role}: B1's derivation`);
+    assert.deepEqual(v1.block.colors, [v1.block.base, v1.block.highlight]);
+    const differ = BLOCK_ROLES.filter((role) => b1.color(role).toUpperCase() !== v2.color(role).toUpperCase());
+    if (differ.length) changed.set(name, differ);
+  }
+  assert.deepEqual(Object.fromEntries(changed), OWNER_DECISION, 'the stored tokens differ from B1 exactly by the owner decision');
+});
+
+test('block roles are feature-detected per field: a missing or malformed one is derived from those present', () => {
+  const v1 = STAGE_VECTORS.get('midnight_indigo/1');
+  const presentation = /** @type {any} */ ({ content: v1.content });
+  // only a stored base: the highlight is mixed from it (as B1 mixed it from its own base), the inks picked over both
+  const base = '#3A2F12';
+  const r = makeRoles(presentation, /** @type {any} */ ({ tokens: { ...v1.tokens, 'block.base': base } }));
+  const highlight = mixOklch(base, v1.tokens['struct.accent'], 0.35);
+  assert.equal(r.color('block.base'), base);
+  assert.equal(r.color('block.highlight'), highlight);
+  assert.equal(r.color('block.ink'), r.inkOn([base, highlight]));
+  assert.equal(r.color('block.ink2'), blockInk2(r.color('block.ink'), [base, highlight]));
+  // malformed stored values are ignored: the derivation, as for a B1 look
+  const bad = makeRoles(presentation, /** @type {any} */ ({
+    tokens: { ...v1.tokens, 'block.base': 'red', 'block.ink': '#FFF', 'block.ink2': 7, scrim: '#10132C' },
+  }));
+  assert.equal(bad.color('block.base'), v1.block.base);
+  assert.equal(bad.color('block.ink'), v1.block.ink);
+  assert.equal(bad.color('block.ink2'), v1.block.ink2);
+  assert.equal(bad.color('scrim'), `${v1.tokens.bg}${SCRIM_ALPHA_HEX}`, 'a scrim without its alpha is not a scrim');
+  assert.equal(makeRoles(presentation, /** @type {any} */ ({ tokens: { ...v1.tokens, scrim: '#01020380' } })).color('scrim'), '#01020380');
+  // a look without tokens: the fallbacks' block, still derived as B1 did
+  const none = makeRoles(presentation, null);
+  assert.equal(none.color('block.base'), mixOklch('#FF936D', '#10132C', 0.38));
+  assert.throws(() => r.color('block'), /unknown colour role/);
+  assert.throws(() => r.color('block.surface'), /unknown colour role/);
+  assert.throws(() => r.color('scrim.alpha'), /unknown colour role/);
+});
+
+test('roles.on(mode): the scene\'s own roles for its mode; the other mode\'s content palette (content_alt) otherwise', () => {
+  const light = STAGE_VECTORS.get('paper_ink/0');
+  const dark = STAGE_VECTORS.get('midnight_indigo/0');
+  const presentation = /** @type {any} */ ({ content: light.content, content_alt: dark.content });
+  const roles = makeRoles(presentation, /** @type {any} */ ({ tokens: light.tokens }));
+  assert.equal(roles.mode, 'light');
+  assert.equal(roles.on('light'), roles);
+  const onDark = roles.on('dark');
+  assert.equal(onDark.mode, 'dark');
+  assert.equal(roles.on('dark'), onDark, 'made once');
+  for (const role of ['ink', 'ink2', 'entity:0', 'entity:1', 'entity:2', 'warn', 'ok', 'mark', 'focus']) {
+    assert.equal(onDark.color(role), dark.content[role], role);
+    assert.equal(roles.color(role), light.content[role], `${role}: the scene's own palette is unchanged`);
+  }
+  for (const role of ['surface', 'struct.accent', 'struct.tint', 'struct.border', 'struct.pip', ...BLOCK_ROLES]) {
+    assert.equal(onDark.color(role), roles.color(role), `${role}: the scene's structure`);
+  }
+  assert.equal(onDark.tokens, roles.tokens);
+  // inkOn offers that palette's ink (with white and near-black): a black ink is the best on white there, not here
+  const custom = makeRoles(/** @type {any} */ ({ content: dark.content, content_alt: { ...light.content, ink: '#000000' } }), null);
+  assert.equal(custom.on('light').inkOn('#FFFFFF'), '#000000');
+  assert.equal(custom.inkOn('#FFFFFF'), '#14161C');
+  assert.equal(onDark.on('light'), roles);
+  assert.equal(onDark.on('dark'), onDark);
+  assert.throws(() => onDark.color('accent'), /unknown colour role/);
+  // a timeline without that palette (B1), an incomplete one or one of the wrong mode: refused, never guessed
+  for (const alt of [undefined, {}, { ...dark.content, ok: 'green' }, light.content]) {
+    const r = makeRoles(/** @type {any} */ ({ content: light.content, content_alt: alt }), null);
+    assert.throws(() => r.on('dark'), /no dark content palette/, JSON.stringify(alt));
+    assert.equal(r.on('light'), r);
+  }
+  assert.throws(() => roles.on(/** @type {any} */ ('sepia')), /unknown colour mode/);
+});
+
+test('fixesOf: preflight\'s fixes channel first, B1\'s legacy fields second (§7.12, plan §1.2)', () => {
+  assert.deepEqual(fixesOf(null), { safe: false, slots: {} });
+  assert.deepEqual(fixesOf(/** @type {any} */ ({ variant: 'safe', text_fit: { title: { size: 60, scrim: true, lines: 2 } } })),
+    { safe: true, slots: { title: { size: 60, scrim: true } } }, 'a B1 look remedied before B2a');
+  assert.deepEqual(fixesOf(/** @type {any} */ ({ fixes: { safe: true, slots: { body: { size: 44 }, kicker: { scrim: true } } } })),
+    { safe: true, slots: { body: { size: 44, scrim: false }, kicker: { size: null, scrim: true } } });
+  // both channels: the fixes size wins; a scrim or the safe layout from either holds
+  assert.deepEqual(fixesOf(/** @type {any} */ ({
+    variant: 'media_left', fixes: { safe: false, slots: { title: { size: 50 }, body: { scrim: true } } },
+    text_fit: { title: { size: 70, scrim: true }, body: { size: 48 } },
+  })), { safe: false, slots: { title: { size: 50, scrim: true }, body: { size: 48, scrim: true } } });
+  assert.equal(fixesOf(/** @type {any} */ ({ variant: 'safe', fixes: { safe: false, slots: {} } })).safe, true);
+  // a fixes size that is no size falls back to the legacy one; malformed channels are empty
+  assert.deepEqual(fixesOf(/** @type {any} */ ({ fixes: { slots: { title: { size: 0 } } }, text_fit: { title: { size: '44' } } })).slots.title,
+    { size: 44, scrim: false });
+  assert.deepEqual(fixesOf(/** @type {any} */ ({ fixes: 5, text_fit: 'x' })), { safe: false, slots: {} });
+  assert.deepEqual(fixesOf(/** @type {any} */ ({ fixes: { safe: 'yes', slots: [] } })), { safe: false, slots: {} });
+  assert.equal(fixesOf(/** @type {any} */ ({ fixes: { slots: { title: { scrim: 'true' } } } })).slots.title.scrim, false, 'only true');
+});
+
+test('the look-engine generation: an integer >= 1, else B1\'s 1 (as the API reads it); above the stage\'s: refused', () => {
+  const tl = (/** @type {any} */ v) => ({ presentation: { style: 'dynamic', engine_version: v } });
+  assert.equal(ENGINE_VERSION, 2);
+  assert.deepEqual([1, 2, 3, 7].map((v) => engineVersion(tl(v))), [1, 2, 3, 7]);
+  for (const v of [undefined, null, 0, -2, 2.5, '3', true, Number.NaN]) assert.equal(engineVersion(tl(v)), 1, String(v));
+  assert.equal(engineVersion({}), 1);
+  assert.equal(engineVersion(null), 1);
+  assert.equal(engineProblem(tl(1)), null);
+  assert.equal(engineProblem(tl(2)), null);
+  assert.equal(engineProblem(tl(undefined)), null);
+  assert.match(String(engineProblem(tl(3))), /look engine 3; this page draws up to 2/);
 });

@@ -2,8 +2,13 @@
 /**
  * A small Dynamic timeline (design §6.7) for the stage tests: a board scene with reveals and a blank step, a chapter
  * card on a colour block entered by a crossfade, a quiz, a simulation clip and a board scene with a picture panel.
- * `dynamicTimeline('portrait')` gives the 1080x1920 reel of the same lecture.
+ * `dynamicTimeline('portrait')` gives the 1080x1920 reel of the same lecture. `R1_PALETTES`: every palette slot of the
+ * four R1 families as an engine_version 2 look stores it and as the B1 stage drew it.
  */
+
+import { readFileSync } from 'node:fs';
+
+import { CATALOGUE } from '../../js/dynamic/catalogue.gen.js';
 
 const TOKENS = {
   'struct.accent': '#FF936D', bg: '#10132C', 'bg-alt': '#181D37', 'bg-tint': '#22121C', surface: '#252A3F',
@@ -116,3 +121,33 @@ export function classicTimeline() {
   t.schema_version = 2;
   return t;
 }
+
+/** tests/fixtures/colour_vectors.json: the B1 stage's own colours of the R1 families (scripts/gen_colour_vectors.mjs). */
+const VECTORS = JSON.parse(readFileSync(new URL('../../../tests/fixtures/colour_vectors.json', import.meta.url), 'utf8'));
+
+/** The colour vectors of the B1 stage by palette slot name (`midnight_indigo/0`, ...). */
+export const STAGE_VECTORS = new Map(VECTORS.stage.map((/** @type {any} */ v) => [v.name, v]));
+
+/**
+ * Every palette slot of the R1 families: `stored`, the ten tokens an engine_version 2 look carries (themes.py through
+ * the catalogue's gallery data); `b1`, the B1 stage's vector for its five B1 tokens (`b1.tokens`), with the colours that
+ * stage derived from them (`b1.block`, `b1.scrim`) and the family's content inks (`b1.content`).
+ * @type {{name: string, stored: Record<string, string>, b1: any}[]}
+ */
+export const R1_PALETTES = Object.entries(CATALOGUE.families)
+  .filter(([, family]) => family.release === 'R1')
+  .flatMap(([id, family]) => family.slots.map((/** @type {Record<string, string>} */ stored, /** @type {number} */ slot) => ({
+    name: `${id}/${slot}`, stored, b1: STAGE_VECTORS.get(`${id}/${slot}`),
+  })));
+
+/**
+ * Where an engine_version 2 look's stored block roles differ from what the B1 stage derived (A1 owner decision,
+ * themes.py): the hold-safe block.ink2 in three palette slots, and paper_ink slot 2's block lowered out of the
+ * saturated-red range (R-54), its highlight and ink2 following. Every other stored value is the B1 stage's own.
+ */
+export const OWNER_DECISION = Object.freeze({
+  'midnight_indigo/0': ['block.ink2'],
+  'midnight_indigo/2': ['block.ink2'],
+  'deep_teal/0': ['block.ink2'],
+  'paper_ink/2': ['block.base', 'block.highlight', 'block.ink2'],
+});

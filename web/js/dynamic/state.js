@@ -88,6 +88,25 @@ export function dynamicStateAt(scene, t) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Chapters
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * The title of the chapter a scene starting at `start` is in: the last chapter of `Timeline.chapters`, in its order,
+ * that starts at or before the scene (1 ms tolerance); '' without one. B1's board_generic kicker rule, now computed by
+ * the stage and handed to the template (templates never read the timeline, B2 plan §1.4); the same rule as
+ * aadhi/compose/motion/chunks.py `_kicker_chapters`, which hashes this title into every chunk key that shows the scene,
+ * and aadhi/compose/presentation.py `chapter_indices` (the palette slot of a scene).
+ * @param {Timeline} timeline
+ * @param {number} start  the scene's start (absolute seconds)
+ */
+export function chapterTitleAt(timeline, start) {
+  let title = '';
+  for (const c of timeline.chapters || []) if (Number(c.start) <= Number(start) + 1e-3) title = String(c.title || '');
+  return title;
+}
+
+// ---------------------------------------------------------------------------------------------
 // Background drift clock (R-55)
 // ---------------------------------------------------------------------------------------------
 

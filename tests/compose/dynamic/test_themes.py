@@ -283,19 +283,22 @@ def test_caption_metrics_match_the_stylesheet() -> None:
 
 def test_stage_constants_mirror_the_js() -> None:
     """The constants the mirrors use are the JS ones (the vectors prove the behaviour; this names the source)."""
+    # B2a step B: the run-time derivations a look without stored tokens gets (blockColors, blockInk2, the scrim) are
+    # core.js makeRoles' block roles; colour_block.js, stage.js and board_generic.js re-export / read them from there
     core = (ROOT / "web/js/dynamic/core.js").read_text(encoding="utf-8")
     assert "const ON_BLOCK = Object.freeze(['#FFFFFF', '#14161C']);" in core
     assert "mixOklch(tokens.bg, '#FFFFFF', 0.85) : mixOklch(tokens.bg, content.ink, 0.1)" in core
-    block = (ROOT / "web/js/dynamic/backgrounds/colour_block.js").read_text(encoding="utf-8")
-    assert "mixOklch(accent, roles.tokens.bg || '#000000', 0.38)" in block
-    assert "mixOklch(base, roles.color('struct.accent'), 0.35) : mixOklch(base, '#FFFFFF', 0.1)" in block
+    assert "mixOklch(accent, tokens.bg || '#000000', 0.38)" in core
+    assert "mixOklch(base, accent, 0.35) : mixOklch(base, '#FFFFFF', 0.1)" in core
     mesh = (ROOT / "web/js/dynamic/backgrounds/mesh_drift.js").read_text(encoding="utf-8")
     assert "export const FREEZE_DESATURATION = 0.3;" in mesh
     assert "mixOklch(base, accent, 0.2)" in mesh and "mixOklch(base, ink, 0.07)" in mesh
+    assert "export const BLOCK_INK2_CONTRAST = 3;" in core and "[0.25, 0.2, 0.15, 0.1, 0.05]" in core
+    assert "export const SCRIM_ALPHA_HEX = 'c7';" in core
     stage = (ROOT / "web/js/dynamic/stage.js").read_text(encoding="utf-8")
-    assert "export const BLOCK_INK2_CONTRAST = 3;" in stage and "[0.25, 0.2, 0.15, 0.1, 0.05]" in stage
+    assert "export { BLOCK_INK2_CONTRAST, blockInk2 } from './core.js';" in stage
     board = (ROOT / "web/js/dynamic/templates/board_generic.js").read_text(encoding="utf-8")
-    assert "export const SCRIM_ALPHA_HEX = 'c7';" in board
+    assert "export { SCRIM_ALPHA_HEX };" in board
 
 
 # --- derived scene colours -------------------------------------------------------------------------------------------

@@ -263,18 +263,18 @@ def test_board_generic_layout_is_the_js_layout() -> None:
     for fmt, box in tp.BOARD_CENTRED_TITLE.items():  # centeredTitleBox
         literal = f"{{ x0: {box.x0}, y0: {box.y0}, x1: {box.x1}, y1: {box.y1} }}"
         assert literal in board, fmt
-    # R-29 floors: literals in board_generic.js today; from step B they come from the catalogue (no literals left)
-    floors = {"MIN_TEXT": "text_min", "MIN_LABEL": "label_min"}
-    for name, attr in floors.items():
-        literal = _js_const(name)
-        if literal is not None and literal.startswith("Object.freeze({ landscape:"):
-            values = dict(re.findall(r"(landscape|portrait): (\d+)", literal))
-            assert {f: int(v) for f, v in values.items()} == {f: getattr(zn.TYPE_FLOORS[f], attr) for f in zn.FORMATS}
-        else:
-            assert "CATALOGUE" in board, f"{name} is neither the R-29 literal nor read from the catalogue"
+    # R-29 floors (B2a step B): no literals left; board_generic.js reads them from core.js, the catalogue's one reader
+    # (web/tests/dynamic/catalogue.test.js pins the values the JS sees against B1's literals)
+    core = (JS / "core.js").read_text(encoding="utf-8")
+    assert "export const TYPE_FLOORS = CATALOGUE.type.floors;" in core
+    assert _js_const("MIN_TEXT") == "floors('text_min')" and _js_const("MIN_LABEL") == "floors('label_min')"
+    assert "TYPE_FLOORS.landscape[key], portrait: TYPE_FLOORS.portrait[key]" in board
+    assert {f: (zn.TYPE_FLOORS[f].text_min, zn.TYPE_FLOORS[f].label_min) for f in zn.FORMATS} == {
+        "landscape": (36, 40), "portrait": (40, 44)}  # B1's literals
     weight = _js_const("BODY_WEIGHT")
-    if weight is not None and weight.startswith("Object.freeze({ landscape:"):
-        assert {f: int(v) for f, v in re.findall(r"(landscape|portrait): (\d+)", weight)} == dict(tp.BOARD_BODY_WEIGHT)
+    assert weight is not None and "SLOTS.body.landscape.default.weight" in weight  # the catalogue's body slot
+    assert {f: tp.TEMPLATES["board_generic"].slots["body"][f]["default"].weight for f in zn.FORMATS} == dict(
+        tp.BOARD_BODY_WEIGHT) == {"landscape": 400, "portrait": 600}
 
 
 def test_board_generic_slots() -> None:

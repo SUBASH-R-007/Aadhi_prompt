@@ -15,30 +15,39 @@
  * Each frame: the scene that owns the frame is painted by its template at scene time t, over its background at the
  * background clock (frozen in holds); during a crossfade the previous scene's final state is painted below it
  * (§4.9); then the caption. Every write goes through the Painter, so the key covers everything that moved.
- * Only a timeline whose presentation style is "dynamic" may reach this module (a classic one is refused).
+ * Only a timeline whose presentation style is "dynamic" may reach this module (a classic one is refused), and only one
+ * of a look-engine generation it knows (engine.js; it feature-detects the fields of those it knows).
  */
 
 import { h } from '../shared/dom.js';
 import { sceneIndexAt } from '../player/schedule.js';
-import { contrastRatio, mixOklch } from '../motion/color.js';
+import { contrastRatio } from '../motion/color.js';
 import { SCRIPT_FONTS, scriptForLanguage } from '../render/fonts.js';
 import { hashSeed, mulberry32 } from '../motion/random.js';
-import { Painter, makeRoles, sceneIndexOfFrame, stageInfo, toneColor, zonesFor } from './core.js';
-import { backgroundTime, captionAt, dynamicStateAt, freezeProgress } from './state.js';
+import { Painter, fixesOf, makeRoles, sceneIndexOfFrame, stageInfo, toneColor, zonesFor } from './core.js';
+import { engineProblem } from './engine.js';
+import { backgroundTime, captionAt, chapterTitleAt, dynamicStateAt, freezeProgress } from './state.js';
 import { paintTransition, transitionAt } from './transitions.js';
 import { CaptionLayer, captionStyle } from './captions.js';
 import { LIVE_DRIFT, MediaView, mediaPlan as planMedia, presenterOf, frameUrl, mediaKey } from './media.js';
-import boardGeneric, { mediaBoxMax } from './templates/board_generic.js';
+import boardGeneric from './templates/board_generic.js';
 import meshDrift from './backgrounds/mesh_drift.js';
-import colourBlock, { blockColors } from './backgrounds/colour_block.js';
+import colourBlock from './backgrounds/colour_block.js';
 
 /** @typedef {import('../shared/types.js').Timeline} Timeline */
 /** @typedef {import('../shared/types.js').TimedScene} TimedScene */
 /** @typedef {import('./templates/types.js').TemplateContext} TemplateContext */
+/** @typedef {import('./templates/types.js').TemplateModule} TemplateModule */
+/** @typedef {import('./templates/types.js').MediaOptions} MediaOptions */
 /** @typedef {import('./templates/types.js').TextEntry} TextEntry */
 /** @typedef {import('./media.js').MediaFrameInfo} MediaFrameInfo */
+/** @typedef {import('./core.js').Zones} Zones */
 
-/** Templates by id (B1: board_generic only; an unknown or unreleased id falls back to it). */
+/**
+ * Templates by id (B1: board_generic only; an unknown or unreleased id falls back to it). The catalogue's registry
+ * lists exactly these as `implemented` (web/tests/dynamic/catalogue.test.js).
+ * @type {Readonly<Record<string, TemplateModule>>}
+ */
 export const TEMPLATES = Object.freeze({ board_generic: boardGeneric });
 /** Background presets by id (B1: mesh_drift and colour_block; unknown ids get mesh_drift). */
 export const BACKGROUNDS = Object.freeze({ mesh_drift: meshDrift, colour_block: colourBlock });
@@ -56,10 +65,28 @@ export function isDynamic(timeline) {
 
 /**
  * @param {TimedScene} scene
+ * @returns {TemplateModule}
  */
 export function templateFor(scene) {
   const id = scene.look && scene.look.template;
-  return /** @type {Record<string, typeof boardGeneric>} */ (TEMPLATES)[String(id)] || boardGeneric;
+  return Object.prototype.hasOwnProperty.call(TEMPLATES, String(id)) ? TEMPLATES[String(id)] : boardGeneric;
+}
+
+/**
+ * The box a medium of `slot` in `scene` is sized for (B2 plan §1.4): its template's static `mediaBox` in `mode`'s
+ * layout (with the scene's fixes), the whole stage when the template has none or names none. `mediaPlan` (render
+ * layout) and `ctx.media` (the stage's mode) both ask here, so in render mode a clip's frame key is always one the plan
+ * lists, whatever the template.
+ * @param {TimedScene} scene
+ * @param {Zones} zones
+ * @param {'live' | 'render'} mode
+ * @param {string | undefined} slot
+ * @returns {{w: number, h: number}}
+ */
+export function mediaBoxOf(scene, zones, mode, slot) {
+  const tpl = templateFor(scene);
+  const box = typeof tpl.mediaBox === 'function' ? tpl.mediaBox(scene, zones, mode, slot, fixesOf(scene.look)) : null;
+  return box && box.w > 0 && box.h > 0 ? { w: box.w, h: box.h } : { w: zones.width, h: zones.height };
 }
 
 /**
@@ -94,22 +121,8 @@ export function fontStacks(presentation, language = '') {
   };
 }
 
-/** Large text on a colour block (the chapter subtitle, the kicker) keeps at least this contrast (R-53: 3:1 large). */
-export const BLOCK_INK2_CONTRAST = 3;
-
-/**
- * The quieter ink on a colour block: the strongest mix of `ink` toward the block (at most 25%, R-52's step back) that
- * still holds 3:1 against every block colour, else `ink` itself (the ink already has only ~4:1 on a saturated block).
- * @param {string} ink
- * @param {string[]} bgs  the block's colours
- */
-export function blockInk2(ink, bgs) {
-  for (const p of [0.25, 0.2, 0.15, 0.1, 0.05]) {
-    const c = mixOklch(ink, bgs[0], p);
-    if (Math.min(...bgs.map((b) => contrastRatio(c, b))) >= BLOCK_INK2_CONTRAST) return c;
-  }
-  return ink;
-}
+/** The quieter ink on a colour block and its 3:1 floor (R-53): core.js, where the block roles are made. */
+export { BLOCK_INK2_CONTRAST, blockInk2 } from './core.js';
 
 /**
  * Keep a live clip at `t` (re-sought when it drifts by more than 0.1 s, or after a seek), playing at the player's
@@ -161,9 +174,10 @@ class Slot {
     this.media = [];
     const background = look && look.background ? look.background : {};
     const seed = Number(background.seed) >>> 0;
+    // text drawn on a colour block takes the block's inks (the `block.ink` / `block.ink2` roles: the look's stored
+    // ones, else picked over the block's colours as B1 did), on anything else the content inks
     const block = backgroundFor(scene) === colourBlock;
-    const blockBg = blockColors(roles);
-    const ink = block ? roles.inkOn([blockBg.base, blockBg.highlight]) : roles.color('ink');
+    const ink = block ? roles.color('block.ink') : roles.color('ink');
     // The scene's own page colour and ink for what the stylesheet draws without a template colour (dynamic.css: the
     // matte around contained media, inherited text): from the roles, so a light family never gets a dark literal.
     this.el = h('div', {
@@ -183,13 +197,16 @@ class Slot {
     // of the background too, for text over a translucent scrim (its worst case depends on the text's own ink)
     const bgs = this.bg.colors();
     const worst = bgs.reduce((a, b) => (contrastRatio(ink, b) < contrastRatio(ink, a) ? b : a));
+    // No `timeline` in the context (B2 plan §1.4): what the template shows of other scenes is handed to it (the
+    // chapter its kicker names; chunks.py hashes that title into the key of every chunk that shows the scene)
     /** @type {TemplateContext} */
     this.ctx = {
-      scene, index, timeline, look, roles, zones: stage.zones, format: stage.zones.format,
+      scene, index, look, chapter: chapterTitleAt(timeline, Number(scene.start)), roles, zones: stage.zones,
+      format: stage.zones.format,
       rng: mulberry32(hashSeed(seed, scene.scene_id, 'template')),
       mode: stage.mode, reducedMotion: stage.reducedMotion, root: content, paint: stage.painter, pending: this.pending,
       media: (ref, opts) => this._media(ref, opts),
-      onBackground: { ink, ink2: block ? blockInk2(ink, [blockBg.base, blockBg.highlight]) : roles.color('ink2'), bg: worst, bgs, block },
+      onBackground: { ink, ink2: block ? roles.color('block.ink2') : roles.color('ink2'), bg: worst, bgs, block },
       rectOf: (el) => stage.rectOf(el),
       locale: stage.locale,
       renderTex: stage.renderTex,
@@ -203,12 +220,16 @@ class Slot {
   }
 
   /**
+   * `ctx.media`: a picture or clip, sized for its template's `mediaBox` of `opts.slot` (`mediaBoxOf`, the box
+   * `mediaPlan` extracts a clip at), or a picture for the box it passes (a picture has no frame key).
    * @param {import('../shared/types.js').MediaRef} ref
-   * @param {{box: {w: number, h: number}, start?: number, alt?: string}} opts
+   * @param {MediaOptions} [opts]
    */
-  _media(ref, opts) {
+  _media(ref, opts = {}) {
+    const own = ref.kind !== 'video' && opts.box && opts.box.w > 0 && opts.box.h > 0 ? opts.box : null;
+    const box = own || mediaBoxOf(this.scene, this.stage.zones, this.stage.mode, opts.slot);
     const view = new MediaView(ref, {
-      mode: this.stage.mode, box: opts.box, start: opts.start, sceneDuration: Number(this.scene.duration) || 0,
+      mode: this.stage.mode, box, start: opts.start, sceneDuration: Number(this.scene.duration) || 0,
       fps: this.stage.info.fps, reducedMotion: this.stage.reducedMotion, alt: opts.alt,
     });
     this.media.push(view);
@@ -333,8 +354,11 @@ class Slot {
  */
 export function createDynamicStage(root, timeline, opts = {}) {
   if (!isDynamic(timeline) || !Array.isArray(timeline.scenes)) {
-    throw new TypeError('createDynamicStage: the timeline has no Dynamic presentation');
+    const why = 'createDynamicStage: the timeline has no Dynamic presentation';
+    throw Object.assign(new TypeError(why), { code: 'timeline_invalid' });
   }
+  const newer = engineProblem(timeline);
+  if (newer) throw Object.assign(new TypeError(`createDynamicStage: ${newer}`), { code: 'timeline_invalid' });
   const mode = opts.mode === 'render' ? 'render' : 'live';
   const info = stageInfo(timeline);
   const zones = zonesFor(timeline);
@@ -542,10 +566,8 @@ export function createDynamicStage(root, timeline, opts = {}) {
      * @param {number} f1  exclusive
      */
     mediaPlan(f0, f1) {
-      return planMedia(timeline, Number(f0), Number(f1), (scene) => {
-        const tpl = templateFor(scene);
-        return tpl === boardGeneric ? mediaBoxMax(scene, zones) : { w: zones.width, h: zones.height };
-      });
+      // the render page's layout: what the worker extracts frames for (live mode shows clips as <video>)
+      return planMedia(timeline, Number(f0), Number(f1), (scene, slot) => mediaBoxOf(scene, zones, 'render', slot));
     },
 
     /** Text boxes of the frame on screen, in stage px. */

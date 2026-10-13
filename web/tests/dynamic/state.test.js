@@ -8,6 +8,7 @@ import {
   REVEAL_LEAD,
   backgroundTime,
   captionAt,
+  chapterTitleAt,
   dynamicStateAt,
   freezeProgress,
   frozenIntervals,
@@ -89,4 +90,18 @@ test('captions: kinetic chunks (blank ones show nothing, key words), else the be
   const board = tl.scenes[0];
   assert.deepEqual(captionAt(board, 1.0).lines, ['Charge flows like water.']);
   assert.equal(captionAt(board, 9.0), null);
+});
+
+test('chapterTitleAt: the last chapter (in the timeline order) starting at or before the scene, 1 ms tolerance', () => {
+  // board_generic's kicker rule since B1, now the stage's (B2 plan §1.4); aadhi/compose/motion/chunks.py
+  // _kicker_chapters hashes the same title into the chunk key (tests/compose/motion/test_chunks.py)
+  const tl = dynamicTimeline();
+  assert.deepEqual(tl.scenes.map((/** @type {any} */ s) => chapterTitleAt(tl, s.start)), ['Basics', 'The law', 'The law', 'The law', 'The law']);
+  assert.equal(chapterTitleAt(tl, 9.9995), 'The law', 'a chapter starting within 1 ms after the scene');
+  assert.equal(chapterTitleAt(tl, 9.99), 'Basics');
+  assert.equal(chapterTitleAt(tl, -1), '', 'before every chapter');
+  assert.equal(chapterTitleAt(/** @type {any} */ ({ ...tl, chapters: undefined }), 5), '');
+  const unordered = /** @type {any} */ ({ chapters: [{ start: 10, title: 'B' }, { start: 0, title: 'A' }, { start: 3 }] });
+  assert.equal(chapterTitleAt(unordered, 12), '', 'the last match in order wins (an untitled one: no title)');
+  assert.equal(chapterTitleAt(unordered, 2), 'A');
 });

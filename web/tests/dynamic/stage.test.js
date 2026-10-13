@@ -4,16 +4,19 @@ import assert from 'node:assert/strict';
 import { installDom, uninstallDom } from '../player/_dom.js';
 import { readFileSync } from 'node:fs';
 
-import { BACKGROUNDS, TEMPLATES, blockInk2, createDynamicStage, fontStacks, isDynamic, syncClip, templateFor } from '../../js/dynamic/stage.js';
-import { Painter, makeRoles, stageInfo, insideAny, ZONES } from '../../js/dynamic/core.js';
+import { BACKGROUNDS, TEMPLATES, blockInk2, createDynamicStage, fontStacks, isDynamic, mediaBoxOf, syncClip, templateFor } from '../../js/dynamic/stage.js';
+import { chapterTitleAt } from '../../js/dynamic/state.js';
+import { Painter, fixesOf, makeRoles, stageInfo, insideAny, ZONES } from '../../js/dynamic/core.js';
+import { MediaView, mediaKey, mediaPlan as planMedia, mediaSize } from '../../js/dynamic/media.js';
 import { blockColors } from '../../js/dynamic/backgrounds/colour_block.js';
-import { composite, contrastRatio, toOklch } from '../../js/motion/color.js';
+import { composite, contrastRatio, toHex, toOklch } from '../../js/motion/color.js';
 import { splitWords } from '../../js/motion/text.js';
 import boardGeneric, {
-  BODY_WEIGHT, CARD_EXIT, LABELS, MIN_DWELL, MIN_LABEL, QUIZ_CLEAR, RING_GAP, RING_SIZE, RING_TRACK_ALPHA, SCRIM_ALPHA_HEX, TITLE_BLOCK_SLOTS,
+  BODY_WEIGHT, CARD_EXIT, CARD_RADIUS, FIGURE_BOX_WIDTH, FIGURE_SLOT, FRAME_RADIUS, LABELS, LAYOUT, MIN_DWELL, MIN_LABEL,
+  QUIZ_CLEAR, RING_GAP, RING_SIZE, RING_TRACK_ALPHA, SCRIM_ALPHA_HEX, TITLE_BLOCK_SLOTS,
   cardSpecs, kickerOf, mediaBoxMax, regions, scrimmedBg, slotTuning, variantOf,
 } from '../../js/dynamic/templates/board_generic.js';
-import { classicTimeline, dynamicTimeline } from './_fixture.js';
+import { OWNER_DECISION, R1_PALETTES, classicTimeline, dynamicTimeline } from './_fixture.js';
 
 before(() => installDom());
 after(() => uninstallDom());
@@ -69,13 +72,38 @@ test('a terminal panel enters as a card with its first output line, so its outpu
   assert.equal(cardSpecs(noOutput).find((c) => c.kind === 'terminal')?.enter, 1.5, 'without output: when the panel opens');
 });
 
-test('kicker: a scene-type badge, the chapter, the quiz title or the chapter label', () => {
+test('kicker: a scene-type badge, the chapter (handed over by the stage), the quiz title or the chapter label', () => {
   const tl = dynamicTimeline();
-  assert.equal(kickerOf(tl.scenes[0], tl), 'Basics');
-  assert.equal(kickerOf(tl.scenes[1], tl), 'Part 2');
-  assert.equal(kickerOf(tl.scenes[2], tl), 'Quick check');
-  assert.equal(kickerOf(/** @type {any} */ ({ ...tl.scenes[0], type: 'example', title: 'A ceiling fan' }), tl), LABELS.badges.example);
-  assert.equal(kickerOf(/** @type {any} */ ({ ...tl.scenes[0], type: 'example', title: 'Worked example - a fan' }), tl), 'Basics');
+  const chapter = (/** @type {any} */ scene) => chapterTitleAt(tl, scene.start);
+  assert.equal(kickerOf(tl.scenes[0], chapter(tl.scenes[0])), 'Basics');
+  assert.equal(kickerOf(tl.scenes[1], chapter(tl.scenes[1])), 'Part 2');
+  assert.equal(kickerOf(tl.scenes[2], chapter(tl.scenes[2])), 'Quick check');
+  assert.equal(kickerOf(tl.scenes[4], chapter(tl.scenes[4])), 'The law');
+  assert.equal(kickerOf(/** @type {any} */ ({ ...tl.scenes[0], type: 'example', title: 'A ceiling fan' }), 'Basics'), LABELS.badges.example);
+  assert.equal(kickerOf(/** @type {any} */ ({ ...tl.scenes[0], type: 'example', title: 'Worked example - a fan' }), 'Basics'), 'Basics');
+  assert.equal(kickerOf(/** @type {any} */ ({ ...tl.scenes[0], title: 'Basics' }), 'Basics'), '', 'never the scene\'s own title again');
+  assert.equal(kickerOf(tl.scenes[0], ''), '', 'no chapter, no kicker');
+});
+
+test('templates get no timeline: the stage hands each scene its chapter title (the kicker rule, chunks.py hashes it)', async () => {
+  /** @type {any[]} */
+  const seen = [];
+  const build = boardGeneric.build;
+  boardGeneric.build = function spy(/** @type {any} */ ctx) {
+    seen.push(ctx);
+    return build.call(this, ctx);
+  };
+  try {
+    const { stage } = makeStage();
+    for (const f of [0, 330, 450, 800, 1000]) await stage.seek(f);
+    stage.destroy();
+  } finally {
+    boardGeneric.build = build;
+  }
+  assert.deepEqual(seen.map((ctx) => [ctx.index, ctx.chapter]), [[0, 'Basics'], [1, 'The law'], [2, 'The law'], [3, 'The law'], [4, 'The law']]);
+  for (const ctx of seen) assert.ok(!('timeline' in ctx), `scene ${ctx.index}: no ctx.timeline (plan §1.4)`);
+  const kicker = (/** @type {number} */ i) => seen[i].view.kickerText.textContent;
+  assert.deepEqual([0, 1, 2, 3, 4].map(kicker), ['Basics', 'Part 2', 'Quick check', 'The law', 'The law']);
 });
 
 test('layout regions keep card text inside the safe zones of both formats (R-59)', () => {
@@ -335,7 +363,7 @@ test('the template reports the chapter subtitle, a chapter label as critical, an
     document.body.appendChild(root);
     const chapter = tl.scenes[1];
     const ctx = /** @type {any} */ ({
-      scene: chapter, index: 1, timeline: tl, look: chapter.look, roles: makeRoles(tl.presentation, chapter.look),
+      scene: chapter, index: 1, chapter: chapterTitleAt(tl, chapter.start), look: chapter.look, roles: makeRoles(tl.presentation, chapter.look),
       zones: ZONES[format], format, mode: 'render', reducedMotion: false, root, paint: new Painter(), pending: [],
       media: () => { throw new Error('no media'); }, onBackground: { ink: '#FFFFFF', ink2: '#EEEEEE', bg: '#CC684E', block: true },
       rectOf: () => null, locale: 'en', rng: () => 0.5,
@@ -362,7 +390,7 @@ test('the template reports the chapter subtitle, a chapter label as critical, an
     document.body.appendChild(root);
     const scene = tl.scenes[0];
     const ctx = /** @type {any} */ ({
-      scene, index: 0, timeline: tl, look: scene.look, roles: makeRoles(tl.presentation, scene.look),
+      scene, index: 0, chapter: chapterTitleAt(tl, scene.start), look: scene.look, roles: makeRoles(tl.presentation, scene.look),
       zones: ZONES[format], format, mode: 'render', reducedMotion: false, root, paint: new Painter(), pending: [],
       media: () => { throw new Error('no media'); }, onBackground: { ink: '#FFFFFF', ink2: '#EEEEEE', bg: '#10132C', block: false },
       rectOf: () => null, locale: 'en', rng: () => 0.5,
@@ -638,7 +666,7 @@ test('the title of a rich question is reported as its plain text; a plain one is
     const root = document.createElement('div');
     document.body.appendChild(root);
     const ctx = /** @type {any} */ ({
-      scene, index: 2, timeline: tl, look: scene.look, roles: makeRoles(tl.presentation, scene.look), zones: ZONES.landscape,
+      scene, index: 2, chapter: chapterTitleAt(tl, scene.start), look: scene.look, roles: makeRoles(tl.presentation, scene.look), zones: ZONES.landscape,
       format: 'landscape', mode: 'render', reducedMotion: false, root, paint: new Painter(), pending: [],
       media: () => { throw new Error('no media'); }, onBackground: { ink: '#F3F5F9', ink2: '#B9BEC7', bg: '#181D37', block: false },
       rectOf: () => null, locale: 'en', rng: () => 0.5, renderTex: fakeTex().renderTex,
@@ -674,7 +702,7 @@ test('a TeX word wider than the column even at the minimum size holds the questi
       const root = document.createElement('div');
       document.body.appendChild(root);
       const ctx = /** @type {any} */ ({
-        scene, index: 2, timeline: tl, look: scene.look, roles: makeRoles(tl.presentation, scene.look), zones: ZONES[format],
+        scene, index: 2, chapter: chapterTitleAt(tl, scene.start), look: scene.look, roles: makeRoles(tl.presentation, scene.look), zones: ZONES[format],
         format, mode: 'render', reducedMotion: false, root, paint: new Painter(), pending: [],
         media: () => { throw new Error('no media'); }, onBackground: { ink: '#F3F5F9', ink2: '#B9BEC7', bg: '#181D37', block: false },
         rectOf: () => null, locale: 'en', rng: () => 0.5, renderTex: fakeTex().renderTex,
@@ -717,7 +745,7 @@ function chapterTexts(textFit, bgs, ink2) {
   const root = document.createElement('div');
   document.body.appendChild(root);
   const ctx = /** @type {any} */ ({
-    scene, index: 1, timeline: tl, look: scene.look, roles: makeRoles(tl.presentation, scene.look), zones: ZONES.landscape,
+    scene, index: 1, chapter: chapterTitleAt(tl, scene.start), look: scene.look, roles: makeRoles(tl.presentation, scene.look), zones: ZONES.landscape,
     format: 'landscape', mode: 'render', reducedMotion: false, root, paint: new Painter(), pending: [],
     media: () => { throw new Error('no media'); }, onBackground: { ink: '#F3F5F9', ink2, bg: bgs[0], bgs, block: false },
     rectOf: () => null, locale: 'en', rng: () => 0.5,
@@ -880,7 +908,7 @@ test('the countdown number is reported as a label (not critical) at the R-29 lab
     const root = document.createElement('div');
     document.body.appendChild(root);
     const ctx = /** @type {any} */ ({
-      scene, index: 2, timeline: tl, look: scene.look, roles: makeRoles(tl.presentation, scene.look), zones: ZONES[format],
+      scene, index: 2, chapter: chapterTitleAt(tl, scene.start), look: scene.look, roles: makeRoles(tl.presentation, scene.look), zones: ZONES[format],
       format, mode: 'render', reducedMotion: false, root, paint: new Painter(), pending: [],
       media: () => { throw new Error('no media'); }, onBackground: { ink: '#F3F5F9', ink2: '#B9BEC7', bg: '#181D37', block: false },
       rectOf: () => null, locale: 'en', rng: () => 0.5,
@@ -1011,4 +1039,393 @@ test('live presenter: the clip plays at the player\'s rate, so it neither drifts
   assert.equal(v.playbackRate, 1);
   stage.destroy();
   root.remove();
+});
+
+// --- B2a: an engine_version 2 look draws its stored tokens, a B1 look the B1 derivation (plan §1.2, §1.9) ------------
+
+/** A colour as the page holds it, normalised (jsdom writes a colour property as rgb()). @param {unknown} c */
+const norm = (c) => toHex(String(c).trim()).toLowerCase();
+
+/**
+ * The fixture in one palette slot: its content inks, `tokens` on every scene, and a title-block scrim (preflight's
+ * remedy, through the fixes channel) on the chapter card, which stands on a colour block.
+ * @param {Record<string, string>} content @param {Record<string, string>} tokens
+ */
+function paletteTimeline(content, tokens) {
+  const tl = dynamicTimeline();
+  tl.presentation.content = { ...content };
+  for (const s of tl.scenes) s.look.tokens = { ...tokens };
+  tl.scenes[1].look.fixes = { safe: false, slots: { title: { scrim: true } } };
+  return tl;
+}
+
+/**
+ * What the settled chapter card draws: its block's colours (the background's colour and gradient), the inks of the
+ * text on it (the scene's --dyn-ink, the title, the pip; the kicker and the subtitle in the quieter ink), the title
+ * block's scrim, and the kicker as preflight reads it (ink, and the scrim over the block's colours behind it).
+ * @param {any} tl
+ */
+async function blockDrawing(tl) {
+  const proto = window.HTMLElement.prototype;
+  const original = proto.getBoundingClientRect;
+  proto.getBoundingClientRect = function rect() {
+    const w = this.classList && this.classList.contains('dyn-stage') ? 1920 : 100;
+    return /** @type {any} */ ({ left: 0, top: 0, width: w, height: 50, right: w, bottom: 50, x: 0, y: 0 });
+  };
+  const { root, stage } = stageOf(tl);
+  try {
+    await stage.seek(12 * 30);
+    const scene = /** @type {HTMLElement} */ (stage.el.querySelector('.dyn-scene[data-scene="1"]'));
+    const q = (/** @type {string} */ sel) => /** @type {HTMLElement} */ (scene.querySelector(sel));
+    const block = q('.dyn-bg--block');
+    const gradient = (block.style.getPropertyValue('background-image').match(/#[0-9a-f]{6,8}|rgba?\([^)]*\)/gi) || []).map(norm);
+    const kicker = stage.textBoxes().find((b) => b.slot === 'kicker');
+    return {
+      'block.base': norm(block.style.getPropertyValue('background-color')),
+      'block.highlight': gradient[0],
+      gradientBase: gradient[1],
+      'block.ink': norm(scene.style.getPropertyValue('--dyn-ink')),
+      title: norm(q('.dyn-title').style.color),
+      pip: norm(q('.dyn-pip').style.backgroundColor),
+      'block.ink2': norm(q('.dyn-header').style.color),
+      subtitle: norm(q('.dyn-subtitle').style.color),
+      scrim: norm(q('.dyn-titleblock').style.getPropertyValue('--scrim')),
+      kickerInk: norm(kicker.ink),
+      kickerBg: kicker.bg,
+      card: norm(/** @type {HTMLElement} */ (stage.el.querySelector('.dyn-scene[data-scene="1"]')).style.getPropertyValue('--dyn-page')),
+    };
+  } finally {
+    stage.destroy();
+    root.remove();
+    proto.getBoundingClientRect = original;
+  }
+}
+
+test('a v2 look draws its stored block, inks and scrim; a B1 look what B1 drew; they differ only by the owner decision', async () => {
+  assert.equal(R1_PALETTES.length, 12);
+  /** @type {Record<string, string[]>} */
+  const changed = {};
+  for (const { name, stored, b1 } of R1_PALETTES) {
+    const v2 = await blockDrawing(paletteTimeline(b1.content, stored));
+    const old = await blockDrawing(paletteTimeline(b1.content, b1.tokens));
+    /** @param {any} drawn @param {Record<string, string>} want @param {string} which */
+    const check = (drawn, want, which) => {
+      const at = `${name} (${which})`;
+      assert.equal(drawn['block.base'], norm(want['block.base']), `${at}: the block`);
+      assert.equal(drawn.gradientBase, drawn['block.base'], `${at}: the gradient ends on the block`);
+      assert.equal(drawn['block.highlight'], norm(want['block.highlight']), `${at}: its highlight`);
+      for (const k of ['block.ink', 'title', 'pip']) assert.equal(drawn[k], norm(want['block.ink']), `${at}: ${k} in block.ink`);
+      for (const k of ['block.ink2', 'subtitle']) assert.equal(drawn[k], norm(want['block.ink2']), `${at}: ${k} in block.ink2`);
+      assert.equal(drawn.scrim, norm(want.scrim), `${at}: the scrim`);
+      assert.equal(drawn.kickerInk, norm(want['block.ink2']), `${at}: preflight reads the kicker's ink`);
+      const bgs = [want['block.base'], want['block.highlight']];
+      assert.equal(drawn.kickerBg, scrimmedBg(want.scrim, { bg: bgs[0], bgs }, want['block.ink2']), `${at}: ... on the scrim over the block`);
+    };
+    check(v2, stored, 'engine_version 2: the stored tokens');
+    const derived = {
+      'block.base': b1.block.base, 'block.highlight': b1.block.highlight, 'block.ink': b1.block.ink,
+      'block.ink2': b1.block.ink2, scrim: b1.scrim,
+    };
+    check(old, derived, 'B1 look: the B1 derivation');
+    const differ = ['block.base', 'block.highlight', 'block.ink', 'block.ink2', 'scrim'].filter((k) => v2[k] !== old[k]);
+    if (differ.length) changed[name] = differ;
+    assert.equal(v2.card, old.card, `${name}: the page colour is the same B1 token`);
+  }
+  assert.deepEqual(changed, OWNER_DECISION, 'pixel colours differ from B1 exactly where the owner decided they do');
+});
+
+test('a v2 look on mesh_drift draws as B1 did: the derived tokens are only drawn on a block (and the scrim)', async () => {
+  for (const { name, stored, b1 } of R1_PALETTES.filter((p) => p.name.endsWith('/0'))) {
+    const keys = [];
+    for (const tokens of [stored, b1.tokens]) {
+      const { root, stage } = stageOf(paletteTimeline(b1.content, tokens));
+      keys.push((await stage.seek(5 * 30)).key);
+      const scene = /** @type {HTMLElement} */ (stage.el.querySelector('.dyn-scene[data-scene="0"]'));
+      assert.equal(norm(scene.style.getPropertyValue('--dyn-ink')), norm(b1.content.ink), `${name}: the content ink off a block`);
+      assert.equal(norm(/** @type {HTMLElement} */ (scene.querySelector('.dyn-card')).style.getPropertyValue('--surface')), norm(b1.tokens.surface));
+      stage.destroy();
+      root.remove();
+    }
+    assert.equal(keys[0], keys[1], `${name}: the same frame key (every painted value equal)`);
+  }
+});
+
+// --- B2a: preflight's remedies through the fixes channel (plan §1.2), the legacy channel second ------------------------
+
+/** The safe layout, a 60 px title cap, a 44 px body cap and a title scrim on scene 0, through `channel`. */
+async function remedied(/** @type {(look: any) => void} */ apply) {
+  const tl = dynamicTimeline();
+  apply(tl.scenes[0].look);
+  const { root, stage } = stageOf(tl);
+  await stage.seek(270);
+  const q = (/** @type {string} */ sel) => /** @type {HTMLElement} */ (stage.el.querySelector(sel));
+  const out = {
+    scrim: q('.dyn-titleblock').classList.contains('has-scrim'),
+    title: q('.dyn-title').style.fontSize,
+    body: q('.dyn-cards').style.getPropertyValue('--body'),
+    shown: [...stage.el.querySelectorAll('.dyn-card')].filter((c) => Number(/** @type {HTMLElement} */ (c).style.opacity) > 0).length,
+  };
+  stage.destroy();
+  root.remove();
+  return out;
+}
+
+test('preflight\'s remedies reach the stage through the fixes channel exactly as through B1\'s fields', async () => {
+  const want = { scrim: true, title: '60px', body: '44px', shown: 1 };
+  assert.deepEqual(await remedied((look) => {
+    look.fixes = { safe: true, slots: { title: { size: 60, scrim: true }, body: { size: 44 } } };
+  }), want, 'fixes');
+  assert.deepEqual(await remedied((look) => {
+    look.variant = 'safe';
+    look.text_fit = { title: { size: 60, scrim: true }, body: { size: 44 } };
+  }), want, 'legacy (a timeline remedied before B2a)');
+  assert.deepEqual(await remedied(() => undefined), { scrim: false, title: '96px', body: '52px', shown: 3 }, 'none');
+  // both: the fixes channel's size first; a scrim or the safe layout from either
+  assert.deepEqual(await remedied((look) => {
+    look.fixes = { safe: false, slots: { title: { size: 64 }, body: { scrim: false } } };
+    look.text_fit = { title: { size: 60, scrim: true }, body: { size: 44 } };
+    look.variant = 'safe';
+  }), { scrim: true, title: '64px', body: '44px', shown: 1 });
+});
+
+// --- B2a: the template contract (plan §1.4) ----------------------------------------------------------------------------
+
+/**
+ * board_generic built for scene `index` of the fixture by itself, with a stand-in rectOf.
+ * @param {number} index @param {any} [tl] @param {(el: Element) => any} [rectOf]
+ */
+function boardFor(index, tl = dynamicTimeline(), rectOf = () => ({ x: 10.4, y: 20.6, w: 100.5, h: 50.2 })) {
+  const scene = tl.scenes[index];
+  const root = document.createElement('div');
+  document.body.appendChild(root);
+  const ctx = /** @type {any} */ ({
+    scene, index, look: scene.look, chapter: chapterTitleAt(tl, scene.start), roles: makeRoles(tl.presentation, scene.look),
+    zones: ZONES.landscape, format: 'landscape', mode: 'render', reducedMotion: false, root, paint: new Painter(), pending: [],
+    media: (/** @type {any} */ ref) => new MediaView(ref, { mode: 'render', box: { w: 640, h: 360 }, sceneDuration: 8, fps: 30 }),
+    onBackground: { ink: '#F3F5F9', ink2: '#B9BEC7', bg: '#10132C', block: false }, rectOf, locale: 'en', rng: () => 0.5,
+  });
+  ctx.view = boardGeneric.build(ctx);
+  /** @type {any} */ (boardGeneric).layout(ctx);
+  boardGeneric.update(ctx, 9, /** @type {any} */ ({ terminalLines: [], countdownRemaining: null }));
+  return { ctx, v: ctx.view, done: () => root.remove() };
+}
+
+test('focusRect: the target\'s card or the media frame, its box on whole px, a rect with its own radius (§1.7 targets)', () => {
+  const tpl = /** @type {any} */ (boardGeneric);
+  const board = boardFor(0);
+  const card = (/** @type {string} */ id) => board.v.cards.find((/** @type {any} */ c) => c.spec.id === id).el;
+  /** @type {Element[]} */
+  const asked = [];
+  board.ctx.rectOf = (/** @type {Element} */ el) => {
+    asked.push(el);
+    return { x: 10.4, y: 20.6, w: 100.5, h: 50.2 };
+  };
+  for (const target of ['b2', 'b2:line:1', 'b2:step:0']) {
+    asked.length = 0;
+    assert.deepEqual(tpl.focusRect(board.ctx, target), { rect: { x: 10, y: 21, w: 101, h: 50 }, shape: 'rect', radius: CARD_RADIUS }, target);
+    assert.deepEqual(asked, [card('b2')], `${target}: the item's card`);
+  }
+  for (const target of ['panel', 'nope', '', 'option:0']) assert.equal(tpl.focusRect(board.ctx, target), null, `${target}: none here`);
+  board.ctx.rectOf = () => null;
+  assert.equal(tpl.focusRect(board.ctx, 'b2'), null, 'not on the page');
+  board.done();
+  const quiz = boardFor(2);
+  quiz.ctx.rectOf = (/** @type {Element} */ el) => (el === quiz.v.cards.find((/** @type {any} */ c) => c.spec.id === 'option:1').el ? { x: 1, y: 2, w: 3, h: 4 } : null);
+  assert.deepEqual(tpl.focusRect(quiz.ctx, 'option:1'), { rect: { x: 1, y: 2, w: 3, h: 4 }, shape: 'rect', radius: CARD_RADIUS });
+  quiz.done();
+  const split = boardFor(4);
+  split.ctx.rectOf = (/** @type {Element} */ el) => (el === split.v.frame ? { x: 1100.5, y: 300.49, w: 700.2, h: 393.3 } : null);
+  for (const target of ['panel', 'panel:bar:0:1', 'panel:row:2']) {
+    assert.deepEqual(tpl.focusRect(split.ctx, target), { rect: { x: 1101, y: 300, w: 700, h: 394 }, shape: 'rect', radius: FRAME_RADIUS }, target);
+  }
+  split.done();
+});
+
+test('itemEl, dimGroups and anchor: the item\'s text (its [[terms]] kept), the content groups, no morph anchor', () => {
+  const tl = dynamicTimeline();
+  tl.scenes[0].board[1].text = 'Voltage is the [[push]] on charge';
+  const tpl = /** @type {any} */ (boardGeneric);
+  const { ctx, v, done } = boardFor(0, tl);
+  const b2 = tpl.itemEl(ctx, 'b2');
+  assert.equal(b2, v.cards.find((/** @type {any} */ c) => c.spec.id === 'b2').body);
+  assert.equal(b2.querySelector('.rt-k')?.textContent, 'push', 'cue.term finds the term inside');
+  assert.equal(tpl.itemEl(ctx, 'b2:line:0'), b2);
+  for (const target of ['panel', 'zzz', 'option:0']) assert.equal(tpl.itemEl(ctx, target), null, target);
+  assert.deepEqual(tpl.dimGroups(ctx), [v.titleBlock, ...v.cardsEl.children], 'the title block and every card, in page order');
+  assert.equal(tpl.anchor(ctx), null);
+  done();
+  const split = boardFor(4);
+  assert.deepEqual(tpl.dimGroups(split.ctx), [split.v.titleBlock, split.v.frame, ...split.v.cardsEl.children]);
+  split.done();
+  const quiz = boardFor(2);
+  assert.equal(tpl.itemEl(quiz.ctx, 'option:2').textContent, 'CIt stays');
+  quiz.done();
+});
+
+test('static mediaBox: B1\'s boxes (mediaBoxMax; a figure\'s FIGURE_BOX_WIDTH x figureMax), whatever the slot\'s fixes', () => {
+  const tpl = /** @type {any} */ (boardGeneric);
+  for (const format of /** @type {const} */ (['landscape', 'portrait'])) {
+    for (const scene of dynamicTimeline(format).scenes) {
+      for (const mode of /** @type {const} */ (['render', 'live'])) {
+        const want = mediaBoxMax(scene, ZONES[format], mode);
+        for (const slot of ['main', 'panel', undefined]) {
+          for (const fixes of [fixesOf(null), fixesOf(/** @type {any} */ ({ fixes: { safe: true, slots: { title: { size: 40 } } } }))]) {
+            assert.deepEqual(tpl.mediaBox(scene, ZONES[format], mode, slot, fixes), want, `${format} ${scene.scene_id} ${mode} ${slot}`);
+          }
+        }
+        assert.deepEqual(tpl.mediaBox(scene, ZONES[format], mode, FIGURE_SLOT, fixesOf(null)), { w: FIGURE_BOX_WIDTH, h: LAYOUT[format].figureMax });
+        assert.deepEqual(mediaBoxOf(scene, ZONES[format], mode, 'main'), want, 'the stage asks the template');
+      }
+    }
+  }
+  // a template without the hook: the whole stage (as B1 sized every other template's clips)
+  const hook = tpl.mediaBox;
+  try {
+    delete tpl.mediaBox;
+    assert.deepEqual(mediaBoxOf(dynamicTimeline().scenes[3], ZONES.landscape, 'render', 'main'), { w: 1920, h: 1080 });
+  } finally {
+    tpl.mediaBox = hook;
+  }
+});
+
+/** The fixture with a video side panel on scene 4, a figure card on scene 0 and a title fix on the clip scene. */
+function mediaTimeline(/** @type {'landscape' | 'portrait'} */ format, /** @type {'dark' | 'light'} */ mode) {
+  const tl = mode === 'light' ? lightTimeline(format) : dynamicTimeline(format);
+  tl.scenes[4].side_panel.media = { kind: 'video', asset_key: 'panel-clip', url: '/media/panel.mp4', duration: 3, width: 960, height: 540, fit: 'contain', end_behavior: 'loop' };
+  tl.scenes[0].board.push({ id: 'fig', kind: 'figure', caption: 'A circuit' });
+  tl.scenes[0].figures = { fig: { kind: 'image', asset_key: 'img-2', url: '/media/fig.png', width: 800, height: 600, fit: 'contain' } };
+  tl.scenes[3].look.fixes = { safe: true, slots: { title: { size: 40 } } };
+  return tl;
+}
+
+test('every media frame key a template creates is in mediaPlan(0, frames), and every plan key is B1\'s', async () => {
+  const build = boardGeneric.build;
+  /** @type {any[]} */
+  let created = [];
+  boardGeneric.build = function spy(/** @type {any} */ ctx) {
+    const media = ctx.media;
+    ctx.media = (/** @type {any} */ ref, /** @type {any} */ opts) => {
+      const view = media(ref, opts);
+      created.push(view);
+      return view;
+    };
+    return build.call(this, ctx);
+  };
+  try {
+    for (const format of /** @type {const} */ (['landscape', 'portrait'])) {
+      for (const mode of /** @type {const} */ (['dark', 'light'])) {
+        for (const tl of [dynamicTimeline(format), mediaTimeline(format, mode)]) {
+          created = [];
+          const { root, stage } = stageOf(tl);
+          const info = stage.info();
+          for (const s of info.scenes) for (const f of [s.f0, Math.floor((s.f0 + s.f1) / 2), s.f1 - 1]) await stage.seek(f);
+          const plan = stage.mediaPlan(0, info.frames);
+          const planned = new Set(plan.map((e) => e.key));
+          const keys = created.map((view) => view.key).filter(Boolean);
+          assert.ok(keys.length >= 1, `${format} ${mode}: clips were shown`);
+          for (const key of keys) assert.ok(planned.has(key), `${format} ${mode}: ${key} is planned`);
+          // the plan B1's stage made: board_generic's mediaBoxMax for every scene, in the render layout
+          assert.deepEqual(plan, planMedia(tl, 0, info.frames, (/** @type {any} */ scene) => mediaBoxMax(scene, ZONES[format])), `${format} ${mode}: B1's keys`);
+          // the figure (a picture: no key) keeps B1's box
+          const figure = created.find((view) => view.ref.asset_key === 'img-2');
+          if (figure) assert.deepEqual(figure.box, { w: FIGURE_BOX_WIDTH, h: LAYOUT[format].figureMax });
+          stage.destroy();
+          root.remove();
+        }
+      }
+      // live: clips play as <video>, no frame keys at all
+      created = [];
+      const root = document.createElement('div');
+      const live = createDynamicStage(root, mediaTimeline(format, 'dark'), { mode: 'live' });
+      for (const t of [5, 27, 35]) live.update(t);
+      assert.ok(created.length >= 2 && created.every((view) => view.key === null), `${format}: live keys`);
+      live.destroy();
+    }
+  } finally {
+    boardGeneric.build = build;
+  }
+});
+
+test('ctx.media sizes a clip by the template\'s mediaBox (a box passed for it is ignored); a picture may pass its own', async () => {
+  const build = boardGeneric.build;
+  /** @type {any} */
+  let ctxSeen = null;
+  boardGeneric.build = function spy(/** @type {any} */ ctx) {
+    if (ctx.index === 3) ctxSeen = ctx;
+    return build.call(this, ctx);
+  };
+  try {
+    const tl = dynamicTimeline();
+    const { root, stage } = stageOf(tl);
+    await stage.seek(800);
+    const clip = tl.scenes[3].media;
+    const want = mediaBoxOf(tl.scenes[3], ZONES.landscape, 'render', 'main');
+    assert.deepEqual(ctxSeen.media(clip, { slot: 'main', box: { w: 10, h: 10 } }).box, want);
+    assert.equal(ctxSeen.media(clip, { slot: 'main', box: { w: 10, h: 10 } }).key, mediaKey('video', 'manim-sim', mediaSize(clip, want)));
+    assert.deepEqual(ctxSeen.media(clip, {}).box, want, 'no slot: the template\'s box (board_generic shows one medium)');
+    const picture = { kind: 'image', url: '/media/p.png', width: 100, height: 100 };
+    assert.deepEqual(ctxSeen.media(picture, { box: { w: 10, h: 12 } }).box, { w: 10, h: 12 });
+    assert.deepEqual(ctxSeen.media(picture, { slot: FIGURE_SLOT }).box, { w: FIGURE_BOX_WIDTH, h: LAYOUT.landscape.figureMax });
+    assert.deepEqual(ctxSeen.media(picture, { box: { w: 0, h: 12 } }).box, want, 'not a box: the template\'s');
+    stage.destroy();
+    root.remove();
+  } finally {
+    boardGeneric.build = build;
+  }
+});
+
+test('static tex: every TeX string the template renders for a scene, in render order (render.js converts these)', () => {
+  const scene = /** @type {any} */ ({
+    board: [
+      { id: 'f', kind: 'formula', latex: 'V = IR', variables: [{ symbol_latex: 'V', meaning: 'voltage' }, { symbol_latex: ' ', meaning: 'x' }], text: 'so $I = V/R$' },
+      { id: 't', kind: 'table', headers: ['$R$', 'b'], rows: [['$2\\Omega$', 'c']] },
+      { id: 'd', kind: 'definition', term: '$P$', text: 'power', justification: 'since $P = VI$' },
+      { id: 'c', kind: 'figure', caption: 'a $\\theta$' },
+    ],
+    quiz: { question: 'Is $x$ big?', explanation: '$x = 2$', options: ['$1$', 'two'] },
+  });
+  assert.deepEqual(/** @type {any} */ (boardGeneric).tex(scene, null, 'landscape'), [
+    { tex: 'V = IR', display: true }, { tex: 'V', display: false }, { tex: 'I = V/R', display: false },
+    { tex: 'R', display: false }, { tex: '2\\Omega', display: false }, { tex: 'P', display: false },
+    { tex: 'P = VI', display: false }, { tex: '\\theta', display: false }, { tex: 'x', display: false },
+    { tex: 'x = 2', display: false }, { tex: '1', display: false },
+  ]);
+  assert.deepEqual(/** @type {any} */ (boardGeneric).tex({ board: [], quiz: null }, null, 'portrait'), []);
+});
+
+test('a timeline of a newer look engine is refused (timeline_invalid); B1\'s, B2\'s and an unversioned one are drawn', () => {
+  for (const v of [3, 12]) {
+    const tl = dynamicTimeline();
+    tl.presentation.engine_version = v;
+    const root = document.createElement('div');
+    assert.throws(() => createDynamicStage(root, tl, { mode: 'render' }), (/** @type {any} */ e) => e.code === 'timeline_invalid' && /look engine/.test(e.message));
+    assert.equal(root.childElementCount, 0, 'nothing built');
+  }
+  for (const v of [1, 2, undefined]) {
+    const tl = dynamicTimeline();
+    tl.presentation.engine_version = v;
+    const root = document.createElement('div');
+    const stage = createDynamicStage(root, tl, { mode: 'live' });
+    assert.ok(root.querySelector('.dyn-stage'));
+    stage.destroy();
+  }
+  assert.throws(() => createDynamicStage(document.createElement('div'), classicTimeline()), (/** @type {any} */ e) => e.code === 'timeline_invalid');
+});
+
+test('every stored block role is what the stage draws, each on its own (synthetic values no derivation gives)', async () => {
+  const b1 = R1_PALETTES[0].b1;
+  const stored = {
+    ...b1.tokens, 'block.base': '#123456', 'block.highlight': '#234567', 'block.ink': '#ABCDEF', 'block.ink2': '#BCDEF0',
+    scrim: '#01020380',
+  };
+  const drawn = await blockDrawing(paletteTimeline(b1.content, stored));
+  assert.deepEqual(
+    ['block.base', 'block.highlight', 'block.ink', 'title', 'pip', 'block.ink2', 'subtitle', 'scrim'].map((k) => drawn[k]),
+    ['#123456', '#234567', '#abcdef', '#abcdef', '#abcdef', '#bcdef0', '#bcdef0', '#01020380'],
+  );
+  // one stored ink, the other derived from the stored block (blockInk2 of the stored ink over it)
+  const { 'block.ink2': _drop, ...partial } = stored;
+  const half = await blockDrawing(paletteTimeline(b1.content, partial));
+  assert.equal(half['block.ink'], '#abcdef');
+  assert.equal(half['block.ink2'], norm(blockInk2('#ABCDEF', ['#123456', '#234567'])));
 });

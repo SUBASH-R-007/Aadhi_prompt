@@ -12,51 +12,89 @@
  *     seek(frame),       Promise<{key}>: t = frame / fps; pure; frames in any order; no fixed sleeps
  *     textBoxes(),       [{x, y, w, h, role, critical, ink, bg, overflow, ...}] of the frame on screen
  *     setLayers(spec),   {captions, stage}: {stage: false, captions: true} is the caption-only layer
+ *     texConversions(),  B2a (additive): how many TeX conversions started after `ready` (0: every TeX string the
+ *                        frames show was converted before it, so MathJax did no work, and ran none of its timers,
+ *                        while frames were captured; the gallery asserts 0 on every fixture)
  *   };
  *
  * Same token-in-fragment scheme as /render-frame (web/js/render/render.js): the scoped token is read from
  * `#token=...`, removed from the URL at once and sent as `Authorization: Bearer`. After `ready` the timer guard
  * (guard.js) is installed. The classic page and its contract (`aadhiRender`, version 2) are untouched.
+ *
+ * A Dynamic timeline of a look-engine generation newer than this page knows (engine.js) is refused with
+ * `timeline_invalid`, like a classic one; every other field is feature-detected by the stage.
  */
 
-import { loadMathJax as defaultLoadMathJax, texIdle as defaultTexIdle } from '../shared/libs.js';
+import {
+  loadMathJax as defaultLoadMathJax, renderTex as libRenderTex, texIdle as defaultTexIdle,
+} from '../shared/libs.js';
 import { RenderError, applyStageSize, fetchTimeline, stageSize, takeToken } from '../render/render.js';
 import { fontRequests, preloadFonts } from '../render/fonts.js';
-import { mathSpans, texNode } from '../player/richtext.js';
-import { createDynamicStage, isDynamic } from './stage.js';
+import { zonesFor } from './core.js';
+import { engineProblem } from './engine.js';
+import { createDynamicStage, isDynamic, templateFor } from './stage.js';
 import { installTimerGuard } from './guard.js';
 
 /** @typedef {import('../shared/types.js').Timeline} Timeline */
+/** @typedef {import('../player/richtext.js').TexRenderer} TexRenderer */
 
 export const STAGE_VERSION = 3;
 
 /**
  * Every TeX string the timeline shows, with its display mode (converted before `ready`, so no MathJax work, and
- * none of its timers, happens while frames are captured).
+ * none of its timers, happens while frames are captured): the union, scene by scene, of what each scene's template
+ * declares through its static `tex(scene, look, fmt)` (B2 plan §1.4, §2), first occurrence first.
  * @param {Timeline} timeline
  * @returns {{tex: string, display: boolean}[]}
  */
 export function timelineTex(timeline) {
   /** @type {Map<string, {tex: string, display: boolean}>} */
   const out = new Map();
-  /** @param {string | null | undefined} tex @param {boolean} display */
-  const add = (tex, display) => {
-    if (typeof tex === 'string' && tex.trim()) out.set(`${display ? 'D' : 'I'}:${tex}`, { tex, display });
-  };
-  /** @param {unknown} text */
-  const spans = (text) => {
-    if (typeof text === 'string' && text.includes('$')) for (const tex of mathSpans(text)) add(tex, false);
-  };
+  const fmt = zonesFor(timeline).format;
   for (const scene of timeline.scenes || []) {
-    for (const item of scene.board || []) {
-      if (item.kind === 'formula') add(item.latex, true);
-      for (const v of item.variables || []) add(v.symbol_latex, false);
-      for (const text of [item.text, item.term, item.justification, item.caption, ...(item.headers || []), ...(item.rows || []).flat()]) spans(text);
+    const tpl = templateFor(scene);
+    const list = typeof tpl.tex === 'function' ? tpl.tex(scene, scene.look || null, fmt) : [];
+    for (const x of list || []) {
+      if (!x || typeof x.tex !== 'string' || !x.tex.trim()) continue;
+      const display = !!x.display;
+      const key = `${display ? 'D' : 'I'}:${x.tex}`;
+      if (!out.has(key)) out.set(key, { tex: x.tex, display });
     }
-    const quiz = scene.quiz;
-    if (quiz) for (const text of [quiz.question, quiz.explanation, ...(quiz.options || [])]) spans(text);
   }
   return [...out.values()];
+}
+
+/**
+ * The render page's TeX converter (B2 plan §2): each string converted once and handed out as deep clones, from a
+ * cache that never evicts (the live player's keeps 400 strings; a longer lecture would convert again mid-capture),
+ * counting the conversions that start once `markReady()` was called (`aadhiStage.texConversions()`).
+ * @param {TexRenderer} convert   MathJax (shared/libs.js renderTex), or the tests' converter
+ */
+export function pageTexRenderer(convert) {
+  /** @type {Map<string, Promise<Element>>} */
+  const cache = new Map();
+  let ready = false;
+  let after = 0;
+  /** @type {TexRenderer} */
+  const renderTex = (tex, display) => {
+    const key = `${display ? 'D' : 'I'}:${tex}`;
+    let p = cache.get(key);
+    if (!p) {
+      if (ready) after += 1;
+      p = new Promise((resolve) => resolve(convert(tex, display))); // a converter that throws rejects, as an async one
+      p.catch(() => cache.delete(key)); // a failed conversion is tried again by the next mount (as richtext.texNode)
+      cache.set(key, p);
+    }
+    return p.then((node) => /** @type {Element} */ (node.cloneNode(true)));
+  };
+  return {
+    renderTex,
+    markReady() {
+      ready = true;
+    },
+    /** Conversions started after `markReady()`. */
+    conversionsAfterReady: () => after,
+  };
 }
 
 /**
@@ -93,6 +131,8 @@ export function installStageApi(win) {
     textBoxes: notReady,
     /** @type {(spec: {captions?: boolean, stage?: boolean}) => any} */
     setLayers: notReady,
+    /** @type {() => number} */
+    texConversions: notReady,
   };
   win.aadhiStage = api;
   return { api, resolve, reject };
@@ -162,20 +202,26 @@ export async function boot(deps = {}) {
       // a classic timeline must never reach the motion engine (the worker picks the route from the timeline)
       throw new RenderError('timeline_invalid', 'the timeline has no Dynamic presentation (use /render-frame)');
     }
+    // nor one of a newer look engine than this page draws (a newer server: its fields would be drawn as an old look)
+    const newer = engineProblem(timeline);
+    if (newer) throw new RenderError('timeline_invalid', newer);
     doc.documentElement.lang = String(timeline.board_language || timeline.language || 'en');
     applyStageSize(doc, stageSize(timeline));
     const fonts = await preloadFonts(doc.fonts, fontRequests(timeline));
     // Every face is vendored (web/vendor/fonts.css): a missing one is a deployment error, and fallback fonts would
     // wrap text differently from the live player.
     if (fonts.missing.length) throw new RenderError('fonts_missing', `no @font-face loaded for: ${fonts.missing.join(', ')}`);
+    // Every TeX string the templates declare, converted now; the stage converts through the same cache, so a frame's
+    // TeX is a cache hit, and anything converted after `ready` is counted (texConversions)
+    const pageTex = pageTexRenderer(deps.renderTex || libRenderTex);
     const tex = timelineTex(timeline);
     if (tex.length) {
       if (!deps.renderTex) await loadMathJax();
-      await Promise.allSettled(tex.map((x) => (deps.renderTex ? deps.renderTex(x.tex, x.display) : texNode(x.tex, x.display))));
+      await Promise.allSettled(tex.map((x) => pageTex.renderTex(x.tex, x.display)));
       await texIdle();
     }
     const webgl = usesShaders(timeline) ? probeWebgl(doc) : false;
-    const stage = createDynamicStage(root, timeline, { mode: 'render', texIdle, frame, renderTex: deps.renderTex });
+    const stage = createDynamicStage(root, timeline, { mode: 'render', texIdle, frame, renderTex: pageTex.renderTex });
     win.__aadhiDynamicStage = stage; // debugging only
     // The first frame: its fonts, TeX and pictures are in, so `ready` means ready. Media frames are not: the worker
     // serves them per chunk (§7.7), and a lecture that opens on a clip would otherwise never boot.
@@ -185,7 +231,9 @@ export async function boot(deps = {}) {
     api.seek = (f) => stage.seek(f);
     api.textBoxes = () => stage.textBoxes();
     api.setLayers = (spec) => stage.setLayers(spec);
+    api.texConversions = () => pageTex.conversionsAfterReady();
     if (deps.guard !== false) installTimerGuard(win);
+    pageTex.markReady();
     resolve({ webgl });
     return api;
   } catch (e) {

@@ -315,9 +315,10 @@
  * @property {Record<string, any>} transition_in {kind, seconds}
  * @property {string | null} [hold_reason]
  * @property {Record<string, any> | null} [presenter]   {clip_key, crop, rect, t_exit, src_fps}
- * @property {Record<string, any>} [text_fit]    slot -> {size, lines}; B1's stage also reads preflight's remedies here
- *   ({size}, {scrim}) and `variant: "safe"`, the legacy channel of `fixes`
- * @property {LookFixes} [fixes]                 B2a: preflight's remedies (served timelines only)
+ * @property {Record<string, any>} [text_fit]    slot -> {size, lines}; also preflight's remedies before B2a ({size},
+ *   {scrim}, with `variant: "safe"`): the legacy channel the stage still reads after `fixes` (core.js fixesOf)
+ * @property {LookFixes} [fixes]                 B2a: preflight's remedies (served timelines only); the stage reads them
+ *   first
  * @property {Record<string, LookIcon>} [icons]  B2a: board item id -> icon
  * @property {LookRefs} [refs]                   B2a
  * @property {number} [accent_fade]              B2a: seconds (0.6-1.0) over which the accent cross-fades in (R-52)

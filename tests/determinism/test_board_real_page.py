@@ -203,8 +203,9 @@ async def test_a_kicker_scrim_remedy_is_drawn_and_reported_fixed(real_app) -> No
     assert res.rounds == 2 and res.ok
     items = [(i["check"], i["slot"], i["status"]) for i in res.items()]
     assert items == [("contrast", "kicker", "fixed")], items
-    assert res.timeline["scenes"][0]["look"]["text_fit"] == {"kicker": {"scrim": True}}
+    # the fixes channel only (B2a step B): the stage draws it from there; B1's text_fit is left as it was
     assert res.timeline["scenes"][0]["look"]["fixes"] == {"safe": False, "slots": {"kicker": {"scrim": True}}}
+    assert "text_fit" not in res.timeline["scenes"][0]["look"]
     # what the second pass saw: the kicker on the drawn scrim, measured from the colour the stage reports
     boxes, block = await _at(real_app, res.timeline, 2.0, """() => {
       const b = document.querySelector('.dyn-titleblock');

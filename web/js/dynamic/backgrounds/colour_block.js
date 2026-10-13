@@ -3,12 +3,12 @@
  * `colour_block` (DYNAMIC_VIDEO_DESIGN §4.5, R1): a solid structure-accent block with a soft static grain, for hooks
  * and chapter bumpers only. Static apart from the hold desaturation (R-55); scenes entering or leaving it always
  * cross-fade (R-54). The grain is a seeded noise tile drawn once per page, so every frame is a pure function of the
- * scene.
+ * scene. Its colours are the scene's block roles (core.js makeRoles): an engine_version 2 look's stored `block.base` /
+ * `block.highlight` (R-54's red lowering included), else B1's run-time derivation.
  */
 
 import { h } from '../../shared/dom.js';
 import { ease } from '../../motion/easing.js';
-import { mixOklch } from '../../motion/color.js';
 import { hashSeed, mulberry32 } from '../../motion/random.js';
 import { canvas2d, desaturate } from '../core.js';
 import { FREEZE_DESATURATION } from './mesh_drift.js';
@@ -61,24 +61,23 @@ export function grainTile(seed) {
 }
 
 /**
- * The block's main colour: the accent deepened toward the background tone (dark families) or kept (light ones).
+ * The block's main colour (the `block.base` role): the stored one, else the accent deepened toward the background tone
+ * (dark families) or kept (light ones).
  * @param {import('../core.js').Roles} roles
  */
 export function blockColor(roles) {
-  const accent = roles.color('struct.accent');
-  return roles.mode === 'dark' ? mixOklch(accent, roles.tokens.bg || '#000000', 0.38) : accent;
+  return roles.color('block.base');
 }
 
 /**
- * Both colours of the block's gradient: the main colour and a soft highlight on the same side of the light/dark
- * divide, so one text colour holds its contrast over the whole block (R-53; stage.js picks it from both).
+ * Both colours of the block's gradient (the `block.base` and `block.highlight` roles): the main colour and a soft
+ * highlight on the same side of the light/dark divide, so one text colour holds its contrast over the whole block
+ * (R-53; the `block.ink` role is picked over both).
  * @param {import('../core.js').Roles} roles
  * @returns {{base: string, highlight: string}}
  */
 export function blockColors(roles) {
-  const base = blockColor(roles);
-  const highlight = roles.mode === 'dark' ? mixOklch(base, roles.color('struct.accent'), 0.35) : mixOklch(base, '#FFFFFF', 0.1);
-  return { base, highlight };
+  return { base: roles.color('block.base'), highlight: roles.color('block.highlight') };
 }
 
 export default {
