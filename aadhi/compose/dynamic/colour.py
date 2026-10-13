@@ -11,14 +11,21 @@ Chrome serialises computed colours as ``rgb()``/``rgba()``, but a colour written
 * ``color(srgb | srgb-linear | display-p3 r g b / a)``;
 * ``transparent`` and a few named colours.
 
-Out-of-gamut OKLCH colours are clipped per channel, which is what Chrome paints today. Colours are returned as
+Out-of-gamut OKLCH colours are clipped per channel, which is what Chrome paints today (``colour_math.from_oklch``
+gamut-maps instead, as color.js does for the colours the stage derives itself). Colours are returned as
 ``(r, g, b, a)`` floats in 0..1 (sRGB, gamma encoded). Pure functions; no I/O.
+
+The maths (transfer functions, OKLab, HSL, Display P3, compositing, luminance, contrast, hex) is
+``colour_math``'s, the Dynamic mode's one colour module; this module adds the CSS grammar and the clipping. Its hex
+output rounds as the page does (``Math.round``: ties up; B1 used Python's ties-to-even ``round``).
 """
 
 from __future__ import annotations
 
 import math
 import re
+
+from . import colour_math as cm
 
 RGBA = tuple[float, float, float, float]
 
@@ -37,8 +44,6 @@ _NAMED: dict[str, RGBA] = {
 _FUNC = re.compile(r"^([a-z-]+)\(\s*(.*?)\s*\)$", re.IGNORECASE | re.DOTALL)
 _HEX = re.compile(r"^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$", re.IGNORECASE)
 _NUMBER = re.compile(r"^([+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)(%|deg|rad|grad|turn)?$", re.IGNORECASE)
-# Linear Display P3 -> linear sRGB (D65 both).
-_P3_TO_SRGB = ((1.2249401, -0.2249404, 0.0), (-0.0420569, 1.0420571, 0.0), (-0.0196376, -0.0786361, 1.0982735))
 
 
 def _clip(x: float) -> float:
@@ -46,26 +51,18 @@ def _clip(x: float) -> float:
 
 
 def srgb_encode(linear: float) -> float:
-    """Linear light -> sRGB gamma encoded (0..1)."""
-    x = _clip(linear)
-    return 12.92 * x if x <= 0.0031308 else 1.055 * x ** (1 / 2.4) - 0.055
+    """Linear light -> sRGB gamma encoded (0..1; clipped first, NaN -> 0)."""
+    return cm.linear_to_srgb(_clip(linear))
 
 
 def srgb_decode(encoded: float) -> float:
-    """sRGB gamma encoded -> linear light (0..1)."""
-    x = _clip(encoded)
-    return x / 12.92 if x <= 0.04045 else ((x + 0.055) / 1.055) ** 2.4
+    """sRGB gamma encoded -> linear light (0..1; clipped first, NaN -> 0)."""
+    return cm.srgb_to_linear(_clip(encoded))
 
 
 def oklab_to_srgb(lightness: float, a: float, b: float) -> tuple[float, float, float]:
-    """OKLab -> gamma-encoded sRGB, clipped to the gamut (Ottosson's matrices)."""
-    l_ = lightness + 0.3963377774 * a + 0.2158037573 * b
-    m_ = lightness - 0.1055613458 * a - 0.0638541728 * b
-    s_ = lightness - 0.0894841775 * a - 1.2914855480 * b
-    lc, mc, sc = l_ ** 3, m_ ** 3, s_ ** 3
-    r = 4.0767416621 * lc - 3.3077115913 * mc + 0.2309699292 * sc
-    g = -1.2684380046 * lc + 2.6097574011 * mc - 0.3413193965 * sc
-    bl = -0.0041960863 * lc - 0.7034186147 * mc + 1.7076147010 * sc
+    """OKLab -> gamma-encoded sRGB, clipped to the gamut per channel (Ottosson's matrices)."""
+    r, g, bl = cm.oklab_to_linear_srgb(lightness, a, b)
     return srgb_encode(r), srgb_encode(g), srgb_encode(bl)
 
 
@@ -128,14 +125,7 @@ def _hsl(parts: list[str]) -> tuple[float, float, float] | None:
     hue = _hue(h, hu)
     if hue is None or su not in ("", "%") or lu not in ("", "%"):
         return None
-    s, lv = _clip(s / 100.0), _clip(lv / 100.0)
-
-    def f(n: float) -> float:
-        k = (n + hue / 30.0) % 12
-        a = s * min(lv, 1 - lv)
-        return lv - a * max(-1.0, min(k - 3, 9 - k, 1.0))
-
-    return f(0), f(8), f(4)
+    return cm.hsl_to_srgb(hue, _clip(s / 100.0), _clip(lv / 100.0))
 
 
 def _ok(parts: list[str], polar: bool) -> tuple[float, float, float] | None:
@@ -153,7 +143,7 @@ def _ok(parts: list[str], polar: bool) -> tuple[float, float, float] | None:
         hue = _hue(y, yu)
         if hue is None:
             return None
-        a, b = chroma * math.cos(math.radians(hue)), chroma * math.sin(math.radians(hue))
+        _, a, b = cm.oklch_to_oklab(lightness, chroma, hue)
     else:
         if xu not in ("", "%") or yu not in ("", "%"):
             return None
@@ -183,8 +173,7 @@ def _color_fn(args: str) -> RGBA | None:
     elif space == "srgb-linear":
         r, g, b = (srgb_encode(v) for v in values)
     elif space == "display-p3":
-        lin = [srgb_decode(v) for v in values]
-        r, g, b = (srgb_encode(sum(m * c for m, c in zip(row, lin))) for row in _P3_TO_SRGB)
+        r, g, b = (srgb_encode(v) for v in cm.display_p3_to_linear_srgb(*(srgb_decode(v) for v in values)))
     else:
         return None
     return r, g, b, alpha
@@ -236,25 +225,21 @@ def parse_colour(value: object) -> RGBA | None:
 
 def composite(top: RGBA, bottom: RGBA) -> RGBA:
     """``top`` painted over ``bottom`` (source-over in gamma-encoded sRGB, as browsers blend)."""
-    ta, ba = top[3], bottom[3]
-    out_a = ta + ba * (1.0 - ta)
-    if out_a <= 0.0:
-        return 0.0, 0.0, 0.0, 0.0
-    rgb = [(top[i] * ta + bottom[i] * ba * (1.0 - ta)) / out_a for i in range(3)]
-    return rgb[0], rgb[1], rgb[2], out_a
+    return cm.source_over(top, bottom)
+
+
+def _opaque(colour: RGBA | tuple[float, float, float]) -> tuple[float, float, float]:
+    return _clip(colour[0]), _clip(colour[1]), _clip(colour[2])
 
 
 def relative_luminance(colour: RGBA | tuple[float, float, float]) -> float:
-    """WCAG 2.x relative luminance of an opaque sRGB colour."""
-    r, g, b = (srgb_decode(c) for c in colour[:3])
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+    """WCAG 2.x relative luminance of an opaque sRGB colour (alpha ignored, channels clipped to 0..1)."""
+    return cm.relative_luminance(_opaque(colour))
 
 
 def contrast_ratio(a: RGBA | tuple[float, float, float], b: RGBA | tuple[float, float, float]) -> float:
-    """WCAG 2.x contrast ratio (1..21) of two opaque colours."""
-    la, lb = relative_luminance(a), relative_luminance(b)
-    hi, lo = max(la, lb), min(la, lb)
-    return (hi + 0.05) / (lo + 0.05)
+    """WCAG 2.x contrast ratio (1..21) of two opaque colours (alphas ignored)."""
+    return cm.contrast_ratio(_opaque(a), _opaque(b))
 
 
 def text_contrast(ink: object, background: object) -> float | None:
@@ -270,5 +255,5 @@ def text_contrast(ink: object, background: object) -> float | None:
 
 
 def to_hex(colour: RGBA | tuple[float, float, float]) -> str:
-    """``#rrggbb`` of a colour (alpha dropped)."""
-    return "#" + "".join(f"{round(_clip(c) * 255):02x}" for c in colour[:3])
+    """``#rrggbb`` of a colour (alpha dropped; channels clipped, ``Math.round`` as the page)."""
+    return cm.to_hex(_opaque(colour))

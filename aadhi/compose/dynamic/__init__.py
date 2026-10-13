@@ -2,8 +2,15 @@
 
 Modules (DYNAMIC_VIDEO_DESIGN §7.3, §7.4, §7.12):
 
+* ``colour_math`` the one colour module (§4.7): sRGB transfer, OKLab/OKLCH, the CSS Color 4 gamut mapping, hex with
+                  ``Math.round``, WCAG luminance and contrast, compositing, OKLCH mixing, desaturation, Machado 2009
+                  colour-vision simulation; a line-by-line port of ``web/js/motion/color.js`` (parity vectors in
+                  ``tests/fixtures/colour_vectors.json``) plus B1's palette generator (``palette_hex``);
+* ``themes``      the theme catalogue (content palettes, the 12 families, structure and derived scene colours,
+                  personalities, caption styles, faces, cue colours) and its validator (R-52..R-56, R-53, §7.5);
 * ``colour``      CSS colour parsing (hex, ``rgb()``, ``hsl()``, ``oklch()``, ``oklab()``, ``color(srgb ...)``), alpha
-                  compositing and the WCAG 2.x contrast ratio used by the analytic contrast check (R-53);
+                  compositing and the WCAG 2.x contrast ratio used by the analytic contrast check (R-53), on
+                  ``colour_math``'s maths;
 * ``stage_page``  a Playwright driver for the render page's stage contract v3 (``/render-dynamic``,
                   ``window.aadhiStage``): the same browser flags, network policy and token-in-fragment scheme as the
                   classic capture, the timeline the worker holds served to the page, CDP JPEG capture;

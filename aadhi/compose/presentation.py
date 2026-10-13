@@ -3,12 +3,18 @@
 
 B1 (motion engine core) resolves only what the stage of ``web/js/dynamic`` renders: the ``board_generic`` template,
 the ``mesh_drift`` and ``colour_block`` backgrounds, ``cut`` and ``crossfade`` transitions, and the colour tokens of
-the four R1 theme families (§4.7). B2 replaces the family table with ``compose/dynamic/themes.py`` and the choices
-with ``pipeline/direct.py``; the stored timeline keeps whatever was resolved, so an old timeline keeps its look.
+the four R1 theme families (§4.7). The colours come from ``compose/dynamic/themes.py`` (the catalogue: content
+palettes, families, structure tokens, accent rotation) on ``compose/dynamic/colour_math.py`` since B2a, with every
+B1 value unchanged (pinned by ``tests/compose/dynamic/test_themes.py``); B2 replaces the choices with
+``pipeline/direct.py``. The stored timeline keeps whatever was resolved, so an old timeline keeps its look.
+
+``compose.timeline`` imports this module for every build, classic ones too, so the Dynamic modules are imported
+lazily, inside the functions a Dynamic build calls (``FAMILIES`` and ``Family`` resolve on first access): a classic
+build never loads ``aadhi.compose.dynamic``.
 
 Pure and deterministic: seeds are SHA-256 of ``(look_seed, look_epoch, scene id, purpose)``, never ``hash()``.
 Only ``compose.timeline`` calls it, and only for a screenplay with a presentation while ``DYNAMIC_ENABLED`` is on;
-classic timelines never reach this module.
+classic timelines never reach this module's colour functions.
 """
 
 from __future__ import annotations
@@ -16,8 +22,7 @@ from __future__ import annotations
 import hashlib
 import math
 from collections.abc import Sequence
-from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ..schemas.screenplay import Presentation, Screenplay
 from ..schemas.timeline import CaptionCue, ResolvedLook, TimedScene, TimedWord, TimelinePresentation
@@ -31,6 +36,9 @@ from .captions import (
     normalize_cues,
     tokens_with_owner,
 )
+
+if TYPE_CHECKING:
+    from .dynamic.themes import Family
 
 # What the B1 stage renders (web/js/dynamic): anything else falls back to these defaults.
 TEMPLATES = ("board_generic",)
@@ -47,104 +55,47 @@ PORTRAIT_CAPTION_MIN_SECONDS = 1.0
 PORTRAIT_CAPTION_TARGET_SECONDS = 1.5
 
 
-@dataclass(frozen=True)
-class Family:
-    """One theme family (§4.7): its mode, background hue and accent window (OKLCH degrees)."""
-
-    mode: str  # "dark" | "light"
-    hue: float
-    accent: tuple[float, float]
-    chroma: float = 0.045  # background chroma (dark) / tint (light)
+# --- colour (design §4.7): the catalogue lives in compose/dynamic/themes.py ------------------------------------
+# B1's names stay importable from here (evals/render_parity.py and the tests use them). FAMILIES are the released
+# (R1) families only, in B1's ids: family_for maps unknown ids onto them by hash, so they must not grow with W2.
 
 
-# The four R1 families (§4.7 table, rows 1, 2, 7 and 9). Unknown ids map onto one of them deterministically.
-FAMILIES: dict[str, Family] = {
-    "midnight_indigo": Family("dark", 275.0, (40.0, 110.0), 0.05),
-    "deep_teal": Family("dark", 200.0, (0.0, 70.0), 0.045),
-    "paper_ink": Family("light", 85.0, (0.0, 70.0), 0.03),
-    "mint_studio": Family("light", 170.0, (270.0, 340.0), 0.025),
-}
+def __getattr__(name: str) -> Any:
+    """``FAMILIES`` and ``Family`` on first access (PEP 562), so importing this module loads no Dynamic module."""
+    if name in ("FAMILIES", "Family"):
+        from .dynamic import themes
 
-# Content colours (§4.7): fixed in every video by mode; they carry meaning and never rotate.
-_CONTENT_FIXED: dict[str, dict[str, str]] = {
-    "dark": {"entity:0": "#0FE3FE", "entity:1": "#C4A4FE", "entity:2": "#FEACE3", "warn": "#F8A87F",
-             "ok": "#5DD8AA", "mark": "#F2D935"},
-    "light": {"entity:0": "#0267C7", "entity:1": "#80369E", "entity:2": "#870C62", "warn": "#9F4503",
-              "ok": "#016F50", "mark": "#F2D935"},
-}
+        return dict(themes.RELEASED_FAMILIES) if name == "FAMILIES" else themes.Family
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-# --- colour -----------------------------------------------------------------------------------------------------
+def _families() -> dict[str, Family]:
+    from .dynamic import themes
 
-
-def _oklch_to_linear_rgb(lightness: float, chroma: float, hue: float) -> tuple[float, float, float]:
-    a = chroma * math.cos(math.radians(hue))
-    b = chroma * math.sin(math.radians(hue))
-    l_ = lightness + 0.3963377774 * a + 0.2158037573 * b
-    m_ = lightness - 0.1055613458 * a - 0.0638541728 * b
-    s_ = lightness - 0.0894841775 * a - 1.2914855480 * b
-    lc, mc, sc = l_ ** 3, m_ ** 3, s_ ** 3
-    return (
-        4.0767416621 * lc - 3.3077115913 * mc + 0.2309699292 * sc,
-        -1.2684380046 * lc + 2.6097574011 * mc - 0.3413193965 * sc,
-        -0.0041960863 * lc - 0.7034186147 * mc + 1.7076147010 * sc,
-    )
-
-
-def _in_gamut(rgb: Sequence[float]) -> bool:
-    return all(-1e-6 <= c <= 1 + 1e-6 for c in rgb)
-
-
-def _encode(c: float) -> int:
-    c = min(1.0, max(0.0, c))
-    v = 12.92 * c if c <= 0.0031308 else 1.055 * c ** (1 / 2.4) - 0.055
-    return int(round(v * 255))
+    return themes.RELEASED_FAMILIES
 
 
 def oklch_hex(lightness: float, chroma: float, hue: float) -> str:
-    """``#RRGGBB`` of an OKLCH colour, clamped to the sRGB gamut by lowering the chroma (hue and lightness kept)."""
-    rgb = _oklch_to_linear_rgb(lightness, chroma, hue)
-    if not _in_gamut(rgb):
-        lo, hi = 0.0, chroma
-        for _ in range(24):
-            mid = (lo + hi) / 2
-            if _in_gamut(_oklch_to_linear_rgb(lightness, mid, hue)):
-                lo = mid
-            else:
-                hi = mid
-        rgb = _oklch_to_linear_rgb(lightness, lo, hue)
-    return "#" + "".join(f"{_encode(c):02X}" for c in rgb)
+    """``#RRGGBB`` of an OKLCH colour, clamped to the sRGB gamut by lowering the chroma (hue and lightness kept):
+    ``colour_math.palette_hex``."""
+    from .dynamic import colour_math
+
+    return colour_math.palette_hex(lightness, chroma, hue)
 
 
 def content_tokens(mode: str) -> dict[str, str]:
-    """Resolved content tokens of a mode (§4.7): ink, ink2, entity:0..2, warn, ok, mark, focus."""
-    if mode == "dark":
-        ink, ink2 = oklch_hex(0.97, 0.006, 265.0), oklch_hex(0.80, 0.014, 265.0)
-    else:
-        ink, ink2 = oklch_hex(0.21, 0.02, 265.0), oklch_hex(0.42, 0.02, 265.0)
-    fixed = _CONTENT_FIXED["dark" if mode == "dark" else "light"]
-    focus = fixed["mark"] if mode == "dark" else ink
-    return {"ink": ink, "ink2": ink2, **fixed, "focus": focus}
+    """Resolved content tokens of a mode (§4.7): ink, ink2, entity:0..2, warn, ok, mark, focus (any mode other than
+    ``"dark"`` is light, as in B1)."""
+    from .dynamic import themes
+
+    return themes.content_tokens("dark" if mode == "dark" else "light")
 
 
 def structure_tokens(family: Family, accent_hue: float) -> dict[str, str]:
     """Structure tokens of one scene (§4.7): struct.accent, bg, bg-alt, bg-tint and the per-video surface."""
-    h = family.hue
-    if family.mode == "dark":
-        return {
-            "struct.accent": oklch_hex(0.77, 0.16, accent_hue),
-            "bg": oklch_hex(0.20, family.chroma, h),
-            "bg-alt": oklch_hex(0.24, family.chroma, h),
-            "bg-tint": oklch_hex(0.21, 0.035, accent_hue),
-            "surface": oklch_hex(0.29, min(0.04, family.chroma), h),
-        }
-    return {
-        "struct.accent": oklch_hex(0.56, 0.17, accent_hue),
-        "bg": oklch_hex(0.965, family.chroma, h),
-        "bg-alt": oklch_hex(0.935, family.chroma, h),
-        "bg-tint": oklch_hex(0.955, 0.028, accent_hue),
-        "surface": oklch_hex(0.995, 0.004, h),
-    }
+    from .dynamic import themes
+
+    return themes.structure_tokens(family, accent_hue)
 
 
 # --- choices ----------------------------------------------------------------------------------------------------
@@ -158,19 +109,21 @@ def seed_for(presentation: Presentation, scene_id: str, purpose: str) -> int:
 
 def family_for(theme_family: str) -> Family:
     """The family of ``theme_family``; an id B1 does not know maps onto one of the R1 families by its hash."""
-    known = FAMILIES.get(theme_family)
+    families = _families()
+    known = families.get(theme_family)
     if known is not None:
         return known
-    names = sorted(FAMILIES)
+    names = sorted(families)
     pick = int.from_bytes(hashlib.sha256(theme_family.encode("utf-8")).digest()[:4], "big") % len(names)
-    return FAMILIES[names[pick]]
+    return families[names[pick]]
 
 
 def accent_hue(family: Family, chapter: int) -> float:
-    """``h0 + Δk`` (§4.7 rotation step 4): ends and middle of the window alternate, so neighbours differ >= 30°."""
-    lo, hi = family.accent
-    step = (0.0, 1.0, 0.5)[chapter % 3]
-    return (lo + (hi - lo) * step) % 360.0
+    """``h0 + Δk`` (§4.7 rotation step 4): ends and middle of the window alternate, so neighbours differ >= 30°
+    (``themes.accent_hue`` of palette slot ``chapter``)."""
+    from .dynamic import themes
+
+    return themes.accent_hue(family, chapter)
 
 
 def chapter_indices(screenplay: Screenplay, scenes: Sequence[TimedScene]) -> list[int]:
