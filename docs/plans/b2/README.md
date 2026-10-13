@@ -16,3 +16,9 @@ paths as `docs/plans/b2/`.
 Status (2026-10-13): B2-0 done. B2a step A1 (colour_math, themes + validator, Python/JS colour vectors) is
 implemented in the working tree commit "WIP B2a A1"; its targeted tests pass, the full suites were not yet re-run.
 Next: finish verifying A1, then A2, B and the review.
+
+Status (2026-10-13, cloud session): the full gates were run on A1 and A1 was adversarially reviewed. Results and
+the open findings are in `a1_review.md`. Finding 1 needs an owner decision. Next: fix the A1 findings, then A2,
+B and the B2a review as written in `b2a_workflow.js`. Its paths are Windows paths; on Linux use `.venv/bin/...`
+(a venv built from python3.11 plus `pip install -c requirements.lock -r requirements.txt -r requirements-dev.txt
+boto3`; manimpango needs libpango1.0-dev and libcairo2-dev).
