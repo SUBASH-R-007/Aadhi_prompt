@@ -940,11 +940,17 @@ test check it).
 
 * **Timeline** (`compose/timeline.py`, `compose/presentation.py`). With the flag on, a screenplay with a
   `presentation` gets `Timeline.presentation` (`TimelinePresentation`: format, resolved content colours, fonts,
-  caption style, `captions_burn`, `engine_version` 1) and one `ResolvedLook` per scene: template `board_generic`;
+  caption style, `captions_burn`, `engine_version`) and one `ResolvedLook` per scene: template `board_generic`;
   background `colour_block` for chapter cards and `mesh_drift` elsewhere, toned `bg` / `bg-alt` / `bg-tint` within a
   chapter; `crossfade` (0.45 s) into a new chapter and into or out of a colour block (R-54), hard cuts inside a
-  chapter (R-23); the structure colours of the four R1 theme families (a stand-in table until B2's `themes.py`); seeds
-  are SHA-256 of `(look_seed, look_epoch, scene id, purpose)`. A Dynamic timeline has no classic intro, runs at
+  chapter (R-23); the structure colours of the four R1 theme families; seeds are SHA-256 of `(look_seed, look_epoch,
+  scene id, purpose)`. From Dynamic video batch B2a the colours come from `compose/dynamic/themes.py` (on
+  `colour_math.py`), the zones and type floors from `zones.py`, and the template registry from `templates.py`; the
+  generated `web/js/dynamic/catalogue.gen.js` carries their geometry to the stage. The resolver writes look-engine
+  generation 2: `look.tokens` also stores the block and scrim colours the stage derived at run time, a scene's palette
+  slot follows `Timeline.chapters` (or `SceneLook.palette_slot`), crossfades last 0.3-0.45 s, and the presentation
+  gains `content_alt`, `family`, `mode`, `motion_scale` and `entity_colors` (`DYNAMIC_VIDEO_DESIGN.md` §4.7, §6.7).
+  A stored Dynamic timeline of an older generation is served rebuilt; the stage refuses a newer one. A Dynamic timeline has no classic intro, runs at
   30 fps (`DYNAMIC_FPS`) on the format's stage (1920×1080 or 1080×1920), so its word-anchored sync cues snap to that
   30 fps grid (`SyncOptions.from_settings(settings, fps=DYNAMIC_FPS)`; classic timelines keep `RENDER_FPS`) and, in
   9:16, wraps phrase captions at 16 characters,
@@ -1048,13 +1054,14 @@ test check it).
   first and last frame, every beat's settled frame (0.6 s after it starts: a card that later collapses is checked
   while it is on screen) and, in 9:16, every caption chunk's (in B1: phrase caption's) first frame. From
   `textBoxes()` it checks text overflow (too tall, past the column with the cards on screen with it, or clipped at
-  the sides), safe zones (R-59 bands until B2's `zones.py`; with burned captions no other critical text may reach into
+  the sides), safe zones (R-59 bands, from `zones.py` since B2a; with burned captions no other critical text may reach into
   the caption band), analytic contrast (R-53) and the R-29 type floor (labels ≥ 40/44 px, 9:16 text ≤ 64 px at weight
   ≥ 600; warn only). The page draws exactly the render's caption layer (`setLayers` after every load), so captions
   are checked only when the render burns them (the request's `burn_captions` wins over `presentation.captions_burn`).
   The page must report the engine's frame count, the scene-bounds total (`motion.chunks.scene_frame_bounds`: a final
   scene shorter than half a frame keeps one frame). Remedies (shrink to the slot minimum, the template's safe variant,
-  the scrim) are written into the served timeline's looks and checked again, with one item kept per check, scene and
+  the scrim) are written into the served timeline's looks (from B2a into `look.fixes` only; the stage still reads B1's
+  `variant: "safe"` / `text_fit` of older timelines) and checked again, with one item kept per check, scene and
   slot across both rounds; what is still wrong blocks with a teacher action (`preflight_blocked`, "Shorten text");
   contrast and the type floor only warn. The title block reports its text in the slots `kicker` and `title` (a
   chapter card's subtitle in `title`); a scrim for either covers the whole block, and its text is then reported on

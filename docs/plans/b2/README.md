@@ -9,6 +9,10 @@ here from a local scratchpad so any session can continue it.
 - `b2a_workflow.js` holds the step prompts for B2a (A1 colour/themes, A2 zones/templates/catalogue/schema/preflight
   fixes/resolver, B JS consumers, adversarial review).
 - `reads/*.md` are reports from a full code read made before B2.
+- `a1_review.md` is the review of step A1 and the owner's block-ink decision; `reports/a2.json` and `reports/b.json`
+  are the implementers' reports of steps A2 and B (contracts, token changes, tests, open items, doc notes);
+  `b2a_review.md` is the B2a review (four lenses, every finding and its outcome, the differential numbers, the gates).
+- `HANDOFF.md` is the session handoff: where things stand, the gates and the next steps.
 
 These files still refer to their old location (`.../scratchpad/b2_plan_v2.md`, `.../scratchpad/reads/`); read those
 paths as `docs/plans/b2/`.
@@ -22,3 +26,10 @@ the open findings are in `a1_review.md`. Finding 1 needs an owner decision. Next
 B and the B2a review as written in `b2a_workflow.js`. Its paths are Windows paths; on Linux use `.venv/bin/...`
 (a venv built from python3.11 plus `pip install -c requirements.lock -r requirements.txt -r requirements-dev.txt
 boto3`; manimpango needs libpango1.0-dev and libcairo2-dev).
+
+Status (2026-10-14): **B2a done and reviewed.** A1's findings were fixed with the owner's hybrid block-ink rule
+(`56ed3e9`); A2 (`6489b2d`, reports `ad7a07c`) and B (`6de3ddf`) are committed. The B2a review (`b2a_review.md`)
+had 16 findings: 4 refuted, 11 fixed, 1 deferred to B2c; its last audit left 3 minor gaps in the source scan's guards
+open. The fixes of both review rounds are in the working tree, not yet committed, at the time this line was written.
+The as-built notes are in `docs/DYNAMIC_VIDEO_DESIGN.md` (§10.3 B2 and the sections it names). Next: commit the review
+fixes and these docs, then B2b (assets), then B2c..B2g (`HANDOFF.md`).

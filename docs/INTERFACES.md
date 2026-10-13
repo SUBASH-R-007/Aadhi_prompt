@@ -194,6 +194,30 @@ marked_version(model, current: int) -> int                    # 3 when a v3 fiel
 # generate.py — python -m aadhi.schemas.generate [--check]: web/schemas/screenplay.schema.json + timeline.schema.json
 #   (byte-for-byte; CI and tests/schemas/test_v3_schema.py); the JSDoc mirrors in web/js/shared/types.js are by hand
 # config: Settings.dynamic_features (DYNAMIC_FEATURES env, comma list; unknown names fail at start-up)
+# --- timeline.py, Dynamic video B2a (additive; every field left out of the JSON at its default, so a B1 timeline
+#     reads and writes back byte for byte; DYNAMIC_VIDEO_DESIGN §6.7 "As built in B2a")
+# TimelinePresentation:
+#   engine_version: int = 1 (>= 1)   # the LOOK-ENGINE GENERATION (1 = B1's resolver, 2 = B2's; the stage contract
+#                                    # stays aadhiStage v3); compose.presentation.ENGINE_VERSION = 2
+#   content_alt: dict[str, str] = {} # the other mode's content tokens, the keys of `content`
+#   family: CatalogueId | None ; mode: "dark" | "light" | None
+#   motion_scale: float = 1.0        # 0 < x <= 4; the personality's duration scale
+#   entity_colors: dict[str (1..80 chars), int 0..2] = {}   # lesson-wide, <= 60 (MAX_ENTITY_COLORS), as Presentation's
+# ResolvedLook:
+#   tokens: dict[str, str]           # engine 2: struct.accent, bg, bg-alt, bg-tint, surface, block.base,
+#                                    # block.highlight, block.ink, block.ink2 (#RRGGBB upper case), scrim (#RRGGBBC7);
+#                                    # engine 1: the first five
+#   fixes: LookFixes | None          # {safe: bool = False, slots: {slot (1..60 chars): SlotFix}} (both keys written);
+#                                    # SlotFix {size?: 0 < x <= 1000, scrim?: bool}: preflight's remedy channel
+#   icons: dict[Slug, LookIcon] = {} # <= 32; LookIcon {name, set, version, viewBox [x, y, w > 0, h > 0],
+#                                    # stroke_width 0..8 = 2.0, filled = False, paths: 1..32 x <= 4096 chars, ICON_PATH_RE}
+#   refs: LookRefs | None            # {roadmap?: [{title, state: done|current|upcoming}] (<= 12), anchor?: {kind:
+#                                    # formula|figure|takeaway, text | tex (exactly one), icon?}, prediction?: {text,
+#                                    # resolve_t? >= 0}, next?: {title}, accent_next?: "#RRGGBB"}
+#   accent_fade: float | None (0.6..1.0) ; continues_from: Slug | None
+#   variant: B1's "safe" is a legacy value read for engine-1 timelines only; a B2-resolved look never carries it
+# new models (v3-only): SlotFix, LookFixes, LookIcon, RoadmapEntry, RefAnchor, RefPrediction, RefNext, LookRefs;
+#   JSDoc mirrors in web/js/shared/types.js; web/schemas/timeline.schema.json regenerated
 ```
 
 ## aadhi.assets_auth (owner: api + pipeline)
@@ -374,8 +398,21 @@ capabilities.render_capabilities(settings, *, browser=True, force=False) -> Rend
 qa.inspect_render(path, *, settings, fps, expected_frames, ..., size=None) -> RenderQA (Render.options["qa"]) ; workspace.RenderWorkspace, sweep_stale(settings, statuses)
 qa.edge_sample_size(width, height) -> (320, 180) | (180, 320)   # black-edge sampling, transposed for portrait (also evals/video_qa.py)
 # --- Dynamic video, B1 (DYNAMIC_VIDEO_DESIGN §7; only while DYNAMIC_ENABLED is on; classic timelines never get here)
-presentation.resolve_looks(screenplay, timed_scenes) -> list[ResolvedLook]          # pure; B1 table of the 4 R1 families
-presentation.timeline_presentation(presentation, timed_scenes, total) -> TimelinePresentation   # engine_version 1
+presentation.resolve_looks(screenplay, timed_scenes, chapters=None) -> list[ResolvedLook]   # pure; B2a: chapters
+#   default to timeline.build_chapters(...) (_assemble passes the list it stores in Timeline.chapters); palette slot =
+#   SceneLook.palette_slot, else chapter_indices; look.tokens = themes.scene_tokens(family, slot) (the ten keys); the
+#   tone step resets at each chapter; transition_in: cut into scene 0, crossfade into/out of colour_block, else the
+#   requested cut/crossfade, else crossfade at a new chapter or a changed struct.accent, else cut; a crossfade lasts
+#   crossfade_seconds(d) (None -> cut); continues_from kept only when it names the previous scene
+presentation.timeline_presentation(presentation, timed_scenes, total) -> TimelinePresentation   # engine_version 2;
+#   also content_alt (themes.content_alt_tokens(mode)), family, mode, motion_scale, entity_colors
+presentation.ENGINE_VERSION = 2 ; CROSSFADE_SECONDS 0.45, CROSSFADE_MIN_SECONDS 0.3, CROSSFADE_MAX_SECONDS 0.5 (=
+#   transitions.js) ; CHAPTER_START_EPS = 1e-3
+presentation.chapter_indices(scenes, chapters) -> [int]   # B2a signature (B1: (screenplay, scenes)); index in
+#   Timeline.chapters of the last chapter starting <= scene.start + 1e-3 (board_generic's kicker rule), 0 when none
+presentation.crossfade_seconds(duration) -> float | None   # round(min(0.45, max(0.3, d / 2)), 3); None when d < 0.3
+presentation.stage_personality(personality, family) -> str   # the personality when released in R1, else the family's
+presentation.motion_scale(personality, family) -> float      # PERSONALITIES[stage_personality(...)].duration_scale
 presentation.dynamic_enabled(settings) -> bool ; presentation.seed_for(presentation, scene_id, purpose) -> int (31 bit)
 #   build_timeline: a screenplay with a presentation + the flag on -> Timeline.presentation, TimedScene.look, no intro,
 #   fps 30 (timeline.DYNAMIC_FPS; sync cues on that grid), 9:16 phrase captions at PORTRAIT_CAPTION_LINE_CHARS (16);
@@ -389,7 +426,10 @@ api.timelines.current_timeline(version, settings) -> stored | rebuilt   # DYNAMI
 #   (versions, shares, /api/render/timeline): a build of the current revision whose engine differs from what the flag
 #   and the screenplay ask for now is served as build_timeline builds it now; a stale build is served as built,
 #   except a Dynamic build while the flag is off (rebuilt classic from the current screenplay); timeline_etag carries
-#   the flag
+#   the flag. B2a: a Dynamic build of the current revision, still wanted Dynamic, whose built_engine(stored) is below
+#   presentation.ENGINE_VERSION is also served rebuilt (a newer generation is served as stored: the stage refuses
+#   it); timeline_etag's identity also carries f"engine={ENGINE_VERSION}"; a 304 is answered before any rebuild
+api.timelines.built_engine(stored) -> int   # presentation.engine_version when an int >= 1 (bools excluded), else 1
 video.render_video: timeline.presentation.style == "dynamic" -> motion.job.render_dynamic(ctx, job, payload, ws)
 motion.job.caption_modes(payload, timeline) -> (burn, soft)   # burn: payload["burn_captions"] when present, else
 #   presentation.captions_burn (POST /render leaves an unset burn_captions out of a Dynamic lecture's payload:
@@ -420,9 +460,13 @@ motion.resources.motion_workers(settings, budget=None) -> int ; CpuBudget.detect
 #   budget).acquire(want, check_cancelled=, on_wait=) -> SlotLease(count).release()   # RENDER_SLOT_DIR/slot-NNN.lock
 motion.chunks.scene_frame_bounds(timeline, fps=None) -> [(f0, f1)] ; plan_chunks(bounds, min_frames, max_frames)
 #   -> [Chunk(index, f0, f1)] ; chunk_key(timeline, chunk, *, bundle, encoder, capture, chromium, media, data) -> 64 hex
-#   = sha256 of {v: 2, engine_version, frames, timeline slices (scenes, outgoing scene, the chapter title each shows
-#   as its kicker, global fields, captions in range), media identities, stage bundle digest, encoder and capture
-#   parameters, Chromium version}; STAGE_TIMELINE_FIELDS lists every top-level field the stage reads (all hashed)
+#   = sha256 of {v: CHUNK_CACHE_VERSION (3 from B2a), engine_version, frames, timeline slices (scenes, outgoing scene,
+#   the chapter title each shows as its kicker, background_clock, global fields, captions in range), media identities,
+#   stage bundle digest, encoder and capture parameters, Chromium version}; STAGE_TIMELINE_FIELDS lists every top-level
+#   field the stage reads (all hashed)
+motion.chunks.background_clock(data, t) -> float   # B2a: state.js backgroundTime / frozenIntervals mirrored: t minus
+#   every frozen stretch [start + max(0, frozen_at), start + duration) before t; the slices hold
+#   round(background_clock(data, f0 / fps), 6) (an earlier scene's hold moves later chunks' backgrounds)
 motion.media.native_frames(frames, *, src_fps, rate) -> {page index: file frame}  # floor(n * rate / srcFps): a clip
 #   at another rate than the page grid (24 fps Veo) is extracted at its own rate, frame-exact in any chunk plan
 motion.encode.EncoderSpec.from_settings(settings, fps, out_size).chunk_args(frames=, output=, capture=)   # §7.5 + -threads 4
@@ -455,6 +499,47 @@ dynamic.container.inspect_container(path, *, settings, fps, expected_frames, exp
 #   chunks=(), loudness=None, size=None) -> ContainerQA ; verify_container(inspect, remedies) -> ContainerQA |
 #   ContainerCheckFailed (render_invalid) ; motion_qa(container, preflight) -> dict ; record_qa(ctx, render_id, qa)
 dynamic.determinism.run_plans(open_page, standard_plans(0, 300, 3)) -> DeterminismReport (1x300, 3x100, reverse)
+dynamic.preflight (B2a): remedies go to the fixes channel only
+#   apply_remedies(timeline_dict, remedies) -> new dict: safe_variant -> look.fixes.safe = True; shrink ->
+#   look.fixes.slots[slot].size; scrim -> look.fixes.slots[slot].scrim = True; look.variant / look.text_fit are never
+#   written; fixes is created as {safe, slots} when absent (a malformed safe or slots replaced, other keys kept);
+#   idempotent; the input is not changed; missing looks, out-of-range scenes, unknown kinds and a sizeless shrink skipped
+#   look_is_safe(look) -> bool (fixes.safe is True or B1's variant == "safe") ; safe_scenes(timeline_dict) -> frozenset
+#   evaluate_box(..., safe: bool = False, ...) / evaluate_boxes(..., safe_scenes=frozenset(), ...) replace variant(s)=;
+#   plan_remedies: a slot minimum that is not positive uses the format's floor; SAFE_VARIANT ("safe") is read only;
+#   MIN_TEXT_PX, MIN_LABEL_PX, CRITICAL_BANDS, CAPTION_BANDS, PORTRAIT_* keep their names and values, from zones.py
+# --- Dynamic video, B2a: the catalogue modules (pure data and functions; imported only inside the Dynamic gate) ---
+dynamic.colour_math   # the one colour module: srgb/linear, OKLab/OKLCH (Ottosson), gamut_map_oklch (CSS Color 4, as
+#   color.js), palette_hex, js_round, parse_hex / to_hex, mix_oklch / mix_oklch_values, desaturate, composite /
+#   source_over, relative_luminance, contrast_ratio, worst_contrast, simulate_cvd (Machado 2009), oklab_distance,
+#   red_ratio; parity: tests/fixtures/colour_vectors.json (node scripts/gen_colour_vectors.mjs [--check])
+dynamic.themes        # §4.7 catalogue + validator: content_tokens(mode), content_alt_tokens(mode), FAMILIES (12; 4 R1),
+#   accent_hue(family, slot), structure_tokens, scene_colours / scene_tokens(family, slot) -> the ten look.tokens keys
+#   (DERIVED_KEYS: block.base, block.highlight, block.ink, block.ink2, scrim), block_colours, ink_on, block_ink2,
+#   scrim_colour, scrimmed_bg, code_surface(family), PERSONALITIES (6; crisp, soft R1), caption styles, cue colours,
+#   validate(...) -> Report(findings, advisories, measures, scrims, scrim_roles, nudges, red_lowered,
+#   chroma_restricted; released_findings(), worst(code, scope)), forced_scrims()
+dynamic.zones         # ZONES_VERSION 1; Box(x0, y0, x1, y1); ZONES[fmt].as_stage_dict() == core.js ZONES[fmt];
+#   zones_for(fmt); GRID (16:9, 12 x 122 px, 24 px gutters); REGIONS[fmt][name]; END_SCREEN (x 960-1920, 15 s);
+#   YT_SHORTS, META_REELS, TIKTOK, UNIVERSAL = intersect_zones(...), PlatformZone.safe_boxes(); TYPE_FLOORS[fmt],
+#   min_text_px(fmt), min_label_px(fmt); TYPE_SCALE; LAYOUT (spacing, radius, border, outline, shadow, icon)
+dynamic.templates     # TEMPLATES (41 TemplateSpec), IMPLEMENTED ('board_generic',), template(id), registry_problems();
+#   TemplateSpec(id, semantic_class, representational, release, duration {fmt: Duration(min, max, per_item=False,
+#   end_screen=None)}, consumes Consumes(kinds, targets), data_fit, implemented, formats, variants {fmt: (...)},
+#   forced_for, holds, dense, push_ok, slots {slot: {fmt: {variant: SlotSpec}}}); .fit(scene, fmt, *, last=False,
+#   chapter_end=False) -> 0 | 0.2 | 0.5 | 0.8 | 1.0; .events(scene, timed, fmt) -> [] until B2d;
+#   SEMANTIC_CLASSES (19, frozen); signals(scene, *, last, chapter_end) -> (Signal(id, semantic_class, preferred,
+#   alternatives, forced), ...); CROSS_CLASS_ALTERNATIVES; ROLES (14), BLOCK_ROLES; BACKGROUNDS (15), TRANSITIONS (8)
+#   target grammar: parse_target(text) -> Target(form, item, index, series, symbol) (ValueError outside the grammar),
+#   format_target(target), target_form(text), TARGET_FORMS (12), RESERVED_TARGET_WORDS {'panel', 'option'}
+dynamic.catalogue     # python -m aadhi.compose.dynamic.catalogue [--check] -> web/js/dynamic/catalogue.gen.js
+#   catalogue() -> plain data; render() -> the file text (sorted keys, LF, <= 120 columns, byte-deterministic);
+#   first_difference(current, expected) -> line | None; CATALOGUE_VERSION = 1; --check exits 1 naming the first
+#   differing line (CI "Generated files are current"). Top-level keys: version, zones_version, zones, regions, grid,
+#   end_screen, platforms, type, layout, captions {style: {release, look, metrics (geometry) | null, colours | null}},
+#   cues, templates {id: {class, ..., duration {fmt: {min, max, per_item, end_screen}}, slots, consumes}},
+#   semantic_classes, targets, roles {colour, block}, backgrounds, transitions, personalities, scrims, studio_surface
+#   (null), families, content. Runtime use is geometry only (web/tests/dynamic/sourceScan.test.js CATALOGUE_RUNTIME)
 ```
 
 ## aadhi.providers (owner: providers)
@@ -760,7 +845,7 @@ export function createDynamicStage(root, timeline, { mode /* 'live' | 'render' *
 //   stage.js syncClip(v, t, playing, frameInfo) (a live presenter clip: re-sought past LIVE_DRIFT, at the player's rate)
 //   the stage and every scene set --dyn-ink / --dyn-page (the roles' ink and page colour) for dynamic.css
 //   templates/types.js TemplateContext.onBackground {ink, ink2, bg (worst case against ink), bgs (every colour the
-//   background shows), block}; a template is {id, build, layout, update, focusRect, texts} (no ctx.cues before B2)
+//   background shows), block}; a template is a TemplateModule (B2a, below; no ctx.cues: cues are stage-driven)
 //   board_generic.js TITLE_BLOCK_SLOTS ['kicker', 'title'] (a chapter card's subtitle reports in 'title'; a scrim
 //   planned for either covers the whole title block), SCRIM_ALPHA_HEX 'c7', scrimmedBg(scrim, onBackground, ink) (the
 //   scrim composited over the background, worst case against ink), RING_SIZE 96, RING_GAP 24 (16:9: the title block
@@ -791,11 +876,67 @@ export function createDynamicStage(root, timeline, { mode /* 'live' | 'render' *
 //                         weight?, text?}] of the frame on screen (roles: title, subtitle, label, body, chip, caption;
 //                         during a quiz countdown also a non-critical label in slot 'ring', the countdown number);
 //                         bg is opaque: for text over the title block's scrim, the scrim composited over the
-//                         background; the scrim remedy text_fit[slot].scrim for 'kicker' or 'title' scrims the
-//                         whole title block (the subtitle reports in slot 'title')
+//                         background; the scrim remedy (fixes.slots[slot].scrim, or B1's text_fit[slot].scrim)
+//                         for 'kicker' or 'title' scrims the whole title block (the subtitle reports in slot 'title')
 //     setLayers(spec)     {captions, stage} -> the layers; {stage: false, captions: true} = the caption-only layer on a
 //                         transparent page; render mode starts with captions = presentation.captions_burn, and the
-//                         engine and preflight set the render's own caption layer after every load }
+//                         engine and preflight set the render's own caption layer after every load
+//     texConversions()    B2a, additive: the TeX conversions started after the strings the templates declare
+//                         (their static tex()) were converted, the first frame's included, plus a declared string
+//                         whose conversion failed and is retried; 0 = the declarations are complete; throws
+//                         'not_ready' before ready }
 //   after ready: setTimeout / setInterval throw (guard.js), each trip recorded in window.aadhiStageGuard.trips and
 //   logged as "aadhi timer guard: ..."
+//   B2a: ready rejects with code 'timeline_invalid' before any font loads when presentation.engine_version is above
+//   engine.js ENGINE_VERSION; the page converts TeX through pageTexRenderer (one conversion per string, clones handed
+//   out, never evicted, a failed conversion dropped so the next mount retries) and gives the stage the same converter
+// --- Dynamic video, B2a (additive; DYNAMIC_VIDEO_DESIGN §4.2, §6.7, §7.3) --------------------------------------------
+// web/js/dynamic/engine.js — no imports, no DOM: ENGINE_VERSION = 2 (= aadhi/compose/presentation.py);
+//   engineVersion(timeline) -> presentation.engine_version when an integer >= 1, else 1 (as api.timelines.built_engine);
+//   engineProblem(timeline) -> null | "the timeline was built by look engine N; this page draws up to 2 (reload ...)"
+// web/js/dynamic/catalogue.gen.js — GENERATED (python -m aadhi.compose.dynamic.catalogue): export const CATALOGUE,
+//   frozen all the way down; imported by core.js only; runtime reads geometry only (sourceScan CATALOGUE_RUNTIME)
+// web/js/dynamic/core.js — ROLES = CATALOGUE.roles.colour (B1's 14, same order); BLOCK_ROLES = CATALOGUE.roles.block
+//   ['block.base', 'block.highlight', 'block.ink', 'block.ink2', 'scrim']; ZONES from CATALOGUE.zones in B1's key
+//   order, JSON-identical to B1, frozen deep; TYPE_FLOORS = CATALOGUE.type.floors; templateSlots(id) -> slot -> format
+//   -> variant -> SlotSpec | null (own keys only); BLOCK_INK2_CONTRAST = 3, blockInk2(ink, bgs), SCRIM_ALPHA_HEX 'c7'
+//   (moved here; stage.js and board_generic.js re-export them)
+//   makeRoles(presentation, look) -> {mode, tokens, color(role), inkOn(bg | bgs), on(mode)}: color() takes ROLES and
+//   BLOCK_ROLES (RangeError 'unknown colour role' otherwise); each block role is look.tokens' value when valid
+//   (#RRGGBB; scrim #RRGGBBAA), per field and never by engine_version, else B1's derivation (base: dark families mix
+//   the accent 38% toward bg, light keep it; highlight: base 35% back to the accent (dark) or 10% toward white (light);
+//   ink: inkOn([base, highlight]); ink2: blockInk2(ink, [base, highlight]); scrim: `${bg}c7`); on(mode): the scene's
+//   own roles for its mode, else presentation.content_alt's content roles with the scene's structure and block roles
+//   (RangeError when content_alt is missing, incomplete or of the wrong mode, or the mode is unknown)
+//   fixesOf(look) -> {safe, slots: {slot: {size: number | null, scrim: boolean}}}: fixes first, B1's text_fit /
+//   variant second (size: the fixes value when a positive number, else the legacy one; scrim and safe: either channel)
+// web/js/dynamic/state.js — chapterTitleAt(timeline, start) -> the last of Timeline.chapters (array order) starting
+//   <= start + 1e-3, '' when none (the kicker rule, moved from board_generic)
+// web/js/dynamic/stage.js — TEMPLATES: Record<string, TemplateModule>; templateFor(scene) (own keys only);
+//   mediaBoxOf(scene, zones, mode, slot) -> {w, h}: the template's static mediaBox(scene, zones, mode, slot,
+//   fixesOf(look)), the full stage when it is missing or invalid; mediaPlan uses it with each entry's slot;
+//   ctx.media(ref, {slot?, start?, alt?, box?}): a clip's box always from mediaBoxOf, a picture may pass its own;
+//   createDynamicStage throws TypeError with code 'timeline_invalid' for a classic timeline or a newer engine
+// web/js/dynamic/templates/types.js — TemplateModule {id, build(ctx), layout?(ctx), update(ctx, t, state),
+//   texts?(ctx), focusRect?(ctx, target) -> {rect: {x, y, w, h}, shape: 'rect' | 'ring' | 'bar', radius} | null (whole
+//   px), itemEl?(ctx, itemId) -> Element | null, dimGroups?(ctx) -> Element[], anchor?(ctx) -> {el, rect} | null};
+//   static mediaBox?(scene, zones, mode, slot, fixes) -> {w, h} | null, static tex?(scene, look, fmt) -> [{tex,
+//   display}]; TemplateContext has no `timeline`, gains `chapter` (chapterTitleAt) and media: MediaOptions;
+//   renderTex is the render page's pageTexRenderer in render mode (counted, never evicted), richtext's cached
+//   MathJax (400 strings) in live mode and tests, and is passed to every mountTex / renderRich / texNode call
+// web/js/dynamic/templates/board_generic.js — kickerOf(scene, chapter); texOf(scene) (B1's TeX field list);
+//   MIN_TEXT / MIN_LABEL from TYPE_FLOORS, BODY_WEIGHT from templateSlots('board_generic'); CARD_RADIUS 24,
+//   FRAME_RADIUS 28, FIGURE_BOX_WIDTH 1200, FIGURE_SLOT 'figure'; default export adds focusRect (targets <item>,
+//   <item>:<part>, option:<i>, panel...; radius 24, 28 for panel), itemEl (the card body; in 9:16 a split
+//   misconception's every target names its myth card, B2c), dimGroups ([title block, frame?, ...cards]), anchor
+//   (null), mediaBox (slot 'figure': 1200 x figureMax, else mediaBoxMax), tex (texOf); slotTuning reads fixesOf;
+//   the title-block scrim is roles.color('scrim')
+// web/js/dynamic/backgrounds/colour_block.js — blockColor(roles) / blockColors(roles) read roles 'block.base' /
+//   'block.highlight'
+// web/js/dynamic/render.js — timelineTex(timeline): the union over scenes of templateFor(scene).tex(scene, look, fmt),
+//   first occurrence kept; pageTexRenderer(convert) -> {renderTex, markDeclared(), conversionsAfterDeclared()}
+//   (boot calls markDeclared() once the declared strings are converted, before the stage builds frame 0);
+//   STAGE_VERSION stays 3
+// web/js/player/player.js — load() rejects a live or preview Dynamic timeline of a newer engine with TypeError code
+//   'timeline_invalid' before building or resizing anything (imports ../dynamic/engine.js statically)
 ```

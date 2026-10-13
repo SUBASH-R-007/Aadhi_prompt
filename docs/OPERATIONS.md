@@ -74,7 +74,16 @@ npm run typecheck && npm test
 .venv/Scripts/python.exe scripts/lock_requirements.py --check      # lock matches the venv + Linux-only pins
 .venv/Scripts/python.exe evals/make_fixtures.py --check             # eval fixtures current
 .venv/Scripts/python.exe -m aadhi.schemas.generate --check          # web/schemas/*.schema.json match the models
+.venv/Scripts/python.exe -m aadhi.compose.dynamic.catalogue --check # web/js/dynamic/catalogue.gen.js is current
+node scripts/gen_colour_vectors.mjs --check                         # tests/fixtures/colour_vectors.json is current
 ```
+
+The Dynamic catalogue (`web/js/dynamic/catalogue.gen.js`, from Dynamic video batch B2a) is generated from
+`aadhi/compose/dynamic/` (zones, templates, themes): after changing those, regenerate it with
+`python -m aadhi.compose.dynamic.catalogue` and commit it with them; `--check` exits 1 and names the first differing
+line (CI's "Generated files are current" step runs it). The colour vectors are written from the stage's JavaScript
+colour code by `node scripts/gen_colour_vectors.mjs`; both test suites read them, and `npm test` fails when they are
+stale.
 
 **Classic invariance (from Dynamic video batch B0).** The classic (Aadhi presenter) output must not change while
 the Dynamic mode is built: `tests/invariance/` holds byte-for-byte goldens of the classic screenplay, scene hashes,
@@ -843,6 +852,23 @@ Dynamic video batch B0 adds no migration either: the new fields live in the JSON
 (`music`, `clip`, `clip_proxy`, `clip_sprite`, `waveform`, `voice_sample`, `thumbnail`, `narration_upload`, all
 served like the other media) fit the existing string column, and new asset keys are authorised through the
 existing `asset_refs` table. Follow the deploy order above all the same.
+
+Dynamic video batch B2a adds no migration or setting. Its timelines are a new look-engine generation
+(`presentation.engine_version` 2; the B1 ones are 1), which has three one-time effects after the deploy:
+
+* **Timelines are refreshed once.** The timeline ETag carries the engine generation, so every player's cached
+  timeline is fetched again (one 200 instead of a 304). A stored Dynamic timeline of the current revision built by B1
+  is served rebuilt with the new resolver (the stored row is not written), exactly as a new MP4 is built, so the
+  player and the MP4 agree; this costs about 10-45 ms per 40-scene lecture on every request that is not a 304, until
+  the lecture is built again. With `DYNAMIC_ENABLED` off (the default) there are few or none.
+* **Motion chunk caches miss once.** `CHUNK_CACHE_VERSION` is 3 (the chunk key now holds the background clock) and
+  the stage bundle digest changes with `web/js/dynamic`. Chunks are reused only by a retry of the same render, so the
+  effect is limited to a render retried across the deploy, which captures its chunks again.
+* **Stage and server generations.** The stage refuses a timeline of a newer generation than it knows
+  (`timeline_invalid`: the render page fails `ready`, the watch page shows "This lecture could not be played"). Run
+  the API and every render worker on the same image (deploy order above), and reload open Studio and watch pages
+  after the deploy. A stored engine-1 timeline that is stale (the lecture was edited since) is served and drawn as B1
+  drew it until it is built again.
 
 Outside Docker, run `python -m aadhi.cli migrate` after pulling.
 
