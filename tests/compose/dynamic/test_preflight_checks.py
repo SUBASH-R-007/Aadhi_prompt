@@ -31,6 +31,7 @@ from aadhi.compose.dynamic.preflight import (
     sample_frames,
 )
 from aadhi.compose.dynamic.stage_page import StageError, StageInfo, StageScene
+from aadhi.compose.dynamic.zones import ZONES
 from aadhi.compose.motion.chunks import scene_frame_bounds, total_frames
 from aadhi.compose.qa import expected_frame_count
 from aadhi.jobs.base import FatalJobError
@@ -74,8 +75,13 @@ def test_text_box_parsing() -> None:
 # --- safe zones (R-59) -----------------------------------------------------------------------------------------
 
 
+def _rect(b) -> tuple[int, int, int, int]:
+    """(x, y, w, h) of a zones.Box."""
+    return (b.x0, b.y0, b.w, b.h)
+
+
 @pytest.mark.parametrize(("rect", "inside"), [
-    ((96, 54, 1728, 858), True),          # exactly the critical box
+    (_rect(ZONES["landscape"].critical[0]), True),  # exactly the critical box (x 96-1824, y 54-912)
     ((95.5, 54, 100, 100), True),         # within the 1 px tolerance
     ((90, 100, 100, 100), False),         # left margin
     ((1800, 100, 100, 100), False),       # right margin
@@ -89,7 +95,7 @@ def test_landscape_critical_zone(rect, inside) -> None:
 
 
 @pytest.mark.parametrize(("rect", "inside"), [
-    ((192, 288, 696, 552), True),         # the upper column, x 192-888
+    (_rect(ZONES["portrait"].critical[0]), True),  # exactly the upper column (x 192-888, y 288-840)
     ((200, 700, 560, 300), True),         # spans y 840: inside both bands (x 200-760)
     ((192, 700, 696, 300), False),        # spans y 840 but too wide for the lower column (x 120-780)
     ((150, 300, 300, 100), False),        # left of the upper column
@@ -205,17 +211,31 @@ def test_overflow_findings() -> None:
     assert [(f.check, f.status, f.remedy) for f in found] == [("text_overflow", "warn", None)]
 
 
-def test_zone_remedy_depends_on_the_variant() -> None:
+def test_zone_remedy_depends_on_the_safe_layout() -> None:
     outside = box(x=20)
     assert evaluate_box(outside, fmt="landscape", frame=1, scene_index=0)[0][0].remedy == "safe_variant"
-    assert evaluate_box(outside, fmt="landscape", frame=1, scene_index=0, variant="safe")[0][0].remedy is None
+    assert evaluate_box(outside, fmt="landscape", frame=1, scene_index=0, safe=True)[0][0].remedy is None
+
+
+def test_a_scene_is_safe_by_either_channel() -> None:
+    """``fixes.safe`` (the fixes channel, plan §1.2) or B1's legacy ``variant == "safe"`` (engine_version 1 timelines,
+    and both channels while apply_remedies writes both)."""
+    assert pf.look_is_safe({"fixes": {"safe": True, "slots": {}}}) and pf.look_is_safe({"variant": "safe"})
+    assert pf.look_is_safe({"variant": "media_left", "fixes": {"safe": True, "slots": {}}})
+    for look in (None, {}, {"variant": None}, {"variant": "media_left"}, {"fixes": {"safe": False, "slots": {}}},
+                 {"fixes": {"safe": "yes"}}, {"fixes": True}, "safe", {"fixes": None, "variant": "SAFE"}):
+        assert not pf.look_is_safe(look), look
+    served = {"scenes": [{"look": {"variant": "safe"}}, {"look": None}, {"look": {"fixes": {"safe": True}}}, "junk",
+                         {}]}
+    assert pf.safe_scenes(served) == frozenset({0, 2})
+    assert pf.safe_scenes({"scenes": None}) == frozenset() and pf.safe_scenes({}) == frozenset()
 
 
 def test_evaluate_boxes_maps_scenes_and_counts() -> None:
     raw = [{"x": 20, "y": 100, "w": 100, "h": 50, "role": "headline", "critical": True, "ink": "#fff", "bg": "#000"},
            {"x": 20, "y": 100, "w": 100, "h": 50, "role": "body", "critical": True, "scene": 0},
            {"x": "bad"}, "junk"]
-    found, stats = evaluate_boxes(raw, fmt="landscape", frame=150, info=INFO, variants={1: "safe"})
+    found, stats = evaluate_boxes(raw, fmt="landscape", frame=150, info=INFO, safe_scenes={1})
     assert stats == {"boxes": 2, "malformed": 2, "contrast_measured": 1}
     by_slot = {f.slot: f for f in found}
     assert by_slot["headline"].scene_index == 1 and by_slot["headline"].remedy is None  # scene 1 is already safe
@@ -256,22 +276,61 @@ def test_plan_remedies() -> None:
     ]
     floor = plan_remedies([_open("text_overflow", 1, "headline", "shrink")], fmt="portrait")
     assert floor[0].size == 40.0  # the 9:16 floor when the stage gives no slot minimum
+    for bad in (0.0, -12.0):  # a slot minimum that is no size: the floor, so fixes.slots[slot].size stays valid
+        planned = plan_remedies([_open("text_overflow", 1, "headline", "shrink")], fmt="landscape",
+                                min_sizes={(1, "headline"): bad})
+        assert planned[0].size == 36.0
 
 
 def test_apply_remedies_writes_the_look() -> None:
+    """Both channels with the same values (plan §1.2, until the stage reads ``fixes``): ``look.fixes`` in its canonical
+    ``{safe, slots}`` shape, and B1's ``variant`` / ``text_fit``."""
     served = dynamic_timeline("landscape").model_dump(mode="json")
     served["scenes"][1]["look"]["text_fit"] = {"headline": {"size": 96, "lines": 1}, "odd": 5}
     del served["scenes"][2]["look"]
     out = apply_remedies(served, [Remedy("safe_variant", 0), Remedy("shrink", 1, "headline", 48.0),
                                   Remedy("scrim", 1, "body"), Remedy("scrim", 1, "odd"), Remedy("scrim", 2, "body"),
                                   Remedy("scrim", 7, "body")])
-    assert out["scenes"][0]["look"]["variant"] == "safe"
-    assert out["scenes"][1]["look"]["text_fit"] == {"headline": {"size": 48.0, "lines": 1}, "body": {"scrim": True},
-                                                    "odd": {"scrim": True}}
+    look0, look1 = out["scenes"][0]["look"], out["scenes"][1]["look"]
+    assert look0["fixes"] == {"safe": True, "slots": {}} and look0["variant"] == "safe"
+    assert look1["fixes"] == {"safe": False, "slots": {"headline": {"size": 48.0}, "body": {"scrim": True},
+                                                       "odd": {"scrim": True}}}
+    assert look1["text_fit"] == {"headline": {"size": 48.0, "lines": 1}, "body": {"scrim": True},
+                                 "odd": {"scrim": True}}
+    assert look1.get("variant") is None, "a slot remedy never touches the layout"
     assert "look" not in out["scenes"][2]
+    # the input is not mutated
     assert served["scenes"][0]["look"]["variant"] is None and "body" not in served["scenes"][1]["look"]["text_fit"]
+    assert "fixes" not in served["scenes"][0]["look"] and "fixes" not in served["scenes"][1]["look"]
     served["scenes"][2]["look"] = out["scenes"][1]["look"]
-    Timeline.model_validate(out)  # still a valid timeline
+    tl = Timeline.model_validate(out)  # still a valid timeline, and the schema reads back exactly what was written
+    assert tl.scenes[0].look.fixes.safe is True and tl.scenes[1].look.fixes.slots["headline"].size == 48.0
+    assert tl.model_dump(mode="json")["scenes"][1]["look"]["fixes"] == look1["fixes"]
+
+
+def test_apply_remedies_keeps_earlier_fixes_and_repairs_malformed_ones() -> None:
+    served = dynamic_timeline("landscape").model_dump(mode="json")
+    served["scenes"][0]["look"]["fixes"] = {"safe": True, "slots": {"title": {"scrim": True}}}
+    served["scenes"][1]["look"]["fixes"] = {"safe": "yes", "slots": [1], "extra": 1}
+    served["scenes"][2]["look"]["fixes"] = 5
+    out = apply_remedies(served, [Remedy("shrink", 0, "title", 40.0), Remedy("scrim", 1, "body"),
+                                  Remedy("safe_variant", 2), Remedy("shrink", 0, "body", None),
+                                  Remedy("unknown", 0, "body")])
+    assert out["scenes"][0]["look"]["fixes"] == {"safe": True, "slots": {"title": {"scrim": True, "size": 40.0}}}
+    assert out["scenes"][0]["look"]["text_fit"] == {"title": {"size": 40.0}}  # nothing for a size-less shrink
+    assert out["scenes"][1]["look"]["fixes"] == {"safe": False, "slots": {"body": {"scrim": True}}, "extra": 1}
+    assert out["scenes"][2]["look"]["fixes"] == {"safe": True, "slots": {}}
+    Timeline.model_validate(out)
+
+
+def test_the_refresher_path_reapplies_the_same_remedies() -> None:
+    """motion.job.refresher re-serves the timeline and applies the preflight's remedies again on every page load:
+    applying them to a fresh copy gives the same timeline, and applying them twice changes nothing."""
+    served = dynamic_timeline("portrait").model_dump(mode="json")
+    remedies = [Remedy("safe_variant", 1), Remedy("shrink", 0, "headline", 56.0), Remedy("scrim", 2, "body")]
+    once = apply_remedies(served, remedies)
+    assert apply_remedies(json.loads(json.dumps(served)), remedies) == once
+    assert apply_remedies(once, remedies) == once
 
 
 # --- sampling --------------------------------------------------------------------------------------------------
@@ -474,8 +533,9 @@ class _Page:
 
     webgl = False
 
-    def __init__(self, served: dict[str, Any], unsafe: frozenset[int]) -> None:
+    def __init__(self, served: dict[str, Any], unsafe: frozenset[int], channel: str = "legacy") -> None:
         self.unsafe = unsafe
+        self.channel = channel  # where the stand-in reads the safe layout: "legacy" (variant) or "fixes"
         self.calls: list[Any] = []
         self.guard_trips: list[str] = []
         self.frame = 0
@@ -509,7 +569,9 @@ class _Page:
         sc = self.stage_info.scene_at(self.frame)
         scene = sc.index if sc is not None else 0
         look = self.served["scenes"][scene].get("look") or {}
-        x = 20 if scene in self.unsafe and look.get("variant") != "safe" else 200
+        safe = ((look.get("fixes") or {}).get("safe") is True if self.channel == "fixes"
+                else look.get("variant") == "safe")
+        x = 20 if scene in self.unsafe and not safe else 200
         boxes = [{"x": x, "y": 200, "w": 600, "h": 100, "role": "headline", "critical": True, "ink": "#F4F4FA",
                   "bg": "#1B1F3B", "overflow": 0, "slot": "headline", "scene": scene}]
         if self.captions:
@@ -519,14 +581,15 @@ class _Page:
         return boxes
 
 
-def _stand_in(monkeypatch: pytest.MonkeyPatch, *, unsafe: frozenset[int] = frozenset()) -> list[_Page]:
+def _stand_in(monkeypatch: pytest.MonkeyPatch, *, unsafe: frozenset[int] = frozenset(),
+              channel: str = "legacy") -> list[_Page]:
     """``run_preflight`` opens :class:`_Page` s instead of Chromium; returns the pages it opened."""
     pages: list[_Page] = []
 
     class _Browser:
         async def open(self, *, token: str, served_timeline: dict[str, Any], frames: Any,
                        ready_timeout_s: float) -> _Page:
-            pages.append(_Page(served_timeline, unsafe))
+            pages.append(_Page(served_timeline, unsafe, channel))
             return pages[-1]
 
         def check_policy(self) -> None:
@@ -568,6 +631,31 @@ async def test_the_reloaded_page_keeps_the_render_caption_layer(monkeypatch: pyt
     assert pages[0].calls == [("set_layers", False, True), "load", ("set_layers", False, True)]
     assert res.ok and res.rounds == 2 and [(r.kind, r.scene_index) for r in res.remedies] == [("safe_variant", 1)]
     assert [(f.check, f.scene_index, f.status) for f in res.findings] == [("safe_zones", 1, "fixed")]
+
+
+@pytest.mark.parametrize("channel", ["legacy", "fixes"])
+async def test_the_safe_layout_remedy_reaches_a_stage_through_either_channel(monkeypatch: pytest.MonkeyPatch,
+                                                                             channel: str) -> None:
+    """apply_remedies writes both channels: a stage reading only B1's ``variant`` and one reading only ``fixes.safe``
+    both draw the safe layout, so the finding is fixed in the second round. And preflight reads both channels: a
+    scene already safe by the channel this stage does NOT read is still drawn outside, and it is blocked at once
+    (it is on its safe layout already, so there is no remedy left), never "remedied" with what it has."""
+    pages = _stand_in(monkeypatch, unsafe=frozenset({1}), channel=channel)
+    tl = dynamic_timeline("landscape")
+    res = await run_preflight(settings(), tl, token="t", captions=False)
+    assert res.ok and res.rounds == 2 and [(r.kind, r.scene_index) for r in res.remedies] == [("safe_variant", 1)]
+    assert [(f.check, f.scene_index, f.status) for f in res.findings] == [("safe_zones", 1, "fixed")]
+    look = res.timeline["scenes"][1]["look"]
+    assert look["fixes"] == {"safe": True, "slots": {}} and look["variant"] == "safe"
+    assert pages[0].calls.count("load") == 1
+    already = tl.model_dump(mode="json")
+    if channel == "fixes":
+        already["scenes"][1]["look"]["variant"] = "safe"
+    else:
+        already["scenes"][1]["look"]["fixes"] = {"safe": True, "slots": {}}
+    res = await run_preflight(settings(), tl, token="t", served_timeline=already, captions=False)
+    assert not res.ok and res.rounds == 1 and res.remedies == []
+    assert [(f.check, f.scene_index, f.status) for f in res.findings] == [("safe_zones", 1, "block")]
 
 
 async def test_preflight_expects_the_stage_frame_count(monkeypatch: pytest.MonkeyPatch) -> None:

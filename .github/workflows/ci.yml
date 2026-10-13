@@ -60,12 +60,13 @@ jobs:
       - name: Ruff
         run: ruff check aadhi tests scripts evals docker
 
-      - name: Generated files are current (.env.example, seccomp profile, eval fixtures, web JSON schemas)
+      - name: Generated files are current (.env.example, seccomp, eval fixtures, web JSON schemas, Dynamic catalogue)
         run: |
           python scripts/gen_env_example.py --check
           python scripts/gen_chromium_seccomp.py --check
           python evals/make_fixtures.py --check
           python -m aadhi.schemas.generate --check
+          python -m aadhi.compose.dynamic.catalogue --check
 
       - name: Pytest (fast suite)
         run: pytest -m "not slow and not network"

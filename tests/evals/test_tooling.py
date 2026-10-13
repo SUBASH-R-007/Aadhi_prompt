@@ -644,7 +644,8 @@ def test_ci_workflows():
     assert 'pytest -m "not slow and not network"' in steps
     assert "pip install -c requirements.lock -r requirements.txt -r requirements-dev.txt" in steps
     assert "ruff check aadhi tests scripts evals docker" in steps
-    for check in ("gen_env_example.py --check", "gen_chromium_seccomp.py --check", "make_fixtures.py --check"):
+    for check in ("gen_env_example.py --check", "gen_chromium_seccomp.py --check", "make_fixtures.py --check",
+                  "python -m aadhi.compose.dynamic.catalogue --check"):
         assert check in steps
     assert "npm ci" in steps and "npm run typecheck" in steps and "npm test" in steps
     uses = [s.get("uses", "") for job in ci["jobs"].values() for s in job["steps"]]

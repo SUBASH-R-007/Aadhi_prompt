@@ -33,11 +33,16 @@ Dynamic video (v3, design §6.7 / §8.2)
 so classic timelines are unchanged. A timeline that uses one is written with ``schema_version = 3`` and a newer
 timeline is refused (``aadhi.schemas.features``). Resolved tokens are stored, so an old timeline keeps its look
 when the catalogue changes. Events, kinetic chunks and overlays stay inside their scene (validator).
+
+B2a (plan B2 §1.2/§1.3) adds, each left out of the JSON at its default so a B1 timeline (``engine_version`` 1) reads
+and writes back byte-identically: ``TimelinePresentation.content_alt`` / ``family`` / ``mode`` / ``motion_scale`` /
+``entity_colors`` and ``ResolvedLook.fixes`` / ``icons`` / ``refs`` / ``accent_fade`` / ``continues_from``; the B2
+resolver (``engine_version`` 2) also stores the derived structure colours in ``ResolvedLook.tokens``.
 """
 
 from __future__ import annotations
 
-from typing import Any, ClassVar, Literal
+from typing import Annotated, Any, ClassVar, Literal
 
 from pydantic import Field, SerializerFunctionWrapHandler, field_validator, model_serializer, model_validator
 
@@ -45,10 +50,12 @@ from .features import check_reader_version, marked_version
 from .jsonsafe import check_storable
 from .screenplay import (
     BoardItem,
+    CatalogueId,
     ConceptNode,
     LearningObjective,
     MascotPosition,
     SidePanel,
+    Slug,
     StrictModel,
 )
 
@@ -190,6 +197,24 @@ def _storable(v: Any) -> Any:
     return v
 
 
+# --- B2a additions (plan B2 §1.2, §1.3; deviation register 4): every new field is left out of the JSON at its
+# default, so a timeline the B1 resolver built (engine_version 1) reads and writes back byte-identically, and the stage
+# feature-detects each field instead of branching on the version.
+
+HexColour = Annotated[str, Field(pattern=r"^#[0-9A-Fa-f]{6}$")]
+EntityKey = Annotated[str, Field(min_length=1, max_length=80)]  # as Presentation.entity_colors' keys
+EntitySlot = Annotated[int, Field(ge=0, le=2)]  # content role entity:<slot> (§4.7: three entity slots)
+SlotKey = Annotated[str, Field(min_length=1, max_length=60)]  # a template's text slot (preflight TextBox.key)
+MAX_ENTITY_COLORS = 60  # as Presentation.entity_colors
+# Icon geometry (plan §1.2: "normalised to path d, capped, sanitised both sides"): only SVG path data, starting with a
+# moveto; numbers, commands, separators. No attribute, URL, entity or markup can be expressed in it.
+ICON_PATH_RE = r"^\s*[Mm][MmZzLlHhVvCcSsQqTtAa0-9eE.,+\-\s]*$"
+ICON_PATH_MAX_CHARS = 4096
+ICON_PATHS_MAX = 32
+ICONS_PER_SCENE_MAX = 32
+ROADMAP_MAX = 12
+
+
 class TimelinePresentation(StrictModel):
     style: Literal["dynamic"]
     format: Literal["landscape", "portrait"]
@@ -203,18 +228,141 @@ class TimelinePresentation(StrictModel):
     sfx: bool
     motion: Literal["standard", "calm"]
     generated_seconds: float = Field(ge=0.0)  # R-01 (§1.4)
-    engine_version: int = Field(default=1, ge=1)  # stage contract (§7.3)
+    # The look-engine generation (plan §1.3, deviation 21; design §6.7 called it the stage contract): 1 = B1's
+    # resolver, 2 = B2's (derived structure colours in look.tokens, the fields below). The stage contract stays
+    # aadhiStage v3. A stored Dynamic timeline of the current revision below the server's generation is rebuilt when
+    # served (aadhi.api.timelines.current_timeline); the stage refuses one above what it knows.
+    engine_version: int = Field(default=1, ge=1)
+    # B2a (plan §1.3), each left out at its default:
+    # content tokens of the OTHER mode (themes.content_alt_tokens): the text on the dark code-editor surface of a light
+    # family (§4.3 code_walkthrough), read through roles.on(mode) (plan §1.9).
+    content_alt: dict[str, str] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    family: CatalogueId | None = Field(default=None, exclude_if=lambda v: v is None)  # the resolved theme family
+    mode: Literal["dark", "light"] | None = Field(default=None, exclude_if=lambda v: v is None)  # the family's mode
+    # The personality's duration scale (§4.8 table: Crisp x0.85, Soft x1.15); 1 = B1's timings.
+    motion_scale: float = Field(default=1.0, gt=0.0, le=4.0, exclude_if=lambda v: v == 1.0)
+    # R-30 / §4.7: the lesson-wide entity map, normalised symbol or entity name -> content slot (entity:0..2), copied
+    # from Presentation.entity_colors (deviation 22: one map per lesson, not per scene).
+    entity_colors: dict[EntityKey, EntitySlot] = Field(default_factory=dict, exclude_if=lambda v: not v)
+
+    @field_validator("entity_colors")
+    @classmethod
+    def _few_entities(cls, v: dict[str, int]) -> dict[str, int]:
+        if len(v) > MAX_ENTITY_COLORS:
+            raise ValueError(f"at most {MAX_ENTITY_COLORS} entity colours")
+        return v
+
+
+class SlotFix(StrictModel):
+    """One text slot's preflight remedy (§7.12): ``size`` caps the slot's font size (px, the slot's minimum when it
+    overflows), ``scrim`` puts the >= 55% scrim behind text drawn on the background (R-53). Each key is left out when
+    unset, so a slot fixed by one remedy carries only that key."""
+
+    size: float | None = Field(default=None, gt=0.0, le=1000.0, exclude_if=lambda v: v is None)
+    scrim: bool = Field(default=False, exclude_if=lambda v: v is False)
+
+
+class LookFixes(StrictModel):
+    """Preflight's remedies of one scene (plan §1.2, deviation 2: a channel of their own instead of B1's
+    ``variant = "safe"`` / ``text_fit[slot]``, which direct.py and textfit.py own in B2). Written by
+    ``compose.dynamic.preflight.apply_remedies`` into the served timeline (MP4 only until B4 persists them, deviation
+    24); always both keys when present: ``safe`` (the template's compact, zone-safe layout, R-59) and ``slots``."""
+
+    safe: bool = False
+    slots: dict[SlotKey, SlotFix] = Field(default_factory=dict)
+
+
+class LookIcon(StrictModel):
+    """An icon's geometry, stored in the look so the timeline stays self-contained and a library update never
+    restyles an old video (plan §1.2; filled by B2b). ``viewBox`` is ``[min_x, min_y, width, height]``; ``paths`` are
+    SVG path data only (:data:`ICON_PATH_RE`), capped; the stage sanitises them again before drawing."""
+
+    name: str = Field(min_length=1, max_length=64)
+    set: str = Field(min_length=1, max_length=40)
+    version: str = Field(min_length=1, max_length=40)
+    viewBox: tuple[float, float, float, float]  # the SVG attribute's own spelling (plan §1.2)
+    stroke_width: float = Field(default=2.0, ge=0.0, le=8.0)
+    filled: bool = False
+    paths: list[Annotated[str, Field(min_length=1, max_length=ICON_PATH_MAX_CHARS, pattern=ICON_PATH_RE)]] = Field(
+        min_length=1, max_length=ICON_PATHS_MAX)
+
+    @field_validator("viewBox")
+    @classmethod
+    def _positive_box(cls, v: tuple[float, float, float, float]) -> tuple[float, float, float, float]:
+        if not (v[2] > 0 and v[3] > 0):
+            raise ValueError("an icon viewBox needs a positive width and height")
+        return v
+
+
+class RoadmapEntry(StrictModel):
+    """One chapter of a bumper's mini-roadmap (§4.3 chapter_bumper: past chapters ticked, the current one lit)."""
+
+    title: str = Field(max_length=240)
+    state: Literal["done", "current", "upcoming"]
+
+
+class RefAnchor(StrictModel):
+    """The previous chapter's anchor visual for a ``builds_on`` bumper's "from last chapter" chip (§4.3, RV L-12):
+    its formula (``tex``), key figure or last takeaway (``text``); exactly one of ``text`` and ``tex``."""
+
+    kind: Literal["formula", "figure", "takeaway"]
+    text: str | None = Field(default=None, max_length=240, exclude_if=lambda v: v is None)
+    tex: str | None = Field(default=None, max_length=600, exclude_if=lambda v: v is None)
+    icon: CatalogueId | None = Field(default=None, exclude_if=lambda v: v is None)
+
+    @model_validator(mode="after")
+    def _one_body(self) -> "RefAnchor":
+        if (self.text is None) == (self.tex is None):
+            raise ValueError("an anchor has exactly one of text and tex")
+        return self
+
+
+class RefPrediction(StrictModel):
+    """A ``predict`` scene's question, carried as the "Your prediction?" chip of the explaining scene (§4.3 predict)
+    until it resolves at ``resolve_t`` (scene-relative seconds of the answering beat; None: not in this scene)."""
+
+    text: str = Field(max_length=240)
+    resolve_t: float | None = Field(default=None, ge=0.0, exclude_if=lambda v: v is None)
+
+
+class RefNext(StrictModel):
+    title: str = Field(max_length=240)
+
+
+class LookRefs(StrictModel):
+    """Cross-scene data a template shows, denormalised by the resolver (plan §1.2) so a scene renders from its own
+    slice (the chunk key hashes it): the roadmap, the builds_on anchor, the open prediction, the next scene's title
+    (outro, aadhi_intro) and ``accent_next``, the next scene's block colour (the intro's brand wipe, plan §2 R-54).
+    Each key is left out when unset. Filled from B2e."""
+
+    roadmap: list[RoadmapEntry] = Field(default_factory=list, max_length=ROADMAP_MAX, exclude_if=lambda v: not v)
+    anchor: RefAnchor | None = Field(default=None, exclude_if=lambda v: v is None)
+    prediction: RefPrediction | None = Field(default=None, exclude_if=lambda v: v is None)
+    next: RefNext | None = Field(default=None, exclude_if=lambda v: v is None)
+    accent_next: HexColour | None = Field(default=None, exclude_if=lambda v: v is None)
 
 
 class ResolvedLook(StrictModel):
     template: str
     variant: str | None = None
-    tokens: dict[str, str]  # per scene: struct.accent, bg, bg-alt, bg-tint (resolved hex)
+    # Per scene (resolved hex). B1 (engine_version 1): struct.accent, bg, bg-alt, bg-tint, surface. From B2a the
+    # resolver adds the colours the stage derived at run time (plan §1.2; themes.SCENE_TOKEN_KEYS): block.base,
+    # block.highlight, block.ink, block.ink2 and scrim (#RRGGBBAA).
+    tokens: dict[str, str]
     background: dict[str, Any]  # {preset, params, seed, frozen_at: float | None}
     transition_in: dict[str, Any]  # {kind, seconds}
     hold_reason: str | None = None
     presenter: dict[str, Any] | None = None  # {clip_key, crop:[x,y,w,h], rect:[x,y,w,h], t_exit, src_fps}
     text_fit: dict[str, Any] = Field(default_factory=dict)  # slot -> {size, lines} from textfit.py
+    # B2a (plan §1.2), each left out at its default:
+    fixes: LookFixes | None = Field(default=None, exclude_if=lambda v: v is None)  # preflight-owned (above)
+    icons: dict[Slug, LookIcon] = Field(default_factory=dict, max_length=ICONS_PER_SCENE_MAX,
+                                        exclude_if=lambda v: not v)  # board item id -> icon
+    refs: LookRefs | None = Field(default=None, exclude_if=lambda v: v is None)
+    # R-52: seconds over which the structure accent cross-fades into this scene when no wipe carries the change.
+    accent_fade: float | None = Field(default=None, ge=0.6, le=1.0, exclude_if=lambda v: v is None)
+    # The previous scene this one continues (a split's part B starts from A's final visual state; §8.3, R-20).
+    continues_from: Slug | None = Field(default=None, exclude_if=lambda v: v is None)
 
     _chk = field_validator("background", "transition_in", "presenter", "text_fit")(_storable)
 

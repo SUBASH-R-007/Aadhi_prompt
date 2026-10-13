@@ -17,16 +17,16 @@ frame it reads ``aadhiStage.textBoxes()`` (``{x, y, w, h, role, critical, ink, b
 Check           Rule                                                 On failure
 =============== ==================================================== ===============================================
 text_overflow   §4.6: a critical or caption box reports ``overflow`` Shrink the slot to its minimum size
-                                                                     (``look.text_fit[slot].size``); still
+                                                                     (``look.fixes.slots[slot].size``); still
                                                                      overflowing: block with "Shorten text".
                                                                      Decorative boxes only warn
-safe_zones      R-59 (simple per-format bands until B2's             Force the template's safe variant
-                ``zones.py``): critical boxes inside the critical    (``look.variant = "safe"``); still outside:
+safe_zones      R-59 (``zones.py``, the boxes the stage draws        Force the template's safe layout
+                with): critical boxes inside the critical            (``look.fixes.safe = true``); still outside:
                 area, caption boxes inside the caption band; with    block with "Shorten text"
                 burned captions no other critical box may reach
                 into the caption band (the caption covers it)
 contrast        R-53 from the declared ink and background colours:   Force the scrim on
-                4.5:1 body; 3:1 at >= 32 px, or >= 24 px bold;       (``look.text_fit[slot].scrim = true``);
+                4.5:1 body; 3:1 at >= 32 px, or >= 24 px bold;       (``look.fixes.slots[slot].scrim = true``);
                 formula/entity text 4.5:1; captions 7:1 (target)     never blocks (a warning remains)
 type_floor      R-29 from the declared size and weight: labels and   Warn only (the stage keeps these floors
                 the chip >= 40 px (16:9) / >= 44 px (9:16); 9:16     itself: a warning means a stage regression)
@@ -34,9 +34,16 @@ type_floor      R-29 from the declared size and weight: labels and   Warn only (
 =============== ==================================================== ===============================================
 
 Remedies are applied to the served timeline (``apply_remedies``) and the affected scenes' frames are checked once
-more on the reloaded page; the capture must use :attr:`PreflightResult.timeline`. The stage honours the remedies
-through fields that already exist in ``ResolvedLook`` (``variant``, ``text_fit``); a stage that ignores one simply
-leaves the problem in place, and the second round turns it into a block or a warning as above.
+more on the reloaded page; the capture must use :attr:`PreflightResult.timeline`. A stage that ignores a remedy
+simply leaves the problem in place, and the second round turns it into a block or a warning as above.
+
+**The fixes channel** (plan B2 §1.2, deviation 2). Remedies go to ``look.fixes`` (``schemas.timeline.LookFixes``:
+``{safe, slots: {slot: {size?, scrim?}}}``), a channel of their own: in B2 ``look.variant`` is direct.py's choice and
+``look.text_fit`` textfit.py's. B1's stage read them from ``look.variant = "safe"`` and ``look.text_fit[slot]``
+(``board_generic`` slotTuning), and keeps reading those for engine_version 1 timelines. Until the stage reads
+``fixes`` (B2a step B), :func:`apply_remedies` writes BOTH channels with the same values, so a remedy works on every
+stage at every step; the legacy writes go once the stage reads ``fixes`` (the legacy reads stay). A scene is already
+on its safe layout when either channel says so (:func:`look_is_safe`).
 
 **Result.** :meth:`PreflightResult.summary` is the frozen preflight schema (``PREFLIGHT_SCHEMA``), stored in
 ``Render.options["qa"]["preflight"]`` (``container.motion_qa``; :meth:`PreflightResult.as_qa` when the render stops
@@ -53,7 +60,7 @@ import copy
 import math
 import time
 from collections import Counter
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -62,6 +69,7 @@ from ...jobs.base import FatalJobError
 from ...schemas.timeline import Timeline
 from ..base import timeline_stage
 from ..motion.chunks import scene_frame_bounds, total_frames
+from . import zones
 from .colour import text_contrast
 from .stage_page import StageInfo, StagePage, StageScene, placeholder_frames, stage_browser
 
@@ -69,25 +77,26 @@ PREFLIGHT_SCHEMA = 1
 SPREAD_FRAMES = 24
 # A card enters 0.12 s before its beat and takes 0.5 s (board_generic): settled this long after the beat starts.
 BEAT_SETTLE_S = 0.6
-SAFE_VARIANT = "safe"
+SAFE_VARIANT = "safe"  # B1's legacy channel: look.variant of a scene forced onto its safe layout
 
-# R-59, simple per-format bands until B2's zones.py: (y0, y1, x0, x1) in stage px. A box must lie inside the union of
-# its bands, and every band its vertical extent overlaps must hold its horizontal extent.
+# R-59 from zones.py (the one source of the zones; core.js draws with the same boxes): (y0, y1, x0, x1) in stage px.
+# A box must lie inside the union of its bands, and every band its vertical extent overlaps must hold its
+# horizontal extent.
 CRITICAL_BANDS: dict[str, tuple[tuple[float, float, float, float], ...]] = {
-    "landscape": ((54, 912, 96, 1824),),
-    "portrait": ((288, 840, 192, 888), (840, 1248, 120, 780)),
-}
+    fmt: tuple(box.band() for box in zones.ZONES[fmt].critical) for fmt in zones.FORMATS}
 CAPTION_BANDS: dict[str, tuple[tuple[float, float, float, float], ...]] = {
-    "landscape": ((924, 1032, 96, 1824),),
-    "portrait": ((1040, 1240, 120, 780),),
-}
+    fmt: (zones.ZONES[fmt].caption.band(),) for fmt in zones.FORMATS}
 ZONE_TOLERANCE_PX = 1.0  # DOM rects are fractional
 OVERFLOW_TOLERANCE_PX = 0.5
-MIN_TEXT_PX = {"landscape": 36, "portrait": 40}  # R-29 floors ("never < 36" / "never < 40")
-MIN_LABEL_PX = {"landscape": 40.0, "portrait": 44.0}  # R-29: labels >= 40 px (16:9), >= 44 px (9:16)
+# R-29 floors from zones.TYPE_FLOORS: "never < 36" / "never < 40"; labels >= 40 px (16:9), >= 44 px (9:16)
+MIN_TEXT_PX = {fmt: zones.TYPE_FLOORS[fmt].text_min for fmt in zones.FORMATS}
+MIN_LABEL_PX = {fmt: float(zones.TYPE_FLOORS[fmt].label_min) for fmt in zones.FORMATS}
 LABEL_ROLES = frozenset({"label", "chip"})
-PORTRAIT_HEAVY_BELOW_PX = 64.0  # R-29 (9:16): text at <= 64 px ...
-PORTRAIT_MIN_WEIGHT = 600.0  # ... is at least weight 600
+_PORTRAIT_FLOORS = zones.TYPE_FLOORS["portrait"]
+if _PORTRAIT_FLOORS.heavy_max_px is None or _PORTRAIT_FLOORS.heavy_min_weight is None:  # pragma: no cover
+    raise RuntimeError("zones.TYPE_FLOORS['portrait'] lacks R-29's weight rule")
+PORTRAIT_HEAVY_BELOW_PX = float(_PORTRAIT_FLOORS.heavy_max_px)  # R-29 (9:16): text at <= 64 px ...
+PORTRAIT_MIN_WEIGHT = float(_PORTRAIT_FLOORS.heavy_min_weight)  # ... is at least weight 600
 
 # R-53
 CONTRAST_BODY = 4.5
@@ -280,9 +289,9 @@ class Finding:
 
 
 def evaluate_box(box: TextBox, *, fmt: str, frame: int, scene_index: int | None,
-                 variant: str | None = None, captions: bool = False) -> tuple[list[Finding], bool]:
+                 safe: bool = False, captions: bool = False) -> tuple[list[Finding], bool]:
     """The findings of one box (``fmt``: ``landscape``/``portrait``) and whether its contrast could be measured.
-    ``variant``: the scene's current ``look.variant`` (a scene already on its safe variant gets no zone remedy);
+    ``safe``: the scene is already on its safe layout (:func:`look_is_safe`), so it gets no zone remedy;
     ``captions``: captions are burned, so their band is taken (in 9:16 it lies inside the lower critical band)."""
     found: list[Finding] = []
     checked = box.critical or box.is_caption
@@ -295,7 +304,7 @@ def evaluate_box(box: TextBox, *, fmt: str, frame: int, scene_index: int | None,
         if not checked:
             add("text_overflow", None, overflow=round(box.overflow, 1), status="warn")
         else:
-            floor = box.min_size if box.min_size is not None else MIN_TEXT_PX.get(fmt, 36)
+            floor = box.min_size if box.min_size is not None else MIN_TEXT_PX.get(fmt, MIN_TEXT_PX["landscape"])
             at_floor = box.size is not None and box.size <= floor + 0.01
             add("text_overflow", None if at_floor else "shrink", overflow=round(box.overflow, 1))
     if checked:
@@ -304,7 +313,7 @@ def evaluate_box(box: TextBox, *, fmt: str, frame: int, scene_index: int | None,
         covered = captions and not box.is_caption and overlaps_bands(
             box, CAPTION_BANDS.get(fmt, CAPTION_BANDS["landscape"]))
         if outside or covered:
-            add("safe_zones", None if variant == SAFE_VARIANT else "safe_variant")
+            add("safe_zones", None if safe else "safe_variant")
     if below_type_floor(box, fmt):
         add("type_floor", None, status="warn")
     measured = False
@@ -329,9 +338,10 @@ def merge_findings(findings: Iterable[Finding]) -> list[Finding]:
 
 
 def evaluate_boxes(boxes: Iterable[Any], *, fmt: str, frame: int, info: StageInfo | None = None,
-                   variants: dict[int, str | None] | None = None,
+                   safe_scenes: Collection[int] = frozenset(),
                    captions: bool = False) -> tuple[list[Finding], Counter[str]]:
-    """Findings and counts (``boxes``, ``malformed``, ``contrast_measured``) of the raw boxes seen at ``frame``."""
+    """Findings and counts (``boxes``, ``malformed``, ``contrast_measured``) of the raw boxes seen at ``frame``.
+    ``safe_scenes``: the indices of the scenes already on their safe layout (:func:`safe_scenes`)."""
     stats: Counter[str] = Counter()
     found: list[Finding] = []
     frame_scene = info.scene_at(frame) if info is not None else None
@@ -343,7 +353,7 @@ def evaluate_boxes(boxes: Iterable[Any], *, fmt: str, frame: int, info: StageInf
         stats["boxes"] += 1
         scene_index = box.scene if box.scene is not None else (frame_scene.index if frame_scene else None)
         items, measured = evaluate_box(box, fmt=fmt, frame=frame, scene_index=scene_index,
-                                       variant=(variants or {}).get(scene_index) if scene_index is not None else None,
+                                       safe=scene_index is not None and scene_index in safe_scenes,
                                        captions=captions)
         stats["contrast_measured"] += int(measured)
         found += items
@@ -357,8 +367,8 @@ def evaluate_boxes(boxes: Iterable[Any], *, fmt: str, frame: int, info: StageInf
 
 @dataclass(frozen=True)
 class Remedy:
-    """An automatic fix: ``shrink`` (``text_fit[slot].size``), ``safe_variant`` (``variant``) or ``scrim``
-    (``text_fit[slot].scrim``) on one scene's ``look``."""
+    """An automatic fix on one scene's ``look`` (:func:`apply_remedies`): ``shrink`` (``fixes.slots[slot].size``),
+    ``safe_variant`` (``fixes.safe``) or ``scrim`` (``fixes.slots[slot].scrim``)."""
 
     kind: str
     scene_index: int
@@ -377,8 +387,11 @@ class Remedy:
 def plan_remedies(findings: Iterable[Finding], *, fmt: str, min_sizes: dict[tuple[int, str], float] | None = None,
                   has_look: Callable[[int], bool] | None = None) -> list[Remedy]:
     """The remedies for the open findings that have one (one per scene and slot; one safe variant per scene).
-    ``min_sizes``: the smallest size each (scene, slot) reported; ``has_look``: scenes without a look get none."""
+    ``min_sizes``: the smallest size each (scene, slot) reported (a size that is not positive is ignored: the format's
+    floor is used, as for a slot without one, so ``fixes.slots[slot].size`` is always a valid size); ``has_look``:
+    scenes without a look get none."""
     out: dict[tuple[str, int, str], Remedy] = {}
+    floor = float(MIN_TEXT_PX.get(fmt, MIN_TEXT_PX["landscape"]))
     for f in findings:
         if f.status != "open" or f.remedy is None or f.scene_index is None:
             continue
@@ -387,16 +400,61 @@ def plan_remedies(findings: Iterable[Finding], *, fmt: str, min_sizes: dict[tupl
         if f.remedy == "safe_variant":
             out.setdefault(("safe_variant", f.scene_index, ""), Remedy("safe_variant", f.scene_index))
         elif f.remedy == "shrink":
-            size = (min_sizes or {}).get((f.scene_index, f.slot), float(MIN_TEXT_PX.get(fmt, 36)))
+            size = (min_sizes or {}).get((f.scene_index, f.slot))
+            size = size if size is not None and size > 0 else floor
             out.setdefault(("shrink", f.scene_index, f.slot), Remedy("shrink", f.scene_index, f.slot, size))
         elif f.remedy == "scrim":
             out.setdefault(("scrim", f.scene_index, f.slot), Remedy("scrim", f.scene_index, f.slot))
     return list(out.values())
 
 
+def look_is_safe(look: Any) -> bool:
+    """True when a served ``look`` dict is already on the template's safe layout: ``fixes.safe`` (the fixes channel)
+    or B1's legacy ``variant == "safe"``."""
+    if not isinstance(look, Mapping):
+        return False
+    fixes = look.get("fixes")
+    return (isinstance(fixes, Mapping) and fixes.get("safe") is True) or look.get("variant") == SAFE_VARIANT
+
+
+def safe_scenes(timeline: Mapping[str, Any]) -> frozenset[int]:
+    """The indices of the scenes of a served timeline dict whose look is on its safe layout (:func:`look_is_safe`)."""
+    scenes = timeline.get("scenes") if isinstance(timeline, Mapping) else None
+    if not isinstance(scenes, list):
+        return frozenset()
+    return frozenset(n for n, scene in enumerate(scenes)
+                     if isinstance(scene, Mapping) and look_is_safe(scene.get("look")))
+
+
+def _entry(table: dict[str, Any], key: str) -> dict[str, Any]:
+    """``table[key]`` as a dict (a missing or malformed entry is replaced by an empty one)."""
+    value = table.get(key)
+    if not isinstance(value, dict):
+        value = table[key] = {}
+    return value
+
+
+def _fixes(look: dict[str, Any]) -> dict[str, Any]:
+    """The look's ``fixes`` in its canonical shape ``{safe, slots}`` (``schemas.timeline.LookFixes``): created when
+    absent, a malformed part replaced, what is there kept."""
+    fixes = look.get("fixes")
+    if not isinstance(fixes, dict):
+        fixes = look["fixes"] = {}
+    if not isinstance(fixes.get("safe"), bool):
+        fixes["safe"] = False
+    if not isinstance(fixes.get("slots"), dict):
+        fixes["slots"] = {}
+    return fixes
+
+
 def apply_remedies(timeline: dict[str, Any], remedies: Iterable[Remedy]) -> dict[str, Any]:
     """A copy of the (served) timeline dict with the remedies written into each scene's ``look``. Scenes without a
-    look are left alone."""
+    look are left alone.
+
+    Each remedy is written to BOTH channels (see the module docstring): the fixes channel (``look.fixes = {safe,
+    slots: {slot: {size?, scrim?}}}``: ``safe = true``; ``slots[slot].size``; ``slots[slot].scrim = true``) and B1's
+    legacy fields (``look.variant = "safe"``; ``look.text_fit[slot].size``; ``look.text_fit[slot].scrim = true``),
+    with the same values. Other keys already there (``text_fit[slot].lines``, an earlier fix) are kept."""
     out = copy.deepcopy(timeline)
     scenes = out.get("scenes") if isinstance(out, dict) else None
     if not isinstance(scenes, list):
@@ -408,18 +466,17 @@ def apply_remedies(timeline: dict[str, Any], remedies: Iterable[Remedy]) -> dict
         if not isinstance(look, dict):
             continue
         if r.kind == "safe_variant":
-            look["variant"] = SAFE_VARIANT
+            _fixes(look)["safe"] = True
+            look["variant"] = SAFE_VARIANT  # legacy channel (B1 stage)
             continue
-        fit = look.get("text_fit")
-        if not isinstance(fit, dict):
-            fit = look["text_fit"] = {}
-        slot = fit.get(r.slot)
-        if not isinstance(slot, dict):
-            slot = fit[r.slot] = {}
         if r.kind == "shrink" and r.size is not None:
-            slot["size"] = r.size
+            values: dict[str, Any] = {"size": r.size}
         elif r.kind == "scrim":
-            slot["scrim"] = True
+            values = {"scrim": True}
+        else:
+            continue
+        _entry(_fixes(look)["slots"], r.slot).update(values)
+        _entry(_entry(look, "text_fit"), r.slot).update(values)  # legacy channel (B1 stage)
     return out
 
 
@@ -623,7 +680,7 @@ def _finalise(first: list[Finding], second: list[Finding] | None, planned: set[t
 
 
 async def _scan(page: StagePage, frames: Sequence[int], info: StageInfo, *, fmt: str,
-                variants: dict[int, str | None], check_cancelled: Callable[[], None] | None,
+                safe: Collection[int], check_cancelled: Callable[[], None] | None,
                 stats: Counter[str], captions: bool = False) -> tuple[list[Finding], dict[tuple[int, str], float]]:
     found: list[Finding] = []
     min_sizes: dict[tuple[int, str], float] = {}
@@ -632,7 +689,7 @@ async def _scan(page: StagePage, frames: Sequence[int], info: StageInfo, *, fmt:
             check_cancelled()
         await page.seek(frame)
         raw = await page.text_boxes()
-        items, counts = evaluate_boxes(raw, fmt=fmt, frame=frame, info=info, variants=variants, captions=captions)
+        items, counts = evaluate_boxes(raw, fmt=fmt, frame=frame, info=info, safe_scenes=safe, captions=captions)
         stats.update(counts)
         stats["frames"] += 1
         found += items
@@ -644,14 +701,6 @@ async def _scan(page: StagePage, frames: Sequence[int], info: StageInfo, *, fmt:
             if box is not None and box.min_size is not None and scene is not None:
                 min_sizes[(scene, box.key)] = box.min_size
     return merge_findings(found), min_sizes
-
-
-def _variants(timeline: dict[str, Any]) -> dict[int, str | None]:
-    out: dict[int, str | None] = {}
-    for n, scene in enumerate(timeline.get("scenes") or []):
-        look = scene.get("look") if isinstance(scene, dict) else None
-        out[n] = look.get("variant") if isinstance(look, dict) else None
-    return out
 
 
 async def run_preflight(
@@ -705,7 +754,7 @@ async def run_preflight(
         info.check(size=size, fps=fps, frames=frames_needed)
         result.webgl = page.webgl
         result.sampled = sample_frames(info, timeline)
-        first, min_sizes = await _scan(page, result.sampled, info, fmt=fmt, variants=_variants(served),
+        first, min_sizes = await _scan(page, result.sampled, info, fmt=fmt, safe=safe_scenes(served),
                                        check_cancelled=check_cancelled, stats=stats, captions=burned)
         remedies = plan_remedies(first, fmt=fmt, min_sizes=min_sizes, has_look=lambda i: has_look.get(i, False))
         second: list[Finding] | None = None
@@ -718,7 +767,7 @@ async def run_preflight(
             info.check(size=size, fps=fps, frames=frames_needed)
             touched = {r.scene_index for r in remedies}
             again = [f for f in result.sampled if (sc := info.scene_at(f)) is not None and sc.index in touched]
-            seen, _ = await _scan(page, again, info, fmt=fmt, variants=_variants(served),
+            seen, _ = await _scan(page, again, info, fmt=fmt, safe=safe_scenes(served),
                                   check_cancelled=check_cancelled, stats=stats, captions=burned)
             second = [f for f in seen if f.scene_index in touched]  # other scenes' boxes (transitions) are final
             result.rounds = 2

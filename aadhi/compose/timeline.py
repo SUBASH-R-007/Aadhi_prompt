@@ -776,9 +776,12 @@ def _assemble(
         meta[FALLBACKS_META] = ctx.fallbacks
     # The stage follows the lecture's format (design §6.7); 1920x1080 for every classic lecture (no presentation).
     width, height = stage_size(screenplay.presentation.format if screenplay.presentation is not None else None)
+    # One chapter list for the chapters a viewer sees (and board_generic's kicker) and the looks' chapter boundaries
+    # (accent, tone reset, crossfade; presentation.chapter_indices).
+    chapters = build_chapters(screenplay, scenes)
     presentation: TimelinePresentation | None = None
     if dynamic and screenplay.presentation is not None:
-        for timed, look in zip(scenes, resolve_looks(screenplay, scenes)):
+        for timed, look in zip(scenes, resolve_looks(screenplay, scenes, chapters)):
             timed.look = look
         presentation = timeline_presentation(screenplay.presentation, scenes, _r(t))
     return Timeline(
@@ -795,7 +798,7 @@ def _assemble(
         intro=intro,
         scenes=scenes,
         total_duration=_r(t),
-        chapters=build_chapters(screenplay, scenes),
+        chapters=chapters,
         captions=normalize_cues(captions),
         branding=branding if branding is not None else default_branding(settings),
         transition_seconds=SCENE_TRANSITION_SECONDS,

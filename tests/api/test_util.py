@@ -83,6 +83,32 @@ def test_timeline_etag_tracks_cheap_columns(app_env):
     assert timeline_etag(_version(), cdn) != a  # resolved URLs change with the URL settings
 
 
+def test_timeline_etag_tracks_the_look_engine(app_env, monkeypatch):
+    """current_timeline rebuilds a Dynamic build of an older look-engine generation, so a deploy that raises
+    ENGINE_VERSION must change every tag (plan B2 §1.3)."""
+    from aadhi.api import timelines
+
+    a = timeline_etag(_version(), app_env)
+    monkeypatch.setattr(timelines, "ENGINE_VERSION", timelines.ENGINE_VERSION + 1)
+    assert timeline_etag(_version(), app_env) != a
+
+
+def test_built_engine_reads_the_stored_generation():
+    from types import SimpleNamespace
+
+    from aadhi.api.timelines import built_engine
+
+    def doc(**presentation):
+        return {"presentation": {"style": "dynamic", **presentation}}
+
+    assert built_engine(doc(engine_version=2)) == 2 and built_engine(doc(engine_version=7)) == 7
+    for bad in (doc(), doc(engine_version=None), doc(engine_version="2"), doc(engine_version=True),
+                doc(engine_version=0), doc(engine_version=2.0), {"presentation": None}, {}, None):
+        got = built_engine(bad)
+        assert got == 1 and type(got) is int, bad  # B1 wrote 1; the schema's default (never a bool or a float)
+    assert built_engine(SimpleNamespace(presentation=SimpleNamespace(engine_version=2))) == 2
+
+
 def test_timeline_etag_never_touches_the_timeline_document(app_env):
     """The tag is computed per poll (304s included): it must not load or hash the large document."""
     from types import SimpleNamespace

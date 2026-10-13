@@ -13,7 +13,10 @@ cost a full response.
 ``DYNAMIC_ENABLED`` applies when a timeline is served (:func:`current_timeline`), like ``MASCOT_CUES``: the render
 job rebuilds the timeline with the current flag, so a stored timeline built under the other value is served rebuilt
 the same way (the player never shows the other engine's look than the MP4, and turning the flag off stops the Dynamic
-stage at once, without rebuilding every lecture).
+stage at once, without rebuilding every lecture). The look-engine generation (``TimelinePresentation.engine_version``,
+``compose.presentation.ENGINE_VERSION``; plan B2 §1.3) applies the same way: the render job always builds with the
+current resolver, so a stored Dynamic timeline of an older generation is served rebuilt, and the generation is part of
+the ETag so a player's cached copy is refreshed after a deploy that raises it.
 """
 
 from __future__ import annotations
@@ -25,6 +28,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from ..compose.base import RETIRED_BRANDING_FILES, RETIRED_MASCOT_CLIPS
+from ..compose.presentation import ENGINE_VERSION
 from ..config import Settings
 from ..models import ProjectVersion
 from ..schemas.jsonsafe import json_safe, validate_stored
@@ -63,8 +67,9 @@ def timeline_etag(version: ProjectVersion, settings: Settings, *, now: float | N
     ``hash12`` covers the version id, ``has_timeline``, ``updated_at``, the settings that shape
     resolved URLs, the serve-time branding substitutions (``RETIRED_MASCOT_CLIPS`` and
     ``RETIRED_BRANDING_FILES``: cached copies naming a retired file are refreshed) and ``MASCOT_CUES``
-    (applied when served, see :func:`resolve_timeline`) and ``DYNAMIC_ENABLED`` (:func:`current_timeline`); nothing
-    here loads or serialises the (deferred) timeline document.
+    (applied when served, see :func:`resolve_timeline`), ``DYNAMIC_ENABLED`` and the look-engine generation
+    ``ENGINE_VERSION`` (both applied by :func:`current_timeline`); nothing here loads or serialises the (deferred)
+    timeline document.
     """
     identity = "|".join(
         (
@@ -78,6 +83,7 @@ def timeline_etag(version: ProjectVersion, settings: Settings, *, now: float | N
             ",".join(f"{a}>{b}" for a, b in sorted(RETIRED_BRANDING_FILES.items())),
             f"cues={settings.mascot_cues}",
             f"dyn={bool(getattr(settings, 'dynamic_enabled', False))}",
+            f"engine={ENGINE_VERSION}",
         )
     )
     digest = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:12]
@@ -107,13 +113,25 @@ def built_dynamic(stored: Mapping[str, Any] | Timeline | None) -> bool:
     return style == "dynamic"
 
 
+def built_engine(stored: Mapping[str, Any] | Timeline | None) -> int:
+    """The look-engine generation a Dynamic ``stored`` timeline was built with (``presentation.engine_version``); 1,
+    the schema default and B1's value, when it is missing or not a positive integer."""
+    pres = stored.get("presentation") if isinstance(stored, Mapping) else getattr(stored, "presentation", None)
+    value = pres.get("engine_version") if isinstance(pres, Mapping) else getattr(pres, "engine_version", None)
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 1 else 1
+
+
 def current_timeline(version: ProjectVersion, settings: Settings) -> dict[str, Any] | Timeline | None:
     """The version's stored timeline, or the one the render job would build now when ``DYNAMIC_ENABLED`` changed
-    since the build (the MP4 always rebuilds with the current flag, so the player must not show the other engine).
+    since the build, or when a Dynamic build is of an older look-engine generation than this server's
+    ``ENGINE_VERSION`` (the MP4 always rebuilds with the current flag and resolver, so the player must not show
+    another engine or an older look).
 
     A build of the current revision is rebuilt (``build_timeline`` is pure) only when its engine differs from what
-    the flag and the screenplay ask for now; a stale build is served as built, except a Dynamic one while the flag
-    is off (the flag is the kill switch of the Dynamic stage). The common classic case loads nothing more.
+    the flag and the screenplay ask for now, or when it is Dynamic, still wanted Dynamic, and its ``engine_version``
+    is below ``ENGINE_VERSION`` (one above it is served as built: the stage refuses a generation it does not know);
+    a stale build is served as built, except a Dynamic one while the flag is off (the flag is the kill switch of the
+    Dynamic stage). The common classic case loads nothing more.
     """
     stored = version.timeline
     if stored is None:
@@ -126,7 +144,7 @@ def current_timeline(version: ProjectVersion, settings: Settings) -> dict[str, A
         return stored
     raw = version.screenplay
     wanted = flag and isinstance(raw, Mapping) and raw.get("presentation") is not None
-    if wanted == was_dynamic:
+    if wanted == was_dynamic and not (was_dynamic and built_engine(stored) < ENGINE_VERSION):
         return stored
     from ..compose.timeline import build_timeline
     from .routers.versions import safe_manifest, safe_screenplay

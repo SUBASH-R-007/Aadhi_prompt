@@ -8,6 +8,11 @@ Modules (DYNAMIC_VIDEO_DESIGN §7.3, §7.4, §7.12):
                   ``tests/fixtures/colour_vectors.json``) plus B1's palette generator (``palette_hex``);
 * ``themes``      the theme catalogue (content palettes, the 12 families, structure and derived scene colours,
                   personalities, caption styles, faces, cue colours) and its validator (R-52..R-56, R-53, §7.5);
+* ``zones``       the one source of the safe zones (R-59), the §2.5 regions and 16:9 grid, the platform zones and their
+                  intersection, the R-29 type floors and the layout tokens;
+* ``templates``   the 41 TemplateSpecs of §4.3, the §4.2 semantic-class table, the §4.4 signal rows and ``fit``, the
+                  visual-event target grammar, the colour roles and the background / transition registries;
+* ``catalogue``   generates ``web/js/dynamic/catalogue.gen.js`` (the stage's frozen catalogue; ``--check`` in CI);
 * ``colour``      CSS colour parsing (hex, ``rgb()``, ``hsl()``, ``oklch()``, ``oklab()``, ``color(srgb ...)``), alpha
                   compositing and the WCAG 2.x contrast ratio used by the analytic contrast check (R-53), on
                   ``colour_math``'s maths;
@@ -17,8 +22,9 @@ Modules (DYNAMIC_VIDEO_DESIGN §7.3, §7.4, §7.12):
 * ``preflight``   loads the stage once, seeks the sampled frames (24 spread frames, every scene start and end, and
                   every caption-chunk start in 9:16), reads ``textBoxes()`` and checks text overflow, safe zones and
                   contrast; plans the automatic remedies (shrink to the slot minimum, the template's safe variant, the
-                  scrim), applies them to the timeline and checks again; what is still wrong blocks with a teacher
-                  action ("Shorten text") or stays a warning (contrast never blocks);
+                  scrim), applies them to the timeline (``look.fixes``, plus B1's ``variant`` / ``text_fit`` until the
+                  stage reads ``fixes``) and checks again; what is still wrong blocks with a teacher action ("Shorten
+                  text") or stays a warning (contrast never blocks);
 * ``container``   the post-render container checks (exact frame count per chunk and in total, first video PTS 0 and
                   the audio start within one frame, colour tags, frame grid and declared rate, caption track, sound)
                   with their automatic remedies (re-render the chunks, re-encode the audio, re-mux), and the

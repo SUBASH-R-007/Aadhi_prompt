@@ -9,10 +9,12 @@ from pathlib import Path
 import pytest
 
 from aadhi.compose.motion.chunks import (
+    CHUNK_CACHE_VERSION,
     CHUNK_MAX_FRAMES,
     CHUNK_MIN_FRAMES,
     Chunk,
     assignment_order,
+    background_clock,
     bundle_digest,
     chunk_key,
     chunk_slices,
@@ -174,6 +176,46 @@ def test_chunk_key_covers_presentation_and_captions_in_range() -> None:
     slices = chunk_slices(tl, chunks[0])
     assert [s["scene_id"] for s in slices["scenes"]] == ["s0"]
     assert [s["scene_id"] for s in chunk_slices(tl, chunks[1])["scenes"]] == ["s0", "s1"]
+
+
+def _with_hold(tl, scene: int, frozen_at: float | None):
+    data = tl.model_dump(mode="json")
+    data["scenes"][scene]["look"]["background"]["frozen_at"] = frozen_at
+    return type(tl).model_validate(data)
+
+
+def test_the_background_clock_mirrors_the_stage() -> None:
+    """state.js backgroundTime / frozenIntervals, with web/tests/dynamic/state.test.js's numbers: a hold from 14 s to
+    26 s stops the clock there; it is continuous and never runs backwards."""
+    data = {"scenes": [{"start": 0.0, "duration": 12.0, "look": {"background": {"frozen_at": None}}},
+                       {"start": 12.0, "duration": 14.0, "look": {"background": {"frozen_at": 2.0}}},
+                       {"start": 26.0, "duration": 14.0, "look": {"background": {}}}]}
+    assert [background_clock(data, t) for t in (10, 14, 20, 26, 30)] == [10, 14, 14, 14, 18]
+    steps = [background_clock(data, k / 10) for k in range(400)]
+    assert all(0 <= b - a <= 0.1 + 1e-9 for a, b in zip(steps, steps[1:]))
+    data["scenes"][1]["look"]["background"]["frozen_at"] = -5  # clamped to the scene start
+    assert background_clock(data, 20) == 12
+    for at in (float("nan"), "3", True, 99.0):  # not a number, or after the scene's end: no hold
+        data["scenes"][1]["look"]["background"]["frozen_at"] = at
+        assert background_clock(data, 30) == 30, at
+    assert background_clock({"scenes": [{"start": 0, "duration": 1}, "junk"]}, 5) == 5
+
+
+def test_chunk_key_covers_a_hold_in_an_earlier_scene() -> None:
+    """A hold earlier in the lecture moves the background of every later chunk (its clock), though those chunks show
+    neither that scene nor its transition (plan B2 §2 "Chunk key")."""
+    tl = dynamic_timeline([3.0, 3.0, 3.0, 3.0])
+    chunks = plan_chunks(scene_frame_bounds(tl), min_frames=90, max_frames=90)
+    assert [c.scenes for c in chunks] == [(0,), (1,), (2,), (3,)]
+    base = [_key(tl, c) for c in chunks]
+    held = _with_hold(tl, 0, 1.0)
+    assert chunk_slices(held, chunks[2])["background_clock"] == pytest.approx(6.0 - 2.0)  # frozen from 1 s to 3 s
+    assert [s["scene_id"] for s in chunk_slices(held, chunks[3])["scenes"]] == ["s2", "s3"]  # scene 0 is not in them
+    keys = [_key(held, c) for c in chunks]
+    assert all(a != b for a, b in zip(keys, base, strict=True)), "every chunk: its own scene or its clock changed"
+    later = _with_hold(tl, 2, 0.5)  # a hold in scene 2: chunks 0 and 1 keep their keys
+    assert [_key(later, c) for c in chunks][:2] == base[:2]
+    assert CHUNK_CACHE_VERSION == 3
 
 
 def test_chunk_key_covers_the_chapter_title_drawn_as_the_kicker() -> None:

@@ -21,6 +21,7 @@ import pytest
 from aadhi.compose.dynamic.colour import text_contrast
 from aadhi.compose.dynamic.preflight import run_preflight
 from aadhi.compose.dynamic.stage_page import open_stage
+from aadhi.compose.dynamic.zones import TYPE_FLOORS, ZONES
 from aadhi.schemas.timeline import Timeline
 
 pytestmark = pytest.mark.slow
@@ -166,13 +167,14 @@ async def test_the_countdown_ring_never_overlaps_the_question_or_kicker(real_app
         assert not _overlap(ring, card), (ring, card)
     if fmt == "landscape":
         assert got["block"]["x"] + got["block"]["w"] <= ring["x"] - 24 + 0.5, (got["block"], ring)
-        assert ring["x"] + ring["w"] <= 1824 + 0.5, "inside the content box (R-59)"
+        assert ring["x"] + ring["w"] <= ZONES["landscape"].critical[0].x1 + 0.5, "inside the content box (R-59)"
     else:
+        upper = ZONES["portrait"].critical[0]  # x 192-888 above y 840; x 120-780 below it (the action rail)
         assert ring["y"] >= got["block"]["y"] + got["block"]["h"], "below the question"
-        assert ring["x"] + ring["w"] / 2 < 888, "its number left of the 9:16 safe edge"
-        assert ring["y"] + ring["h"] <= 840, "above the band beside the action rail (x > 780 below y 840)"
+        assert ring["x"] + ring["w"] / 2 < upper.x1, "its number left of the 9:16 safe edge"
+        assert ring["y"] + ring["h"] <= upper.y1, "above the band beside the action rail (x > 780 below y 840)"
     label = next(b for b in boxes if b.get("slot") == "ring")
-    size = 40 if fmt == "landscape" else 44
+    size = TYPE_FLOORS[fmt].label_min
     assert (label["role"], label["critical"], label["text"], label["size"]) == ("label", False, "4", size)
     assert got["numberSize"] == f"{size}px", "drawn at the R-29 label size it reports"
     assert label["x"] == round(ring["x"]) and label["w"] == round(ring["w"])
@@ -202,6 +204,7 @@ async def test_a_kicker_scrim_remedy_is_drawn_and_reported_fixed(real_app) -> No
     items = [(i["check"], i["slot"], i["status"]) for i in res.items()]
     assert items == [("contrast", "kicker", "fixed")], items
     assert res.timeline["scenes"][0]["look"]["text_fit"] == {"kicker": {"scrim": True}}
+    assert res.timeline["scenes"][0]["look"]["fixes"] == {"safe": False, "slots": {"kicker": {"scrim": True}}}
     # what the second pass saw: the kicker on the drawn scrim, measured from the colour the stage reports
     boxes, block = await _at(real_app, res.timeline, 2.0, """() => {
       const b = document.querySelector('.dyn-titleblock');

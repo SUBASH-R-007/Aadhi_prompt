@@ -277,15 +277,20 @@ def test_the_stage_contract_in_chromium(live_app: str, fmt: str) -> None:
     # pure frames: the same picture and key whatever was painted before
     for f in out["picks"]:
         assert out["forward"][f] == out["reverse"][f], f"frame {f}"
-    # critical text inside the safe zones (R-59), never overflowing
-    zones = {"landscape": [(96, 54, 1824, 912), (96, 924, 1824, 1032)],
-             "portrait": [(192, 288, 888, 840), (120, 840, 780, 1248)]}[fmt]
+    # critical text inside the safe zones (R-59, aadhi.compose.dynamic.zones), never overflowing
+    from aadhi.compose.dynamic.zones import ZONES
+
+    z = ZONES[fmt]
+    zones = [*z.critical, z.caption]
 
     def inside(b: dict[str, Any]) -> bool:
         x0, y0, x1, y1 = b["x"], b["y"], b["x"] + b["w"], b["y"] + b["h"]
-        if fmt == "portrait" and y0 < 840 < y1:  # a box across y 840 must keep to the narrower column below it
-            return x0 >= 192 - 1 and x1 <= 780 + 1 and y0 >= 288 - 1 and y1 <= 1248 + 1
-        return any(x0 >= a - 1 and y0 >= b_ - 1 and x1 <= c + 1 and y1 <= d + 1 for a, b_, c, d in zones)
+        if fmt == "portrait":  # a box across y 840 must keep to the narrower column below it (and the one above)
+            upper, lower = z.critical
+            if y0 < upper.y1 < y1:
+                return (x0 >= max(upper.x0, lower.x0) - 1 and x1 <= min(upper.x1, lower.x1) + 1
+                        and y0 >= upper.y0 - 1 and y1 <= lower.y1 + 1)
+        return any(x0 >= a.x0 - 1 and y0 >= a.y0 - 1 and x1 <= a.x1 + 1 and y1 <= a.y1 + 1 for a in zones)
 
     critical = [(f, b) for f, bs in out["boxes"].items() for b in bs if b["critical"]]
     assert critical

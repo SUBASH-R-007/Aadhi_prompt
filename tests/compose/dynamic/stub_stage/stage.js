@@ -6,7 +6,10 @@
 // Faults (window.STUB.faults = {"<scene index>": ["overflow" | "unsafe" | "contrast" | "caption_overflow"]}) make a
 // scene fail one preflight check ("caption_overflow": its captions run out of the caption box);
 // window.STUB.honour = ["shrink", "safe", "scrim"] lists the remedies the stub applies when the timeline asks for them
-// (look.text_fit[slot].size, look.variant == "safe", look.text_fit[slot].scrim; the headline and the body only).
+// (the headline and the body only), read as board_generic reads them from B2a: the fixes channel first
+// (look.fixes.slots[slot].size, look.fixes.safe, look.fixes.slots[slot].scrim), B1's legacy fields second
+// (look.text_fit[slot].size, look.variant == "safe", look.text_fit[slot].scrim). window.STUB.channel = "fixes" or
+// "legacy" reads only that channel (the preflight tests prove each one carries every remedy alone).
 // window.STUB.random adds Math.random() jitter (a non-deterministic stage); window.STUB.strayTimer calls setTimeout
 // inside seek().
 //
@@ -64,7 +67,12 @@ export function createDynamicStage(root, timeline, { mode = 'render' } = {}) {
 
   const faults = (index) => (cfg().faults || {})[String(index)] || [];
   const honours = (what) => (cfg().honour || []).includes(what);
-  const fit = (s, slot) => ((s.look && s.look.text_fit) || {})[slot] || {};
+  const reads = (channel) => !cfg().channel || cfg().channel === channel;
+  const fixes = (s) => (reads('fixes') && s.look && s.look.fixes) || {};
+  const legacy = (s, slot) => (reads('legacy') && s.look && s.look.text_fit && s.look.text_fit[slot]) || {};
+  // one slot's remedies: the fixes channel's keys first, the legacy ones where fixes has none
+  const fit = (s, slot) => ({ ...legacy(s, slot), ...((fixes(s).slots || {})[slot] || {}) });
+  const safeLayout = (s) => fixes(s).safe === true || (reads('legacy') && !!s.look && s.look.variant === 'safe');
 
   function sceneAt(t) {
     const f = Math.floor(t * fps + 1e-6);
@@ -103,7 +111,7 @@ export function createDynamicStage(root, timeline, { mode = 'render' } = {}) {
     const size = shrink || (portrait ? 88 : 96);
     title.style.fontSize = `${size}px`;
     title.textContent = f.includes('overflow') ? 'Far too long a headline here' : s.title || `Scene ${sc.index + 1}`;
-    const safe = honours('safe') && look.variant === 'safe';
+    const safe = honours('safe') && safeLayout(s);
     const left = f.includes('unsafe') && !safe ? 20 : portrait ? 200 : 140;
     Object.assign(title.style, {
       left: `${left}px`, top: portrait ? '360px' : '120px', width: portrait ? '680px' : '800px', height: `${Math.ceil(size * 1.2)}px`,

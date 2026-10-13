@@ -999,6 +999,166 @@
    "title": "LearningObjective",
    "type": "object"
   },
+  "LookFixes": {
+   "description": "Preflight's remedies of one scene (plan \u00a71.2, deviation 2: a channel of their own instead of B1's\n``variant = \"safe\"`` / ``text_fit[slot]``, which direct.py and textfit.py own in B2). Written by\n``compose.dynamic.preflight.apply_remedies`` into the served timeline (MP4 only until B4 persists them, deviation\n24); always both keys when present: ``safe`` (the template's compact, zone-safe layout, R-59) and ``slots``.",
+   "properties": {
+    "safe": {
+     "default": false,
+     "title": "Safe",
+     "type": "boolean"
+    },
+    "slots": {
+     "additionalProperties": {
+      "$ref": "#/$defs/SlotFix"
+     },
+     "propertyNames": {
+      "maxLength": 60,
+      "minLength": 1
+     },
+     "title": "Slots",
+     "type": "object"
+    }
+   },
+   "title": "LookFixes",
+   "type": "object"
+  },
+  "LookIcon": {
+   "description": "An icon's geometry, stored in the look so the timeline stays self-contained and a library update never\nrestyles an old video (plan \u00a71.2; filled by B2b). ``viewBox`` is ``[min_x, min_y, width, height]``; ``paths`` are\nSVG path data only (:data:`ICON_PATH_RE`), capped; the stage sanitises them again before drawing.",
+   "properties": {
+    "name": {
+     "maxLength": 64,
+     "minLength": 1,
+     "title": "Name",
+     "type": "string"
+    },
+    "set": {
+     "maxLength": 40,
+     "minLength": 1,
+     "title": "Set",
+     "type": "string"
+    },
+    "version": {
+     "maxLength": 40,
+     "minLength": 1,
+     "title": "Version",
+     "type": "string"
+    },
+    "viewBox": {
+     "maxItems": 4,
+     "minItems": 4,
+     "prefixItems": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "number"
+      },
+      {
+       "type": "number"
+      },
+      {
+       "type": "number"
+      }
+     ],
+     "title": "Viewbox",
+     "type": "array"
+    },
+    "stroke_width": {
+     "default": 2.0,
+     "maximum": 8.0,
+     "minimum": 0.0,
+     "title": "Stroke Width",
+     "type": "number"
+    },
+    "filled": {
+     "default": false,
+     "title": "Filled",
+     "type": "boolean"
+    },
+    "paths": {
+     "items": {
+      "maxLength": 4096,
+      "minLength": 1,
+      "pattern": "^\\s*[Mm][MmZzLlHhVvCcSsQqTtAa0-9eE.,+\\-\\s]*$",
+      "type": "string"
+     },
+     "maxItems": 32,
+     "minItems": 1,
+     "title": "Paths",
+     "type": "array"
+    }
+   },
+   "required": [
+    "name",
+    "set",
+    "version",
+    "viewBox",
+    "paths"
+   ],
+   "title": "LookIcon",
+   "type": "object"
+  },
+  "LookRefs": {
+   "description": "Cross-scene data a template shows, denormalised by the resolver (plan \u00a71.2) so a scene renders from its own\nslice (the chunk key hashes it): the roadmap, the builds_on anchor, the open prediction, the next scene's title\n(outro, aadhi_intro) and ``accent_next``, the next scene's block colour (the intro's brand wipe, plan \u00a72 R-54).\nEach key is left out when unset. Filled from B2e.",
+   "properties": {
+    "roadmap": {
+     "items": {
+      "$ref": "#/$defs/RoadmapEntry"
+     },
+     "maxItems": 12,
+     "title": "Roadmap",
+     "type": "array"
+    },
+    "anchor": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/RefAnchor"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "prediction": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/RefPrediction"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "next": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/RefNext"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "accent_next": {
+     "anyOf": [
+      {
+       "pattern": "^#[0-9A-Fa-f]{6}$",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Accent Next"
+    }
+   },
+   "title": "LookRefs",
+   "type": "object"
+  },
   "ManimSpec": {
    "description": "Either a library template with typed params (preferred) or free-form code.\n\nFree-form code must define exactly one ``class <Name>(AadhiScene)`` and call\n``self.wait_until_beat(i)`` before the animation step that belongs to beat ``i``.\n``AadhiScene`` and ``BEAT_TIMES`` are injected by ``aadhi.manim``.",
    "properties": {
@@ -1548,6 +1708,106 @@
    "title": "QuizTiming",
    "type": "object"
   },
+  "RefAnchor": {
+   "description": "The previous chapter's anchor visual for a ``builds_on`` bumper's \"from last chapter\" chip (\u00a74.3, RV L-12):\nits formula (``tex``), key figure or last takeaway (``text``); exactly one of ``text`` and ``tex``.",
+   "properties": {
+    "kind": {
+     "enum": [
+      "formula",
+      "figure",
+      "takeaway"
+     ],
+     "title": "Kind",
+     "type": "string"
+    },
+    "text": {
+     "anyOf": [
+      {
+       "maxLength": 240,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Text"
+    },
+    "tex": {
+     "anyOf": [
+      {
+       "maxLength": 600,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Tex"
+    },
+    "icon": {
+     "anyOf": [
+      {
+       "pattern": "^[a-z0-9_-]{1,40}$",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Icon"
+    }
+   },
+   "required": [
+    "kind"
+   ],
+   "title": "RefAnchor",
+   "type": "object"
+  },
+  "RefNext": {
+   "properties": {
+    "title": {
+     "maxLength": 240,
+     "title": "Title",
+     "type": "string"
+    }
+   },
+   "required": [
+    "title"
+   ],
+   "title": "RefNext",
+   "type": "object"
+  },
+  "RefPrediction": {
+   "description": "A ``predict`` scene's question, carried as the \"Your prediction?\" chip of the explaining scene (\u00a74.3 predict)\nuntil it resolves at ``resolve_t`` (scene-relative seconds of the answering beat; None: not in this scene).",
+   "properties": {
+    "text": {
+     "maxLength": 240,
+     "title": "Text",
+     "type": "string"
+    },
+    "resolve_t": {
+     "anyOf": [
+      {
+       "minimum": 0.0,
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Resolve T"
+    }
+   },
+   "required": [
+    "text"
+   ],
+   "title": "RefPrediction",
+   "type": "object"
+  },
   "ResolvedLook": {
    "properties": {
     "template": {
@@ -1612,6 +1872,68 @@
      "additionalProperties": true,
      "title": "Text Fit",
      "type": "object"
+    },
+    "fixes": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/LookFixes"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "icons": {
+     "additionalProperties": {
+      "$ref": "#/$defs/LookIcon"
+     },
+     "maxProperties": 32,
+     "propertyNames": {
+      "maxLength": 64,
+      "minLength": 1
+     },
+     "title": "Icons",
+     "type": "object"
+    },
+    "refs": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/LookRefs"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "accent_fade": {
+     "anyOf": [
+      {
+       "maximum": 1.0,
+       "minimum": 0.6,
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Accent Fade"
+    },
+    "continues_from": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Continues From"
     }
    },
    "required": [
@@ -1649,6 +1971,31 @@
     "panel"
    ],
    "title": "ResolvedSidePanel",
+   "type": "object"
+  },
+  "RoadmapEntry": {
+   "description": "One chapter of a bumper's mini-roadmap (\u00a74.3 chapter_bumper: past chapters ticked, the current one lit).",
+   "properties": {
+    "title": {
+     "maxLength": 240,
+     "title": "Title",
+     "type": "string"
+    },
+    "state": {
+     "enum": [
+      "done",
+      "current",
+      "upcoming"
+     ],
+     "title": "State",
+     "type": "string"
+    }
+   },
+   "required": [
+    "title",
+    "state"
+   ],
+   "title": "RoadmapEntry",
    "type": "object"
   },
   "SfxCue": {
@@ -1861,6 +2208,32 @@
     "kind"
    ],
    "title": "SidePanel",
+   "type": "object"
+  },
+  "SlotFix": {
+   "description": "One text slot's preflight remedy (\u00a77.12): ``size`` caps the slot's font size (px, the slot's minimum when it\noverflows), ``scrim`` puts the >= 55% scrim behind text drawn on the background (R-53). Each key is left out when\nunset, so a slot fixed by one remedy carries only that key.",
+   "properties": {
+    "size": {
+     "anyOf": [
+      {
+       "exclusiveMinimum": 0.0,
+       "maximum": 1000.0,
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Size"
+    },
+    "scrim": {
+     "default": false,
+     "title": "Scrim",
+     "type": "boolean"
+    }
+   },
+   "title": "SlotFix",
    "type": "object"
   },
   "SyncCue": {
@@ -2482,6 +2855,62 @@
      "minimum": 1,
      "title": "Engine Version",
      "type": "integer"
+    },
+    "content_alt": {
+     "additionalProperties": {
+      "type": "string"
+     },
+     "title": "Content Alt",
+     "type": "object"
+    },
+    "family": {
+     "anyOf": [
+      {
+       "pattern": "^[a-z0-9_-]{1,40}$",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Family"
+    },
+    "mode": {
+     "anyOf": [
+      {
+       "enum": [
+        "dark",
+        "light"
+       ],
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Mode"
+    },
+    "motion_scale": {
+     "default": 1.0,
+     "exclusiveMinimum": 0.0,
+     "maximum": 4.0,
+     "title": "Motion Scale",
+     "type": "number"
+    },
+    "entity_colors": {
+     "additionalProperties": {
+      "maximum": 2,
+      "minimum": 0,
+      "type": "integer"
+     },
+     "propertyNames": {
+      "maxLength": 80,
+      "minLength": 1
+     },
+     "title": "Entity Colors",
+     "type": "object"
     }
    },
    "required": [

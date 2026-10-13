@@ -8,16 +8,19 @@ from __future__ import annotations
 
 import json
 import re
+from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
 from aadhi.compose import presentation as pres
 from aadhi.compose.captions import MAX_LINES
+from aadhi.compose.dynamic import themes as th
 from aadhi.compose.timeline import DYNAMIC_FPS, build_timeline, preview_timeline
 from aadhi.config import Settings
 from aadhi.schemas.screenplay import Screenplay
-from aadhi.schemas.timeline import Timeline
+from aadhi.schemas.timeline import Chapter, Timeline
 
 from .factories import make_manifest, screenplay_dict
 
@@ -123,7 +126,10 @@ def test_presentation_is_resolved(flag_on: Settings) -> None:
     assert p.fonts == {"display": "outfit", "body": "inter", "mono": "jetbrains_mono"}
     assert (p.personality, p.caption_style, p.cue_term_style) == ("crisp", "clean_pill", "underline")
     assert (p.captions_burn, p.sfx, p.motion) == (True, False, "calm")
-    assert p.engine_version == 1
+    assert p.engine_version == pres.ENGINE_VERSION == 2  # the look-engine generation of the B2 resolver
+    assert p.content_alt == pres.content_tokens("light"), "the other mode's palette (code editor surface)"
+    assert (p.family, p.mode, p.motion_scale) == ("midnight_indigo", "dark", 0.85)  # Crisp: x0.85 (§4.8)
+    assert p.entity_colors == {"V": 0, "I": 1, "R": 2}  # Presentation.entity_colors, lesson-wide (R-30)
     assert p.generated_seconds == pytest.approx(tl.total_duration)
     assert tl.intro is None, "a Dynamic timeline has no classic intro"
     assert tl.scenes[0].start == 0
@@ -136,8 +142,11 @@ def test_looks_of_every_scene(flag_on: Settings) -> None:
     for s in tl.scenes:
         look = s.look
         assert look is not None and look.template == "board_generic"
-        assert set(look.tokens) == {"struct.accent", "bg", "bg-alt", "bg-tint", "surface"}
-        assert all(HEX.match(v) for v in look.tokens.values())
+        # B1's five anchors first, then the colours the B1 stage derived at run time (plan §1.2)
+        assert tuple(look.tokens) == ("struct.accent", "bg", "bg-alt", "bg-tint", "surface", "block.base",
+                                      "block.highlight", "block.ink", "block.ink2", "scrim")
+        assert all(HEX.match(v) for k, v in look.tokens.items() if k != "scrim")
+        assert re.fullmatch(r"#[0-9A-F]{6}C7", look.tokens["scrim"])  # the bg at the stage's scrim alpha
         assert look.background["preset"] == ("colour_block" if s.type == "chapter_card" else "mesh_drift")
         assert look.background["params"]["tone"] in pres.TONES
         assert 0 <= look.background["seed"] < 2**31
@@ -399,3 +408,233 @@ def test_portrait_caption_grouping_shares_a_fast_beat_instead_of_leaving_an_orph
         for beat in scene.beats:
             if len(beat.captions) >= 2:
                 assert all(len(c.text.split()) >= 2 for c in beat.captions), [c.text for c in beat.captions]
+
+
+# --- B2a: look-engine generation 2 (plan B2 §1.2, §1.3, §1.10; R-52, R-54) ------------------------------------------
+
+ROOT = Path(__file__).resolve().parents[2]
+B1_LOOKS = json.loads((Path(__file__).parent / "fixtures" / "b1_looks.json").read_text("utf-8"))
+B1_TOKEN_KEYS = ("struct.accent", "bg", "bg-alt", "bg-tint", "surface")
+B2A_PRESENTATION_KEYS = ("content_alt", "family", "mode", "motion_scale", "entity_colors")
+
+
+def golden_build(cfg: dict[str, Any], settings: Settings) -> dict[str, Any]:
+    sp = dynamic_screenplay(cfg["format"], chapters=cfg["chapters"], looks=cfg.get("looks"), **cfg["presentation"])
+    return build(sp, settings).model_dump(mode="json")
+
+
+@pytest.mark.parametrize("cfg", B1_LOOKS["configs"], ids=[c["name"] for c in B1_LOOKS["configs"]])
+def test_b1_choices_are_kept(flag_on: Settings, cfg: dict[str, Any]) -> None:
+    """Against what the B1 resolver itself resolved (``fixtures/b1_looks.json``, captured from commit 54c72c5): the
+    template, variant, the five B1 tokens (value and order), background (preset, tone, seed, freeze), transition and
+    hold of every scene, and every B1 presentation value, are unchanged; what B2a adds is only added. The one
+    deliberate change: a lecture without ``Screenplay.chapters`` (``no_screenplay_chapters``) now changes accent and
+    tone where its chapter list (chapter cards) changes chapter, which B1 ignored (compose-classic bug 4)."""
+    tl = golden_build(cfg, flag_on)
+    assert tl["chapters"] == cfg["chapters_list"]
+    old_p, new_p = cfg["timeline_presentation"], tl["presentation"]
+    assert {k: v for k, v in new_p.items() if k not in B2A_PRESENTATION_KEYS} == {**old_p, "engine_version": 2}
+    assert list(new_p)[:len(old_p)] == list(old_p), "B1's keys keep their order"
+    assert [s["scene_id"] for s in tl["scenes"]] == [s["scene_id"] for s in cfg["scenes"]]
+    family = pres.family_for(cfg["presentation"].get("theme_family", "midnight_indigo"))
+    timed = Timeline.model_validate(tl)
+    numbers = pres.chapter_indices(timed.scenes, timed.chapters)
+    for i, (old, new) in enumerate(zip(cfg["scenes"], tl["scenes"])):
+        assert (new["start"], new["duration"]) == (old["start"], old["duration"])
+        b1, look = old["look"], new["look"]
+        assert set(look) == set(b1), "B2a's look fields stay out of the JSON at their defaults here"
+        assert list(look["tokens"]) == [*B1_TOKEN_KEYS, *th.DERIVED_KEYS]
+        assert look["tokens"] == th.scene_tokens(family, numbers[i])
+        if cfg["name"] == "no_screenplay_chapters":
+            continue
+        assert {k: look["tokens"][k] for k in B1_TOKEN_KEYS} == b1["tokens"], (cfg["name"], old["scene_id"])
+        assert {k: v for k, v in look.items() if k != "tokens"} == {k: v for k, v in b1.items() if k != "tokens"}
+    if cfg["name"] == "no_screenplay_chapters":
+        # B1: one accent for the whole lecture, though its chapter list (and kicker) changes at the chapter card
+        assert len({s["look"]["tokens"]["struct.accent"] for s in cfg["scenes"]}) == 1 and len(tl["chapters"]) == 2
+        card = next(i for i, s in enumerate(tl["scenes"]) if s["type"] == "chapter_card")
+        assert numbers == [0] * card + [1] * (len(numbers) - card)
+        assert [s["look"]["background"]["params"]["tone"] for s in tl["scenes"]][card:card + 4] == [
+            "bg", "bg-alt", "bg-tint", "bg"], "the tone steps restart with the chapter (§4.5)"
+        for old, new in zip(cfg["scenes"], tl["scenes"]):  # nothing else changed
+            keep = ("template", "variant", "transition_in", "hold_reason")
+            assert {k: new["look"][k] for k in keep} == {k: old["look"][k] for k in keep}
+            assert new["look"]["background"]["seed"] == old["look"]["background"]["seed"]
+
+
+@pytest.mark.parametrize("family", ["midnight_indigo", "deep_teal", "paper_ink", "mint_studio"])
+def test_looks_store_every_structure_colour(flag_on: Settings, family: str) -> None:
+    """``look.tokens`` = ``themes.scene_tokens(family, chapter)``: B1's anchors first (pinned in test_themes), then the
+    colours the stage derived at run time (plan §1.2)."""
+    tl = build(dynamic_screenplay(theme_family=family), flag_on)
+    numbers = pres.chapter_indices(tl.scenes, tl.chapters)
+    assert numbers == [0, 0, 1, 1, 1, 1, 2, 2, 2, 2]
+    fam = th.FAMILIES[family]
+    for s, k in zip(tl.scenes, numbers):
+        assert list(s.look.tokens.items()) == list(th.scene_tokens(fam, k).items())
+        assert {key: s.look.tokens[key] for key in B1_TOKEN_KEYS} == pres.structure_tokens(fam, pres.accent_hue(fam, k))
+    if family == "paper_ink":  # R-54: the block of palette slot 2 is red-lowered in the stored tokens
+        assert tl.scenes[6].look.tokens["block.base"] == "#B05641" != tl.scenes[6].look.tokens["struct.accent"]
+
+
+def test_chapter_indices_follow_the_kicker_rule() -> None:
+    def scene(start: float) -> Any:
+        return SimpleNamespace(start=start)
+
+    chapters = [Chapter(start=0.0, title="a"), Chapter(start=6.3, title="b"), Chapter(start=24.05, title="c")]
+    starts = [0.0, 2.3, 6.2989, 6.2991, 6.3, 23.0, 24.05, 30.0]
+    assert pres.chapter_indices([scene(s) for s in starts], chapters) == [0, 0, 0, 1, 1, 1, 2, 2]  # 1 ms tolerance
+    assert pres.chapter_indices([scene(1.0)], []) == [0]
+    assert pres.chapter_indices([scene(1.0)], [Chapter(start=5.0, title="late")]) == [0]
+
+
+def test_chapters_from_concepts_drive_the_looks(flag_on: Settings) -> None:
+    """No screenplay chapters and no chapter card: build_chapters falls back to concept changes, and so do the looks
+    (B1 kept one accent; compose-classic bug 4)."""
+    data = dynamic_screenplay(chapters=False).model_dump(mode="json")
+    next(s for s in data["scenes"] if s["type"] == "chapter_card")["hidden"] = True
+    tl = build(Screenplay.model_validate(data), flag_on)
+    assert [c.title for c in tl.chapters] == ["Charge and Current", "Ohm's Law"]
+    board = next(i for i, s in enumerate(tl.scenes) if s.scene_id == "s-board")
+    assert tl.chapters[1].start == tl.scenes[board].start
+    accents = [s.look.tokens["struct.accent"] for s in tl.scenes]
+    assert accents[:board] == [accents[0]] * board and accents[board:] == [accents[board]] * (len(accents) - board)
+    assert accents[0] != accents[board]
+    assert tl.scenes[board].look.transition_in == {"kind": "crossfade", "seconds": 0.45}, "a new chapter fades"
+    assert tl.scenes[board].look.background["params"]["tone"] == "bg"
+    assert tl.scenes[board + 1].look.transition_in["kind"] == "cut"
+
+
+def test_the_palette_slot_sets_the_accent(flag_on: Settings) -> None:
+    """SceneLook.palette_slot (plan §1.10, written by direct.py) picks the scene's colours; without it the chapter
+    number does. A change of accent inside a chapter cross-fades like a chapter boundary unless the teacher asked for a
+    transition; the tone sequence stays per chapter."""
+    looks = {"s-sim": {"palette_slot": 0}, "s-video": {"palette_slot": 4},
+             "s-quiz": {"palette_slot": 0, "transition_in": "cut"}}
+    tl = build(dynamic_screenplay(looks=looks), flag_on)
+    fam = th.FAMILIES["midnight_indigo"]
+    by = {s.scene_id: s.look for s in tl.scenes}
+    assert by["s-sim"].tokens == th.scene_tokens(fam, 0) != th.scene_tokens(fam, 1)
+    assert by["s-sim-fallback"].tokens == th.scene_tokens(fam, 1), "no slot: the chapter number"
+    assert by["s-video"].tokens == th.scene_tokens(fam, 4) == th.scene_tokens(fam, 1)  # the accent period is 3
+    assert by["s-sim"].transition_in == {"kind": "crossfade", "seconds": 0.45}  # the accent changes mid-chapter
+    assert by["s-sim-fallback"].transition_in == {"kind": "crossfade", "seconds": 0.45}  # ... and back
+    assert by["s-video"].transition_in == {"kind": "cut", "seconds": 0.0}  # same accent: a hard cut (R-23)
+    assert by["s-quiz"].tokens == th.scene_tokens(fam, 0) and by["s-quiz"].transition_in["kind"] == "cut"
+    assert [by[k].background["params"]["tone"] for k in ("s-board", "s-sim", "s-sim-fallback", "s-video")] == [
+        "bg", "bg-alt", "bg-tint", "bg"]
+    plain = build(dynamic_screenplay(), flag_on)
+    assert [s.look.background for s in plain.scenes] == [s.look.background for s in tl.scenes]
+
+
+def test_continues_from_is_kept_for_the_scene_just_before(flag_on: Settings) -> None:
+    looks = {"s-sim": {"continues_from": "s-board"}, "s-video": {"continues_from": "s-board"},
+             "s-title": {"continues_from": "s-quiz"}}
+    tl = build(dynamic_screenplay(looks=looks), flag_on)
+    by = {s.scene_id: s.look for s in tl.scenes}
+    assert by["s-sim"].continues_from == "s-board"
+    assert by["s-video"].continues_from is None and by["s-title"].continues_from is None  # not the scene before
+    dumped = tl.model_dump(mode="json")["scenes"]
+    assert dumped[3]["look"]["continues_from"] == "s-board" and "continues_from" not in dumped[5]["look"]
+
+
+def _stage_crossfade(seconds: float, duration: float) -> float:
+    """web/js/dynamic/transitions.js transitionOf for a crossfade: [0.3, 0.5], at most the scene; 0 = a cut."""
+    asked = seconds if seconds > 0 else 0.45
+    d = min(max(asked, 0.3), 0.5, max(0.0, duration))
+    return d if d > 0 else 0.0
+
+
+def test_crossfades_last_at_least_300_ms() -> None:
+    """R-54 (and §4.9's 300-500 ms): the stored seconds are what the stage draws, which is what it drew from B1's
+    value, so nothing on screen changes; a scene too short for 300 ms gets a cut."""
+    js = (ROOT / "web" / "js" / "dynamic" / "transitions.js").read_text("utf-8")
+    consts = dict(re.findall(r"export const (CROSSFADE_\w+) = ([0-9.]+);", js))
+    assert (float(consts["CROSSFADE_MIN"]), float(consts["CROSSFADE_MAX"]), float(consts["CROSSFADE_DEFAULT"])) == (
+        pres.CROSSFADE_MIN_SECONDS, pres.CROSSFADE_MAX_SECONDS, pres.CROSSFADE_SECONDS)
+    assert [pres.crossfade_seconds(d) for d in (0.3, 0.5, 0.599, 0.6, 0.7, 0.9, 30.0)] == [
+        0.3, 0.3, 0.3, 0.3, 0.35, 0.45, 0.45]
+    for d in (0.0, 0.1, 0.299, -1.0, float("nan")):
+        assert pres.crossfade_seconds(d) is None, d
+    for k in range(30, 400):
+        d = k / 100
+        b1 = round(min(pres.CROSSFADE_SECONDS, d / 2), 3)  # B1: half the scene, even under 300 ms
+        new = pres.crossfade_seconds(d)
+        assert new is not None and pres.CROSSFADE_MIN_SECONDS <= new <= min(pres.CROSSFADE_MAX_SECONDS, d)
+        assert _stage_crossfade(new, d) == pytest.approx(new) == pytest.approx(_stage_crossfade(b1, d)), d
+
+
+def test_a_scene_too_short_for_a_fade_gets_a_cut(flag_on: Settings) -> None:
+    from aadhi.compose.base import SCENE_TRANSITION_SECONDS
+
+    sp = dynamic_screenplay()
+    tl = build(sp, flag_on)
+    short = {"s-chapter": 0.5, "s-board": 0.55, "s-video-none": 0.25}
+    scenes = [s.model_copy(update={"duration": short.get(s.scene_id, s.duration)}) for s in tl.scenes]
+    looks = pres.resolve_looks(sp, scenes, tl.chapters)
+    by = {s.scene_id: lk for s, lk in zip(scenes, looks)}
+    assert by["s-chapter"].transition_in == {"kind": "crossfade", "seconds": 0.3}  # into the colour block: B1 0.25
+    assert by["s-board"].transition_in == {"kind": "crossfade", "seconds": 0.3}  # out of it
+    assert by["s-video-none"].transition_in == {"kind": "cut", "seconds": 0.0}  # a new chapter, 0.25 s long
+    assert pres.resolve_looks(sp, scenes) == looks, "the chapters default to build_chapters'"
+    # unreachable in real timelines: every scene build_timeline makes holds a 300 ms fade
+    assert SCENE_TRANSITION_SECONDS + 0.1 >= pres.CROSSFADE_MIN_SECONDS
+    assert min(s.duration for s in tl.scenes) >= SCENE_TRANSITION_SECONDS + 0.1 - 1e-9
+
+
+@pytest.mark.parametrize(("family", "personality", "stage", "scale"), [
+    ("midnight_indigo", "crisp", "crisp", 0.85), ("midnight_indigo", "soft", "soft", 1.15),
+    ("midnight_indigo", "cinematic", "soft", 1.15), ("paper_ink", "editorial", "crisp", 0.85),
+    ("deep_teal", "no_such_one", "crisp", 0.85), ("mint_studio", "bouncy_soft", "soft", 1.15)])
+def test_motion_scale_follows_the_personality_the_stage_draws(flag_on: Settings, family: str, personality: str,
+                                                              stage: str, scale: float) -> None:
+    """§4.8: the duration scale of the personality; an unreleased (or unknown) one is drawn as the family's R1
+    default (§4.7 table: "Cinematic -> Soft in R1", "Editorial -> Crisp in R1"), and scaled as it."""
+    fam = th.FAMILIES[family]
+    assert pres.stage_personality(personality, fam) == stage
+    assert pres.motion_scale(personality, fam) == scale == th.PERSONALITIES[stage].duration_scale
+    p = build(dynamic_screenplay(theme_family=family, personality=personality), flag_on).presentation
+    assert p.personality == personality and p.motion_scale == scale  # the requested id is kept, as in B1
+
+
+def test_presentation_carries_the_other_mode_family_and_entities(flag_on: Settings) -> None:
+    for family, mode in (("midnight_indigo", "dark"), ("deep_teal", "dark"), ("paper_ink", "light"),
+                         ("mint_studio", "light")):
+        p = build(dynamic_screenplay(theme_family=family), flag_on).presentation
+        assert (p.family, p.mode) == (family, mode)
+        assert p.content == th.content_tokens(mode) and p.content_alt == th.content_alt_tokens(mode)
+        assert p.content_alt == th.content_tokens("light" if mode == "dark" else "dark")
+    mapped = build(dynamic_screenplay(theme_family="teal_coral"), flag_on).presentation
+    assert mapped.family == pres.family_for("teal_coral").id and mapped.family in th.RELEASED_FAMILIES
+    none = build(dynamic_screenplay(entity_colors={}), flag_on)
+    assert none.presentation.entity_colors == {}
+    assert "entity_colors" not in none.model_dump(mode="json")["presentation"]
+
+
+def test_the_resolver_draws_only_what_the_stage_implements() -> None:
+    from aadhi.compose.dynamic import templates
+
+    assert pres.TEMPLATES == templates.IMPLEMENTED and pres.DEFAULT_TEMPLATE == templates.FALLBACK_TEMPLATE
+    assert pres.BACKGROUNDS == tuple(k for k, b in templates.BACKGROUNDS.items() if b.implemented)
+    assert pres.TRANSITIONS == tuple(k for k, t in templates.TRANSITIONS.items() if t.implemented)
+    assert templates.TRANSITIONS["crossfade"].seconds == (pres.CROSSFADE_MIN_SECONDS, pres.CROSSFADE_MAX_SECONDS)
+    assert pres.TONES == th.TONES
+
+
+def test_a_b1_timeline_reads_and_writes_back_byte_identically(flag_on: Settings) -> None:
+    """A timeline the B1 resolver built (engine_version 1: five tokens, no B2a field) is unchanged by the B2a schema:
+    every new field is left out of the JSON at its default."""
+    from aadhi.schemas.timeline import ResolvedLook, TimelinePresentation
+
+    data = build(dynamic_screenplay("portrait"), flag_on).model_dump(mode="json")
+    data["presentation"] = {k: v for k, v in data["presentation"].items() if k not in B2A_PRESENTATION_KEYS}
+    data["presentation"]["engine_version"] = 1
+    for s in data["scenes"]:
+        s["look"]["tokens"] = {k: s["look"]["tokens"][k] for k in B1_TOKEN_KEYS}
+    text = json.dumps(data, ensure_ascii=False)
+    assert json.dumps(Timeline.model_validate(json.loads(text)).model_dump(mode="json"), ensure_ascii=False) == text
+    for model, names in ((TimelinePresentation, B2A_PRESENTATION_KEYS),
+                         (ResolvedLook, ("fixes", "icons", "refs", "accent_fade", "continues_from"))):
+        for name in names:
+            info = model.model_fields[name]
+            assert info.exclude_if is not None and info.exclude_if(info.get_default(call_default_factory=True)), name

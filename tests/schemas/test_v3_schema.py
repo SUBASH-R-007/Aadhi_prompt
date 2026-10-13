@@ -49,6 +49,8 @@ V3_ONLY_MODELS = {
     "AssetStyle", "Presentation", "PresenterSpec", "SceneLook", "ClipCaption", "ClipScene", "TimelinePresentation",
     "ResolvedLook", "VisualEvent", "KineticWord", "KineticChunk", "MusicCue", "MusicPlan", "SfxCue", "TimedOverlay",
     "MusicAsset",
+    # B2a (plan B2 §1.2): parts of ResolvedLook
+    "SlotFix", "LookFixes", "LookIcon", "RoadmapEntry", "RefAnchor", "RefPrediction", "RefNext", "LookRefs",
 }
 
 

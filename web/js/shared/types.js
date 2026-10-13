@@ -246,19 +246,82 @@
  * @property {boolean} sfx
  * @property {'standard' | 'calm'} motion
  * @property {number} generated_seconds
- * @property {number} [engine_version]           stage contract
+ * @property {number} [engine_version]           look-engine generation (1 = B1's resolver, 2 = B2's; absent = 1);
+ *   the stage contract stays aadhiStage v3. Feature-detect the fields below, never branch on this.
+ * @property {Record<string, string>} [content_alt]   B2a: the other mode's content tokens (code editor surface)
+ * @property {string} [family]                   B2a: the resolved theme family id
+ * @property {'dark' | 'light'} [mode]           B2a: the family's mode
+ * @property {number} [motion_scale]             B2a: the personality's duration scale (absent = 1, B1's timings)
+ * @property {Record<string, number>} [entity_colors]  B2a: lesson-wide symbol/entity -> entity slot 0..2 (R-30)
+ */
+
+/**
+ * Preflight's remedy of one text slot (fixes channel; each key present only when set).
+ * @typedef {object} SlotFix
+ * @property {number} [size]       px: the slot's size is capped here (its minimum when it overflowed)
+ * @property {boolean} [scrim]     the >= 55% scrim behind text drawn on the background (R-53)
+ */
+
+/**
+ * Preflight's remedies of one scene (plan B2 §1.2, deviation 2); always both keys when present.
+ * @typedef {object} LookFixes
+ * @property {boolean} safe                     the template's compact, zone-safe layout (R-59)
+ * @property {Record<string, SlotFix>} slots    text slot -> its remedies
+ */
+
+/**
+ * An icon's geometry (SVG path data only; sanitise again before drawing).
+ * @typedef {object} LookIcon
+ * @property {string} name
+ * @property {string} set
+ * @property {string} version
+ * @property {[number, number, number, number]} viewBox   [min_x, min_y, width, height]
+ * @property {number} stroke_width
+ * @property {boolean} filled
+ * @property {string[]} paths                   SVG path `d` strings
+ */
+
+/**
+ * @typedef {object} RoadmapEntry
+ * @property {string} title
+ * @property {'done' | 'current' | 'upcoming'} state
+ */
+
+/**
+ * @typedef {object} RefAnchor
+ * @property {'formula' | 'figure' | 'takeaway'} kind
+ * @property {string} [text]     exactly one of text and tex
+ * @property {string} [tex]
+ * @property {string} [icon]
+ */
+
+/**
+ * Cross-scene data a template shows, denormalised by the resolver (each key present only when set).
+ * @typedef {object} LookRefs
+ * @property {RoadmapEntry[]} [roadmap]
+ * @property {RefAnchor} [anchor]
+ * @property {{text: string, resolve_t?: number}} [prediction]   resolve_t: scene-relative seconds
+ * @property {{title: string}} [next]
+ * @property {string} [accent_next]      #RRGGBB: the next scene's block colour
  */
 
 /**
  * @typedef {object} ResolvedLook
  * @property {string} template
  * @property {string | null} [variant]
- * @property {Record<string, string>} tokens     struct.accent, bg, bg-alt, bg-tint (resolved hex)
+ * @property {Record<string, string>} tokens     resolved hex: struct.accent, bg, bg-alt, bg-tint, surface (B1); from
+ *   engine_version 2 also block.base, block.highlight, block.ink, block.ink2 and scrim (#RRGGBBAA)
  * @property {Record<string, any>} background    {preset, params, seed, frozen_at}
  * @property {Record<string, any>} transition_in {kind, seconds}
  * @property {string | null} [hold_reason]
  * @property {Record<string, any> | null} [presenter]   {clip_key, crop, rect, t_exit, src_fps}
- * @property {Record<string, any>} [text_fit]    slot -> {size, lines}
+ * @property {Record<string, any>} [text_fit]    slot -> {size, lines}; B1's stage also reads preflight's remedies here
+ *   ({size}, {scrim}) and `variant: "safe"`, the legacy channel of `fixes`
+ * @property {LookFixes} [fixes]                 B2a: preflight's remedies (served timelines only)
+ * @property {Record<string, LookIcon>} [icons]  B2a: board item id -> icon
+ * @property {LookRefs} [refs]                   B2a
+ * @property {number} [accent_fade]              B2a: seconds (0.6-1.0) over which the accent cross-fades in (R-52)
+ * @property {string} [continues_from]           B2a: the scene just before, whose final state this one continues
  */
 
 /**

@@ -14,10 +14,15 @@
   engine version (``TimelinePresentation.engine_version``) and :data:`CHUNK_CACHE_VERSION`, the absolute frame
   range, the timeline slices that can affect those frames (the scenes the chunk shows, the outgoing scene before
   them, whose final state a transition paints, the title of the chapter each of those scenes is in, which
-  ``board_generic`` draws as the kicker, the global presentation and stage fields, and the captions shown in the
-  range), the media files they name, the encoder parameters, the capture settings and the Chromium version. Asset
-  keys are content addresses, so a scene slice that names the same keys names the same pixels.
-  :data:`STAGE_TIMELINE_FIELDS` lists every top-level timeline field the stage reads; each one is in the key.
+  ``board_generic`` draws as the kicker, the background clock at the chunk's first frame, the global presentation
+  and stage fields, and the captions shown in the range), the media files they name, the encoder parameters, the
+  capture settings and the Chromium version. Asset keys are content addresses, so a scene slice that names the same
+  keys names the same pixels. :data:`STAGE_TIMELINE_FIELDS` lists every top-level timeline field the stage reads;
+  each one is in the key.
+* **Background clock** (plan B2 §2 "Chunk key"). The background drifts on its own clock, real time minus every hold
+  before it (``web/js/dynamic/state.js`` ``backgroundTime``, R-55), so a hold in an earlier scene, outside every
+  slice above, moves the background of every later chunk. :func:`background_clock` mirrors it; its value at the
+  chunk's first frame is in the slices (the holds inside the chunk are in its scenes' slices).
 """
 
 from __future__ import annotations
@@ -36,7 +41,9 @@ from ...schemas.timeline import Timeline
 CHUNK_MIN_FRAMES = 240
 CHUNK_MAX_FRAMES = 600
 # 2: chapter titles (the kicker) are hashed; clips at another rate than the page's grid are extracted natively
-CHUNK_CACHE_VERSION = 2
+# 3: the background clock at the chunk's first frame is hashed (B2a; plan B2 §2)
+CHUNK_CACHE_VERSION = 3
+CLOCK_DIGITS = 6  # the background clock is hashed rounded to the microsecond (summation noise never changes a key)
 # Files under web_dir the stage page can load; everything else (Studio tests, examples, the p5 sandbox) is ignored.
 BUNDLE_PATHS = ("render-dynamic.html", "js", "css", "vendor", "dynamic")
 _BUNDLE_SKIP_DIRS = frozenset({"node_modules", "tests", "_e2e", "__pycache__"})
@@ -195,6 +202,32 @@ def _kicker_chapters(data: Mapping[str, Any], indices: Iterable[int]) -> list[st
     return out
 
 
+def _finite(v: Any) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
+def background_clock(data: Mapping[str, Any], t: float) -> float:
+    """The background's own time at absolute ``t`` (seconds): ``t`` minus every frozen stretch before it, as
+    ``web/js/dynamic/state.js`` ``backgroundTime`` / ``frozenIntervals`` compute it. A scene whose
+    ``look.background.frozen_at`` is a finite number (a hold, R-55) freezes the clock from ``start + max(0,
+    frozen_at)`` to its end. ``data`` is the timeline's JSON dump."""
+    frozen = 0.0
+    for s in data.get("scenes") or []:
+        look = s.get("look") if isinstance(s, Mapping) else None
+        background = look.get("background") if isinstance(look, Mapping) else None
+        at = background.get("frozen_at") if isinstance(background, Mapping) else None
+        if not _finite(at):
+            continue
+        start = float(s["start"]) + max(0.0, float(at))
+        end = float(s["start"]) + float(s["duration"])
+        if not end > start:
+            continue
+        if t <= start:
+            break
+        frozen += min(t, end) - start
+    return t - frozen
+
+
 def chunk_slices(timeline: Timeline, chunk: Chunk, data: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """The timeline data that can change the pixels of ``chunk`` (see the module docstring). ``data`` is the
     timeline's ``model_dump(mode="json")`` when the caller already has it (one dump for every chunk)."""
@@ -207,6 +240,7 @@ def chunk_slices(timeline: Timeline, chunk: Chunk, data: Mapping[str, Any] | Non
     return {
         "scenes": [data["scenes"][i] for i in sorted(indices) if i < len(data["scenes"])],
         "chapters": _kicker_chapters(data, indices),
+        "background_clock": round(background_clock(data, t0), CLOCK_DIGITS),
         "global": {k: data.get(k) for k in _GLOBAL_FIELDS} | {"presentation": data.get("presentation")},
         "captions": [c for c in data.get("captions", []) if c["start"] < t1 and c["end"] > t0],
     }
