@@ -26,12 +26,16 @@ test('the committed colour vectors are what the stage code produces', () => {
 
 test('the vectors cover what the parity is for', () => {
   const v = JSON.parse(readFileSync(OUT, 'utf8'));
-  for (const key of ['hex_oklch', 'from_oklch', 'mix', 'contrast', 'composite', 'desaturate', 'stage']) {
+  for (const key of ['hex_oklch', 'from_oklch', 'mix', 'mix_values', 'contrast', 'composite', 'desaturate', 'stage']) {
     assert.ok(Array.isArray(v[key]) && v[key].length > 0, key);
   }
   // out-of-gamut accents are in (the gamut mapping's search branch runs), and so are translucent mixes
   assert.ok(v.from_oklch.some((r) => r.rgb.some((c) => c === 0 || c === 1) && r.l > 0 && r.l < 1));
   assert.ok(v.mix.some((r) => r.hex.length === 9));
+  // two greys (the hue is 0) and hue differences on both sides of the 180° shorter-arc boundary
+  assert.ok(v.mix.some((r) => r.a === '#000000' && r.b === '#808080'));
+  const d = v.mix_values.map((r) => r.b.h - r.a.h);
+  for (const want of [179.5, 180, 180.5, -180, -180.25]) assert.ok(d.includes(want), String(want));
   assert.equal(v.stage.length, 12, 'the four R1 families x palette slots 0-2');
 });
 

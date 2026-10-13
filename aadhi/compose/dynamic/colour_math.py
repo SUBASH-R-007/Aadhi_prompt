@@ -10,8 +10,10 @@ Two duties, kept apart on purpose:
   for ``Math.cbrt``, the CSS Color 4 gamut mapping (:func:`gamut_map_oklch`), ``Math.round`` (ties toward +inf, never
   Python's ties-to-even ``round``; :func:`js_round`), JavaScript's truncated ``%`` (``math.fmod``), lower-case hex,
   and arithmetic on color.js's own 0..255 channel scale wherever color.js computes on it (contrast blending,
-  compositing). So a colour the resolver stores (``ResolvedLook.tokens``, plan §1.2) is the colour the stage would
-  have derived, and a contrast the validator (``themes.py``) measures is the one the page and preflight measure.
+  compositing). So a colour the resolver stores (``ResolvedLook.tokens``, plan §1.2) is computed with the stage's
+  own arithmetic (the B1 stage's derivation exactly, except where ``themes.py`` deliberately applies a rule of its own
+  on top: the R-54 red lowering, the hold-safe block text and the accent nudge), and a contrast the validator
+  (``themes.py``) measures is the one the page and preflight measure.
   ``tests/fixtures/colour_vectors.json`` is written by ``scripts/gen_colour_vectors.mjs`` from ``color.js`` (and the
   stage's colour helpers); ``tests/compose/dynamic/test_colour_math.py`` asserts this module reproduces every vector
   (hex equal, floats within 1e-9) and ``web/tests/motion/colourVectors.test.js`` that the JS still writes the
@@ -412,13 +414,13 @@ def source_over(top: Sequence[float], bottom: Sequence[float]) -> RGBA:
     one scale (0..1, or color.js's 0..255), alpha 0..1, in color.js ``composite``'s order of operations. A fully
     transparent result is ``(0, 0, 0, 0)``."""
     ta, ba = top[3], bottom[3]
-    out_a = ta + ba * (1 - ta)
+    out_a = ta + ba * (1.0 - ta)  # 1.0: a float result even for int alphas
     if out_a <= 0:
         return 0.0, 0.0, 0.0, 0.0
     return (
-        (top[0] * ta + bottom[0] * ba * (1 - ta)) / out_a,
-        (top[1] * ta + bottom[1] * ba * (1 - ta)) / out_a,
-        (top[2] * ta + bottom[2] * ba * (1 - ta)) / out_a,
+        (top[0] * ta + bottom[0] * ba * (1.0 - ta)) / out_a,
+        (top[1] * ta + bottom[1] * ba * (1.0 - ta)) / out_a,
+        (top[2] * ta + bottom[2] * ba * (1.0 - ta)) / out_a,
         out_a,
     )
 

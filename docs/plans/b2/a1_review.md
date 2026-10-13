@@ -59,3 +59,31 @@ duplicate maths, and their public names still work.
 - §4.7 band check (paper_ink/1 accent C 0.121 is a gamut limit kept from B1). It is not an A1 defect; optionally
   record it in the plan's deviation register.
 - R-56 "≤ 5 theme colours" is explained in the validate() docstring. Optional: pin `len(STRUCTURE_KEYS) == 5`.
+
+## Resolution (2026-10-13, local session)
+
+All seven findings are fixed in the commit that follows this review.
+
+1. **Owner decision: a hybrid of (a) and (b).** `block.ink` is the stage's own choice (`inkOn` over the shown block),
+   so no block flips between white and near-black text; only if that choice missed 3:1 while held would it be made
+   over the shown and held colours (never the case in the catalogue; the branch is tested with a patched threshold).
+   `block.ink2` must hold 3:1 shown and held: in 7 palette slots (R1 midnight_indigo/0, /2 and deep_teal/0; W2
+   forest_night/1, cosmic/2, /4 and bold_blocks/0) the B1 stage's ink2 drops to 2.96-2.998:1 during a hold, and the
+   stored ink2 is one mix step nearer the ink (>= 3.17:1). So versus B1, the R1 changes are midnight_indigo/0 ink2
+   #F2E5EA -> #F6EDF1, /2 #F4E4E5 -> #F8EDEE, deep_teal/0 #EAE7F2 -> #F1EFF7, plus paper_ink/2's R-54 red-lowered
+   block (#C44323 -> #B05641, and its inks follow). They reach the screen once the stage reads stored tokens (step
+   B), for every timeline the B2 resolver builds, including the serve-time rebuild of stored engine_version 1
+   timelines; a timeline served as engine_version 1 keeps the stage's run-time derivation. Deviation register entry
+   for the design's as-built notes. (The review counted
+   slots over two accent periods, hence its "0/3".) Docstrings of `_block_set`, the module and `colour_math` fixed;
+   pins in `test_themes.py` (`DERIVED`, `HOLD_SAFE_INK2`, the fallback test).
+2. Hue separation now checks every pair of entity, warn, ok and mark hues (worst still 30.2°, no new finding).
+3. `test_the_studio_hook` asserts a passing wall (#808080, 4.579:1) and a failing one (#7A7A7A, 4.29:1, a finding on
+   every released family).
+4. `Personality.text_entrances` is a tuple (Editorial: highlighter_swipe, typewriter); `icons_only` marks Bouncy-soft's
+   pop (§4.8: never text). Pinned in `test_personalities`.
+5. The vectors add grey-to-grey and translucent-grey mixes at every p and a `mix_values` section with OKLCH pairs
+   whose hue difference is 179.5°, 180° and 180.5° (both signs, and across 0°); both test suites check them, and the
+   Python test adds spot values. Existing vectors are unchanged (additions only).
+6. `colour.py`'s docstring records the `(h * pi) / 180` conversion.
+7. `source_over` uses `1.0 - ta`.

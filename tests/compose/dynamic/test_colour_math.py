@@ -40,7 +40,7 @@ def close_hue(a: float, b: float, what: object) -> None:
 def test_the_vectors_file_is_the_generators() -> None:
     v = vectors()
     assert v["version"] == 1 and v["generator"] == "scripts/gen_colour_vectors.mjs"
-    for key in ("hex_oklch", "from_oklch", "mix", "contrast", "composite", "desaturate", "stage"):
+    for key in ("hex_oklch", "from_oklch", "mix", "mix_values", "contrast", "composite", "desaturate", "stage"):
         assert len(v[key]) > 10 or key == "stage", key
 
 
@@ -95,6 +95,33 @@ def test_oklch_mixes() -> None:
         close(got.c, want["c"], r)
         close_hue(got.h, want["h"], r)
         close(got.a, want["a"], r)
+
+
+def test_oklch_mixes_across_the_hue_boundary() -> None:
+    """mixOklchValues on OKLCH inputs whose hue difference is just below, at and just above 180° (both signs, and
+    across 0°): the shorter arc, with JavaScript's choice at exactly +-180° (no turn)."""
+    rows = vectors()["mix_values"]
+    assert {(r["a"]["h"], r["b"]["h"]) for r in rows} >= {(10, 189.5), (10, 190), (10, 190.5), (190, 10)}
+    for r in rows:
+        a, b = (cm.Oklch(v["l"], v["c"], v["h"], v["a"]) for v in (r["a"], r["b"]))
+        got = cm.mix_oklch_values(a, b, r["p"])
+        want = r["value"]
+        close(got.l, want["l"], r)
+        close(got.c, want["c"], r)
+        close_hue(got.h, want["h"], r)
+        close(got.a, want["a"], r)
+
+
+def test_mix_spot_values() -> None:
+    """The same spot values the JS test pins, plus the grey and hue-arc rules stated directly."""
+    assert cm.mix_oklch("#000000", "#FFFFFF", 0.5) == "#636363"
+    assert cm.mix_oklch_values(cm.to_oklch("#000000"), cm.to_oklch("#808080"), 0.5).h == 0.0  # two greys: hue 0
+    mid = cm.mix_oklch_values(cm.to_oklch("#808080"), cm.Oklch(0.6, 0.12, 200.0), 0.5)
+    assert mid.h == pytest.approx(200.0)  # a grey end borrows the other end's hue
+    at = functools.partial(cm.mix_oklch_values, cm.Oklch(0.6, 0.12, 10.0), p=0.5)
+    assert at(cm.Oklch(0.7, 0.08, 189.5)).h == pytest.approx(99.75)  # d = 179.5: forward
+    assert at(cm.Oklch(0.7, 0.08, 190.0)).h == pytest.approx(100.0)  # d = 180: no turn (as JS)
+    assert at(cm.Oklch(0.7, 0.08, 190.5)).h == pytest.approx(280.25)  # d = 180.5: the shorter arc backward
 
 
 def test_contrast_composite_and_desaturate() -> None:

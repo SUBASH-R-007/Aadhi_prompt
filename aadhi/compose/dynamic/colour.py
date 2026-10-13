@@ -17,7 +17,9 @@ gamut-maps instead, as color.js does for the colours the stage derives itself). 
 
 The maths (transfer functions, OKLab, HSL, Display P3, compositing, luminance, contrast, hex) is
 ``colour_math``'s, the Dynamic mode's one colour module; this module adds the CSS grammar and the clipping. Its hex
-output rounds as the page does (``Math.round``: ties up; B1 used Python's ties-to-even ``round``).
+output rounds as the page does (``Math.round``: ties up; B1 used Python's ties-to-even ``round``). An ``oklch()`` hue
+now converts to radians as color.js does, ``(h * pi) / 180`` (B1 used ``math.radians``, ``h * (pi / 180)``); the two
+can differ in the last bit of a channel, far below any contrast threshold or 8-bit step that preflight reads.
 """
 
 from __future__ import annotations

@@ -14,9 +14,10 @@ What is here (data, pure functions, no I/O):
   ``blockColors``, ``core.js`` ``inkOn`` and the ``makeRoles`` surface fallback, ``stage.js`` ``blockInk2``,
   ``board_generic.js``'s ``${bg}c7`` scrim and ``scrimmedBg``, ``mesh_drift.js``'s colours) is mirrored here line by
   line on :mod:`colour_math` (parity-tested against the JS through ``tests/fixtures/colour_vectors.json``), so the
-  resolver can store them in ``ResolvedLook.tokens`` (:func:`scene_colours`). Two rules are applied on top, in Python
-  only: a full-frame block in the saturated-red range gets its chroma lowered (R-54), and an accent whose block text
-  misses 3:1 is nudged by up to +-0.06 L (§4.7 validator; content is never nudged).
+  resolver can store them in ``ResolvedLook.tokens`` (:func:`scene_colours`). Three rules are applied on top, in
+  Python only: a full-frame block in the saturated-red range gets its chroma lowered (R-54); the block text must hold
+  3:1 through the hold desaturation too (R-55; the stage checks the shown block only, see :func:`_block_set`); and an
+  accent whose block text still misses 3:1 is nudged by up to +-0.06 L (§4.7 validator; content is never nudged).
 * **Personalities** (§4.8, 6 rows; Crisp and Soft released), **caption styles** (§4.11, 6 rows; ``clean_pill`` and
   ``bold_outline`` released, with the metrics of ``web/css/dynamic.css``), **faces** (§4.6), **cue colours** per mode
   (§4.8 ``cue.term``), the dim and scrim alphas.
@@ -428,16 +429,25 @@ class SceneColours:
 def _block_set(mode: Mode, tokens: Mapping[str, str], ink: str) -> tuple[tuple[str, str], float, str, str, float]:
     """(lowered base/highlight, red factor, block ink, block ink2, worst block-text contrast).
 
-    The text colours are stage.js's choice (``inkOn``, then ``blockInk2`` mixing toward the base) made over the block's
-    colours both as shown and fully held (desaturated by 30%, R-55; colour_block.js desaturates during a hold), a
-    superset of the stage's run-time criterion: the stored ink keeps 3:1 through a hold too. Where the hold changes
-    nothing the result is the stage's own."""
+    The block text must hold 3:1 both as shown and fully held (desaturated by 30%, R-55; colour_block.js desaturates
+    during a hold), while stage.js picks its colours over the shown block only. The owner's rule (2026-10-13, A1
+    review finding 1; deviation register):
+
+    * ``block.ink`` is the stage's own choice (``inkOn`` over the shown colours), so a block never flips between white
+      and near-black text on a hundredth of a contrast point. Only when that choice misses 3:1 while held is it made
+      over the shown and held colours together.
+    * ``block.ink2`` is ``blockInk2``'s mix toward the base, required to hold 3:1 over the shown and held colours. In
+      7 palette slots (R1: midnight_indigo 0 and 2, deep_teal 0; W2: forest_night 1, cosmic 2 and 4, bold_blocks 0)
+      the B1 stage's ink2 falls to 2.96-2.998:1 during a hold; the stored ink2 there is one mix step nearer the ink
+      (>= 3.17:1). Elsewhere it is the stage's own."""
     (base, highlight), factor = lower_red(block_colours(mode, tokens))
     colours = [base, highlight]
-    shown = colours + [cm.desaturate(c, HOLD_DESATURATION) for c in colours]
-    text = ink_on(ink, shown)
-    text2 = block_ink2(text, shown)
-    worst = min(cm.worst_contrast(text, shown), cm.worst_contrast(text2, shown))
+    held = colours + [cm.desaturate(c, HOLD_DESATURATION) for c in colours]
+    text = ink_on(ink, colours)
+    if cm.worst_contrast(text, held) < CONTRAST_LARGE:
+        text = ink_on(ink, held)
+    text2 = block_ink2(text, held)
+    worst = min(cm.worst_contrast(text, held), cm.worst_contrast(text2, held))
     return (base, highlight), factor, text, text2, worst
 
 
@@ -517,38 +527,42 @@ def chroma_restricted(mode: Mode) -> tuple[str, ...]:
 
 @dataclass(frozen=True)
 class Personality:
-    """A motion personality (§4.8 table). ``caption_style`` per format; ``transitions`` is the design's family,
-    ``transitions_r1`` what a released personality uses in R1 (plan §2 R-54: iris is W2, so Soft is cut/crossfade).
-    ``sfx_pack`` and ``music_mood`` are names for B3."""
+    """A motion personality (§4.8 table). ``text_entrances`` is the table's "Text entrance" column in its order
+    (Editorial has two); ``icons_only`` marks an entrance that is the ``pop`` easing, which §4.8 allows on icons and
+    "?" only, never on text (Bouncy-soft: its text entrance is decided with its release, W2). ``caption_style`` per
+    format; ``transitions`` is the design's family, ``transitions_r1`` what a released personality uses in R1 (plan §2
+    R-54: iris is W2, so Soft is cut/crossfade). ``sfx_pack`` and ``music_mood`` are names for B3."""
 
     id: str
     name: str
     release: Release
     duration_scale: float
-    text_entrance: str
+    text_entrances: tuple[str, ...]
     transitions: tuple[str, ...]
     cue_term_style: Literal["marker", "underline"]
     caption_style: Mapping[Format, str]
     sfx_pack: str
     music_mood: str
     transitions_r1: tuple[str, ...] = ()
+    icons_only: bool = False
 
 
 PERSONALITIES: Final[dict[str, Personality]] = {p.id: p for p in (
-    Personality("crisp", "Crisp", "R1", 0.85, "baseline_reveal", ("cut", "push", "colour_wipe"), "underline",
+    Personality("crisp", "Crisp", "R1", 0.85, ("baseline_reveal",), ("cut", "push", "colour_wipe"), "underline",
                 {"landscape": "clean_pill", "portrait": "bold_outline"}, "clean_short", "bright-curious",
                 transitions_r1=("cut", "push", "colour_wipe")),
-    Personality("soft", "Soft", "R1", 1.15, "fade_rise", ("crossfade", "iris"), "marker",
+    Personality("soft", "Soft", "R1", 1.15, ("fade_rise",), ("crossfade", "iris"), "marker",
                 {"landscape": "clean_pill", "portrait": "clean_pill"}, "soft_bells", "calm-focus",
                 transitions_r1=("cut", "crossfade")),
-    Personality("cinematic", "Cinematic", "W2", 1.25, "opacity_rise_tracking", ("crossfade", "zoom_through"), "marker",
-                {"landscape": "glow_outline", "portrait": "glow_outline"}, "deep_sub_hit", "cinematic-wonder"),
-    Personality("editorial", "Editorial", "W2", 1.0, "highlighter_swipe", ("cut", "paper_slide"), "marker",
-                {"landscape": "marker", "portrait": "marker"}, "paper_pen", "classical-focus"),
-    Personality("chalk", "Chalk", "W2", 1.1, "stroke_draw", ("cut", "wipe"), "underline",
+    Personality("cinematic", "Cinematic", "W2", 1.25, ("opacity_rise_tracking",), ("crossfade", "zoom_through"),
+                "marker", {"landscape": "glow_outline", "portrait": "glow_outline"}, "deep_sub_hit", "cinematic-wonder"),
+    Personality("editorial", "Editorial", "W2", 1.0, ("highlighter_swipe", "typewriter"), ("cut", "paper_slide"),
+                "marker", {"landscape": "marker", "portrait": "marker"}, "paper_pen", "classical-focus"),
+    Personality("chalk", "Chalk", "W2", 1.1, ("stroke_draw",), ("cut", "wipe"), "underline",
                 {"landscape": "minimal_lower", "portrait": "minimal_lower"}, "soft_chalk", "calm-focus"),
-    Personality("bouncy_soft", "Bouncy-soft", "W2", 0.9, "pop_overshoot", ("push", "iris"), "marker",
-                {"landscape": "bold_outline", "portrait": "bold_outline"}, "soft_pops", "bright-curious"),
+    Personality("bouncy_soft", "Bouncy-soft", "W2", 0.9, ("pop_overshoot",), ("push", "iris"), "marker",
+                {"landscape": "bold_outline", "portrait": "bold_outline"}, "soft_pops", "bright-curious",
+                icons_only=True),
 )}
 TEXT_ENTRANCE_RISE_PX: Final = 16  # Soft: "fade + 16 px rise"
 
@@ -747,9 +761,7 @@ def _validate_content(col: _Collector) -> None:
     for mode in MODES:
         p = content_tokens(mode)
         hued = {r: p[r] for r in (*ENTITY_ROLES, "warn", "ok", "mark")}
-        for (ra, a), (rb, b) in itertools.combinations(hued.items(), 2):
-            if ra not in ENTITY_ROLES and rb not in ENTITY_ROLES:
-                continue  # fixed vs fixed hues are not constrained (§4.7: entity vs fixed and entity vs entity)
+        for (ra, a), (rb, b) in itertools.combinations(hued.items(), 2):  # §4.7: every pair, fixed vs fixed too
             d = cm.hue_distance(cm.to_oklch(a).h, cm.to_oklch(b).h)
             col.check("hue_separation", mode, f"{mode} {ra} vs {rb}", d, HUE_SEPARATION_MIN)
         for kind in cm.CVD_KINDS:
@@ -892,11 +904,12 @@ def validate(families: Mapping[str, Family] | Iterable[Family] | None = None, *,
     check (``Report.findings``) and the worst measured value of each check per mode/family (``Report.measures``), the
     forced-scrim table, the accent nudges and the red-lowered blocks.
 
-    Checks: content hue separation >= 30° (entity vs entity and vs warn/ok/mark) and Machado 2009 dichromacy distance
-    >= 0.05 OKLab (entity vs entity, entity vs fixed); every content role on every palette background (ink 7:1, text
-    4.5:1, focus 3:1) and, for light families, ``content_alt`` on the code surface; the 70% dim states; cue colours
-    (marker ink on mark >= 12:1, the underline >= 3:1); ``struct.accent`` as a graphic >= 3:1; bg-tint chroma; the
-    block text >= 3:1 (after the nudge) and no saturated-red block (R-54); accent rotation >= 30° (R-52); mesh_drift
+    Checks: content hue separation >= 30° (every pair of the entity, warn, ok and mark hues) and Machado 2009
+    dichromacy distance >= 0.05 OKLab (entity vs entity, entity vs fixed); every content role on every palette
+    background (ink 7:1, text 4.5:1, focus 3:1) and, for light families, ``content_alt`` on the code surface; the 70%
+    dim states; cue colours (marker ink on mark >= 12:1, the underline >= 3:1); ``struct.accent`` as a graphic >= 3:1;
+    bg-tint chroma; the block text >= 3:1 shown and held (after the nudge) and no saturated-red block (R-54); accent
+    rotation >= 30° (R-52); mesh_drift
     luminance ratio <= 1.5 (an advisory, :data:`ADVISORY_CODES`) and chroma below the accent (R-55); caption
     contrast (7:1 target) over every background; the scrimmed contrast where the scrim is forced; the studio wall
     when given. Not here: R-56's "<= 3 hue families on screen at once" is a property of a frame (a template and its

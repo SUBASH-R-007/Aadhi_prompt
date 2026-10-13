@@ -117,6 +117,14 @@ function oklchInputs() {
 const MIX_COLOURS = ['#F3F5F9', '#141822', '#0FE3FE', '#870C62', '#F2D935', '#FF936D', '#10132C', '#FDF2DD', '#4F69D7', '#C44323',
   '#000000', '#FFFFFF', '#808080', '#ff000080', '#0000ff00', 'transparent', '#00ff0040'];
 const MIX_P = [0, 0.05, 0.07, 0.1, 0.2, 0.25, 0.35, 0.38, 0.5, 0.85, 1, -0.5, 1.5];
+/** Pairs mixed at every p besides the quarter above, which never pairs two greys: grey to grey (both ends borrow no
+ * hue, so the result's hue is 0), opaque and translucent. */
+const MIX_PAIRS = [['#000000', '#808080'], ['#808080', '#FFFFFF'], ['#FFFFFF', '#000000'], ['#333333', '#CCCCCC'],
+  ['#80808080', '#000000'], ['#808080', '#FFFFFF00']];
+/** OKLCH pairs whose hue difference sits on the shorter-arc boundary (|d| just below, at and just above 180°, both
+ * signs, and across 0°), mixed with mixOklchValues at every p. */
+const MIX_HUE_PAIRS = [[10, 189.5], [10, 190], [10, 190.5], [190.5, 10], [190, 10], [189.5, 10], [350, 170.25],
+  [350, 169.75], [0.25, 180.5]];
 
 /** The stage's colours for one token set, from the JS itself (jsdom provides the document the backgrounds build). */
 function stageVector(name, [mode, accent, bg, alt, tint, surface]) {
@@ -175,16 +183,22 @@ export function buildVectors() {
     const rgb = gamutMapOklch(v.l, Math.max(0, v.c), (((v.h % 360) + 360) % 360));
     return { ...v, hex: fromOklch(v), rgb };
   });
-  const mixes = [];
+  const pairs = [];
   for (let i = 0; i < MIX_COLOURS.length; i++) {
     for (let j = 0; j < MIX_COLOURS.length; j++) {
       if (i === j || (i * 7 + j * 3) % 4 !== 0) continue; // a deterministic quarter of the ordered pairs
-      for (const p of MIX_P) {
-        const a = MIX_COLOURS[i];
-        const b = MIX_COLOURS[j];
-        mixes.push({ a, b, p, hex: mixOklch(a, b, p), value: mixOklchValues(toOklch(a), toOklch(b), p) });
-      }
+      pairs.push([MIX_COLOURS[i], MIX_COLOURS[j]]);
     }
+  }
+  const mixes = [];
+  for (const [a, b] of [...pairs, ...MIX_PAIRS]) {
+    for (const p of MIX_P) mixes.push({ a, b, p, hex: mixOklch(a, b, p), value: mixOklchValues(toOklch(a), toOklch(b), p) });
+  }
+  const mixValues = [];
+  for (const [ha, hb] of MIX_HUE_PAIRS) {
+    const a = { l: 0.6, c: 0.12, h: ha, a: 1 };
+    const b = { l: 0.7, c: 0.08, h: hb, a: 1 };
+    for (const p of MIX_P) mixValues.push({ a, b, p, value: mixOklchValues(a, b, p) });
   }
   const rand = lcg(7);
   const pick = () => hexes[Math.floor(rand() * hexes.length)];
@@ -208,6 +222,7 @@ export function buildVectors() {
     hex_oklch: hexOklch,
     from_oklch: fromOk,
     mix: mixes,
+    mix_values: mixValues,
     contrast,
     composite: composites,
     desaturate: desat,

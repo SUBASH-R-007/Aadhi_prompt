@@ -55,12 +55,15 @@ B1_FAMILIES = {"midnight_indigo": ("dark", 275.0, (40.0, 110.0), 0.05), "deep_te
                "paper_ink": ("light", 85.0, (0.0, 70.0), 0.03), "mint_studio": ("light", 170.0, (270.0, 340.0), 0.025)}
 
 # Derived tokens of the R1 families (new in B2a; pinned so any change is deliberate): block.base, block.highlight,
-# block.ink, block.ink2, scrim.
+# block.ink, block.ink2, scrim. Versus what the B1 stage derives at run time: paper_ink/2's block is the R-54
+# red-lowered one (B1 #C44323 -> #B05641), and block.ink2 is one mix step nearer the ink where B1's falls below 3:1
+# during a hold (midnight_indigo/0 #F2E5EA -> #F6EDF1, /2 #F4E4E5 -> #F8EDEE, deep_teal/0 #EAE7F2 -> #F1EFF7;
+# owner decision 2026-10-13, A1 review finding 1).
 DERIVED = {
     "midnight_indigo": [("#A15778", "#C46979", "#FFFFFF", "#F6EDF1", "#10132CC7"),
                         ("#00886C", "#489F5F", "#14161C", "#1C2D3D", "#10132CC7"),
                         ("#AC525D", "#CC684E", "#FFFFFF", "#F8EDEE", "#10132CC7")],
-    "deep_teal": [("#7B64A8", "#A970B6", "#14161C", "#232636", "#001B1CC7"),
+    "deep_teal": [("#7B64A8", "#A970B6", "#FFFFFF", "#F1EFF7", "#001B1CC7"),
                   ("#6C7B23", "#998A0A", "#14161C", "#162E3B", "#001B1CC7"),
                   ("#837224", "#B07E2F", "#14161C", "#182933", "#001B1CC7")],
     "paper_ink": [("#BE3D70", "#C7537D", "#FFFFFF", "#F6D9E1", "#FDF2DDC7"),
@@ -211,8 +214,13 @@ def test_personalities() -> None:
     assert soft.transitions == ("crossfade", "iris") and soft.transitions_r1 == ("cut", "crossfade")  # iris is W2
     assert crisp.transitions_r1 == ("cut", "push", "colour_wipe")
     assert (crisp.music_mood, soft.music_mood) == ("bright-curious", "calm-focus")
+    assert (crisp.text_entrances, soft.text_entrances) == (("baseline_reveal",), ("fade_rise",))
+    # §4.8: Editorial has both entrances; Bouncy-soft's pop is the `pop` easing, icons and "?" only, never text
+    assert th.PERSONALITIES["editorial"].text_entrances == ("highlighter_swipe", "typewriter")
+    assert [k for k, p in th.PERSONALITIES.items() if p.icons_only] == ["bouncy_soft"]
     for p in th.PERSONALITIES.values():
-        assert p.sfx_pack and p.music_mood and p.text_entrance and p.transitions
+        assert p.sfx_pack and p.music_mood and p.text_entrances and p.transitions
+        assert p.icons_only == any("pop" in e for e in p.text_entrances), p.id
         for fmt in th.FORMATS:
             assert p.caption_style[fmt] in th.CAPTION_STYLES
         if p.release == "R1":
@@ -319,6 +327,44 @@ def test_block_text_holds_through_the_hold_desaturation() -> None:
             shown = block + [cm.desaturate(c, th.HOLD_DESATURATION) for c in block]
             for key in ("block.ink", "block.ink2"):
                 assert cm.worst_contrast(t[key], shown) >= th.CONTRAST_LARGE, (family.id, slot, key)
+
+
+# block.ink2 differs from the B1 stage's run-time blockInk2 exactly in these palette slots (every family, one accent
+# period each; B1's is below 3:1 while held there)
+HOLD_SAFE_INK2 = {("midnight_indigo", 0), ("midnight_indigo", 2), ("deep_teal", 0), ("forest_night", 1),
+                  ("cosmic", 2), ("cosmic", 4), ("bold_blocks", 0)}
+
+
+def test_block_ink_is_the_stages_choice_and_ink2_is_hold_safe() -> None:
+    """Owner decision (A1 review finding 1): block.ink is stage.js's own choice over the shown block (no white /
+    near-black flip on a hundredth of a contrast point); block.ink2 is blockInk2's mix, required to hold 3:1 while
+    held too, so it is one mix step nearer the ink than the B1 stage's in the slots of HOLD_SAFE_INK2 and the stage's
+    own elsewhere."""
+    changed = set()
+    for family in th.FAMILIES.values():
+        ink = th.CONTENT[family.mode].ink
+        for slot in range(family.accent_period):
+            t = th.scene_tokens(family, slot)
+            shown = [t["block.base"], t["block.highlight"]]
+            stage_ink = th.ink_on(ink, shown)
+            assert t["block.ink"] == stage_ink.upper(), (family.id, slot)
+            stage_ink2 = th.block_ink2(stage_ink, shown)
+            if t["block.ink2"] != stage_ink2.upper():
+                changed.add((family.id, slot))
+                held = shown + [cm.desaturate(c, th.HOLD_DESATURATION) for c in shown]
+                assert cm.worst_contrast(stage_ink2, held) < th.CONTRAST_LARGE, (family.id, slot)
+                assert t["block.ink2"] == th.block_ink2(stage_ink, held).upper()
+    assert changed == HOLD_SAFE_INK2
+
+
+def test_block_ink_falls_back_to_the_held_choice(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Only when the stage's choice misses the threshold while held is block.ink chosen over the shown and held
+    colours: on this light block white wins as shown (3.91 vs near-black's 3.84) but drops to 3.82 held."""
+    tokens = {"struct.accent": "#B65277", "bg": "#FDF2DD"}
+    ink = th.CONTENT["light"].ink
+    assert th._block_set("light", tokens, ink)[2] == "#FFFFFF"
+    monkeypatch.setattr(th, "CONTRAST_LARGE", 3.83)  # between white's held worst and near-black's
+    assert th._block_set("light", tokens, ink)[2] == "#14161C"
 
 
 def test_a_saturated_red_block_gets_its_chroma_lowered() -> None:
@@ -437,8 +483,13 @@ def test_forced_scrims_and_the_chroma_rule(report: th.Report) -> None:
 
 def test_the_studio_hook() -> None:
     assert th.STUDIO_WALL is None, "B2f measures the wall; no guessed value"
-    r = th.validate(th.RELEASED_FAMILIES, studio="#808080")
-    assert r.worst("studio", "paper_ink").value >= 4.5 or any(f.code == "studio" for f in r.findings)
+    # a mid-grey wall still takes R-53 body text (the best of ink, white and near-black: 4.58:1) ...
+    passing = th.validate(th.RELEASED_FAMILIES, studio="#808080")
+    assert passing.worst("studio", "paper_ink").value == pytest.approx(4.579, abs=1e-3)
+    assert not [f for f in passing.findings if f.code == "studio"]
+    # ... a slightly darker one cannot (4.29:1): a finding on every released family
+    failing = th.validate(th.RELEASED_FAMILIES, studio="#7A7A7A")
+    assert {f.family for f in failing.findings if f.code == "studio"} == set(th.RELEASED_FAMILIES)
     assert not [m for m in th.validate(th.RELEASED_FAMILIES).measures if m.code == "studio"]
 
 
