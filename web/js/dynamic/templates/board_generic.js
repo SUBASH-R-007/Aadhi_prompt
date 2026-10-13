@@ -1226,7 +1226,11 @@ export default {
 
   /**
    * The element holding an item's text, where cue.term finds its [[term]] spans (`.rt-k`, kept by renderRich): the
-   * body of the item's card (`option:<i>`: the option's), as `cardOf` finds it. Null for anything else.
+   * body of the item's card (`option:<i>`: the option's), as `cardOf` finds it. Null for anything else. In 9:16 a
+   * misconception with a justification is two cards, and every target of it names the first, its myth: the terms of
+   * its correction (the `<id>:fact` card) are out of reach, while in 16:9 one card holds both. No cue reaches this
+   * template (its consumes list no cue_term or look_here, templates.py); B2c settles how a split item is reached
+   * before cues.js uses itemEl.
    * @param {TemplateContext} ctx
    * @param {string} itemId
    */

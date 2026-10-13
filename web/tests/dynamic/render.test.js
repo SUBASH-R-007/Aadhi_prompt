@@ -290,15 +290,40 @@ test('texConversions: 0 when every TeX string the frames show was converted befo
   assert.ok(converted.length > 0);
 });
 
-test('texConversions counts TeX converted after ready (a template that renders TeX its tex() does not declare)', async () => {
+test("texConversions counts TeX its template's tex() does not declare, the first frame's included", async () => {
   const tex = /** @type {any} */ (boardGeneric).tex;
   /** @type {any} */ (boardGeneric).tex = () => [];
   try {
     const { api, converted, atReady } = await bootAndPlay(texTimeline());
-    // the first scene's TeX is converted for the first frame (before ready); the quiz's and the last scene's later
+    // the first scene's TeX is converted for the first frame (before ready), and counted; the quiz's and the last
+    // scene's later
     assert.equal(atReady, 3);
     assert.deepEqual(converted.slice(atReady), ['2I', 'I']);
-    assert.equal(api.texConversions(), 2);
+    assert.equal(api.texConversions(), 5);
+  } finally {
+    /** @type {any} */ (boardGeneric).tex = tex;
+  }
+});
+
+test("texConversions catches an incomplete tex() on a one-scene timeline (all its TeX is the first frame's)", async () => {
+  /** @param {any} tl */
+  const oneScene = (tl) => {
+    tl.scenes = tl.scenes.slice(0, 1);
+    tl.total_duration = tl.scenes[0].duration;
+    tl.chapters = tl.chapters.slice(0, 1);
+    tl.captions = tl.captions.filter((/** @type {any} */ c) => c.start < tl.total_duration);
+    tl.presentation.generated_seconds = tl.total_duration;
+    return tl;
+  };
+  const complete = await bootAndPlay(oneScene(texTimeline()));
+  assert.deepEqual(complete.converted, ['I = V/R', 'V = IR', 'V']);
+  assert.equal(complete.api.texConversions(), 0, 'a complete tex(): nothing converted after the declared strings');
+  const tex = /** @type {any} */ (boardGeneric).tex;
+  /** @type {any} */ (boardGeneric).tex = (/** @type {any[]} */ ...a) => tex(...a).filter((/** @type {any} */ x) => x.tex !== 'V');
+  try {
+    const partial = await bootAndPlay(oneScene(texTimeline()));
+    assert.equal(partial.api.texConversions(), 1, 'the one string tex() left out');
+    assert.equal(partial.atReady, 3, 'still converted before ready (the first frame waits for it)');
   } finally {
     /** @type {any} */ (boardGeneric).tex = tex;
   }
@@ -322,14 +347,14 @@ test('the page converter: one conversion per string and display mode, clones han
   assert.equal(n, 1);
   await page.renderTex('x', true);
   assert.equal(n, 2, 'display mode is part of the key');
-  assert.equal(page.conversionsAfterReady(), 0);
-  page.markReady();
+  assert.equal(page.conversionsAfterDeclared(), 0);
+  page.markDeclared();
   await page.renderTex('x', false);
-  assert.equal(page.conversionsAfterReady(), 0, 'a cache hit is no conversion');
+  assert.equal(page.conversionsAfterDeclared(), 0, 'a cache hit is no conversion');
   await assert.rejects(page.renderTex('bad', false));
   fail = false;
   assert.equal((await page.renderTex('bad', false)).textContent, 'bad|false', 'tried again after a failure');
-  assert.equal(page.conversionsAfterReady(), 2);
+  assert.equal(page.conversionsAfterDeclared(), 2);
   const sync = pageTexRenderer(() => {
     throw new Error('sync');
   });

@@ -8,8 +8,13 @@
  * Runtime use is GEOMETRY ONLY: the stage reads zones, regions, the grid, template slots, type floors, layout tokens
  * and caption-style metrics from it. Colours, durations and personality values reach the stage only through the
  * timeline (presentation.content, look.tokens, ...), so a stored timeline keeps its look when this file changes; the
- * families, content palettes, cue colours, personalities and the scrims table are here for the gallery and the parity
- * tests. `studio_surface` stays null until B2f measures the Aadhi studio wall. Frozen all the way down.
+ * families, content palettes, cue colours, caption colours, personalities and the scrims table are here for the gallery
+ * and the parity tests (web/tests/dynamic/sourceScan.test.js CATALOGUE_RUNTIME lists what the stage may read).
+ * `studio_surface` stays null until B2f measures the Aadhi studio wall. Frozen all the way down.
+ *
+ * Not every value is the design's: media_split's variant names, which templates take hold_reason "diagram", the
+ * spacing steps, the icon card / feature sizes and the Indic heading line height are A2 proposals, and key_terms' 9:16
+ * timing an A2 reading, pending the owner's review (marked in place in zones.py and templates.py).
  */
 
 /**
@@ -123,14 +128,16 @@ export const CATALOGUE = Object.freeze(freezeInside({
   },
   "captions": {
     "bold_outline": {
-      "look": "weight 700, white with a 6 px dark outline",
-      "metrics": {
+      "colours": {
         "backdrop": null,
         "backdrop_alpha": 0.0,
         "ink": "#FFFFFF",
         "key_ink": "#F2D935",
+        "outline": "#0B0D14"
+      },
+      "look": "weight 700, white with a 6 px dark outline",
+      "metrics": {
         "line_height": {"landscape": {"indic": 1.35, "latin": 1.08}, "portrait": {"indic": 1.35, "latin": 1.15}},
-        "outline": "#0B0D14",
         "outline_px": 6,
         "padding_x": 0,
         "padding_y": 0,
@@ -142,14 +149,16 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "release": "R1"
     },
     "clean_pill": {
-      "look": "sentence chunks; white on a translucent dark pill",
-      "metrics": {
+      "colours": {
         "backdrop": "#0B0D14",
         "backdrop_alpha": 0.78,
         "ink": "#FFFFFF",
         "key_ink": "#F2D935",
+        "outline": null
+      },
+      "look": "sentence chunks; white on a translucent dark pill",
+      "metrics": {
         "line_height": {"landscape": {"indic": 1.35, "latin": 1.08}, "portrait": {"indic": 1.35, "latin": 1.15}},
-        "outline": null,
         "outline_px": 0,
         "padding_x": 24,
         "padding_y": 2,
@@ -161,13 +170,14 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "release": "R1"
     },
     "glow_outline": {
+      "colours": null,
       "look": "soft outer glow (pre-computed text shadow, no blur filter)",
       "metrics": null,
       "release": "W2"
     },
-    "highlight_box": {"look": "key terms boxed in mark", "metrics": null, "release": "W2"},
-    "marker": {"look": "key terms get a mark swipe", "metrics": null, "release": "W2"},
-    "minimal_lower": {"look": "small phrase chunks low in the band", "metrics": null, "release": "W2"}
+    "highlight_box": {"colours": null, "look": "key terms boxed in mark", "metrics": null, "release": "W2"},
+    "marker": {"colours": null, "look": "key terms get a mark swipe", "metrics": null, "release": "W2"},
+    "minimal_lower": {"colours": null, "look": "small phrase chunks low in the band", "metrics": null, "release": "W2"}
   },
   "content": {
     "dark": {
@@ -1107,8 +1117,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal", "cue_term", "exit"], "targets": ["item"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 8.0, "min": 5.0, "per_item": false},
-        "portrait": {"max": 8.0, "min": 5.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 8.0, "min": 5.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 8.0, "min": 5.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -1125,8 +1135,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal", "exit"], "targets": ["item"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 8.0, "min": 5.0, "per_item": false},
-        "portrait": {"max": 8.0, "min": 5.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 8.0, "min": 5.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 8.0, "min": 5.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -1143,8 +1153,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal", "draw"], "targets": ["item"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 15.0, "min": 8.0, "per_item": false},
-        "portrait": {"max": 15.0, "min": 8.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 15.0, "min": 8.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 15.0, "min": 8.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -1161,8 +1171,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": [], "targets": []},
       "dense": false,
       "duration": {
-        "landscape": {"max": 40.0, "min": 8.0, "per_item": false},
-        "portrait": {"max": 40.0, "min": 8.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 40.0, "min": 8.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 40.0, "min": 8.0, "per_item": false}
       },
       "forced_for": ["simulation"],
       "formats": ["landscape", "portrait"],
@@ -1179,8 +1189,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal", "fill"], "targets": ["item"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 45.0, "min": 6.0, "per_item": false},
-        "portrait": {"max": 30.0, "min": 4.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 45.0, "min": 6.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 30.0, "min": 4.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -1542,8 +1552,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal", "draw", "look_here"], "targets": ["item"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 25.0, "min": 8.0, "per_item": false},
-        "portrait": {"max": 25.0, "min": 8.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 25.0, "min": 8.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 25.0, "min": 8.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -1560,8 +1570,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": [], "targets": []},
       "dense": false,
       "duration": {
-        "landscape": {"max": 3.0, "min": 2.0, "per_item": false},
-        "portrait": {"max": 1.8, "min": 1.2, "per_item": false}
+        "landscape": {"end_screen": null, "max": 3.0, "min": 2.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 1.8, "min": 1.2, "per_item": false}
       },
       "forced_for": ["chapter_card"],
       "formats": ["landscape", "portrait"],
@@ -1578,8 +1588,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["draw", "count", "look_here"], "targets": ["panel", "panel:bar", "panel:point"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 20.0, "min": 8.0, "per_item": false},
-        "portrait": {"max": 20.0, "min": 8.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 20.0, "min": 8.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 20.0, "min": 8.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -1596,8 +1606,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal", "countdown", "answer"], "targets": ["item", "option"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 30.0, "min": 15.0, "per_item": false},
-        "portrait": {"max": 18.0, "min": 10.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 30.0, "min": 15.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 18.0, "min": 10.0, "per_item": false}
       },
       "forced_for": ["quiz_checkpoint"],
       "formats": ["landscape", "portrait"],
@@ -1617,8 +1627,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal", "draw"], "targets": ["item"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 20.0, "min": 8.0, "per_item": false},
-        "portrait": {"max": 20.0, "min": 8.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 20.0, "min": 8.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 20.0, "min": 8.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -1635,8 +1645,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": [], "targets": []},
       "dense": false,
       "duration": {
-        "landscape": {"max": null, "min": 0.5, "per_item": false},
-        "portrait": {"max": null, "min": 0.5, "per_item": false}
+        "landscape": {"end_screen": null, "max": null, "min": 0.5, "per_item": false},
+        "portrait": {"end_screen": null, "max": null, "min": 0.5, "per_item": false}
       },
       "forced_for": ["clip"],
       "formats": ["landscape", "portrait"],
@@ -1653,8 +1663,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal", "look_here", "output"], "targets": ["item", "item:line", "panel"]},
       "dense": true,
       "duration": {
-        "landscape": {"max": 30.0, "min": 10.0, "per_item": false},
-        "portrait": {"max": 20.0, "min": 8.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 30.0, "min": 10.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 20.0, "min": 8.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -1671,8 +1681,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal", "look_here"], "targets": ["panel"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 15.0, "min": 8.0, "per_item": false},
-        "portrait": {"max": 15.0, "min": 8.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 15.0, "min": 8.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 15.0, "min": 8.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -1689,8 +1699,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal", "draw", "look_here"], "targets": ["item"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 25.0, "min": 8.0, "per_item": false},
-        "portrait": {"max": 25.0, "min": 8.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 25.0, "min": 8.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 25.0, "min": 8.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -1707,8 +1717,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal", "cue_term"], "targets": ["item"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 12.0, "min": 6.0, "per_item": false},
-        "portrait": {"max": 8.0, "min": 4.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 12.0, "min": 6.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 8.0, "min": 4.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -1728,8 +1738,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["draw", "reveal", "look_here"], "targets": ["item"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 30.0, "min": 8.0, "per_item": false},
-        "portrait": {"max": 30.0, "min": 8.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 30.0, "min": 8.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 30.0, "min": 8.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -1746,8 +1756,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal", "var", "draw"], "targets": ["item", "item:var"]},
       "dense": true,
       "duration": {
-        "landscape": {"max": 25.0, "min": 10.0, "per_item": false},
-        "portrait": {"max": 16.0, "min": 8.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 25.0, "min": 10.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 16.0, "min": 8.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -1764,8 +1774,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal"], "targets": ["item"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 12.0, "min": 3.0, "per_item": false},
-        "portrait": {"max": 12.0, "min": 3.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 12.0, "min": 3.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 12.0, "min": 3.0, "per_item": false}
       },
       "forced_for": ["ai_video"],
       "formats": ["landscape", "portrait"],
@@ -1782,8 +1792,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["draw", "look_here"], "targets": ["panel", "panel:point"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 25.0, "min": 6.0, "per_item": false},
-        "portrait": {"max": 25.0, "min": 6.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 25.0, "min": 6.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 25.0, "min": 6.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -1800,8 +1810,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal", "cue_term"], "targets": ["item"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 10.0, "min": 4.0, "per_item": false},
-        "portrait": {"max": 6.0, "min": 3.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 10.0, "min": 4.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 6.0, "min": 3.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -1821,8 +1831,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": [], "targets": []},
       "dense": false,
       "duration": {
-        "landscape": {"max": 30.0, "min": 6.0, "per_item": false},
-        "portrait": {"max": 20.0, "min": 4.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 30.0, "min": 6.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 20.0, "min": 4.0, "per_item": false}
       },
       "forced_for": ["interactive"],
       "formats": ["landscape", "portrait"],
@@ -1839,8 +1849,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal", "draw", "cue_term"], "targets": ["item"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 4.0, "min": 3.0, "per_item": true},
-        "portrait": {"max": 4.0, "min": 3.0, "per_item": true}
+        "landscape": {"end_screen": null, "max": 4.0, "min": 3.0, "per_item": true},
+        "portrait": {"end_screen": null, "max": 4.0, "min": 3.0, "per_item": true}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -1857,8 +1867,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal", "cue_term"], "targets": ["item"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 7.0, "min": 3.0, "per_item": false},
-        "portrait": {"max": 5.0, "min": 2.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 7.0, "min": 3.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 5.0, "min": 2.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -1875,8 +1885,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal", "cue_term", "look_here"], "targets": ["item"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 5.0, "min": 3.0, "per_item": true},
-        "portrait": {"max": 5.0, "min": 3.0, "per_item": true}
+        "landscape": {"end_screen": null, "max": 5.0, "min": 3.0, "per_item": true},
+        "portrait": {"end_screen": null, "max": 5.0, "min": 3.0, "per_item": true}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -1893,8 +1903,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal", "cue_term", "look_here", "output"], "targets": ["item", "panel", "panel:row"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 20.0, "min": 8.0, "per_item": false},
-        "portrait": {"max": 12.0, "min": 5.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 20.0, "min": 8.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 12.0, "min": 5.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -1911,8 +1921,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["look_here"], "targets": ["panel"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 25.0, "min": 6.0, "per_item": false},
-        "portrait": {"max": 25.0, "min": 6.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 25.0, "min": 6.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 25.0, "min": 6.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -1929,8 +1939,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal", "draw", "answer"], "targets": ["item"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 14.0, "min": 8.0, "per_item": false},
-        "portrait": {"max": 10.0, "min": 6.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 14.0, "min": 8.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 10.0, "min": 6.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -1947,8 +1957,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal"], "targets": ["item"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 15.0, "min": 6.0, "per_item": false},
-        "portrait": {"max": 5.0, "min": 3.0, "per_item": false}
+        "landscape": {"end_screen": 15.0, "max": 10.0, "min": 6.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 5.0, "min": 3.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -1965,8 +1975,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal", "countdown"], "targets": ["item"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 12.0, "min": 6.0, "per_item": false},
-        "portrait": {"max": 9.0, "min": 5.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 12.0, "min": 6.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 9.0, "min": 5.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -1983,8 +1993,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal", "draw", "look_here"], "targets": ["item"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 25.0, "min": 10.0, "per_item": false},
-        "portrait": {"max": 25.0, "min": 10.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 25.0, "min": 10.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 25.0, "min": 10.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -2001,8 +2011,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal"], "targets": ["item"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 8.0, "min": 5.0, "per_item": false},
-        "portrait": {"max": 8.0, "min": 5.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 8.0, "min": 5.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 8.0, "min": 5.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -2019,8 +2029,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal", "fill", "countdown", "answer", "cue_term"], "targets": ["item"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 40.0, "min": 25.0, "per_item": false},
-        "portrait": {"max": 20.0, "min": 14.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 40.0, "min": 25.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 20.0, "min": 14.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -2037,8 +2047,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal"], "targets": ["item"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 30.0, "min": 6.0, "per_item": false},
-        "portrait": {"max": 20.0, "min": 4.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 30.0, "min": 6.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 20.0, "min": 4.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -2055,8 +2065,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal", "look_here"], "targets": ["item", "panel"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 12.0, "min": 6.0, "per_item": false},
-        "portrait": {"max": 12.0, "min": 6.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 12.0, "min": 6.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 12.0, "min": 6.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -2073,8 +2083,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal", "count"], "targets": ["item"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 7.0, "min": 4.0, "per_item": false},
-        "portrait": {"max": 7.0, "min": 4.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 7.0, "min": 4.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 7.0, "min": 4.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -2091,8 +2101,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal", "look_here"], "targets": ["item", "item:row", "item:column"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 20.0, "min": 10.0, "per_item": false},
-        "portrait": {"max": 20.0, "min": 10.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 20.0, "min": 10.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 20.0, "min": 10.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -2109,8 +2119,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal"], "targets": ["item"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 7.0, "min": 4.0, "per_item": false},
-        "portrait": {"max": 7.0, "min": 4.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 7.0, "min": 4.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 7.0, "min": 4.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -2126,7 +2136,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "class": "structure",
       "consumes": {"kinds": [], "targets": []},
       "dense": false,
-      "duration": {"landscape": {"max": 0.0, "min": 0.0, "per_item": false}},
+      "duration": {"landscape": {"end_screen": null, "max": 0.0, "min": 0.0, "per_item": false}},
       "forced_for": [],
       "formats": ["landscape"],
       "holds": [],
@@ -2142,8 +2152,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal", "draw", "look_here"], "targets": ["item"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 25.0, "min": 8.0, "per_item": false},
-        "portrait": {"max": 25.0, "min": 8.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 25.0, "min": 8.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 25.0, "min": 8.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -2160,8 +2170,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal", "look_here"], "targets": ["item", "item:row", "item:column"]},
       "dense": false,
       "duration": {
-        "landscape": {"max": 16.0, "min": 8.0, "per_item": false},
-        "portrait": {"max": 16.0, "min": 8.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 16.0, "min": 8.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 16.0, "min": 8.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],
@@ -2178,8 +2188,8 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "consumes": {"kinds": ["reveal", "fill", "countdown", "look_here"], "targets": ["item", "item:var"]},
       "dense": true,
       "duration": {
-        "landscape": {"max": 45.0, "min": 15.0, "per_item": false},
-        "portrait": {"max": 30.0, "min": 10.0, "per_item": false}
+        "landscape": {"end_screen": null, "max": 45.0, "min": 15.0, "per_item": false},
+        "portrait": {"end_screen": null, "max": 30.0, "min": 10.0, "per_item": false}
       },
       "forced_for": [],
       "formats": ["landscape", "portrait"],

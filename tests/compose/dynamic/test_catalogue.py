@@ -65,7 +65,11 @@ def test_the_registries_are_the_python_ones() -> None:
         "critical": True}
     assert bg["consumes"] == {"kinds": ["reveal", "fill"], "targets": ["item"]}
     assert data["templates"]["thumbnail"]["formats"] == ["landscape"]
-    assert data["templates"]["clip_scene"]["duration"]["portrait"] == {"min": 0.5, "max": None, "per_item": False}
+    assert data["templates"]["clip_scene"]["duration"]["portrait"] == {
+        "min": 0.5, "max": None, "per_item": False, "end_screen": None}
+    assert data["templates"]["outro_next"]["duration"] == {
+        "landscape": {"min": 6.0, "max": 10.0, "per_item": False, "end_screen": 15.0},
+        "portrait": {"min": 3.0, "max": 5.0, "per_item": False, "end_screen": None}}
     assert {c: v["templates"] for c, v in data["semantic_classes"].items()} == {
         c: list(r.templates) for c, r in tp.SEMANTIC_CLASSES.items()}
     assert data["targets"] == {"forms": list(tp.TARGET_FORMS), "reserved": ["option", "panel"]}
@@ -76,6 +80,17 @@ def test_the_registries_are_the_python_ones() -> None:
     assert data["personalities"]["soft"]["caption_style"] == {"landscape": "clean_pill", "portrait": "clean_pill"}
     released = {s for s, v in data["captions"].items() if v["metrics"] is not None}
     assert released == {"clean_pill", "bold_outline"} and data["captions"]["bold_outline"]["metrics"]["outline_px"] == 6
+    # plan §1.1: caption-style metrics are geometry (the stage may read them); the colours sit apart (gallery only)
+    for sid, style in data["captions"].items():
+        assert set(style) == {"release", "look", "metrics", "colours"}, sid
+        assert (style["metrics"] is None) == (style["colours"] is None), sid
+        if style["metrics"] is not None:
+            assert set(style["metrics"]) == {"padding_x", "padding_y", "radius_px", "outline_px", "word_spacing_em",
+                                             "size", "weight", "line_height"}, sid
+            assert set(style["colours"]) == {"ink", "backdrop", "backdrop_alpha", "outline", "key_ink"}, sid
+    assert data["captions"]["clean_pill"]["colours"] == {
+        "ink": th.CAPTION_INK, "backdrop": th.CAPTION_PILL, "backdrop_alpha": th.CAPTION_PILL_ALPHA, "outline": None,
+        "key_ink": th.CAPTION_MARK}
     assert data["cues"] == {m: {"marker_ink": c.marker_ink, "marker_alpha": c.marker_alpha, "underline": c.underline}
                             for m, c in th.CUE_COLOURS.items()}
     assert data["scrims"] == th.forced_scrims() and set(data["scrims"]) == set(th.PRESETS_MIRRORED)

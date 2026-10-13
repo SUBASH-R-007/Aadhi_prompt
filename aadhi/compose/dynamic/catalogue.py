@@ -14,10 +14,11 @@ trailing newline; a value that is not plain data fails generation. No float in i
 metrics are literals, tokens are rounded hex), so the bytes are the same on every platform.
 
 **Runtime use is geometry only** (plan §1.1): the stage reads zones, regions, the grid, template slots, type floors,
-layout tokens and caption-style metrics from it (core.js, from step B). Colours, durations and personality values
-reach the stage only through the timeline (``presentation.content``, ``look.tokens``, ...), so a stored timeline keeps
-its look when the catalogue changes (§6.7); families, content palettes, cue colours, personalities and the scrims
-table are in it for the gallery and the parity tests.
+layout tokens and caption-style metrics from it (core.js, from step B; the source scan's ``CATALOGUE_RUNTIME``).
+Colours, durations and personality values reach the stage only through the timeline (``presentation.content``,
+``look.tokens``, ...), so a stored timeline keeps its look when the catalogue changes (§6.7); families, content
+palettes, cue colours, caption colours (beside each style's metrics), personalities and the scrims table are in it for
+the gallery and the parity tests.
 """
 
 from __future__ import annotations
@@ -55,8 +56,13 @@ _PREAMBLE = f"""{HEADER}
  * Runtime use is GEOMETRY ONLY: the stage reads zones, regions, the grid, template slots, type floors, layout tokens
  * and caption-style metrics from it. Colours, durations and personality values reach the stage only through the
  * timeline (presentation.content, look.tokens, ...), so a stored timeline keeps its look when this file changes; the
- * families, content palettes, cue colours, personalities and the scrims table are here for the gallery and the parity
- * tests. `studio_surface` stays null until B2f measures the Aadhi studio wall. Frozen all the way down.
+ * families, content palettes, cue colours, caption colours, personalities and the scrims table are here for the gallery
+ * and the parity tests (web/tests/dynamic/sourceScan.test.js CATALOGUE_RUNTIME lists what the stage may read).
+ * `studio_surface` stays null until B2f measures the Aadhi studio wall. Frozen all the way down.
+ *
+ * Not every value is the design's: media_split's variant names, which templates take hold_reason "diagram", the
+ * spacing steps, the icon card / feature sizes and the Indic heading line height are A2 proposals, and key_terms' 9:16
+ * timing an A2 reading, pending the owner's review (marked in place in zones.py and templates.py).
  */
 
 /**
@@ -122,7 +128,8 @@ def _template(spec: tp.TemplateSpec) -> dict[str, Any]:
         "formats": list(spec.formats),
         "variants": {f: list(v) for f, v in spec.variants.items()},
         "forced_for": list(spec.forced_for),
-        "duration": {f: {"min": d.min, "max": d.max, "per_item": d.per_item} for f, d in spec.duration.items()},
+        "duration": {f: {"min": d.min, "max": d.max, "per_item": d.per_item, "end_screen": d.end_screen}
+                     for f, d in spec.duration.items()},
         "holds": list(spec.holds),
         "dense": spec.dense,
         "push_ok": spec.push_ok,
@@ -147,13 +154,18 @@ def _floors(f: zn.TypeFloors) -> dict[str, Any]:
 
 
 def _caption_style(style: th.CaptionStyle) -> dict[str, Any]:
+    """A caption style: ``metrics``, its geometry (plan §1.1's caption-style metrics, the part the stage may read), and
+    apart from it ``colours`` (for the gallery and the parity tests; the source scan keeps the stage from reading
+    them, so the catalogue never decides a drawn colour)."""
     m = style.metrics
     metrics = None if m is None else {
         "padding_x": m.padding_x, "padding_y": m.padding_y, "radius_px": m.radius_px, "outline_px": m.outline_px,
         "word_spacing_em": m.word_spacing_em, "size": dict(m.size), "weight": dict(m.weight),
-        "line_height": {f: dict(v) for f, v in m.line_height.items()}, "ink": m.ink, "backdrop": m.backdrop,
-        "backdrop_alpha": m.backdrop_alpha, "outline": m.outline, "key_ink": m.key_ink}
-    return {"release": style.release, "look": style.look, "metrics": metrics}
+        "line_height": {f: dict(v) for f, v in m.line_height.items()}}
+    colours = None if m is None else {
+        "ink": m.ink, "backdrop": m.backdrop, "backdrop_alpha": m.backdrop_alpha, "outline": m.outline,
+        "key_ink": m.key_ink}
+    return {"release": style.release, "look": style.look, "metrics": metrics, "colours": colours}
 
 
 def _family(f: th.Family) -> dict[str, Any]:

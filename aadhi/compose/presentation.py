@@ -219,7 +219,9 @@ def resolve_looks(screenplay: Screenplay, scenes: Sequence[TimedScene],
     (``themes.scene_tokens``: anchors plus derived colours); and the transition in: a cut into the first scene, a
     crossfade into and out of a colour block (R-54), else the teacher's cut or crossfade, else a crossfade where the
     structure accent changes (a new chapter, or a new palette slot) and a hard cut inside a chapter (R-23). Every
-    crossfade lasts :func:`crossfade_seconds`; a scene too short for one gets a cut. ``continues_from`` is kept when it
+    crossfade lasts :func:`crossfade_seconds`; a scene too short for one gets a cut. The crossfade at a palette-slot
+    change inside a chapter is interim (A2 proposal, pending owner review; not in the design): R-52 cross-fades an
+    accent change over 600-1000 ms, which B2e's ``accent_fade`` brings. ``continues_from`` is kept when it
     names the scene just before (a split's part B continues its part A, §8.3); any other value is dropped."""
     from .dynamic import themes
 
@@ -255,7 +257,9 @@ def resolve_looks(screenplay: Screenplay, scenes: Sequence[TimedScene],
         elif requested in TRANSITIONS:
             kind = requested  # type: ignore[assignment]
         else:
-            kind = "crossfade" if boundary else "cut"  # hard cuts inside a chapter (R-23)
+            # hard cuts inside a chapter (R-23); an in-chapter palette-slot change cross-fades until B2e's accent_fade
+            # (R-52; A2 proposal, pending owner review)
+            kind = "crossfade" if boundary else "cut"
         seconds = crossfade_seconds(timed.duration) if kind == "crossfade" else 0.0
         if seconds is None:  # too short to carry a >= 300 ms fade (R-54; unreachable, see crossfade_seconds)
             kind, seconds = "cut", 0.0

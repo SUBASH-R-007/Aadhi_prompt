@@ -343,7 +343,9 @@ class Slot {
  * @property {() => Promise<unknown>} [texIdle]   resolves when MathJax is idle (render mode)
  * @property {() => Promise<unknown>} [frame]     resolves on the next animation frame (render mode)
  * @property {() => void} [onInvalidate]  live: called when a scene finished laying out (repaint the current time)
- * @property {import('../player/richtext.js').TexRenderer} [renderTex]   TeX converter (tests; default MathJax, cached)
+ * @property {import('../player/richtext.js').TexRenderer} [renderTex]   TeX converter: the render page passes its
+ *   page-wide one (render.js pageTexRenderer: never evicts, counts what templates leave out of tex()); live mode and
+ *   the tests without one get richtext's MathJax with its 400-string cache
  */
 
 /**

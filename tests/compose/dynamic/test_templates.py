@@ -166,7 +166,7 @@ def test_durations() -> None:
     expected = {
         "aadhi_intro": ((5, 8), (5, 8)), "aadhi_recap": ((5, 8), (5, 8)), "hook_question": ((4, 10), (3, 6)),
         "chapter_bumper": ((2, 3), (1.2, 1.8)), "recap_retrieval": ((25, 40), (14, 20)),
-        "outro_next": ((6, 15), (3, 5)), "definition_card": ((6, 12), (4, 8)), "kinetic_statement": ((3, 7), (2, 5)),
+        "outro_next": ((6, 10), (3, 5)), "definition_card": ((6, 12), (4, 8)), "kinetic_statement": ((3, 7), (2, 5)),
         "media_split": ((8, 20), (5, 12)), "full_bleed_media": ((3, 12), (3, 12)), "formula_focus": ((10, 25), (8, 16)),
         "worked_steps": ((15, 45), (10, 30)), "code_walkthrough": ((10, 30), (8, 20)),
         "chart_build": ((8, 20), (8, 20)),
@@ -186,6 +186,13 @@ def test_durations() -> None:
     assert {t for t, s in tp.TEMPLATES.items() if s.duration[s.formats[0]].per_item} == {"key_terms", "list_build"}
     assert tp.TEMPLATES["clip_scene"].duration["landscape"] == tp.Duration(0.5, None)  # the clip's own length
     assert dict(tp.TEMPLATES["thumbnail"].duration) == {"landscape": tp.Duration(0.0, 0.0)}  # one frame, no timeline
+    # R-11 / §4.3 outro_next "6–10 s or 15 s (16:9)": the end-screen length is a second value, not a wider range
+    assert tp.TEMPLATES["outro_next"].duration["landscape"].end_screen == zn.END_SCREEN.seconds == 15.0
+    assert {(t, f) for t, s in tp.TEMPLATES.items() for f, d in s.duration.items() if d.end_screen is not None} == {
+        ("outro_next", "landscape")}
+    for bad in (dict(max=None), dict(max=10.0, per_item=True), dict(max=15.0)):
+        with pytest.raises(ValueError):
+            tp.Duration(6.0, end_screen=15.0, **bad)  # type: ignore[arg-type]
     with pytest.raises(ValueError):
         tp.Duration(3.0, 2.0)
 
@@ -353,6 +360,7 @@ def test_board_generic_text_metrics_are_the_stylesheets() -> None:
     ("f1:var:\\Omega_{in}", Target("item:var", item="f1", symbol="\\Omega_{in}")),
     ("f1:var:\\Delta V", Target("item:var", item="f1", symbol="\\Delta V")),
     ("f1:var:a:b", Target("item:var", item="f1", symbol="a:b")),
+    ("f1:var:0", Target("item:var", item="f1", symbol="0")),  # a symbol, never B1 sync's variable index
     ("ex:step:3", Target("item:step", item="ex", index=3)),
     ("t1:row:0", Target("item:row", item="t1", index=0)),
     ("t1:column:2", Target("item:column", item="t1", index=2)),

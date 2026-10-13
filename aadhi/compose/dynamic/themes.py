@@ -10,14 +10,15 @@ What is here (data, pure functions, no I/O):
   default personality. :func:`structure_tokens` derives a scene's anchors (``bg``, ``bg-alt``, ``bg-tint``,
   ``surface``, ``struct.accent``) with :func:`colour_math.palette_hex`, exactly as B1's ``presentation.py`` did, so
   every B1 token is unchanged; :func:`accent_hue` is B1's rotation (``h0 + Δk``, ends and middle alternating).
-* **Derived structure colours** (plan §1.2): what the stage derives at run time today (``colour_block.js``
-  ``blockColors``, ``core.js`` ``inkOn`` and the ``makeRoles`` surface fallback, ``stage.js`` ``blockInk2``,
-  ``board_generic.js``'s ``${bg}c7`` scrim and ``scrimmedBg``, ``mesh_drift.js``'s colours) is mirrored here line by
-  line on :mod:`colour_math` (parity-tested against the JS through ``tests/fixtures/colour_vectors.json``), so the
-  resolver can store them in ``ResolvedLook.tokens`` (:func:`scene_colours`). Three rules are applied on top, in
-  Python only: a full-frame block in the saturated-red range gets its chroma lowered (R-54); the block text must hold
-  3:1 through the hold desaturation too (R-55; the stage checks the shown block only, see :func:`_block_set`); and an
-  accent whose block text still misses 3:1 is nudged by up to +-0.06 L (§4.7 validator; content is never nudged).
+* **Derived structure colours** (plan §1.2): what the stage derives at run time (``core.js`` ``makeRoles`` for a look
+  without stored tokens: the block-role fallback with ``inkOn`` and ``blockInk2``, the ``${bg}c7`` scrim and the
+  surface fallback; ``board_generic.js``'s ``scrimmedBg``; ``mesh_drift.js``'s colours; colour_block.js ``blockColors``
+  only reads the block roles and stage.js re-exports ``blockInk2``) is mirrored here line by line on
+  :mod:`colour_math` (parity-tested against the JS through ``tests/fixtures/colour_vectors.json``), so the resolver can
+  store them in ``ResolvedLook.tokens`` (:func:`scene_colours`). Three rules are applied on top, in Python only: a
+  full-frame block in the saturated-red range gets its chroma lowered (R-54); the block text must hold 3:1 through the
+  hold desaturation too (R-55; the stage checks the shown block only, see :func:`_block_set`); and an accent whose
+  block text still misses 3:1 is nudged by up to +-0.06 L (§4.7 validator; content is never nudged).
 * **Personalities** (§4.8, 6 rows; Crisp and Soft released), **caption styles** (§4.11, 6 rows; ``clean_pill`` and
   ``bold_outline`` released, with the metrics of ``web/css/dynamic.css``), **faces** (§4.6), **cue colours** per mode
   (§4.8 ``cue.term``), the dim and scrim alphas.
@@ -80,10 +81,10 @@ CHROMA_RULE_BLUE_HUES: Final = (220.0, 330.0)
 
 # --- stage constants mirrored from the JS (parity-tested) ----------------------------------------------------------
 ON_BLOCK: Final = ("#FFFFFF", "#14161C")  # core.js ON_BLOCK: white and near-black for text on a saturated block
-BLOCK_INK2_CONTRAST: Final = 3.0  # stage.js BLOCK_INK2_CONTRAST
-BLOCK_INK2_STEPS: Final = (0.25, 0.2, 0.15, 0.1, 0.05)  # stage.js blockInk2's mixes of ink toward the block
-BLOCK_MIX_DARK: Final = 0.38  # colour_block.js blockColor: the accent deepened toward bg (dark families)
-BLOCK_HIGHLIGHT_DARK: Final = 0.35  # colour_block.js blockColors: base toward the accent (dark)
+BLOCK_INK2_CONTRAST: Final = 3.0  # core.js BLOCK_INK2_CONTRAST (stage.js re-exports it)
+BLOCK_INK2_STEPS: Final = (0.25, 0.2, 0.15, 0.1, 0.05)  # core.js blockInk2's mixes of ink toward the block
+BLOCK_MIX_DARK: Final = 0.38  # core.js makeRoles block fallback: the accent deepened toward bg (dark families)
+BLOCK_HIGHLIGHT_DARK: Final = 0.35  # core.js makeRoles block fallback: base toward the accent (dark)
 BLOCK_HIGHLIGHT_LIGHT: Final = 0.1  # ... base toward white (light)
 MESH_ACCENT_MIX: Final = 0.2  # mesh_drift.js: an accent tint of the tone
 MESH_INK_MIX: Final = 0.07  # mesh_drift.js: a lift of the tone toward ink
@@ -311,9 +312,10 @@ def tone_colour(tokens: Mapping[str, str], tone: object) -> str:
 
 
 def block_colours(mode: Mode, tokens: Mapping[str, str]) -> tuple[str, str]:
-    """colour_block.js ``blockColors``: the block's base (the accent deepened toward bg in dark families, the accent
-    itself in light ones) and its highlight (toward the accent, or toward white), on one side of the light/dark
-    divide so one text colour holds over both."""
+    """core.js ``makeRoles``'s block fallback (``block.base`` / ``block.highlight``, which colour_block.js
+    ``blockColors`` reads): the block's base (the accent deepened toward bg in dark families, the accent itself in light
+    ones) and its highlight (toward the accent, or toward white), on one side of the light/dark divide so one text
+    colour holds over both."""
     accent = tokens["struct.accent"]
     base = cm.mix_oklch(accent, tokens.get("bg") or "#000000", BLOCK_MIX_DARK) if mode == "dark" else accent
     highlight = (cm.mix_oklch(base, accent, BLOCK_HIGHLIGHT_DARK) if mode == "dark"
@@ -338,8 +340,8 @@ def ink_on(ink: str, bgs: str | Sequence[str]) -> str:
 
 
 def block_ink2(ink: str, bgs: Sequence[str]) -> str:
-    """stage.js ``blockInk2``: the quieter ink on a block, the strongest mix of ``ink`` toward ``bgs[0]`` (at most
-    25%) that still holds 3:1 over every block colour, else ``ink`` itself."""
+    """core.js ``blockInk2`` (stage.js re-exports it): the quieter ink on a block, the strongest mix of ``ink`` toward
+    ``bgs[0]`` (at most 25%) that still holds 3:1 over every block colour, else ``ink`` itself."""
     for p in BLOCK_INK2_STEPS:
         c = cm.mix_oklch(ink, bgs[0], p)
         if min(cm.contrast_ratio(c, b) for b in bgs) >= BLOCK_INK2_CONTRAST:
@@ -430,8 +432,8 @@ def _block_set(mode: Mode, tokens: Mapping[str, str], ink: str) -> tuple[tuple[s
     """(lowered base/highlight, red factor, block ink, block ink2, worst block-text contrast).
 
     The block text must hold 3:1 both as shown and fully held (desaturated by 30%, R-55; colour_block.js desaturates
-    during a hold), while stage.js picks its colours over the shown block only. The owner's rule (2026-10-13, A1
-    review finding 1; deviation register):
+    during a hold), while the stage (core.js ``makeRoles``) picks its colours over the shown block only. The owner's
+    rule (2026-10-13, A1 review finding 1; deviation register):
 
     * ``block.ink`` is the stage's own choice (``inkOn`` over the shown colours), so a block never flips between white
       and near-black text on a hundredth of a contrast point. Only when that choice misses 3:1 while held is it made

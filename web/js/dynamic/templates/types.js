@@ -48,7 +48,9 @@
  *   block (structure marks use ink)
  * @property {(el: Element) => {x: number, y: number, w: number, h: number} | null} rectOf   stage-px rect
  * @property {string} locale
- * @property {import('../../player/richtext.js').TexRenderer} [renderTex]   TeX converter (tests; default MathJax)
+ * @property {import('../../player/richtext.js').TexRenderer} [renderTex]   TeX converter, passed to every mountTex /
+ *   renderRich / texNode call (the source scan's tex rule): in render mode the page's pageTexRenderer (never evicts,
+ *   counted); in live mode none (richtext's cached MathJax)
  * @property {import('../media.js').MediaFrameInfo} [frameInfo]   live playback state for clips (render: none)
  * @property {any} [view]                    what `build` returned
  */

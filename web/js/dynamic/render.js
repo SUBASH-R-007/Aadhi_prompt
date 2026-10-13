@@ -12,9 +12,10 @@
  *     seek(frame),       Promise<{key}>: t = frame / fps; pure; frames in any order; no fixed sleeps
  *     textBoxes(),       [{x, y, w, h, role, critical, ink, bg, overflow, ...}] of the frame on screen
  *     setLayers(spec),   {captions, stage}: {stage: false, captions: true} is the caption-only layer
- *     texConversions(),  B2a (additive): how many TeX conversions started after `ready` (0: every TeX string the
- *                        frames show was converted before it, so MathJax did no work, and ran none of its timers,
- *                        while frames were captured; the gallery asserts 0 on every fixture)
+ *     texConversions(),  B2a (additive): how many TeX conversions started after the page converted the TeX strings
+ *                        the templates declare (their static tex()), the first frame's included: 0 when the
+ *                        declarations are complete, so MathJax did no work, and ran none of its timers, while frames
+ *                        were captured (the gallery asserts 0 on every fixture)
  *   };
  *
  * Same token-in-fragment scheme as /render-frame (web/js/render/render.js): the scoped token is read from
@@ -67,20 +68,22 @@ export function timelineTex(timeline) {
 /**
  * The render page's TeX converter (B2 plan §2): each string converted once and handed out as deep clones, from a
  * cache that never evicts (the live player's keeps 400 strings; a longer lecture would convert again mid-capture),
- * counting the conversions that start once `markReady()` was called (`aadhiStage.texConversions()`).
+ * counting the conversions that start once `markDeclared()` was called: boot calls it as soon as the strings the
+ * templates declare are converted, before the stage builds the first frame, so a count is a string some template's
+ * tex() left out, or a declared one whose conversion failed and is tried again (`aadhiStage.texConversions()`).
  * @param {TexRenderer} convert   MathJax (shared/libs.js renderTex), or the tests' converter
  */
 export function pageTexRenderer(convert) {
   /** @type {Map<string, Promise<Element>>} */
   const cache = new Map();
-  let ready = false;
+  let declared = false;
   let after = 0;
   /** @type {TexRenderer} */
   const renderTex = (tex, display) => {
     const key = `${display ? 'D' : 'I'}:${tex}`;
     let p = cache.get(key);
     if (!p) {
-      if (ready) after += 1;
+      if (declared) after += 1;
       p = new Promise((resolve) => resolve(convert(tex, display))); // a converter that throws rejects, as an async one
       p.catch(() => cache.delete(key)); // a failed conversion is tried again by the next mount (as richtext.texNode)
       cache.set(key, p);
@@ -89,11 +92,11 @@ export function pageTexRenderer(convert) {
   };
   return {
     renderTex,
-    markReady() {
-      ready = true;
+    markDeclared() {
+      declared = true;
     },
-    /** Conversions started after `markReady()`. */
-    conversionsAfterReady: () => after,
+    /** Conversions started after `markDeclared()`. */
+    conversionsAfterDeclared: () => after,
   };
 }
 
@@ -212,7 +215,8 @@ export async function boot(deps = {}) {
     // wrap text differently from the live player.
     if (fonts.missing.length) throw new RenderError('fonts_missing', `no @font-face loaded for: ${fonts.missing.join(', ')}`);
     // Every TeX string the templates declare, converted now; the stage converts through the same cache, so a frame's
-    // TeX is a cache hit, and anything converted after `ready` is counted (texConversions)
+    // TeX is a cache hit, and anything converted from here on (the first frame's included) is a string some
+    // template's tex() left out, counted (texConversions)
     const pageTex = pageTexRenderer(deps.renderTex || libRenderTex);
     const tex = timelineTex(timeline);
     if (tex.length) {
@@ -220,6 +224,7 @@ export async function boot(deps = {}) {
       await Promise.allSettled(tex.map((x) => pageTex.renderTex(x.tex, x.display)));
       await texIdle();
     }
+    pageTex.markDeclared();
     const webgl = usesShaders(timeline) ? probeWebgl(doc) : false;
     const stage = createDynamicStage(root, timeline, { mode: 'render', texIdle, frame, renderTex: pageTex.renderTex });
     win.__aadhiDynamicStage = stage; // debugging only
@@ -231,9 +236,8 @@ export async function boot(deps = {}) {
     api.seek = (f) => stage.seek(f);
     api.textBoxes = () => stage.textBoxes();
     api.setLayers = (spec) => stage.setLayers(spec);
-    api.texConversions = () => pageTex.conversionsAfterReady();
+    api.texConversions = () => pageTex.conversionsAfterDeclared();
     if (deps.guard !== false) installTimerGuard(win);
-    pageTex.markReady();
     resolve({ webgl });
     return api;
   } catch (e) {

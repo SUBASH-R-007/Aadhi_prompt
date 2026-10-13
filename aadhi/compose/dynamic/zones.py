@@ -338,7 +338,8 @@ class TypeRole:
 
 TYPE_SCALE: Final[Mapping[str, TypeRole]] = MappingProxyType({
     "display": TypeRole({"latin": (1.0, 1.05), "indic": (1.25, None)}, tracking_em=(-0.02, -0.01)),
-    # Indic headings: no value in the design or the plan; at least the Indic display minimum (inferred, A2a).
+    # Indic headings: no value in the design or the plan; at least the Indic display minimum (A2 proposal, pending
+    # owner review; not in the design).
     "heading": TypeRole({"latin": (1.15, 1.15), "indic": (1.25, None)}),
     "body": TypeRole({"latin": (1.35, 1.35), "indic": (1.45, None)}, max_line_chars={"landscape": 45}),
 })
@@ -354,7 +355,8 @@ CAPS_TRACKING_EM: Final = (0.04, 0.06)
 class LayoutTokens:
     """Geometry every B2 template takes its spacing, corners, borders, outlines, shadows and icon sizes from.
 
-    * ``spacing``: the 8 px scale (``spacing_unit`` and its steps; the grid gutter, 24, is one of them).
+    * ``spacing``: the 8 px scale (plan §1.1: ``spacing_unit``) and its steps (the grid gutter, 24, is one of them;
+      which steps, 8-128: A2 proposal, pending owner review; not in the design or the plan).
     * ``radius``: card 24, media 24 (§4.3 media_split "24 px radius"), chip a pill (999 px, as dynamic.css
       ``.dyn-chip``), the Aadhi intro/recap card 40 (§3.3 ``card_left``). B1's board_generic keeps its own 28 px media
       frame and presenter radius (dynamic.css ``.dyn-frame``, ``.dyn-presenter``).
@@ -365,7 +367,8 @@ class LayoutTokens:
       media frame (neutral black, the only literal colour besides captions, dynamic.css header).
     * ``icon``: the inline icon size (dynamic.css ``.dyn-icon``, 1.05 em), the stroke width of the adopted icon sets
       (Lucide's default 2 on its 24 px view box, §4.12) and two block sizes on the 8 px scale for cards and a
-      feature icon (A2a's proposal: the design names no pixel size; B2c/B2f settle them with the owner's review)."""
+      feature icon (``card_px`` / ``feature_px``: A2 proposal, pending owner review; not in the design, which names
+      no pixel size; B2c/B2f settle them with the owner)."""
 
     spacing_unit: int
     spacing: tuple[int, ...]
@@ -378,7 +381,7 @@ class LayoutTokens:
 
 LAYOUT: Final = LayoutTokens(
     spacing_unit=8,
-    spacing=(8, 16, 24, 32, 40, 48, 64, 80, 96, 128),
+    spacing=(8, 16, 24, 32, 40, 48, 64, 80, 96, 128),  # A2 proposal, pending owner review (the steps)
     radius=MappingProxyType({"card": 24, "media": 24, "chip": 999, "presenter_card": 40}),
     border=MappingProxyType({"structure_min": 4, "structure_max": 6, "card": 6}),
     outline=MappingProxyType({"focus_px": 4, "focus_outset_px": 8, "underline_px": 4, "state_border_px": 2}),
@@ -387,5 +390,6 @@ LAYOUT: Final = LayoutTokens(
         "2": "0 18px 44px rgba(0, 0, 0, 0.26), 0 2px 6px rgba(0, 0, 0, 0.18)",
         "3": "0 24px 60px rgba(0, 0, 0, 0.32)",
     }),
+    # card_px / feature_px: A2 proposal, pending owner review
     icon=MappingProxyType({"inline_em": 1.05, "stroke_width": 2, "card_px": 96, "feature_px": 320}),
 )

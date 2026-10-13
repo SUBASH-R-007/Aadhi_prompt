@@ -22,9 +22,9 @@ Modules (DYNAMIC_VIDEO_DESIGN §7.3, §7.4, §7.12):
 * ``preflight``   loads the stage once, seeks the sampled frames (24 spread frames, every scene start and end, and
                   every caption-chunk start in 9:16), reads ``textBoxes()`` and checks text overflow, safe zones and
                   contrast; plans the automatic remedies (shrink to the slot minimum, the template's safe variant, the
-                  scrim), applies them to the timeline (``look.fixes``, plus B1's ``variant`` / ``text_fit`` until the
-                  stage reads ``fixes``) and checks again; what is still wrong blocks with a teacher action ("Shorten
-                  text") or stays a warning (contrast never blocks);
+                  scrim), applies them to the timeline (``look.fixes`` only; the stage still reads B1's legacy
+                  ``variant`` / ``text_fit`` for engine_version 1 timelines) and checks again; what is still wrong
+                  blocks with a teacher action ("Shorten text") or stays a warning (contrast never blocks);
 * ``container``   the post-render container checks (exact frame count per chunk and in total, first video PTS 0 and
                   the audio start within one frame, colour tags, frame grid and declared rate, caption track, sound)
                   with their automatic remedies (re-render the chunks, re-encode the audio, re-mux), and the

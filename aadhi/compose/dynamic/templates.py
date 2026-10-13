@@ -138,10 +138,11 @@ BLOCK_ROLES: Final = DERIVED_KEYS
 # --- the target grammar (plan §1.7) ---------------------------------------------------------------------------------
 # events.py writes VisualEvent.target in it; the stage's focusRect / itemEl (and cues.js) read it. ``<item>`` is a board
 # item id (a screenplay slug, which has no ':'); indices are 0-based decimal integers without leading zeros (as
-# sync.py's ``column:<n>`` / ``var:<n>`` parts and the quiz's option order); ``<series>`` is a 0-based chart dataset
-# index (a label can change with translation, §6.11); ``<symbol>`` is the formula symbol as written
-# (``FormulaVariable.symbol_latex``), everything after ``var:``. ``panel`` and ``option`` are reserved: an item with
-# that id cannot be a target.
+# sync.py's ``column:<n>`` parts and the quiz's option order); ``<series>`` is a 0-based chart dataset index (a label
+# can change with translation, §6.11); ``<symbol>`` is the formula symbol as written (``FormulaVariable.symbol_latex``),
+# everything after ``var:``, never an index: B1's sync cue part ``var:<n>`` (sync.py, the n-th of the item's
+# ``variables``) becomes the target ``<item>:var:<variables[n].symbol_latex>`` when events.py (B2d) writes it, so
+# ``f1:var:0`` names the symbol ``0``. ``panel`` and ``option`` are reserved: an item with that id cannot be a target.
 
 TARGET_FORMS: Final[tuple[TargetForm, ...]] = get_args(TargetForm)
 RESERVED_TARGET_WORDS: Final = frozenset({"panel", "option"})
@@ -253,15 +254,20 @@ def target_form(text: str) -> TargetForm:
 @dataclass(frozen=True)
 class Duration:
     """A template's scene length in seconds (§4.3 "Timing"): ``min``..``max`` (None: no upper bound, the clip's own
-    length); ``per_item``: the range is per item (key term, list item), not per scene."""
+    length); ``per_item``: the range is per item (key term, list item), not per scene; ``end_screen``: the one other
+    length allowed when the lesson keeps YouTube "end-screen space" (R-11, §4.3 ``outro_next`` "6–10 s or 15 s
+    (16:9)": exactly :data:`zones.END_SCREEN` ``.seconds``, never a length between ``max`` and it), else None."""
 
     min: float
     max: float | None
     per_item: bool = False
+    end_screen: float | None = None
 
     def __post_init__(self) -> None:
         if self.min < 0 or (self.max is not None and self.max < self.min):
             raise ValueError(f"bad duration {self!r}")
+        if self.end_screen is not None and (self.max is None or self.per_item or self.end_screen <= self.max):
+            raise ValueError(f"bad end-screen length in {self!r}")
 
 
 @dataclass(frozen=True)
@@ -944,6 +950,9 @@ def _c(kinds: Iterable[VisualEventKind], targets: Iterable[TargetForm] | None = 
 
 
 _R19 = _d(SCENE_LENGTH["landscape"], SCENE_LENGTH["portrait"])
+# Which templates may carry hold_reason "diagram" (the specs below that name _DIAGRAM): A2 proposal, pending owner
+# review; not in the design (R-16 lists the reasons and §4.2 gives every template a ``holds`` field, but names no
+# template's)
 _DIAGRAM: Final[tuple[HoldReason, ...]] = ("diagram",)
 _THINK: Final[tuple[HoldReason, ...]] = ("think",)
 
@@ -955,14 +964,20 @@ _SPECS: Final[tuple[TemplateSpec, ...]] = (
     TemplateSpec("hook_question", "prompt", False, "R1", _d((4.0, 10.0), (3.0, 6.0)), _c(("reveal", "cue_term")),
                  _fit_hook_question, variants=_v(("question", "true_false", "stakes", "mystery", "challenge"))),
     TemplateSpec("roadmap", "structure", False, "W2", _R19, _c(("reveal",)), _never),
+    # §4.3 times key terms in 16:9 only ("3–4 s per term (16:9), optional in 9:16"): "optional" is about using the
+    # template in 9:16, not its length, so a 9:16 key-terms scene keeps the same per-term range (A2 reading, pending
+    # owner review)
     TemplateSpec("key_terms", "definition", False, "R1", _d((3.0, 4.0), per_item=True),
                  _c(("reveal", "draw", "cue_term")), _fit_key_terms),
     TemplateSpec("chapter_bumper", "structure", False, "R1", _d((2.0, 3.0), (1.2, 1.8)), _c(()), _fit_chapter_bumper,
                  forced_for=("chapter_card",)),
     TemplateSpec("recap_retrieval", "prompt", False, "R1", _d((25.0, 40.0), (14.0, 20.0)),
                  _c(("reveal", "fill", "countdown", "answer", "cue_term")), _fit_recap_retrieval, holds=_THINK),
-    TemplateSpec("outro_next", "structure", False, "R1", _d((6.0, 15.0), (3.0, 5.0)), _c(("reveal",)),
-                 _fit_outro_next),
+    # §4.3 "6–10 s or 15 s (16:9)", R-11 "or 15 s with end-screen space": two lengths, not 6-15 s; 9:16 has no
+    # end-screen space (§2.5)
+    TemplateSpec("outro_next", "structure", False, "R1",
+                 MappingProxyType({"landscape": Duration(6.0, 10.0, end_screen=zn.END_SCREEN.seconds),
+                                   "portrait": Duration(3.0, 5.0)}), _c(("reveal",)), _fit_outro_next),
     TemplateSpec("thumbnail", "structure", True, "R1", MappingProxyType({"landscape": Duration(0.0, 0.0)}), _c(()),
                  _never, formats=("landscape",), variants=MappingProxyType({"landscape": ()})),
     # B. Explanation
@@ -973,6 +988,8 @@ _SPECS: Final[tuple[TemplateSpec, ...]] = (
                  _c(("reveal", "cue_term")), _fit_kinetic_statement),
     TemplateSpec("list_build", "enumeration", False, "R1", _d((3.0, 5.0), per_item=True),
                  _c(("reveal", "cue_term", "look_here")), _fit_list_build),
+    # variant names "media_left" / "media_right": A2 proposal, pending owner review; not in the design (§4.3 / §4.4
+    # say only that the media side changes at chapter boundaries); 9:16 stacks, so it has none
     TemplateSpec("media_split", "media", True, "R1", _d((8.0, 20.0), (5.0, 12.0)),
                  _c(("reveal", "cue_term", "look_here", "output"), ("item", "panel", "panel:row")), _fit_media_split,
                  variants=_v(("media_left", "media_right"), ()), holds=_DIAGRAM, push_ok=True),

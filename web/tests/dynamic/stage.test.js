@@ -1196,11 +1196,12 @@ test('preflight\'s remedies reach the stage through the fixes channel exactly as
  */
 function boardFor(index, tl = dynamicTimeline(), rectOf = () => ({ x: 10.4, y: 20.6, w: 100.5, h: 50.2 })) {
   const scene = tl.scenes[index];
+  const format = tl.presentation.format === 'portrait' ? 'portrait' : 'landscape';
   const root = document.createElement('div');
   document.body.appendChild(root);
   const ctx = /** @type {any} */ ({
     scene, index, look: scene.look, chapter: chapterTitleAt(tl, scene.start), roles: makeRoles(tl.presentation, scene.look),
-    zones: ZONES.landscape, format: 'landscape', mode: 'render', reducedMotion: false, root, paint: new Painter(), pending: [],
+    zones: ZONES[format], format, mode: 'render', reducedMotion: false, root, paint: new Painter(), pending: [],
     media: (/** @type {any} */ ref) => new MediaView(ref, { mode: 'render', box: { w: 640, h: 360 }, sceneDuration: 8, fps: 30 }),
     onBackground: { ink: '#F3F5F9', ink2: '#B9BEC7', bg: '#10132C', block: false }, rectOf, locale: 'en', rng: () => 0.5,
   });
@@ -1260,6 +1261,31 @@ test('itemEl, dimGroups and anchor: the item\'s text (its [[terms]] kept), the c
   const quiz = boardFor(2);
   assert.equal(tpl.itemEl(quiz.ctx, 'option:2').textContent, 'CIt stays');
   quiz.done();
+});
+
+test("itemEl in 9:16: a misconception with a justification is two cards, and every target reaches the myth's", () => {
+  // Pinned as it stands (B2a): the §1.7 grammar has no part form for the fact card, so a [[term]] of the correction is
+  // out of reach in 9:16 (in 16:9 one card holds both). board_generic consumes no cue_term or look_here event
+  // (templates.py), so no cue reaches it; B2c settles how a split item is reached before cues.js uses itemEl.
+  const tpl = /** @type {any} */ (boardGeneric);
+  for (const format of /** @type {const} */ (['portrait', 'landscape'])) {
+    const tl = dynamicTimeline(format);
+    tl.scenes[0].board.push({ id: 'm1', kind: 'misconception', text: 'Current is used up', justification: 'The [[current]] is the same all round' });
+    const { ctx, v, done } = boardFor(0, tl);
+    const ids = v.cards.map((/** @type {any} */ c) => c.spec.id);
+    const myth = v.cards.find((/** @type {any} */ c) => c.spec.id === 'm1');
+    for (const target of ['m1', 'm1:line:1', 'm1:step:1']) assert.equal(tpl.itemEl(ctx, target), myth.body, `${format} ${target}`);
+    if (format === 'portrait') {
+      assert.ok(ids.includes('m1') && ids.includes('m1:fact'), 'two cards');
+      assert.equal(myth.body.querySelector('.rt-k'), null, 'the myth card holds no term');
+      const fact = v.cards.find((/** @type {any} */ c) => c.spec.id === 'm1:fact');
+      assert.equal(fact.body.querySelector('.rt-k')?.textContent, 'current', 'the term is on the fact card');
+    } else {
+      assert.ok(!ids.includes('m1:fact'), 'one card');
+      assert.equal(myth.body.querySelector('.rt-k')?.textContent, 'current', 'one card holds both texts');
+    }
+    done();
+  }
 });
 
 test('static mediaBox: B1\'s boxes (mediaBoxMax; a figure\'s FIGURE_BOX_WIDTH x figureMax), whatever the slot\'s fixes', () => {

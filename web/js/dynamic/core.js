@@ -8,8 +8,10 @@
  * The one reader of the generated catalogue (web/js/dynamic/catalogue.gen.js, plan §1.1): the stage's zones, its role
  * names, the R-29 floors and the template slots come from it. Its runtime use is GEOMETRY ONLY: colours, durations and
  * personality values reach the stage through the timeline alone (presentation.content, look.tokens, ...), so a stored
- * timeline keeps its look when the catalogue changes (the source scan keeps every other module from importing it and
- * every module from reading its families, content palettes, personalities and cue colours).
+ * timeline keeps its look when the catalogue changes (the source scan keeps every other module from importing it, and
+ * allows only reads of its zones, regions, grid, type floors and scale, layout tokens, caption-style metrics, template
+ * slots and role names: never its families, content palettes, cue colours, personalities, caption colours or
+ * durations).
  *
  * Pure: no DOM access at import time and no clock. Everything a frame shows is a function of (timeline, t).
  */
@@ -613,8 +615,9 @@ export const TYPE_FLOORS = CATALOGUE.type.floors;
  * @returns {Readonly<Record<string, Record<string, Record<string, SlotSpec>>>> | null}
  */
 export function templateSlots(id) {
-  const templates = /** @type {Record<string, {slots: any}>} */ (CATALOGUE.templates);
-  return Object.prototype.hasOwnProperty.call(templates, id) ? templates[id].slots : null;
+  // two reads the source scan can follow: which ids the registry has, then that id's slots (never its durations)
+  if (!Object.prototype.hasOwnProperty.call(CATALOGUE.templates, id)) return null;
+  return /** @type {Record<string, {slots: any}>} */ (CATALOGUE.templates)[id].slots;
 }
 
 /**

@@ -102,6 +102,59 @@ test('the role lists: B1\'s closed list, then the block roles (plan §1.9), both
   assert.equal(BLOCK_ROLES, CATALOGUE.roles.block);
 });
 
+test('the semantic-class table is §4.2\'s 19 classes, and every template is in its own class\'s row (plan §1.8)', () => {
+  // §4.2's table, in its order (the Python half: tests/compose/dynamic/test_templates.py)
+  const TABLE = {
+    structure: ['aadhi_intro', 'aadhi_recap', 'chapter_bumper', 'roadmap', 'outro_next', 'thumbnail'],
+    prompt: ['hook_question', 'predict', 'check', 'recap_retrieval'],
+    definition: ['key_terms', 'definition_card'],
+    statement: ['kinetic_statement', 'takeaway_stamp', 'quote_card'],
+    enumeration: ['list_build'],
+    contrast: ['versus'],
+    correspondence: ['analogy_bridge'],
+    sequence: ['process_flow', 'cycle_loop', 'timeline_track'],
+    cause: ['cause_chain'],
+    completion: ['checklist'],
+    hierarchy: ['concept_tree'],
+    quantity: ['stat_punch', 'chart_build', 'function_plot'],
+    formula: ['formula_focus'],
+    procedure: ['worked_steps'],
+    code: ['code_walkthrough'],
+    table: ['table_reveal'],
+    refutation: ['myth_fact'],
+    media: ['media_split', 'full_bleed_media', 'spotlight_image', 'diagram_build', 'model_spin', 'animation_stage',
+      'interactive_poster', 'clip_scene'],
+    fallback: ['board_generic'],
+  };
+  const classes = /** @type {Record<string, {claim: string, templates: string[]}>} */ (CATALOGUE.semantic_classes);
+  const templates = /** @type {Record<string, {class: string}>} */ (CATALOGUE.templates);
+  assert.equal(Object.keys(TABLE).length, 19);
+  assert.deepEqual(Object.keys(classes).sort(), Object.keys(TABLE).sort(), 'exactly §4.2\'s 19 class ids');
+  for (const [id, members] of Object.entries(TABLE)) {
+    assert.deepEqual([...classes[id].templates].sort(), [...members].sort(), `${id}: its members`);
+    assert.ok(classes[id].claim.length > 0, `${id}: its claim`);
+  }
+  /** @type {Map<string, string[]>} */
+  const homes = new Map();
+  for (const [id, row] of Object.entries(classes)) for (const t of row.templates) homes.set(t, [...(homes.get(t) || []), id]);
+  assert.deepEqual([...homes.keys()].sort(), Object.keys(templates).sort(), 'every member is a template, every template a member');
+  assert.equal(Object.keys(templates).length, 41);
+  for (const [t, spec] of Object.entries(templates)) {
+    assert.deepEqual(homes.get(t), [spec.class], `${t}: in exactly one class, its own`);
+  }
+});
+
+test('caption-style metrics are geometry only: the colours sit beside them (plan §1.1: the stage may read metrics)', () => {
+  const captions = /** @type {Record<string, {metrics: any, colours: any}>} */ (CATALOGUE.captions);
+  const released = Object.entries(captions).filter(([, c]) => c.metrics !== null);
+  assert.deepEqual(released.map(([id]) => id).sort(), ['bold_outline', 'clean_pill']);
+  for (const [id, c] of released) {
+    const leaves = JSON.stringify(c.metrics).match(/"[^"]*"/g) || [];
+    assert.deepEqual(leaves.filter((s) => /^"#|rgba?\(/i.test(s)), [], `${id}: no colour among its metrics`);
+    assert.deepEqual(Object.keys(c.colours).sort(), ['backdrop', 'backdrop_alpha', 'ink', 'key_ink', 'outline'], id);
+  }
+});
+
 test('board_generic draws with B1\'s floors and weights, read from the catalogue (R-29)', () => {
   assert.deepEqual(MIN_TEXT, { landscape: 36, portrait: 40 });
   assert.deepEqual(MIN_LABEL, { landscape: 40, portrait: 44 });
