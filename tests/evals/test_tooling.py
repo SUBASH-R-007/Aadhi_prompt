@@ -206,13 +206,17 @@ def test_lock_render_adds_platform_pins_once(lock):
 
 
 def test_linux_closure_finds_platform_only_dependencies(lock):
-    _needed, missing = lock.linux_closure(["uvicorn[standard]"])
-    assert "uvloop" in missing  # Linux-only extra dependency that pip freeze on Windows never sees
+    needed_linux, missing = lock.linux_closure(["uvicorn[standard]"])
+    # Linux-only extra dependency that pip freeze on Windows never sees: the Linux closure reaches it whether or not
+    # it is installed on the machine running the test (missing on Windows, installed on a Linux runner).
+    assert "uvloop" in missing or "uvloop" in needed_linux
     win = {**lock.LINUX_ENV, "sys_platform": "win32", "platform_system": "Windows", "os_name": "nt"}
     needed, missing_win = lock.linux_closure(["uvicorn[standard]"], env=win)
     assert "uvloop" not in missing_win and {"click", "h11", "httptools", "watchfiles"} <= needed
-    assert "colorama" in lock.linux_closure(["tqdm"], env=win)[0]  # Windows-only marker ...
-    assert "colorama" not in lock.linux_closure(["tqdm"])[0]  # ... skipped for Linux
+    reached_win = set().union(*lock.linux_closure(["tqdm"], env=win))  # needed | missing: installed or not here
+    reached_linux = set().union(*lock.linux_closure(["tqdm"]))
+    assert "colorama" in reached_win  # Windows-only marker ...
+    assert "colorama" not in reached_linux  # ... skipped for Linux
     assert lock.linux_closure(["uvicorn"])[1] == {}  # extras are only followed when requested
 
 
