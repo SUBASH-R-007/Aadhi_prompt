@@ -12,6 +12,8 @@ here from a local scratchpad so any session can continue it.
 - `a1_review.md` is the review of step A1 and the owner's block-ink decision; `reports/a2.json` and `reports/b.json`
   are the implementers' reports of steps A2 and B (contracts, token changes, tests, open items, doc notes);
   `b2a_review.md` is the B2a review (four lenses, every finding and its outcome, the differential numbers, the gates).
+- `b2b_review.md` is the B2b review (the same shape; it also summarises what the three B2b build agents reported, whose
+  reports were not kept as files).
 - `HANDOFF.md` is the session handoff: where things stand, the gates and the next steps.
 
 These files still refer to their old location (`.../scratchpad/b2_plan_v2.md`, `.../scratchpad/reads/`); read those
@@ -33,3 +35,16 @@ had 16 findings: 4 refuted, 11 fixed, 1 deferred to B2c; its last audit left 3 m
 open. The fixes of both review rounds are in the working tree, not yet committed, at the time this line was written.
 The as-built notes are in `docs/DYNAMIC_VIDEO_DESIGN.md` (§10.3 B2 and the sections it names). Next: commit the review
 fixes and these docs, then B2b (assets), then B2c..B2g (`HANDOFF.md`).
+
+Status (2026-10-15): **B2b built and reviewed; not yet committed as final.** The build is `d93226d` ("WIP B2b"); the
+review's first fix round is partly in `0e14281` (its fixer was cut off by a network error; a second fixer completed
+it) and the second round and this docs pass are in the working tree. B2b vendored Poppins, Lexend, Atkinson
+Hyperlegible Next and Anek (five scripts) with the face table `faces.py` and its generated `dynamic-fonts.css` /
+`faces.gen.js`; filled `presentation.fonts {display, body, mono, indic}` with B1's faces; added `THIRD_PARTY_NOTICES`
+(generated, covering the code inside the vendored bundles); pinned Lucide and Tabler with the committed icon index and
+`icons.py`; and built `textfit.py` with a measured kerning table (Latin certified; Indic, uncovered and unbounded runs
+estimated only). The review (`b2b_review.md`) had 10 findings, none refuted, all fixed in two audited rounds; a
+real-Chromium differential found 0 of 11,031 frame pairs changed. Owner decisions (2026-10-14): Indic text fit moves to
+HarfBuzz shaping in the next step; icon matching is exact name (either set), then Lucide tags, then Tabler tags. As-built
+notes: `docs/DYNAMIC_VIDEO_DESIGN.md` §10.3 B2 "Status (B2b)" and the sections it names. Next: commit B2b, then the
+HarfBuzz text-fit step, then B2c (the vertical slice) (`HANDOFF.md`).

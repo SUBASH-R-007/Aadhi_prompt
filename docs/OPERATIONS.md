@@ -30,7 +30,7 @@ python -m venv .venv
 .venv/Scripts/python.exe -m pip install -c requirements.lock -r requirements.txt -r requirements-dev.txt
 .venv/Scripts/python.exe -m playwright install chromium     # only needed for MP4 renders
 
-# Frontend libraries and fonts -> web/vendor (npm ci runs scripts/vendor.mjs)
+# Frontend libraries and fonts -> web/vendor (npm ci runs scripts/vendor.mjs; `npm run vendor` runs it again)
 npm ci
 
 # Optional: configuration (everything has a safe development default)
@@ -39,6 +39,19 @@ cp .env.example .env
 # Run
 .venv/Scripts/python.exe server.py      # http://127.0.0.1:8000
 ```
+
+**What `npm ci` vendors (from Dynamic video batch B2b on).** Besides the libraries and the classic fonts
+(`web/vendor/fonts/`, `fonts.css`, unchanged), `scripts/vendor.mjs` does two new things:
+* It copies the Dynamic stage's faces (Poppins, Lexend, Atkinson Hyperlegible Next, Anek per Indic script) into
+  `web/vendor/fonts/dynamic/<family>/`, each with its package's LICENSE. The face list comes from the generated
+  `web/js/dynamic/faces.gen.js`, through `scripts/vendor_faces.mjs`, which stops the install on a wrong package
+  version, a licence that is not OFL 1.1, or a unicode-range that differs from the package's.
+* It copies `mathjs/math.js.LICENSE.txt` beside `math.js`.
+
+`npm ci` also installs the icon packages `lucide-static` (about 51 MB unpacked) and `@tabler/icons` (about 11 MB).
+Only the Python icon generator reads them; nothing of them is copied to `web/vendor` or into the image. The licences
+of everything served are in the generated `THIRD_PARTY_NOTICES` at the repository root, which the image ships at
+`/app/THIRD_PARTY_NOTICES`.
 
 **First admin password.** On first start, when no admin exists, the server creates the
 `ADMIN_USERNAME` account (default `admin`). If `ADMIN_PASSWORD` is set it is used; otherwise a random
@@ -75,6 +88,9 @@ npm run typecheck && npm test
 .venv/Scripts/python.exe evals/make_fixtures.py --check             # eval fixtures current
 .venv/Scripts/python.exe -m aadhi.schemas.generate --check          # web/schemas/*.schema.json match the models
 .venv/Scripts/python.exe -m aadhi.compose.dynamic.catalogue --check # web/js/dynamic/catalogue.gen.js is current
+.venv/Scripts/python.exe -m aadhi.compose.dynamic.faces --check     # dynamic-fonts.css + faces.gen.js current
+.venv/Scripts/python.exe -m aadhi.compose.dynamic.icons --check     # icon_index.json current (needs node_modules)
+.venv/Scripts/python.exe scripts/gen_third_party_notices.py --check # THIRD_PARTY_NOTICES current (needs node_modules)
 node scripts/gen_colour_vectors.mjs --check                         # tests/fixtures/colour_vectors.json is current
 ```
 
@@ -84,6 +100,38 @@ The Dynamic catalogue (`web/js/dynamic/catalogue.gen.js`, from Dynamic video bat
 line (CI's "Generated files are current" step runs it). The colour vectors are written from the stage's JavaScript
 colour code by `node scripts/gen_colour_vectors.mjs`; both test suites read them, and `npm test` fails when they are
 stale.
+
+Dynamic video batch B2b adds four generators (`DYNAMIC_VIDEO_DESIGN.md` §4.6, §4.12). The first three are
+checked in CI's "Generated files are current" step; the icons and notices checks run after `npm ci`, because they read
+`node_modules`. Each `--check` exits 1 when the committed file is stale; the icons, notices and kerning generators
+exit 2 when they cannot generate from what is installed (fail closed).
+
+* **Face table** (`aadhi/compose/dynamic/faces.py` -> `web/css/dynamic-fonts.css` and
+  `web/js/dynamic/faces.gen.js`). After changing `faces.py`, run `python -m aadhi.compose.dynamic.faces`, then
+  `npm run vendor` (which copies the faces from the generated table), and commit both generated files. A new face
+  also needs its exact-pinned Fontsource package in `package.json`, then the notices and the kerning table below.
+* **Icon index** (`aadhi/compose/dynamic/icon_index.json`, committed). After bumping `lucide-static` or
+  `@tabler/icons` in `package.json`:
+  1. `npm install`;
+  2. `python -m aadhi.compose.dynamic.icons`. It refuses a changed licence text, a listed icon without a file, an
+     ambiguous deprecated file, or a `PREFERRED` / `IGNORED_TAGS` entry the new release made stale or shadowed: read
+     the release and update the lists in `icons.py`;
+  3. `python scripts/gen_third_party_notices.py`;
+  4. review the index diff before committing.
+* **`THIRD_PARTY_NOTICES`** (`scripts/gen_third_party_notices.py`). After any change to the npm dependencies, run
+  `python scripts/gen_third_party_notices.py` and commit the file. It fails closed when a package's installed version
+  differs from the lock (run `npm ci`), when a package has no licence text, or when a vendored bundle no longer
+  matches its reviewed `VENDORED` entry. The entry fails on a new package version, a bundled component's evidence that
+  is gone, a p5 module no component lists, or a copyright statement nobody acknowledged. Then review the new bundle,
+  update the entry and the texts in `scripts/third_party_licences/`, and regenerate.
+* **Kerning table** (`aadhi/compose/dynamic/kerning.json`, committed; the text fit's measured kerning). Regenerate
+  it after a vendored Latin face changes: `python -m aadhi.compose.dynamic.kerning`. It needs Playwright's Chromium
+  and `web/vendor`, and takes 85-90 minutes. Its `--check` (as long) is not part of CI. The slow test
+  `tests/determinism/test_kerning_table.py` re-measures the faces and checks that the table still bounds them (about
+  8 minutes) only on demand: `AADHI_KERNING_REMEASURE=1 pytest -m slow tests/determinism/test_kerning_table.py`
+  (PowerShell: `$env:AADHI_KERNING_REMEASURE=1`). Without it, only its quick check of the review's runs (about 15 s)
+  runs, also in CI's slow job. Run the re-measurement after any change to a vendored Latin face, `kerning.py` or
+  `textfit.py`'s use of the table.
 
 **Classic invariance (from Dynamic video batch B0).** The classic (Aadhi presenter) output must not change while
 the Dynamic mode is built: `tests/invariance/` holds byte-for-byte goldens of the classic screenplay, scene hashes,
@@ -108,6 +156,10 @@ or bundle (ffmpeg / ffprobe, Playwright, its Chromium, the Dynamic stage bundle;
 also the live app of `tests/api/test_render_dynamic_route.py` and the tools of `tests/invariance/test_render_slow.py`)
 fails the B1 suites instead of skipping them, so the job cannot pass green by skipping; on a developer machine they
 skip as before. Make "Container suites (Docker test image)" a required check in the repository's branch protection.
+From B2b on, the fast suite there is also the Debian check of the text fit's font reading: `tests/compose/dynamic/
+test_textfit.py` loads every vendored WOFF2 face with Pillow and pins its advances, and `test_faces.py` opens each
+face. A failure there means Debian's FreeType reads the faces differently (pin per platform, or store TTF copies for
+measurement; `DYNAMIC_VIDEO_DESIGN.md` §4.6). The job has not run yet.
 Locally (needs a Docker daemon; in PowerShell write `${PWD}`, put the command on one line and leave out `--user`,
 which uses the POSIX `id`):
 
@@ -135,7 +187,12 @@ outside the Docker test image. `tests/web/test_player_controls_fit.py` (the cont
 Chromium) needs Playwright with its Chromium and the vendored fonts from `npm ci` (`web/vendor`, git-ignored); it
 skips without Playwright or `web/vendor`. On Windows, run the slow motion tests with a short `--basetemp` (for example
 `pytest -m slow --basetemp C:\t\pt`): their work files under pytest's default temp path can pass the 260-character
-`MAX_PATH`.
+`MAX_PATH`. B2b adds four slow Chromium files: `tests/determinism/test_stage_fonts.py`, `test_icon_pixels.py`,
+`test_textfit_page.py` and `test_kerning_table.py`, whose full re-measurement of the kerning table (about 8 minutes)
+runs only with `AADHI_KERNING_REMEASURE=1`.
+The fast suite's face tests (`tests/compose/dynamic/test_faces.py`, `test_textfit.py`) read the vendored faces in
+`web/vendor`: run `npm ci` first. Without `web/vendor` they skip; inside the Docker test image `test_textfit.py`
+fails instead (`tests/compose/dynamic/helpers.missing`).
 
 ## 3. Configuration
 
@@ -424,7 +481,10 @@ generated pictures and clips of unchanged scenes, are reused.
    first login (section 3.1).
 2. `docker compose build` (multi-stage image: `npm ci` vendor bundle, Python venv from
    `requirements.lock`, ffmpeg, TeX Live for MathTex, Noto + Indic fonts, Playwright Chromium,
-   non-root user `aadhi`, tini as PID 1).
+   non-root user `aadhi`, tini as PID 1). From Dynamic video batch B2b, the `web` stage also copies
+   `scripts/vendor_faces.mjs` and `web/js/dynamic/faces.gen.js`, which `vendor.mjs` imports (`tests/evals/test_tooling.py`
+   checks that the stage copies every local module it imports), and the runtime image carries `THIRD_PARTY_NOTICES` at
+   `/app`. The image build has not been run since B2b.
 3. `docker compose up -d`. The API runs `python -m aadhi.cli migrate` on start (`RUN_MIGRATIONS=1`,
    retried while Postgres starts) and workers wait for the API health check, so migrations always
    finish before any job runs. Only the API sets `RUN_MIGRATIONS`.
@@ -869,6 +929,21 @@ Dynamic video batch B2a adds no migration or setting. Its timelines are a new lo
   the API and every render worker on the same image (deploy order above), and reload open Studio and watch pages
   after the deploy. A stored engine-1 timeline that is stale (the lecture was edited since) is served and drawn as B1
   drew it until it is built again.
+
+Dynamic video batch B2b adds no migration or setting, and no look changes: the look-engine generation stays 2, so no
+timeline is rebuilt and the timeline ETag is unchanged.
+
+* **New timelines store `presentation.fonts.indic`.** Timelines built after the deploy store the fonts as
+  `{display, body, mono, indic}`, naming the faces the stage drew before. A display face B2a drew as Outfit (for
+  example `poppins`) is now stored as `outfit`. Stored timelines keep their fonts and draw unchanged.
+* **Motion chunk caches miss once.** The stage bundle digest covers `web/js`, `web/css` and `web/vendor`, which B2b
+  changes (`fonts.js`, `faces.gen.js`, `dynamic-fonts.css`, the new faces). As in B2a, this affects only a render
+  retried across the deploy, which captures its chunks again.
+* **Rolling back to B2a** keeps working for these timelines by construction: B2a's schema keeps `fonts` as a free
+  dict, and its stage reads only `display`, which B2b sets to a face B2a draws. This was not tested across images.
+* **Image and installs.** The image gains the Dynamic faces in `web/vendor/fonts/dynamic/` and
+  `/app/THIRD_PARTY_NOTICES`. `npm ci` (the image's `web` stage and CI) downloads about 62 MB more for the icon
+  packages, none of which reaches the image.
 
 Outside Docker, run `python -m aadhi.cli migrate` after pulling.
 

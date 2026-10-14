@@ -218,6 +218,15 @@ marked_version(model, current: int) -> int                    # 3 when a v3 fiel
 #   variant: B1's "safe" is a legacy value read for engine-1 timelines only; a B2-resolved look never carries it
 # new models (v3-only): SlotFix, LookFixes, LookIcon, RoadmapEntry, RefAnchor, RefPrediction, RefNext, LookRefs;
 #   JSDoc mirrors in web/js/shared/types.js; web/schemas/timeline.schema.json regenerated
+# --- timeline.py, Dynamic video B2b (DYNAMIC_VIDEO_DESIGN §6.7 "As built in B2b")
+# TimelinePresentation.fonts: TimelineFonts   # was dict[str, str]
+#   TimelineFonts(StrictModel) {display?, body?, mono?, indic?}: each CatalogueId | None, left out when None, so a
+#   stored B1 {display, body, mono} reads and writes back byte for byte; unknown keys are ignored (as every schema
+#   model); values are family / group ids of compose/dynamic/faces.py, never CSS text
+#   indic ("noto_sans" | "anek") marks the B2 form (the stage feature-detects it; web/js/dynamic/fonts.js)
+#   v3-only model (tests/schemas/test_v3_schema.py); JSDoc TimelineFonts in web/js/shared/types.js; schema regenerated
+# compose.presentation.timeline_presentation stores fonts = faces.resolver_fonts(presentation.display_font) (B1's
+#   faces in the B2 form; ENGINE_VERSION stays 2)
 ```
 
 ## aadhi.assets_auth (owner: api + pipeline)
@@ -540,6 +549,120 @@ dynamic.catalogue     # python -m aadhi.compose.dynamic.catalogue [--check] -> w
 #   cues, templates {id: {class, ..., duration {fmt: {min, max, per_item, end_screen}}, slots, consumes}},
 #   semantic_classes, targets, roles {colour, block}, backgrounds, transitions, personalities, scrims, studio_surface
 #   (null), families, content. Runtime use is geometry only (web/tests/dynamic/sourceScan.test.js CATALOGUE_RUNTIME)
+# --- Dynamic video, B2b: assets (imported only inside the Dynamic gate; DYNAMIC_VIDEO_DESIGN §4.6, §4.12) ---------
+dynamic.faces         # the one face table; pure data and functions, no Pillow
+#   python -m aadhi.compose.dynamic.faces [--check] -> web/css/dynamic-fonts.css (one @font-face per B2b face,
+#   font-display: block, url('../vendor/<file>')) + web/js/dynamic/faces.gen.js (export const FACES, frozen; keys
+#   JS_TOP_LEVEL_KEYS: version, b1_display, defaults, generic, scripts, languages, indic, families, faces); --check
+#   exits 1 naming the first differing line; render_css(), render_js(), table()
+#   FACES_VERSION 1; ROLES (display, body, mono, indic); INDIC_SCRIPTS (tamil, devanagari, telugu, kannada, malayalam);
+#   LANGUAGE_SCRIPTS; OFL, OFL_TEXT_MARK; FONTSOURCE_VERSION '5.3.0'; DEFAULT_FONTS {display: outfit, body: inter,
+#   mono: jetbrains_mono, indic: noto_sans}; B1_DISPLAY (outfit, inter); DISPLAY_FACES_R1 (outfit, poppins, lexend;
+#   themes.FACES / DISPLAY_FACES_R1 re-export it); GENERIC {display, body: 'sans-serif', mono: 'ui-monospace, monospace'}
+#   Family(id, name, role, release, licence, note, package, version, css 'classic' | 'dynamic' | None (W2, not
+#   vendored), file_stem, weights, axes (Axis(tag, minimum, maximum, default) as the FILE defines it: Anek wght
+#   100-800, default 500), subsets, script, requests); .vendored, .variable, .directory ('fonts' |
+#   'fonts/dynamic/<id>'). FAMILIES (by id); INDIC_GROUPS {noto_sans | anek: {script: family id}}
+#   Face(family, subset, weight (lo, hi), file (under web/vendor), source (under node_modules), unicode_range);
+#   .ranges, .covers(cp); FACES (declaration order); faces_of(id); parse_unicode_range(text)
+#   Fonts = Mapping | pydantic BaseModel | None; fonts_mapping(fonts) -> dict (a model dumped with exclude_none, None ->
+#   {}, anything else TypeError); is_b2_fonts(fonts) (a str `indic`); stage_roles(fonts) -> {role: family id} (B1 form
+#   vs B2 form, = fonts.js stageRoles); resolver_fonts(display_font) -> {display, body, mono, indic} (B1's faces);
+#   script_for_language(lang); indic_families(group, language) (own script first); stack(fonts, role, language) ->
+#   family ids; css_stack(fonts, role, language) -> str (= fonts.js fontStacks)
+#   for text fit: match_weight(available ranges, desired) (CSS Fonts 4 §5.2); face_for(family_id, weight, codepoint)
+#   -> Face | None (matched weight, then the LAST-declared face whose range covers it); web_path(face, web_dir=None)
+dynamic.icons         # python -m aadhi.compose.dynamic.icons [--check] -> aadhi/compose/dynamic/icon_index.json
+#   (committed; needs node_modules to generate; --check exits 1 when stale, 2 when it cannot generate)
+#   INDEX_VERSION 1; SETS (IconSet(id, package, version, licence, licence_marks, svg_dir, metadata)): lucide
+#   (lucide-static 1.48.0, ISC, icons/, tags.json), tabler (@tabler/icons 3.48.0, MIT, icons/outline/, icons.json);
+#   SET_ORDER (lucide, tabler); TIERS ((lucide, name), (tabler, name), (lucide, tag), (tabler, tag)) (owner decision);
+#   STYLE {viewBox (0, 0, 24, 24), stroke_width 2.0, filled False, round caps and joins}; HINT_MAX_CHARS 24,
+#   HINT_MIN_KEY 2, NAME_MAX_CHARS 64, SVG_MAX_BYTES 64 KiB, COORD_MAX 1e5, DECIMALS_MAX 6, DIGITS_MAX 15;
+#   NEGATIONS {off, slash}, NEGATION_LAST {x}; EXCLUDED_CATEGORIES {tabler: {Brand}}; PREFERRED, IGNORED_TAGS (per
+#   set; B2b proposals for the owner's review)
+#   errors: IconError(ValueError) (one icon cannot be normalised), IconIndexError(RuntimeError) (the committed index is
+#   missing, damaged or stale), IndexBuildError(RuntimeError) (cannot generate from what is installed)
+#   parse_path(d) -> [(command, [Decimal])] (strict SVG 2 grammar); canonical_path(d) -> str (exact, no exponent,
+#   <= 4096 chars, matches timeline.ICON_PATH_RE); fmt(Decimal); shape_path(tag, attrs) (SVG 2 basic-shape
+#   equivalents); parse_svg(text) (refuses DTDs, entities, PIs other than a leading XML declaration, CDATA, foreign
+#   namespaces, namespaced attributes, nesting, text); normalise_svg(text, *, set_id, name, version) -> LookIcon;
+#   sanitise_icon(value) -> LookIcon | None (schema validation, then every path re-spelt canonically)
+#   normalise_key(text) -> str | None; hint_forms(key) (as written, without hyphens, English singulars of the last
+#   word); negates(name, key); match(hint, *, path=INDEX_PATH) -> IconMatch(set, name, via 'name' | 'tag', form) |
+#   None (None for a non-str hint, a hint holding a character other than letters, digits and word separators, or a
+#   one-character key); icon_for(hint, *, path) -> LookIcon | None (a fresh model each call; IconIndexError when a tag
+#   or alias names a missing icon or a stored path fails sanitising); scene_icons(items, *, path) -> {item_id:
+#   LookIcon} (items: objects with id / icon_hint, e.g. BoardItem, or mappings with those keys, else TypeError; item
+#   order; <= ICONS_PER_SCENE_MAX 32; the first icon kept for a repeated id); load_index(path) (lru_cache; checks
+#   version, set order, style, packages, versions and value types) -> {set: _SetIndex(version, icons, aliases, tags)}
+#   build_index(node_modules, *, prune=True), render_index(node_modules, *, data=None), main(['--check' | ...])
+#   index (version 1): {version, generator, order, style, sets: {lucide | tabler: {package, version, licence,
+#   licence_text, icons {name: [d]}, aliases {deprecated name: icon}, tags {key: icon}, excluded {name: reason}}}};
+#   keys sorted, one entry per line, LF, UTF-8. Run-time use reads the JSON only (no XML parser imported; tested)
+dynamic.kerning       # the measured kerning of the vendored Latin faces (B2b review F1, F2); read at run time as JSON
+#   python -m aadhi.compose.dynamic.kerning [--check] -> aadhi/compose/dynamic/kerning.json (committed; measures in
+#   Chromium with web/vendor, 85-90 min; --check exits 1 when it differs, 2 when it cannot measure; NOT in CI)
+#   VERSION 3; MEASURE_PX 1000; EPSILON_MILLI 1; MARGIN_MILLI 0.1; CONTEXT_TOL_MILLI 0.05; OPEN_TOL_MILLI 0.05;
+#   COVER_MIN 2; LETTER_SPACING ('0px', '10px'); KerningError(RuntimeError) (missing, damaged, not the face table's)
+#   load(path=TABLE_PATH) -> {face file name: FaceKerning} (lru_cache, fails closed); FaceKerning(positive, negative,
+#   up, down, open, open4, chain): upper(a, b), lower(a, b) (+/- EPSILON for an unlisted pair), context(a, b, c) ->
+#   (above, below), bounds(run) -> (wider, lower) em, bounded(run) -> bool (a run of 4+ holding an open triple, an
+#   open 4-run or two chain characters among any four is never bounded); is_mark(ch); table_faces(); face_name(...);
+#   chain_characters(contexts); near_triples(contexts, chain, chars); cover(runs, minimum=COVER_MIN); measure(...)
+dynamic.textfit       # measured text fit; loads PIL.ImageFont (a classic build never imports it); not wired into
+#   direct.py / preflight / the chunker yet (B2d/B2e)
+#   REF_PX 2048, PROBE_PX 64, SLACK_LATIN 0.04, SLACK_INDIC 0.08, KERN_FLOOR_EM 0.06 (per word), SIZE_STEP 4.0,
+#   UNCOVERED_EM 1.0 (estimate only), NOTDEF_PROBE U+10FFFF, SEPARATORS (JS \s plus U+200B, minus the no-break spaces)
+#   errors: TextFitError(RuntimeError), FaceError(TextFitError) (a face cannot be read or its axes differ from the
+#   table's: never a fallback)
+#   text model: ignorable(ch); graphemes(text) (Indic conjuncts kept whole; coarser than ICU for Tamil and Kannada);
+#   words(text) -> ((word, separator), ...) (= motion/text.js splitWords); tracking_count(clusters, tracking_em)
+#   faces: FaceKey(path, wght, axes); load_face(key, size=REF_PX) (LRU; Layout.BASIC; axes checked and set);
+#   face_key(face, weight, web_dir=None) (wght clamped to the face's range); has_glyph(key, ch) (cmap presence via the
+#   .notdef signature); advance_em(key, text); every Pillow call holds one process RLock
+#   stack_for(fonts, role, language); measure(text, *, fonts: faces.Fonts, role 'display' | 'body' | 'mono', weight,
+#   language='', tracking_em=0, web_dir=None) -> Measured(text, words, stack, weight, tracking_em; .reliable,
+#   .uncovered, .width(word, size, bias='conservative' | 'raw' | 'optimistic', clusters=None), .sep(word, size))
+#   Word(text, clusters, em, sep_em, sep_units, kern_pos, kern_neg, kern_bounded; .reliable, .indic, .slack);
+#   Cluster(text, key, indic, uncovered; .drawn, .em, .reliable); kern_bounds(clusters) -> (wider, narrower, bounded)
+#   widths: raw = advance + letter-spacing; conservative = advance x (1 + slack) + KERN_FLOOR_EM + kern_pos +
+#   letter-spacing; optimistic = max(0, advance x (1 - slack) - kern_neg) + letter-spacing
+#   fitting: word_kinds(m, width, min_size, bias) -> ('break' | 'whole' | 'either', ...); layout(m, size, width,
+#   max_lines, min_size, bias) -> Layout(size, lines, widths, whole, fits); sizes(lo, hi, step=4) (hi down, lo last);
+#   fit(m, *, width, size, max_lines, prefer_lines=None, step=4, bias='conservative') -> FitResult; fit_text(text, *,
+#   width, size, max_lines, role, weight, fonts, language='', tracking_em=0, prefer_lines=None, step=4,
+#   web_dir=None); fit_slot(text, spec: templates.SlotSpec, *, fonts, language='', width=None (overrides spec.w where
+#   the template's text box is narrower: board_generic's kicker is w - 30), step=4, web_dir=None); clear_caches()
+#   FitResult(size, lines, widths, estimate, fits, reliable, uncovered, width): fits True | False when reliable (Latin
+#   text the kerning table bounds), None otherwise (Indic, combining sequences, uncovered characters, unbounded runs:
+#   an estimate, never blocking); .stored() -> {"size", "lines": line count} (the proposed §6.7 text_fit entry, for
+#   certified results only; the stage reads text_fit[slot].size as a size cap)
+```
+
+## Repository scripts (B2b)
+```python
+# scripts/gen_third_party_notices.py — python scripts/gen_third_party_notices.py [--check]   (CI after npm ci)
+#   render(lock_path=LOCK, node_modules=NODE_MODULES) -> str; runtime_packages(lock, direct) -> [Package(name,
+#   version, licence, required_by, direct)] (every non-dev package-lock entry except EXCLUDED_SCOPES @types/*);
+#   licence_texts(pkg, node_modules) -> [(file, text)] (top-level LICENSE* / LICENCE* / COPYING* / NOTICE* /
+#   COPYRIGHT*, else FALLBACK_SOURCES: seedrandom's README section, javascript-natural-sort's source header)
+#   VENDORED: (Vendored(package, version (reviewed at), source, served, components, notices, credits, licence_file,
+#   module_table), ...): every file vendor.mjs serves (SERVED_ELSEWHERE: the fonts, fonts.css, manifest.json);
+#   Component(name, version (the one the bundle holds), licence, contained, texts (scripts/third_party_licences/*.txt
+#   or a pointer to a package section), markers, modules, notices); check_vendored(entry, text, path) fails on a
+#   version drift, a missing marker, a p5 module (browserify_packages(text)) no component lists, or an unacknowledged
+#   copyright statement (COPYRIGHT_STATEMENT)
+#   NoticeError(RuntimeError); main(['--check']): exit 1 when stale, 2 when it cannot generate (a package missing, at
+#   another version than the lock, or without licence text; a VENDORED check failing); output byte-deterministic,
+#   packages sorted, LF (.gitattributes)
+```
+```js
+// scripts/vendor_faces.mjs — vendorFaces(faces /* faces.gen.js FACES */, nodeModules, out) -> written[]: copies each
+//   B2b face and its family's LICENSE into web/vendor/fonts/dynamic/<id>/; throws on a version other than the pin, a
+//   LICENSE without OFL_TEXT ('SIL OPEN FONT LICENSE Version 1.1'), a unicode-range differing from the package's
+//   unicode.json, or a path outside the family folder. scripts/vendor.mjs imports FACES and calls it after the
+//   classic fonts, and copies mathjs/lib/browser/math.js.LICENSE.txt beside math.js
 ```
 
 ## aadhi.providers (owner: providers)
@@ -939,4 +1062,27 @@ export function createDynamicStage(root, timeline, { mode /* 'live' | 'render' *
 //   STAGE_VERSION stays 3
 // web/js/player/player.js — load() rejects a live or preview Dynamic timeline of a newer engine with TypeError code
 //   'timeline_invalid' before building or resizing anything (imports ../dynamic/engine.js statically)
+// --- Dynamic video, B2b (additive; DYNAMIC_VIDEO_DESIGN §4.6, §7.3, §7.4) -----------------------------------------
+// web/js/dynamic/faces.gen.js — GENERATED (python -m aadhi.compose.dynamic.faces): export const FACES, frozen; data
+//   only (sourceScan rule 'faces-data'), read in the stage by fonts.js only (and by scripts/vendor.mjs at install)
+// web/css/dynamic-fonts.css — GENERATED: the B2b @font-face rules (Poppins, Lexend, Atkinson Hyperlegible Next,
+//   Anek <Script>; new family names only); linked after dynamic.css by render-dynamic.html, index.html, watch.html
+//   (not by the classic render.html); scanned like dynamic.css
+// web/js/dynamic/fonts.js — the stage's type, mirroring faces.py:
+//   B1_DISPLAY_FACES {outfit: 'Outfit', inter: 'Inter'}; isB2Fonts(fonts) (a string `indic`); stageRoles(presentation)
+//   -> {display, body, mono, indic} (= faces.stage_roles; own-property lookups); indicFamilies(group, language)
+//   fontStacks(presentation, language) -> {display, body, mono} CSS stacks (moved from stage.js, which re-exports it):
+//   B1 form = B1's code except the own-property lookup of the display id (an Object.prototype name now gives Outfit);
+//   B2 form = built from the table (display: display face, body face, Indic families; body: body face, Indic
+//   families; mono: mono face; the lecture's script first)
+//   stageFontRequests(timeline) -> FontRequest[] {family, weight, sample}: B1 form -> render/fonts.js
+//   fontRequests(timeline), unchanged; B2 form -> the body, display and mono families' `requests` weights (each family
+//   once, in that order) with LATIN_SAMPLE, then the Indic group's family for each detected script (sorted by script)
+//   with that script's sample + LATIN_SAMPLE. For the resolver's fonts: display outfit = fontRequests exactly;
+//   display inter = fontRequests without the Outfit faces (no stack holds Outfit)
+// web/js/dynamic/render.js — boot preloads stageFontRequests(timeline) (was fontRequests) before ready
+// web/js/render/fonts.js — exports LATIN_SAMPLE (no behaviour change)
+// web/js/shared/types.js — TimelineFonts typedef {display?, body?, mono?, indic?}
+// web/js/player/fonts.js ensureFonts (live and Studio) is unchanged: it preloads B1's faces only (B2e: preload
+//   stageFontRequests for Dynamic timelines once direct.py names other faces)
 ```
