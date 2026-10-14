@@ -19,8 +19,9 @@ How a text is measured (the page's own rules, mirrored):
   clusters drawn by one face are measured together.
 * **Pillow FreeType, basic layout.** ``ImageFont.truetype(..., layout_engine=ImageFont.Layout.BASIC)`` on the vendored
   WOFF2 file itself (FreeType reads WOFF2: Pillow 12.3 / FreeType 2.14.3 on the dev machine; tests/compose/dynamic/
-  test_textfit.py loads every face and pins its advances wherever the fast suite runs), never raqm: raqm needs FriBiDi at run time, which some machines have and some lack, so the same
-  timeline would measure differently in the Docker image and on Windows (b2crit_engineering). A variable face's axes
+  test_textfit.py loads every face and pins its advances wherever the fast suite runs), never raqm: raqm needs FriBiDi
+  at run time, which some machines have and some lack, so the same timeline would measure differently in the Docker
+  image and on Windows (b2crit_engineering). A variable face's axes
   are ALWAYS set (Anek's file default is ``wght`` 500, not the 400 a page asks for): the requested weight clamped to
   the face's range, as CSS clamps it to the ``font-weight`` descriptor. Faces are measured at :data:`REF_PX` and
   scaled linearly: the page draws with ``--font-render-hinting=none`` and ``text-rendering: geometricPrecision``
@@ -43,15 +44,25 @@ How a text is measured (the page's own rules, mirrored):
 
 **Conservative bias** (plan §1.11, design §4.6). Each word's width is Pillow's advance plus :data:`SLACK_LATIN` (4%,
 the design's kerning allowance) or :data:`SLACK_INDIC` (8%) of it, plus :data:`KERN_FLOOR_EM`, plus the most the page's
-kerning can add **per pair** of neighbouring characters one face draws (:func:`kern_bounds`). Pillow's basic layout
-applies no GPOS kerning, and Chromium's is mostly negative but positive for many pairs (``kerning``, measured in
-Chromium for every pair of every vendored Latin face: Outfit ``(j`` +0.098 em, Atkinson ``qj`` +0.154 em, Inter
-``ïï`` +0.166 em), which add up per pair (``f'f'f'f'``): a relative slack or a per-word floor alone is not conservative
-(the B2b review F1 found ``f'f'f'f'`` certified to fit and overflowing on the page). The per-pair bound is the pair's
-measured adjustment (:data:`kerning.EPSILON_MILLI` for a pair not listed); the floor is kept from the first
-measurement (the plan's 4% alone was not conservative on short words: a deviation, recorded) for what no pair
-measurement covers. A space is its own advance plus the letter-spacing the page adds after it when that is positive
-(no vendored face kerns the space: ``kerning`` checks it).
+kerning, ligatures and contextual alternates can add over the word's **pairs and triples** of neighbouring characters
+one face draws (:func:`kern_bounds`). Pillow's basic layout applies no GPOS kerning and no contextual substitution, and
+Chromium's kerning is mostly negative but positive for many pairs (``kerning``, measured in Chromium for every pair and
+triple of every vendored Latin face: Outfit ``(j`` +0.098 em, Atkinson ``qj`` +0.154 em, Inter ``ïï`` +0.166 em;
+Inter's ``x`` between digits is drawn as a wider ``×``), which add up per pair (``f'f'f'f'``) and per context
+(``2x3x4``): a relative slack or a per-word floor alone is not conservative (the B2b review F1 found ``f'f'f'f'``
+certified to fit and overflowing on the page). The bounds are the measured adjustments (a pair not listed:
++/- :data:`kerning.EPSILON_MILLI`; a triple not listed: nothing beyond its pairs); the floor is kept from the first
+measurement (the plan's 4% alone was not conservative on short words: a deviation, recorded) as a margin beyond them.
+A word holding a context that reaches four or more characters, or may (``kerning``'s open runs and chain characters:
+Inter's ``*`` beside capitals and punctuation, whose alternates chain along the run, ``A*****`` drawn 0.24 em wider
+than its pairs and triples add up to, ``*:<H`` 0.144 em; ``10x10``, whose ``x`` is a ``×`` where ``0x1``'s is not;
+arrows such as ``<==>``; digits before a fraction slash; Outfit's ``ffiw``) is not bounded by them: it is not
+certified (below). The **optimistic** width (from which :func:`word_kinds` decides that the page certainly breaks an
+over-wide word) takes the slack off and adds the word's pairs' and triples' lower bounds, each its own (B2b review F2:
+a face-wide most negative adjustment per pair made the lower bound of every long Inter word negative, so no word was
+ever read as broken and the stored size was the minimum where the page took a larger one). A space is its own advance
+plus the letter-spacing the page adds after it when that is positive (no vendored face kerns the space wider or takes
+it into a context: ``kerning`` checks it).
 
 **What is certified** (``FitResult.fits``):
 
@@ -60,14 +71,15 @@ measurement covers. A space is its own advance plus the letter-spacing the page 
 * ``False``: Python's conservative layout overflows at the minimum size; the page overflows too, or fits only within
   Python's margins (its own words, made as much wider as the slack and the floor make a word, would not fit: the
   plan's "within 4% slack"; the same test).
-* ``None``: the text holds a cluster the measurement cannot bound (``FitResult.reliable`` is False): a cluster drawn
-  by an Indic face, a combining sequence, or a character no vendored face of the stack draws (the page draws it with
-  a system font). **The design's premise that 8% covers Indic shaping does not hold** (measured in Chromium against
-  Pillow's basic layout, every consonant x vowel sign and consonant + virama + consonant of the five scripts, Noto Sans
+* ``None``: the text holds a cluster or a run the measurement cannot bound (``FitResult.reliable`` is False): a
+  cluster drawn by an Indic face, a combining sequence, a character no vendored face of the stack draws (the page
+  draws it with a system font), or a run holding a context of its face that reaches four or more characters (above).
+  **The design's premise that 8% covers Indic shaping does not hold** (measured in Chromium against Pillow's basic
+  layout, every consonant x vowel sign and consonant + virama + consonant of the five scripts, Noto Sans
   and Anek: a conjunct is drawn up to 75% narrower than its letters' advances, ``ಕೋ`` 3.1x, ``रू`` 1.9x, ``டீ`` 1.3x
   wider, because the shaped glyphs are not the characters' own), so no slack makes it an upper or a lower
   bound. ``size`` / ``lines`` / ``estimate`` are still given (the plan's 8%) as an estimate for a start size; a lint
-  must not block on it. Shaping (HarfBuzz) would make Indic measurable: an owner decision, recorded for B2e.
+  must not block on it. The owner decided on shaping (HarfBuzz) for Indic text, in the step that follows B2b.
 
 Not wired into direct.py or preflight here (B2d/B2e). Imported only inside the Dynamic gate (it loads
 ``PIL.ImageFont``, which a classic build never does: tests/compose/test_dynamic_isolation.py).
@@ -311,8 +323,10 @@ class Cluster:
     @property
     def reliable(self) -> bool:
         """Whether Pillow's basic layout bounds this cluster's width on the page: one drawn character of a non-Indic
-        face (a combining sequence, an Indic cluster or an uncovered character is shaped or drawn by a system font)."""
-        return not self.uncovered and not self.indic and len(self.drawn) <= 1
+        face, not a combining mark (a combining sequence or a lone mark, an Indic cluster or an uncovered character is
+        shaped or drawn by a system font)."""
+        return (not self.uncovered and not self.indic and len(self.drawn) <= 1
+                and not any(kn.is_mark(ch) for ch in self.drawn))
 
 
 @dataclass(frozen=True)
@@ -326,12 +340,13 @@ class Word:
     em: float
     sep_em: float
     sep_units: int = 0
-    kern_pos: float = 0.0  # em: the most its pairs can draw it wider (:func:`kern_bounds`)
-    kern_neg: float = 0.0  # em: the most its pairs can draw it narrower
+    kern_pos: float = 0.0  # em: the most its pairs and contexts can draw it wider (:func:`kern_bounds`)
+    kern_neg: float = 0.0  # em: the most its pairs and contexts can draw it narrower (negative: always wider)
+    kern_bounded: bool = True  # no run of it holds a context the table does not bound (:func:`kern_bounds`)
 
     @property
     def reliable(self) -> bool:
-        return all(c.reliable for c in self.clusters)
+        return self.kern_bounded and all(c.reliable for c in self.clusters)
 
     @property
     def indic(self) -> bool:
@@ -367,11 +382,11 @@ class Measured:
     def width(self, word: Word, size: float, bias: Bias = "conservative",
               clusters: Sequence[Cluster] | None = None) -> float:
         """A word's (or a piece of it: ``clusters``) width in px at ``size``: ``raw`` Pillow's advance plus the
-        letter-spacing; ``conservative`` + the slack, :data:`KERN_FLOOR_EM` and the most its kerning pairs add
-        (:func:`kern_bounds`, per pair); ``optimistic`` - the slack and the most its pairs take off."""
+        letter-spacing; ``conservative`` + the slack, :data:`KERN_FLOOR_EM` and the most its kerning pairs and
+        contexts add (:func:`kern_bounds`); ``optimistic`` - the slack, and its pairs' and contexts' lower bounds."""
         part = word.clusters if clusters is None else tuple(clusters)
         em = word.em if clusters is None else sum(c.em for c in part)
-        pos, neg = (word.kern_pos, word.kern_neg) if clusters is None else kern_bounds(part)
+        pos, neg = (word.kern_pos, word.kern_neg) if clusters is None else kern_bounds(part)[:2]
         if bias == "conservative":
             em = em * (1 + word.slack) + KERN_FLOOR_EM + pos
         elif bias == "optimistic":
@@ -400,33 +415,47 @@ def _cluster(text: str, stack: Sequence[str], weight: int, web_dir: Path | str |
     return Cluster(text, None, uncovered=True)
 
 
-def kern_bounds(clusters: Sequence[Cluster]) -> tuple[float, float]:
-    """The most the page's kerning can draw these clusters wider, and narrower, than their advances (em): per pair of
-    neighbouring clusters one Latin face draws (a face kerns only its own glyphs; a default-ignorable cluster between
-    them is skipped, a cluster no vendored face draws ends the run), the measured bound of the pair (``kerning``:
-    its positive adjustment, else :data:`kerning.EPSILON_MILLI`) and the face's most negative adjustment. Pairs of an
-    Indic face add nothing: such text is never certified (an estimate only)."""
+def kern_bounds(clusters: Sequence[Cluster]) -> tuple[float, float, bool]:
+    """``(wider, narrower, bounded)``: the most the page's kerning, ligatures and contextual alternates can draw these
+    clusters wider, and narrower (negative when they are always drawn wider), than their advances (em), and whether
+    the table bounds every run of them. Per run of characters one Latin face draws (a face kerns and substitutes only
+    its own glyphs: a change of face, an Indic cluster or a cluster no vendored face draws ends the run; a
+    default-ignorable cluster is skipped): its pairs' and context triples' measured bounds (``kerning``:
+    ``FaceKerning.bounds``), each side on its own (B2b review F2: a face-wide most negative adjustment per pair made
+    every long word's lower bound negative). A run of four or more characters that holds one of the face's open
+    contexts or two of its chain characters among four (``FaceKerning.bounded``: Inter's ``*`` beside capitals and
+    punctuation, whose alternates chain along the run, ``10x10``, its arrows, digits before a fraction slash; B2b
+    review F1) is not bounded: the word is not certified, and its bounds are an estimate. Indic runs add nothing:
+    such text is never certified (an estimate only)."""
     table = kn.load()
     pos = neg = 0.0
-    prev: Cluster | None = None
+    bounded = True
+    run: list[str] = []
+    run_key: FaceKey | None = None
+
+    def flush() -> None:
+        nonlocal pos, neg, bounded
+        if run_key is not None and len(run) > 1:
+            face = table.get(kn.face_name(run_key.path))
+            if face is None:
+                raise TextFitError(f"no measured kerning for the face {run_key.path}: run {kn.GENERATOR}")
+            text = "".join(run)
+            hi, lo = face.bounds(text)
+            pos += hi
+            neg -= lo
+            bounded = bounded and face.bounded(text)
+        run.clear()
+
     for c in clusters:
-        if c.uncovered:
-            prev = None
+        if c.key is None and not c.uncovered:  # only default-ignorable characters: no glyph, no pair
             continue
-        if c.key is None:  # only default-ignorable characters: no glyph, no pair
-            continue
-        if not c.indic:
-            # the pair with the previous cluster, and the pairs inside a cluster of several characters
-            chars = ([prev.drawn[-1]] if prev is not None and prev.key == c.key else []) + list(c.drawn)
-            if len(chars) > 1:
-                face = table.get(kn.face_name(c.key.path))
-                if face is None:
-                    raise TextFitError(f"no measured kerning for the face {c.key.path}: run {kn.GENERATOR}")
-                for a, b in zip(chars, chars[1:], strict=False):
-                    pos += face.bound(a, b)
-                    neg -= face.most_negative
-        prev = c
-    return pos, neg
+        if c.uncovered or c.indic or c.key != run_key:
+            flush()
+            run_key = None if c.uncovered or c.indic else c.key
+        if run_key is not None:
+            run.extend(c.drawn)
+    flush()
+    return pos, neg, bounded
 
 
 def _runs_em(clusters: Sequence[Cluster]) -> float:
@@ -534,10 +563,11 @@ def _other(bias: Bias) -> Bias:
 def word_kinds(m: Measured, width: float, min_size: float, bias: Bias = "conservative") -> tuple[str, ...]:
     """How the page treats each word wider than the box (board_generic ``layout``: a word is "unavoidable", and may
     break, when the page measures it wider than the box at the slot's MINIMUM size; any other word must stay whole):
-    ``"break"`` when even the most favourable reading (the slack the other way and every kerning pair at its face's
-    most negative measured adjustment: ``kerning``) is wider than the box at the minimum, so the page certainly breaks
-    it (the slack alone was not that: the page draws ``AVAVAV...`` up to 12% narrower than Pillow; B2b review F2); ``"whole"`` when even ``bias``'s reading fits at the minimum, so the page certainly
-    keeps it whole; ``"either"`` when the page may do either."""
+    ``"break"`` when even the most favourable reading (the slack the other way and every kerning pair and context at
+    its measured lower bound: ``kerning``) is wider than the box at the minimum, so the page certainly breaks it (the
+    slack alone was not that: the page draws ``AVAVAV...`` up to 12% narrower than Pillow; B2b review F2);
+    ``"whole"`` when even ``bias``'s reading fits at the minimum, so the page certainly keeps it whole; ``"either"``
+    when the page may do either."""
     out = []
     for w in m.words:
         if m.width(w, min_size, _other(bias)) > width:

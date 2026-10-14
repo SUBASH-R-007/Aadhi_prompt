@@ -1,6 +1,5 @@
-SGI FREE SOFTWARE LICENSE B (Version 2.0, Sept. 18, 2008)
 Copyright 2000, Silicon Graphics, Inc. All Rights Reserved.
-Copyright 2012, Google Inc. All Rights Reserved.
+Copyright 2015, Google Inc. All Rights Reserved.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to
@@ -19,10 +18,6 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
 SILICON GRAPHICS, INC. BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
 WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-Except as contained in this notice, the name of Silicon Graphics, Inc. shall not
-be used in advertising or otherwise to promote the sale, use or other dealings
-in this Software without prior written authorization from Silicon Graphics, Inc.
 
 Original Code. The Original Code is: OpenGL Sample Implementation,
 Version 1.2.1, released January 26, 2000, developed by Silicon Graphics,

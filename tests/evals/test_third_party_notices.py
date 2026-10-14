@@ -173,7 +173,7 @@ def test_the_bundled_code_is_listed_with_its_licences(gen) -> None:
     entry = next(e for e in gen.VENDORED if e.source == "p5/lib/p5.min.js")
     assert entry.module_table and {m for c in entry.components for m in c.modules} == set(table)
     for marker in ("--- core-js 3.6.5: LICENSE of the core-js 3.6.5 npm package ---", "Copyright (c) 2014-2020 Denis "
-                   "Pushkarev", "SGI FREE SOFTWARE LICENSE B (Version 2.0, Sept. 18, 2008)", "(c) Dean McNamee",
+                   "Pushkarev", "Copyright 2015, Google Inc. All Rights Reserved.", "(c) Dean McNamee",
                    "Copyright (c) 2017 Frederik De Bleser", "Copyright 2008 Fair Oaks Labs, Inc.",
                    "Copyright Joyent, Inc. and other Node contributors.", "Copyright (c) 2015-present Devon Govett",
                    "Copyright Mathias Bynens", "Copyright (c) 2017 Eric Wendelin and other contributors",
@@ -204,11 +204,17 @@ def test_the_texts_taken_from_the_p5_bundle_are_its_comments(gen) -> None:
     """The notices p5's unminified build carries (the same build p5.min.js minifies) are the committed texts."""
     source = (ROOT / "node_modules" / "p5" / "lib" / "p5.js").read_text(encoding="utf-8")
     comments = "\n".join(re.sub(r"^\s*(//|\*)?\s?", "", ln).rstrip() for ln in source.split("\n"))
-    for name in ("omggif-1.0.10.txt", "stacktrace.js-p5.txt", "node-path-notice.txt"):
+    for name in ("omggif-1.0.10.txt", "stacktrace.js-p5.txt", "node-path-notice.txt", "libtess-p5.txt"):
         assert gen._clean((gen.LICENCE_DIR / name).read_text(encoding="utf-8")) in comments, name
-    libtess = gen._clean((gen.LICENCE_DIR / "libtess-1.2.2.txt").read_text(encoding="utf-8"))
-    assert "Copyright 2000, Silicon Graphics, Inc. All Rights Reserved." in libtess
-    assert "either this permission notice or a reference to http://oss.sgi.com/projects/FreeB/" in comments
+    # libtess (B2b review): the notice the bundled module carries, whose dates SGI-B 2.0 asks to be kept (the libtess
+    # 1.2.2 package's LICENSE file says "Copyright 2012, Google Inc." and adds a paragraph the module does not carry)
+    libtess = gen._clean((gen.LICENCE_DIR / "libtess-p5.txt").read_text(encoding="utf-8"))
+    module = source[source.index("Copyright 2000, Silicon Graphics, Inc. All Rights Reserved."):]
+    module = gen._clean(module[:module.index("*/")])
+    assert libtess == "\n".join(ln.strip() for ln in module.split("\n")).strip()
+    assert libtess.splitlines()[:2] == ["Copyright 2000, Silicon Graphics, Inc. All Rights Reserved.",
+                                        "Copyright 2015, Google Inc. All Rights Reserved."]
+    assert "including the dates of first publication" in libtess and "Except as contained" not in libtess
 
 
 _BUNDLE = ('!function(){}({1:[function(e,t,r){var a=e("lib-a"),b=e("@scope/b/x");t.exports=1},{"lib-a":2,'

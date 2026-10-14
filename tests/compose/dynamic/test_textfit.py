@@ -339,11 +339,15 @@ def test_conservative_widths_add_the_slack_and_the_kerning_floor() -> None:
     (word,) = m.words
     track = -0.015 * 10
     assert m.width(word, 100, "raw") == pytest.approx(100 * (word.em + track))
-    # per pair of the word (one face draws it): the measured positive bound, and the face's most negative adjustment
+    # the word's pairs and triples (one face draws it): their measured bounds above and below, each its own
     face = kn.load()["outfit-latin-700-normal.woff2"]
     pairs = list(zip("Typography", "Typography"[1:], strict=False))
-    assert word.kern_pos == pytest.approx(sum(face.bound(a, b) for a, b in pairs))
-    assert word.kern_neg == pytest.approx(-face.most_negative * len(pairs)) and word.kern_neg > 0
+    triples = list(zip("Typography", "Typography"[1:], "Typography"[2:], strict=False))
+    assert word.kern_pos == pytest.approx(sum(face.upper(a, b) for a, b in pairs) +
+                                          sum(face.context(a, b, c)[0] for a, b, c in triples))
+    assert word.kern_neg == pytest.approx(-sum(face.lower(a, b) for a, b in pairs) -
+                                          sum(face.context(a, b, c)[1] for a, b, c in triples))
+    assert word.kern_neg > 0 and face.lower("T", "y") < -0.05 and word.kern_bounded
     assert m.width(word, 100) == pytest.approx(100 * (word.em * 1.04 + tf.KERN_FLOOR_EM + word.kern_pos + track))
     assert m.width(word, 100, "optimistic") == pytest.approx(100 * (word.em * 0.96 - word.kern_neg + track))
     assert word.slack == tf.SLACK_LATIN == 0.04 and not word.indic
@@ -361,12 +365,47 @@ _PAGE_WIDTHS = [("outfit", 700, -0.015, "f'f'", 147.20), ("outfit", 700, -0.015,
                 ("atkinson_hyperlegible_next", 600, 0.02, "f'f'f'f'", 254.61)]
 
 
-@pytest.mark.parametrize(("family", "weight", "tracking", "word", "page"), _PAGE_WIDTHS)
-def test_positive_kerning_is_bounded_per_pair(family: str, weight: int, tracking: float, word: str,
-                                              page: float) -> None:
+# Contexts no pair shows: Inter draws the x between digits as a wider multiplication sign (its contextual alternates,
+# on when the letter-spacing is 0). The widths Chromium drew at 100 px (the face file in a page with dynamic.css's
+# kerning, ligature and rendering settings), measured for the fix round of the B2b review: bounded per pair only,
+# "2x3x4x5" was certified narrower than the page draws it.
+_CONTEXT_WIDTHS = [("inter", 400, 0.0, "2x3x4x5", 445.17), ("inter", 400, 0.0, "3x3", 189.70),
+                   ("inter", 400, 0.0, "1x1x1x1", 361.18), ("inter", 700, -0.015, "2x3x4x5", 420.90),
+                   ("inter", 600, 0.02, "2x3x4x5", 438.42)]
+# Contexts that chain along a run (B2b review F1, round 2): Inter's asterisk beside capitals and punctuation is drawn
+# as another glyph, and the next asterisk after it too, so no pair or triple bounds the run. The widths Chromium drew
+# at 100 px (the review's measurements and the first fix round's; letter-spacing 0, where the alternates are on).
+# Bounded by their pairs and triples, the review's eight are narrower than the page draws them.
+_CHAINED_WIDTHS = [("inter", 400, "A*****", 388.14), ("inter", 400, "*****A", 388.14),
+                   ("inter", 400, "A********", 581.64), ("inter", 400, "!********", 544.78),
+                   ("inter", 400, "2********3", 638.78), ("inter", 400, "4|~***", 357.53),
+                   ("inter", 400, "**:<H0?", 412.50), ("inter", 400, "8]*-*}*]", 416.95),
+                   ("inter", 600, "A*****", 401.42), ("inter", 400, "**A**", 320.26),
+                   ("inter", 400, "A**B**C", 462.10), ("inter", 400, "*(A)*", 270.95), ("inter", 700, "**A**", 271.85)]
+
+
+@pytest.mark.parametrize(("family", "weight", "tracking", "word", "page"), _PAGE_WIDTHS + _CONTEXT_WIDTHS)
+def test_positive_kerning_is_bounded_per_pair_and_context(family: str, weight: int, tracking: float, word: str,
+                                                          page: float) -> None:
     fonts = {"display": family, "body": "inter", "mono": "jetbrains_mono", "indic": "noto_sans"}
     m = tf.measure(word, fonts=fonts, role="display", weight=weight, tracking_em=tracking)
     assert m.reliable and m.width(m.words[0], 100) > page
+
+
+@pytest.mark.parametrize(("family", "weight", "word", "page"), _CHAINED_WIDTHS)
+def test_a_context_that_chains_along_a_run_is_never_certified(family: str, weight: int, word: str,
+                                                              page: float) -> None:
+    fonts = {"display": family, "body": "inter", "mono": "jetbrains_mono", "indic": "noto_sans"}
+    m = tf.measure(word, fonts=fonts, role="display", weight=weight)
+    (w,) = m.words
+    assert all(c.reliable for c in w.clusters) and not w.kern_bounded and not w.reliable and not m.reliable
+    r = tf.fit_text(word, width=1000.0, size=(40.0, 100.0), max_lines=1, role="display", weight=weight, fonts=fonts)
+    assert r.fits is None and r.estimate and r.reliable is False, r
+    if _CHAINED_WIDTHS.index((family, weight, word, page)) < 8:  # the review's: their pairs and triples undercount
+        face = fc.face_for(family, weight, ord("A"))
+        assert face is not None
+        hi, _ = kn.load()[kn.face_name(face)].bounds(word)
+        assert 100 * (w.em + hi) < page, (word, 100 * (w.em + hi), page)
 
 
 def test_a_title_of_kerning_pairs_is_not_certified_wider_than_the_page_draws_it() -> None:
@@ -391,22 +430,72 @@ def test_a_word_the_page_may_keep_whole_is_not_read_as_certainly_broken(title: s
     assert r.fits and r.size == 56.0, r
 
 
+# Words wider than the box at every size, in the faces whose face-wide most negative adjustment (Inter's arrows
+# <=> and ==>, -0.644 em; Lexend's fractions) made every pair's lower bound -0.66 em (Inter) or -0.24 to -0.31 em
+# (Lexend), so their optimistic width was at or below 0 and Python laid them out broken only at the minimum, storing a
+# size the page does not take (B2b review F2, round 2): (fonts, slot, text, word kinds, size, line count). The page
+# breaks them at every size and takes the sizes given (tests/determinism/test_textfit_page.py for the titles).
+_INTER = {"display": "inter", "body": "inter", "mono": "jetbrains_mono", "indic": "noto_sans"}
+_LEXEND = {"display": "lexend", "body": "inter", "mono": "jetbrains_mono", "indic": "noto_sans"}
+_URL = "See https://en.wikipedia.org/wiki/Electrochemistry_and_batteries_overview"
+_OVER_WIDE = [(_INTER, "title", "Supercalifragilisticexpialidocious", ("break",), 80.0, 2),
+              (_INTER, "title", "Electrochemistry_and_batteries_overview", ("break",), 64.0, 2),
+              (_LEXEND, "title", "Supercalifragilisticexpialidocious", ("break",), 76.0, 2),
+              (B1, "body", _URL, ("whole", "break"), 56.0, 5)]
+
+
+@pytest.mark.parametrize(("fonts", "slot", "text", "kinds", "size", "lines"), _OVER_WIDE)
+def test_a_word_wider_than_the_box_at_every_size_is_read_as_broken(fonts: dict[str, str], slot: str, text: str,
+                                                                   kinds: tuple[str, ...], size: float,
+                                                                   lines: int) -> None:
+    spec = TEMPLATES["board_generic"].slots[slot]["portrait"]["default"]
+    m = tf.measure(text, fonts=fonts, role=spec.face, weight=spec.weight, tracking_em=spec.tracking_em)
+    assert m.reliable and tf.word_kinds(m, spec.w, spec.size[0]) == kinds
+    word = m.words[-1]
+    assert 0 < word.kern_neg < 0.3  # its own pairs' lower bounds: not a face-wide worst case per pair
+    assert m.width(word, spec.size[0], "optimistic") > spec.w  # so the page breaks it at every size
+    r = tf.fit_slot(text, spec, fonts=fonts)
+    assert r.fits and r.size == size and len(r.lines) == lines, r
+    assert r.stored() == {"size": size, "lines": lines}
+
+
 def test_kern_bounds_count_pairs_of_one_face_only(monkeypatch: pytest.MonkeyPatch) -> None:
     table = kn.load()
     outfit = table["outfit-latin-700-normal.woff2"]
     m = tf.measure("(j", fonts=B1, role="display", weight=700)
-    assert m.words[0].kern_pos == pytest.approx(outfit.bound("(", "j")) and outfit.bound("(", "j") >= 0.09
+    assert m.words[0].kern_pos == pytest.approx(outfit.upper("(", "j")) and outfit.upper("(", "j") >= 0.09
     # ħ is drawn by Inter (Poppins and Outfit lack it): no pair across two faces
     assert tf.measure("aħ", fonts=B1, role="display", weight=700).words[0].kern_pos == 0.0
     # a default-ignorable character between two letters of one face does not end the pair (counted, here inside one
     # grapheme cluster: the pairs inside a cluster of several characters count too)
     zwj = tf.measure("(‍j", fonts=B1, role="display", weight=700).words[0]
-    assert zwj.kern_pos == pytest.approx(outfit.bound("(", "j"))
+    assert zwj.kern_pos == pytest.approx(outfit.upper("(", "j"))
     # a character no vendored face draws ends the run; Indic pairs add nothing (never certified)
     assert tf.measure("(πj", fonts=B1, role="display", weight=700).words[0].kern_pos == 0.0
+    for text, language in (("(πj", ""), ("மின்", "ta-IN")):
+        assert tf.measure(text, fonts=B1, role="display", weight=700, language=language).words[0].kern_neg == 0.0
     assert tf.measure("மின்", fonts=B1, role="display", weight=700, language="ta-IN").words[0].kern_pos == 0.0
-    # a pair the table does not list is bounded by the epsilon
-    assert outfit.bound("o", "o") == kn.EPSILON_MILLI / 1000 and "oo" not in outfit.positive
+    # a pair the table does not list is bounded by the epsilon, both ways
+    assert outfit.upper("o", "o") == kn.EPSILON_MILLI / 1000 and "oo" not in outfit.positive
+    assert outfit.lower("o", "o") == -kn.EPSILON_MILLI / 1000 and "oo" not in outfit.negative
+    # every triple of a run adds its measured context: Inter's 2x3 (x drawn as a wider multiplication sign) ...
+    inter = table["inter-latin-400-normal.woff2"]
+    word = tf.measure("2x3", fonts=B1, role="body", weight=400).words[0]
+    assert inter.context("2", "x", "3")[0] >= 0.1  # above (below: about 0, as drawn with letter-spacing)
+    assert word.kern_pos == pytest.approx(inter.upper("2", "x") + inter.upper("x", "3") +
+                                          inter.context("2", "x", "3")[0])
+    assert word.kern_neg == pytest.approx(-inter.lower("2", "x") - inter.lower("x", "3") -
+                                          inter.context("2", "x", "3")[1])
+    # ... and the contexts of a run add up, one per triple
+    assert tf.measure("2x3x4", fonts=B1, role="body", weight=400).words[0].kern_pos == pytest.approx(
+        sum(inter.upper(a, b) for a, b in zip("2x3x4", "x3x4", strict=False)) +
+        sum(inter.context(*"2x3x4"[i:i + 3])[0] for i in range(3)))
+    # a run holding an open context is not bounded; a word split into runs by another face is judged per run
+    for text in ("A*****", "*:<H", "10x10", "12⁄34"):  # a chain, chain characters, a context's exception, a fraction
+        assert not tf.measure(text, fonts=B1, role="body", weight=400).words[0].kern_bounded, text
+    for text in ("2x3x4x5", "X-ray", "12:30", "example"):
+        assert tf.measure(text, fonts=B1, role="body", weight=400).words[0].kern_bounded, text
+    assert tf.measure("A**π**", fonts=B1, role="body", weight=400).words[0].kern_bounded  # two runs of three
     # a face the table lacks is an error, never an unbounded pair (fail closed)
     monkeypatch.setattr(tf.kn, "load", lambda: {})
     with pytest.raises(tf.TextFitError, match="no measured kerning"):
@@ -582,6 +671,11 @@ def test_indic_and_combining_text_is_estimated_never_certified() -> None:
     # a combining sequence a vendored Latin face draws (U+0304 is in its range): covered, but shaped, not certified
     macron = tf.measure("x\u0304", fonts=B1, role="display", weight=700)
     assert macron.uncovered == () and not macron.words[0].indic and not macron.reliable
+    # a lone mark (a word starting with one: a cluster of one drawn character) is shaped too: not certified (the
+    # kerning table stores no context holding a mark)
+    lone = tf.measure("̄x", fonts=B1, role="display", weight=700)
+    assert [len(c.drawn) for c in lone.words[0].clusters] == [1, 1] and not lone.reliable
+    assert tf.fit_slot("̄x", spec, fonts=B1, language="en-IN").fits is None
 
 
 def test_fit_slot_reads_the_slot_and_a_narrower_box() -> None:

@@ -162,7 +162,9 @@ P5_COMPONENTS: tuple[Component, ...] = (
                     "string.prototype.codepointat-0.2.1.txt"),),
               ("String.prototype.codePointAt||((",)),
     Component("libtess", "1.2.2", "SGI-B-2.0", f"browserify module; version from {_P5_LOCK}",
-              (_lic("LICENSE of the libtess 1.2.2 npm package", "libtess-1.2.2.txt"),),
+              (_lic("the licence header of the libtess module p5's build bundles (p5.js; p5.min.js drops it), which "
+                    "the SGI Free Software License B asks to be kept with its dates (Copyright 2015, Google Inc.; "
+                    "the libtess 1.2.2 package's own LICENSE file says 2012)", "libtess-p5.txt"),),
               ("GluTesselator",), modules=("libtess",)),
     Component("gifenc", "1.0.3", "MIT", f"browserify module; version from {_P5_LOCK}",
               (_lic("LICENSE.md of the gifenc 1.0.3 npm package", "gifenc-1.0.3.txt"),),
