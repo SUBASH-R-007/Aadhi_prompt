@@ -7,7 +7,8 @@
 
 /** @typedef {{ family: string, weight: number, sample: string }} FontRequest */
 
-const LATIN_SAMPLE = 'AaZz09Āā…';
+/** Latin sample text of every Latin face request (its subsets: Latin, Latin Extended, punctuation). */
+export const LATIN_SAMPLE = 'AaZz09Āā…';
 
 /** Every vendored family/weight the CSS may use (superset of Inter 400/600/700, Outfit 400/700/900,
  * JetBrains Mono 400): preloading all of them means no face is fetched lazily mid-render. */

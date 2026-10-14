@@ -18,3 +18,5 @@ docker/** text eol=lf
 *.mp3 binary
 *.wav binary
 *.woff2 binary
+# Generated (scripts/gen_third_party_notices.py; its --check compares bytes)
+THIRD_PARTY_NOTICES text eol=lf

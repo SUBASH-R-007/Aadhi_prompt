@@ -20,7 +20,9 @@ ARG DOCKER_CLI_IMAGE=docker:27-cli
 FROM node:${NODE_VERSION}-slim AS web
 WORKDIR /src
 COPY package.json package-lock.json ./
-COPY scripts/vendor.mjs scripts/vendor.mjs
+COPY scripts/vendor.mjs scripts/vendor_faces.mjs scripts/
+# vendor.mjs copies the Dynamic stage's faces from the generated face table (aadhi/compose/dynamic/faces.py).
+COPY web/js/dynamic/faces.gen.js web/js/dynamic/faces.gen.js
 # `npm ci` runs the postinstall hook (scripts/vendor.mjs), which fills web/vendor.
 RUN npm ci --no-audit --no-fund && test -f web/vendor/manifest.json
 
@@ -78,6 +80,8 @@ WORKDIR /app
 COPY aadhi/ /app/aadhi/
 COPY alembic/ /app/alembic/
 COPY alembic.ini server.py /app/
+# The licences of everything web/vendor serves (generated: scripts/gen_third_party_notices.py; design §4.12).
+COPY THIRD_PARTY_NOTICES /app/
 COPY web/ /app/web/
 COPY docker/app/ /app/docker/app/
 COPY video_template/aadhi_*.mp4 video_template/no_aadhi*.mp4 video_template/logo_animation*.mp4 \

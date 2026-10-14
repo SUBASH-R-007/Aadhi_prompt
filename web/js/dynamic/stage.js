@@ -22,10 +22,10 @@
 import { h } from '../shared/dom.js';
 import { sceneIndexAt } from '../player/schedule.js';
 import { contrastRatio } from '../motion/color.js';
-import { SCRIPT_FONTS, scriptForLanguage } from '../render/fonts.js';
 import { hashSeed, mulberry32 } from '../motion/random.js';
 import { Painter, fixesOf, makeRoles, sceneIndexOfFrame, stageInfo, toneColor, zonesFor } from './core.js';
 import { engineProblem } from './engine.js';
+import { fontStacks } from './fonts.js';
 import { backgroundTime, captionAt, chapterTitleAt, dynamicStateAt, freezeProgress } from './state.js';
 import { paintTransition, transitionAt } from './transitions.js';
 import { CaptionLayer, captionStyle } from './captions.js';
@@ -51,9 +51,6 @@ import colourBlock from './backgrounds/colour_block.js';
 export const TEMPLATES = Object.freeze({ board_generic: boardGeneric });
 /** Background presets by id (B1: mesh_drift and colour_block; unknown ids get mesh_drift). */
 export const BACKGROUNDS = Object.freeze({ mesh_drift: meshDrift, colour_block: colourBlock });
-
-/** Display faces the page has vendored (web/vendor/fonts.css); others fall back to Outfit until B2 vendors them. */
-const DISPLAY_FACES = Object.freeze(/** @type {Record<string, string>} */ ({ outfit: 'Outfit', inter: 'Inter' }));
 
 /**
  * True for a timeline the Dynamic stage renders (its presentation style is "dynamic").
@@ -97,29 +94,11 @@ export function backgroundFor(scene) {
   return /** @type {Record<string, typeof meshDrift>} */ (BACKGROUNDS)[String(id)] || meshDrift;
 }
 
-/** The Indic families behind every stack (web/vendor/fonts.css), in their default order. */
-const INDIC_FAMILIES = Object.freeze(['Noto Sans Tamil', 'Noto Sans Devanagari', 'Noto Sans Telugu', 'Noto Sans Kannada', 'Noto Sans Malayalam']);
-
 /**
- * CSS font stacks of the presentation (display, body, mono) with the Indic families behind each, the lecture's own
- * script first: the Noto subsets share characters (the Tamil faces also claim U+0964-0965 DANDA, ZWJ/ZWNJ, U+20B9),
- * so a Hindi danda must come from the Devanagari face the render page preloaded, not from a Tamil face loaded
- * lazily mid-render (its text would be invisible until it is in, and drawn with another script's glyph).
- * @param {any} presentation
- * @param {string} [language]  the board language (BCP-47), e.g. "hi-IN"
+ * CSS font stacks of the presentation (display, body, mono): fonts.js, from presentation.fonts and the face table (B2b;
+ * a B1-form presentation draws exactly what the B1 stage drew).
  */
-export function fontStacks(presentation, language = '') {
-  const fonts = (presentation && presentation.fonts) || {};
-  const display = DISPLAY_FACES[String(fonts.display || 'outfit')] || 'Outfit';
-  const script = scriptForLanguage(language);
-  const own = script ? /** @type {Record<string, {family: string}>} */ (SCRIPT_FONTS)[script].family : null;
-  const indic = (own ? [own, ...INDIC_FAMILIES.filter((f) => f !== own)] : INDIC_FAMILIES).map((f) => `'${f}'`).join(', ');
-  return {
-    display: `'${display}', 'Inter', ${indic}, sans-serif`,
-    body: `'Inter', ${indic}, sans-serif`,
-    mono: "'JetBrains Mono', ui-monospace, monospace",
-  };
-}
+export { fontStacks } from './fonts.js';
 
 /** The quieter ink on a colour block and its 3:1 floor (R-53): core.js, where the block roles are made. */
 export { BLOCK_INK2_CONTRAST, blockInk2 } from './core.js';

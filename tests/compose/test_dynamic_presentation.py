@@ -16,6 +16,7 @@ import pytest
 
 from aadhi.compose import presentation as pres
 from aadhi.compose.captions import MAX_LINES
+from aadhi.compose.dynamic import faces as fc
 from aadhi.compose.dynamic import themes as th
 from aadhi.compose.timeline import DYNAMIC_FPS, build_timeline, preview_timeline
 from aadhi.config import Settings
@@ -123,7 +124,8 @@ def test_presentation_is_resolved(flag_on: Settings) -> None:
     assert p.content == pres.content_tokens("dark")
     assert set(p.content) == {"ink", "ink2", "entity:0", "entity:1", "entity:2", "warn", "ok", "mark", "focus"}
     assert all(HEX.match(v) for v in p.content.values())
-    assert p.fonts == {"display": "outfit", "body": "inter", "mono": "jetbrains_mono"}
+    assert p.fonts.model_dump(mode="json") == {"display": "outfit", "body": "inter", "mono": "jetbrains_mono",
+                                               "indic": "noto_sans"}  # B2b: the B2 form of B1's faces
     assert (p.personality, p.caption_style, p.cue_term_style) == ("crisp", "clean_pill", "underline")
     assert (p.captions_burn, p.sfx, p.motion) == (True, False, "calm")
     assert p.engine_version == pres.ENGINE_VERSION == 2  # the look-engine generation of the B2 resolver
@@ -433,7 +435,11 @@ def test_b1_choices_are_kept(flag_on: Settings, cfg: dict[str, Any]) -> None:
     tl = golden_build(cfg, flag_on)
     assert tl["chapters"] == cfg["chapters_list"]
     old_p, new_p = cfg["timeline_presentation"], tl["presentation"]
-    assert {k: v for k, v in new_p.items() if k not in B2A_PRESENTATION_KEYS} == {**old_p, "engine_version": 2}
+    # B2b: fonts in the B2 form (with ``indic``), naming the faces the B1 stage drew for B1's fonts (faces.py)
+    assert new_p["fonts"] == {**old_p["fonts"], "indic": "noto_sans"}
+    assert fc.stage_roles(new_p["fonts"]) == fc.stage_roles(old_p["fonts"])
+    assert {k: v for k, v in new_p.items() if k not in B2A_PRESENTATION_KEYS} == {
+        **old_p, "engine_version": 2, "fonts": new_p["fonts"]}
     assert list(new_p)[:len(old_p)] == list(old_p), "B1's keys keep their order"
     assert [s["scene_id"] for s in tl["scenes"]] == [s["scene_id"] for s in cfg["scenes"]]
     family = pres.family_for(cfg["presentation"].get("theme_family", "midnight_indigo"))
@@ -460,6 +466,22 @@ def test_b1_choices_are_kept(flag_on: Settings, cfg: dict[str, Any]) -> None:
             keep = ("template", "variant", "transition_in", "hold_reason")
             assert {k: new["look"][k] for k in keep} == {k: old["look"][k] for k in keep}
             assert new["look"]["background"]["seed"] == old["look"]["background"]["seed"]
+
+
+@pytest.mark.parametrize("display", ["outfit", "inter", "poppins", "lexend", "montserrat", "jetbrains_mono"])
+def test_fonts_name_the_faces_the_b1_stage_drew(flag_on: Settings, display: str) -> None:
+    """B2b (plan §1.3): ``presentation.fonts`` is the B2 form (``indic`` set), naming exactly the faces the B1 stage drew
+    for B1's ``{display: display_font, body, mono}`` (a display id the B1 stage did not draw is stored as the Outfit it
+    drew instead), so no look changes; the stage reads the B2 form through the face table (web/js/dynamic/fonts.js)."""
+    tl = build(dynamic_screenplay(display_font=display), flag_on)
+    assert tl.presentation is not None
+    fonts = tl.presentation.fonts.model_dump(mode="json")
+    b1 = {"display": display, "body": "inter", "mono": "jetbrains_mono"}  # what the B1 resolver stored
+    assert fonts == fc.resolver_fonts(display) and fc.is_b2_fonts(fonts) and not fc.is_b2_fonts(b1)
+    assert fonts["display"] == ("inter" if display == "inter" else "outfit")
+    for role in ("display", "body", "mono"):
+        for lang in ("en-IN", "ta-IN", "hi-IN"):
+            assert fc.css_stack(fonts, role, lang) == fc.css_stack(b1, role, lang)
 
 
 @pytest.mark.parametrize("family", ["midnight_indigo", "deep_teal", "paper_ink", "mint_studio"])

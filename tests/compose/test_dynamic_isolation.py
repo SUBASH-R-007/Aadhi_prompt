@@ -3,9 +3,9 @@ inside build_timeline").
 
 * A classic build never loads a Dynamic module: ``build_timeline`` / ``preview_timeline`` of a classic lecture (flag on
   or off, or a presentation while the flag is off) and the API's serving rule import nothing under
-  ``aadhi.compose.dynamic`` (themes, zones, templates, catalogue, colour_math, ...), ``aadhi.pipeline.direct`` or
-  ``PIL.ImageFont``. Checked in a fresh interpreter, so modules other tests imported cannot hide an import; the same
-  probe then sees a Dynamic build load ``themes`` and ``colour_math`` (it can fail).
+  ``aadhi.compose.dynamic`` (themes, zones, templates, catalogue, colour_math, faces, icons, textfit, ...),
+  ``aadhi.pipeline.direct`` or ``PIL.ImageFont``. Checked in a fresh interpreter, so modules other tests imported cannot
+  hide an import; the same probe then sees a Dynamic build load ``themes`` and ``colour_math`` (it can fail).
 * ``build_timeline`` runs in the API for every Studio preview and every served rebuild, so a 40-scene Dynamic preview
   must build in <= 300 ms (median of 3 after a warm-up, CPU time of this process, with the colour cache cleared before
   each run so the first-request cost is what is measured). This machine needs ~45 ms; the 6x headroom and the CPU clock
@@ -78,7 +78,9 @@ def test_a_classic_build_loads_no_dynamic_module() -> None:
     seen = json.loads(out.stdout.strip().splitlines()[-1])
     assert seen["classic"] == [], seen["classic"]
     # the probe can fail: a Dynamic build in the same interpreter loads the colour modules (lazily, at that point)
-    assert {"aadhi.compose.dynamic.themes", "aadhi.compose.dynamic.colour_math"} <= set(seen["dynamic"])
+    # ... and the face table (B2b: presentation.fonts), still with no Pillow font module (textfit measures, not builds)
+    assert {"aadhi.compose.dynamic.themes", "aadhi.compose.dynamic.colour_math", "aadhi.compose.dynamic.faces"} <= set(
+        seen["dynamic"])
     assert "PIL.ImageFont" not in seen["dynamic"] and "aadhi.compose.dynamic.preflight" not in seen["dynamic"]
 
 

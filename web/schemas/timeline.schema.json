@@ -2783,6 +2783,65 @@
    "title": "TimedWord",
    "type": "object"
   },
+  "TimelineFonts": {
+   "description": "The video's type families by role (\u00a74.6, plan \u00a71.3): catalogue ids of ``compose/dynamic/faces.py`` (the stage\nresolves them through its generated copy, ``web/js/dynamic/faces.gen.js``, never as CSS text). Each key is left\nout when unset, so the B1 resolver's ``{display, body, mono}`` reads and writes back byte-identically.\n\n``indic`` (B2b) names the Indic group (``noto_sans``: Noto Sans per script, B1's faces; ``anek``: Anek per script)\nand marks the B2 form, which the stage feature-detects: with it every role is drawn as named (when vendored for\nthat role) and the render page derives its font requests from these roles; without it (B1 and B2a timelines) the\nstage draws ``display`` as B1 did (``outfit`` or ``inter``, any other id as Outfit) with Inter, JetBrains Mono and\nthe Noto Sans faces, and loads B1's requests. The B2b resolver stores the B2 form naming exactly those faces.",
+   "properties": {
+    "display": {
+     "anyOf": [
+      {
+       "pattern": "^[a-z0-9_-]{1,40}$",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Display"
+    },
+    "body": {
+     "anyOf": [
+      {
+       "pattern": "^[a-z0-9_-]{1,40}$",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Body"
+    },
+    "mono": {
+     "anyOf": [
+      {
+       "pattern": "^[a-z0-9_-]{1,40}$",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Mono"
+    },
+    "indic": {
+     "anyOf": [
+      {
+       "pattern": "^[a-z0-9_-]{1,40}$",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Indic"
+    }
+   },
+   "title": "TimelineFonts",
+   "type": "object"
+  },
   "TimelinePresentation": {
    "properties": {
     "style": {
@@ -2811,11 +2870,7 @@
      "type": "object"
     },
     "fonts": {
-     "additionalProperties": {
-      "type": "string"
-     },
-     "title": "Fonts",
-     "type": "object"
+     "$ref": "#/$defs/TimelineFonts"
     },
     "personality": {
      "title": "Personality",

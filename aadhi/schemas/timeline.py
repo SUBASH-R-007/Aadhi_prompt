@@ -215,12 +215,29 @@ ICONS_PER_SCENE_MAX = 32
 ROADMAP_MAX = 12
 
 
+class TimelineFonts(StrictModel):
+    """The video's type families by role (§4.6, plan §1.3): catalogue ids of ``compose/dynamic/faces.py`` (the stage
+    resolves them through its generated copy, ``web/js/dynamic/faces.gen.js``, never as CSS text). Each key is left
+    out when unset, so the B1 resolver's ``{display, body, mono}`` reads and writes back byte-identically.
+
+    ``indic`` (B2b) names the Indic group (``noto_sans``: Noto Sans per script, B1's faces; ``anek``: Anek per script)
+    and marks the B2 form, which the stage feature-detects: with it every role is drawn as named (when vendored for
+    that role) and the render page derives its font requests from these roles; without it (B1 and B2a timelines) the
+    stage draws ``display`` as B1 did (``outfit`` or ``inter``, any other id as Outfit) with Inter, JetBrains Mono and
+    the Noto Sans faces, and loads B1's requests. The B2b resolver stores the B2 form naming exactly those faces."""
+
+    display: CatalogueId | None = Field(default=None, exclude_if=lambda v: v is None)
+    body: CatalogueId | None = Field(default=None, exclude_if=lambda v: v is None)
+    mono: CatalogueId | None = Field(default=None, exclude_if=lambda v: v is None)
+    indic: CatalogueId | None = Field(default=None, exclude_if=lambda v: v is None)
+
+
 class TimelinePresentation(StrictModel):
     style: Literal["dynamic"]
     format: Literal["landscape", "portrait"]
     safe_zone: str = "universal"
     content: dict[str, str]  # resolved content tokens (hex): ink, ink2, entity:0..2, warn, ok, mark, focus
-    fonts: dict[str, str]  # role -> family id
+    fonts: TimelineFonts  # role -> family id (B2b: a typed model; the keys B1 wrote, plus ``indic``)
     personality: str
     caption_style: str
     cue_term_style: str

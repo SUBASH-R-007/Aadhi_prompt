@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import dataclasses
+import json
 import re
 import subprocess
 import sys
@@ -229,13 +230,14 @@ def test_personalities() -> None:
 
 
 def test_faces() -> None:
+    """The faces are faces.py's (B2b: the one face table; tests/compose/dynamic/test_faces.py), re-exported here."""
     assert th.DISPLAY_FACES_R1 == ("outfit", "poppins", "lexend")
     roles = {f.role for f in th.FACES.values()}
     assert roles == {"display", "body", "mono", "indic"}
     vendored = {f.id for f in th.FACES.values() if f.vendored}
-    package = (ROOT / "package.json").read_text(encoding="utf-8")
-    for fid in vendored:  # vendored today: a @fontsource package in package.json
-        assert f"@fontsource/{fid.replace('_', '-')}" in package, fid
+    package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))["dependencies"]
+    for fid in vendored:  # vendored: its @fontsource package pinned in package.json
+        assert th.FACES[fid].package in package, fid
     assert all(f.licence.startswith("OFL-1.1") for f in th.FACES.values())
 
 

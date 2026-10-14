@@ -20,8 +20,8 @@ What is here (data, pure functions, no I/O):
   hold desaturation too (R-55; the stage checks the shown block only, see :func:`_block_set`); and an accent whose
   block text still misses 3:1 is nudged by up to +-0.06 L (§4.7 validator; content is never nudged).
 * **Personalities** (§4.8, 6 rows; Crisp and Soft released), **caption styles** (§4.11, 6 rows; ``clean_pill`` and
-  ``bold_outline`` released, with the metrics of ``web/css/dynamic.css``), **faces** (§4.6), **cue colours** per mode
-  (§4.8 ``cue.term``), the dim and scrim alphas.
+  ``bold_outline`` released, with the metrics of ``web/css/dynamic.css``), **faces** (§4.6, from ``faces.py``), **cue
+  colours** per mode (§4.8 ``cue.term``), the dim and scrim alphas.
 * **The validator** (:func:`validate`): a pure function returning findings and the measured worst values. A finding on
   a released family or on the content palette is a build failure (pinned by ``tests/compose/dynamic/test_themes.py``);
   findings on W2 families are reported for their release batch.
@@ -38,6 +38,7 @@ from dataclasses import dataclass, field
 from typing import Final, Literal
 
 from . import colour_math as cm
+from . import faces
 
 Mode = Literal["dark", "light"]
 Release = Literal["R1", "W2"]
@@ -626,49 +627,11 @@ CAPTION_STYLES: Final[dict[str, CaptionStyle]] = {s.id: s for s in (
 
 
 # --- faces (§4.6) ---------------------------------------------------------------------------------------------------
-
-FaceRole = Literal["display", "body", "mono", "indic"]
-_OFL: Final = "OFL-1.1"
-_OFL_VERIFY: Final = "OFL-1.1 (believed; verify the LICENSE file when vendoring, §4.6)"
-
-
-@dataclass(frozen=True)
-class Face:
-    """A type face (§4.6). ``vendored``: under web/vendor today (B1); B2b vendors the rest of R1 with LICENSE files."""
-
-    id: str
-    family: str  # CSS font-family
-    role: FaceRole
-    release: Release
-    vendored: bool
-    licence: str
-    note: str = ""
-
-
-FACES: Final[dict[str, Face]] = {f.id: f for f in (
-    Face("outfit", "Outfit", "display", "R1", True, _OFL),
-    Face("poppins", "Poppins", "display", "R1", False, _OFL_VERIFY),
-    Face("lexend", "Lexend", "display", "R1", False, _OFL_VERIFY),
-    Face("montserrat", "Montserrat", "display", "W2", False, _OFL_VERIFY),
-    Face("sora", "Sora", "display", "W2", False, _OFL_VERIFY),
-    Face("space_grotesk", "Space Grotesk", "display", "W2", False, _OFL_VERIFY),
-    Face("bricolage_grotesque", "Bricolage Grotesque", "display", "W2", False, _OFL_VERIFY),
-    Face("baloo_2", "Baloo 2", "display", "W2", False, _OFL_VERIFY),
-    Face("fraunces", "Fraunces", "display", "W2", False, _OFL_VERIFY, "Editorial"),
-    Face("dm_serif_display", "DM Serif Display", "display", "W2", False, _OFL_VERIFY, "Editorial"),
-    Face("inter", "Inter", "body", "R1", True, _OFL, "also accepted as a display id by the B1 stage"),
-    Face("atkinson_hyperlegible_next", "Atkinson Hyperlegible Next", "body", "R1", False,
-         "OFL-1.1 (verified [CP S57])", "the 'High legibility' body option"),
-    Face("jetbrains_mono", "JetBrains Mono", "mono", "R1", True, _OFL),
-    Face("anek", "Anek", "indic", "R1", False, "OFL-1.1 (verified [CP S58])",
-         "variable; 9 Indic scripts + Latin; rotation varies its axes, not the face"),
-    Face("noto_sans_tamil", "Noto Sans Tamil", "indic", "R1", True, _OFL, "B1 Indic face"),
-    Face("noto_sans_devanagari", "Noto Sans Devanagari", "indic", "R1", True, _OFL, "B1 Indic face"),
-    Face("noto_sans_telugu", "Noto Sans Telugu", "indic", "R1", True, _OFL, "B1 Indic face"),
-    Face("noto_sans_kannada", "Noto Sans Kannada", "indic", "R1", True, _OFL, "B1 Indic face"),
-    Face("noto_sans_malayalam", "Noto Sans Malayalam", "indic", "R1", True, _OFL, "B1 Indic face"),
-)}
-DISPLAY_FACES_R1: Final = tuple(f.id for f in FACES.values() if f.role == "display" and f.release == "R1")
+# The one face table is ``faces.py`` (B2b: families, their vendored files and licences, the stacks the stage draws);
+# the names below are re-exported from it for this module's readers.
+FaceRole = faces.Role
+FACES: Final = faces.FAMILIES
+DISPLAY_FACES_R1: Final = faces.DISPLAY_FACES_R1
 
 # The Aadhi studio wall (§3.3, §4.7 validator): B2f measures its luminance over the 192 intro frames
 # (scripts/measure_studio_wall.py) and writes the worst-case colour here. Until then there is no value, and the

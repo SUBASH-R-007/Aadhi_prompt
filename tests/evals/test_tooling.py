@@ -382,6 +382,23 @@ def test_dockerfile_copies_an_allow_list():
         assert not any(re.fullmatch(_docker_regex(src.rstrip("/")).pattern, debris) for src in runtime), debris
 
 
+def test_dockerfile_web_stage_has_what_vendor_mjs_imports():
+    """`npm ci` in the web stage runs scripts/vendor.mjs: every local module it imports (vendor_faces.mjs, the generated
+    face table web/js/dynamic/faces.gen.js; B2b) must be copied into that stage, or the image build fails. The runtime
+    image carries the generated THIRD_PARTY_NOTICES (design §4.12)."""
+    copies = _copy_sources(_dockerfile_instructions())
+    web = [src for stage, srcs in copies if stage == "web" for src in srcs]
+    vendor = (SCRIPTS / "vendor.mjs").read_text(encoding="utf-8")
+    local = re.findall(r"^import .* from '(\.{1,2}/[^']+)';$", vendor, re.M)
+    assert "./vendor_faces.mjs" in local and "../web/js/dynamic/faces.gen.js" in local
+    for spec in local:
+        rel = (SCRIPTS / spec).resolve().relative_to(ROOT_DIR.resolve()).as_posix()
+        assert rel in web, f"the Dockerfile's web stage does not copy {rel} (imported by scripts/vendor.mjs)"
+    assert "scripts/vendor.mjs" in web
+    runtime = [src for stage, srcs in copies if stage == "runtime" for src in srcs]
+    assert "THIRD_PARTY_NOTICES" in runtime
+
+
 def test_dockerfile_ships_every_branding_file():
     from aadhi.compose.base import BGM, LOGO_VIDEO, MASCOT_CLIPS, STATIC_BACKGROUND
 
@@ -645,8 +662,15 @@ def test_ci_workflows():
     assert "pip install -c requirements.lock -r requirements.txt -r requirements-dev.txt" in steps
     assert "ruff check aadhi tests scripts evals docker" in steps
     for check in ("gen_env_example.py --check", "gen_chromium_seccomp.py --check", "make_fixtures.py --check",
-                  "python -m aadhi.compose.dynamic.catalogue --check"):
+                  "python -m aadhi.compose.dynamic.catalogue --check", "python -m aadhi.compose.dynamic.faces --check",
+                  "python -m aadhi.compose.dynamic.icons --check", "python scripts/gen_third_party_notices.py --check"):
         assert check in steps
+    # the notices and the icon index are generated from node_modules: the Python job installs it before its
+    # generated-files step
+    py_steps = [str(s.get("run", "")) for s in ci["jobs"]["python"]["steps"]]
+    npm = next(i for i, r in enumerate(py_steps) if "npm ci" in r)
+    for check in ("gen_third_party_notices.py --check", "python -m aadhi.compose.dynamic.icons --check"):
+        assert npm < next(i for i, r in enumerate(py_steps) if check in r), check
     assert "npm ci" in steps and "npm run typecheck" in steps and "npm test" in steps
     uses = [s.get("uses", "") for job in ci["jobs"].values() for s in job["steps"]]
     assert any(u.startswith("actions/setup-python") for u in uses) and any(u.startswith("actions/setup-node") for u in uses)

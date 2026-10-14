@@ -145,3 +145,29 @@ def test_entity_colors_take_exactly_what_the_screenplay_allows() -> None:
              {"x" * 80: 2}, {"x" * 81: 2}, {"V": 3}, {"V": -1}, {"": 0}, {"\\omega": 1}]
     assert [screenplay_ok(c) for c in cases] == [timeline_ok(c) for c in cases] == [
         True, False, True, False, False, False, False, True]
+
+
+B1_FONTS = ({"display": "outfit", "body": "inter", "mono": "jetbrains_mono"}, {"display": "inter", "body": "inter"},
+            {"display": "poppins", "body": "inter", "mono": "jetbrains_mono"}, {"display": "outfit"}, {})
+
+
+@pytest.mark.parametrize("fonts", B1_FONTS)
+def test_b1_fonts_read_and_write_back_byte_identically(fonts: dict[str, str]) -> None:
+    """B2b types ``presentation.fonts`` (plan §1.3, ``TimelineFonts``): every key is left out when unset and the keys
+    serialise in B1's order, so a stored B1 or B2a timeline's fonts come back exactly as stored."""
+    dumped = presentation(fonts=fonts).model_dump(mode="json")["fonts"]
+    assert json.dumps(dumped) == json.dumps(fonts)
+
+
+def test_b2_fonts_and_their_limits() -> None:
+    b2 = {"display": "poppins", "body": "atkinson_hyperlegible_next", "mono": "jetbrains_mono", "indic": "anek"}
+    assert presentation(fonts=b2).model_dump(mode="json")["fonts"] == b2
+    assert list(presentation(fonts={"indic": "noto_sans", "display": "outfit"}).model_dump(mode="json")["fonts"]) == [
+        "display", "indic"]
+    # an unknown role is dropped, as every schema model ignores unknown keys (the resolver never wrote one)
+    assert presentation(fonts={"display": "outfit", "emoji": "noto"}).model_dump(mode="json")["fonts"] == {
+        "display": "outfit"}
+    for bad in ({"display": "Poppins"}, {"display": "a b"}, {"indic": ""}, {"display": 7}, {"display": "x" * 41},
+                {"display": "'Inter';}"}, {"mono": "url(x)"}):  # catalogue ids only: never CSS text
+        with pytest.raises(ValidationError):
+            presentation(fonts=bad)

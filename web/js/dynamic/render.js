@@ -30,9 +30,10 @@ import {
   loadMathJax as defaultLoadMathJax, renderTex as libRenderTex, texIdle as defaultTexIdle,
 } from '../shared/libs.js';
 import { RenderError, applyStageSize, fetchTimeline, stageSize, takeToken } from '../render/render.js';
-import { fontRequests, preloadFonts } from '../render/fonts.js';
+import { preloadFonts } from '../render/fonts.js';
 import { zonesFor } from './core.js';
 import { engineProblem } from './engine.js';
+import { stageFontRequests } from './fonts.js';
 import { createDynamicStage, isDynamic, templateFor } from './stage.js';
 import { installTimerGuard } from './guard.js';
 
@@ -210,9 +211,10 @@ export async function boot(deps = {}) {
     if (newer) throw new RenderError('timeline_invalid', newer);
     doc.documentElement.lang = String(timeline.board_language || timeline.language || 'en');
     applyStageSize(doc, stageSize(timeline));
-    const fonts = await preloadFonts(doc.fonts, fontRequests(timeline));
-    // Every face is vendored (web/vendor/fonts.css): a missing one is a deployment error, and fallback fonts would
-    // wrap text differently from the live player.
+    // Every face of every family the stage's stacks hold (fonts.js: from presentation.fonts in its B2 form, B1's list
+    // otherwise). Every face is vendored (web/vendor/fonts.css, web/css/dynamic-fonts.css): a missing one is a
+    // deployment error, and fallback fonts would wrap text differently from the live player.
+    const fonts = await preloadFonts(doc.fonts, stageFontRequests(timeline));
     if (fonts.missing.length) throw new RenderError('fonts_missing', `no @font-face loaded for: ${fonts.missing.join(', ')}`);
     // Every TeX string the templates declare, converted now; the stage converts through the same cache, so a frame's
     // TeX is a cache hit, and anything converted from here on (the first frame's included) is a string some

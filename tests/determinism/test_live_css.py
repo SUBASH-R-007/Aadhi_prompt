@@ -1,11 +1,12 @@
 """The live player's stylesheets do not change the Dynamic stage (DYNAMIC_VIDEO_DESIGN §7.4 (b), §4.8).
 
-``web/watch.html`` and the Studio load ``base.css``, ``player.css`` and ``panels.css`` before ``dynamic.css``; the
-render page loads only ``tokens.css`` and ``dynamic.css``. The classic player's unscoped rules (``.rt-k`` gold with a
-glow, ``.rt-b`` white, the ``.rt-code`` chip, body typography) must not reach ``.dyn-stage``: the same stage (render
-mode, the same frame) under both stylesheet sets must give the same computed style and box for every element, and
-the same pixels. The fixture's board carries a ``[[keyword]]``, ``**bold**`` and `` `code` ``
-(``evals/render_parity.py`` ``DYNAMIC_RICH_TEXT``), in a dark and a light (``paper_ink``) family.
+``web/watch.html`` and the Studio load ``base.css``, ``player.css`` and ``panels.css`` before ``dynamic.css`` (and,
+from B2b, ``dynamic-fonts.css``); the render page loads only ``tokens.css``, ``dynamic.css`` and ``dynamic-fonts.css``
+(both sets are pinned against the pages). The classic player's unscoped rules (``.rt-k`` gold with a glow, ``.rt-b``
+white, the ``.rt-code`` chip, body typography) must not reach ``.dyn-stage``: the same stage (render mode, the same
+frame) under both stylesheet sets must give the same computed style and box for every element, and the same pixels.
+The fixture's board carries a ``[[keyword]]``, ``**bold**`` and `` `code` `` (``evals/render_parity.py``
+``DYNAMIC_RICH_TEXT``), in a dark and a light (``paper_ink``) family.
 """
 
 from __future__ import annotations
@@ -13,6 +14,8 @@ from __future__ import annotations
 import asyncio
 import io
 import json
+import re
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -24,7 +27,7 @@ from tests.compose.dynamic.helpers import parity_eval
 
 pytestmark = pytest.mark.slow
 
-RENDER_SHEETS = ("tokens.css", "dynamic.css")  # web/render-dynamic.html
+RENDER_SHEETS = ("tokens.css", "dynamic.css", "dynamic-fonts.css")  # web/render-dynamic.html
 PROPS = ("color", "text-shadow", "padding-top", "padding-right", "padding-bottom", "padding-left", "background-color",
          "background-image", "border-top-left-radius", "border-bottom-right-radius", "font-family", "font-size",
          "font-weight", "font-style", "line-height", "letter-spacing", "word-spacing", "margin-top", "margin-right",
@@ -109,6 +112,10 @@ async def _snapshots(base: str, timeline: dict[str, Any], frame: int) -> dict[st
                                              ("landscape", "paper_ink"), ("portrait", "paper_ink")])
 def test_live_stylesheets_leave_the_stage_unchanged(real_app, fmt: str, family: str) -> None:
     rp = parity_eval()
+    root = Path(__file__).resolve().parents[2] / "web"
+    for page, sheets in (("render-dynamic.html", RENDER_SHEETS), ("watch.html", rp.LIVE_STYLESHEETS)):
+        links = re.findall(r'<link rel="stylesheet" href="/web/css/([^"]+)"', (root / page).read_text(encoding="utf-8"))
+        assert tuple(links) == sheets, (page, links)  # both sides load exactly their page's stylesheets, in order
     tl = rp.dynamic_timeline(fmt, settings=real_app.settings, family=family)
     served = tl.model_dump(mode="json")
     scene = next(i for i, s in enumerate(tl.scenes) if any(b.id in rp.DYNAMIC_RICH_TEXT for b in s.board))

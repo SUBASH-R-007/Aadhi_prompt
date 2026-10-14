@@ -233,12 +233,23 @@
 // ---------------------------------------------------------------------------------------------
 
 /**
+ * The video's type families by role: catalogue ids of the face table (aadhi/compose/dynamic/faces.py ->
+ * web/js/dynamic/faces.gen.js), each key present only when set. `indic` (B2b) marks the B2 form, which the stage
+ * feature-detects (web/js/dynamic/fonts.js); without it the stage draws B1's faces.
+ * @typedef {object} TimelineFonts
+ * @property {string} [display]   display face id (B1 form: `outfit` or `inter`, any other drawn as Outfit)
+ * @property {string} [body]      body face id
+ * @property {string} [mono]      mono face id
+ * @property {string} [indic]     B2b: the Indic group (`noto_sans` or `anek`)
+ */
+
+/**
  * @typedef {object} TimelinePresentation
  * @property {'dynamic'} style
  * @property {'landscape' | 'portrait'} format
  * @property {string} [safe_zone]
  * @property {Record<string, string>} content   resolved content tokens (hex): ink, ink2, entity:0..2, warn, ok, mark, focus
- * @property {Record<string, string>} fonts     role -> family id
+ * @property {TimelineFonts} fonts              role -> family id
  * @property {string} personality
  * @property {string} caption_style
  * @property {string} cue_term_style

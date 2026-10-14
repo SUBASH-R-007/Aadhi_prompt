@@ -5,6 +5,8 @@ import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync, read
 import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { FACES } from '../web/js/dynamic/faces.gen.js';
+import { vendorFaces } from './vendor_faces.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const nm = join(root, 'node_modules');
@@ -73,6 +75,12 @@ for (const f of FONTS) {
   }
 }
 writeFileSync(join(out, 'fonts.css'), css);
+
+// --- Dynamic stage faces (B2b; DYNAMIC_VIDEO_DESIGN §4.6, §4.12; B2 plan §2 "Fonts") ---------------------------
+// Copied from the generated face table (web/js/dynamic/faces.gen.js, from aadhi/compose/dynamic/faces.py) into
+// web/vendor/fonts/dynamic/<family>/ with each family's LICENSE, failing closed on any mismatch (vendor_faces.mjs).
+// The classic fonts above and their fonts.css are untouched.
+vendorFaces(FACES, nm, out);
 
 function unicodeRange(subset) {
   return {

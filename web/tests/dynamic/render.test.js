@@ -7,6 +7,8 @@ import { STAGE_VERSION, boot, installStageApi, pageTexRenderer, probeWebgl, time
 import { ENGINE_VERSION } from '../../js/dynamic/engine.js';
 import boardGeneric from '../../js/dynamic/templates/board_generic.js';
 import { TIMELINE_ENDPOINT } from '../../js/render/render.js';
+import { fontRequests } from '../../js/render/fonts.js';
+import { stageFontRequests } from '../../js/dynamic/fonts.js';
 import { R1_PALETTES, classicTimeline, dynamicTimeline } from './_fixture.js';
 
 const TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJ0eXAiOiJzY29wZWQifQ.c2lnbmF0dXJlLXNpZ25hdHVyZQ';
@@ -150,6 +152,37 @@ test('every font of the timeline is loaded before ready (Indic scripts included)
   await api.ready;
   const families = new Set(loads.map(([font]) => /"(.+)"/.exec(font)[1]));
   for (const f of ['Inter', 'Outfit', 'JetBrains Mono', 'Noto Sans Tamil']) assert.ok(families.has(f), f);
+});
+
+test('the fonts loaded before ready: B1\'s requests for a B1-form timeline, presentation.fonts\' faces for a B2 one', async () => {
+  const tl = dynamicTimeline();
+  tl.language = 'ta-IN';
+  tl.scenes[0].board[1].text = 'मराठी';
+  const asLoads = (/** @type {{family: string, weight: number, sample: string}[]} */ reqs) => reqs.map((r) => [`${r.weight} 32px "${r.family}"`, r.sample]);
+  {
+    const { w, loads } = makePage();
+    const { api } = await bootWith(w, tl);
+    await api.ready;
+    assert.deepEqual(loads, asLoads(fontRequests(tl)), 'B1 form: exactly render/fonts.js fontRequests, in order');
+  }
+  {
+    // the B2 form the B2b resolver writes (B1's faces): the same loads
+    const { w, loads } = makePage();
+    const { api } = await bootWith(w, { ...tl, presentation: { ...tl.presentation, fonts: { display: 'outfit', body: 'inter', mono: 'jetbrains_mono', indic: 'noto_sans' } } });
+    await api.ready;
+    assert.deepEqual(loads, asLoads(fontRequests(tl)));
+  }
+  {
+    const { w, loads } = makePage();
+    const fonts = { display: 'lexend', body: 'inter', mono: 'jetbrains_mono', indic: 'anek' };
+    const b2 = { ...tl, presentation: { ...tl.presentation, fonts } };
+    const { api } = await bootWith(w, b2);
+    await api.ready;
+    assert.deepEqual(loads, asLoads(stageFontRequests(b2)));
+    const families = new Set(loads.map(([font]) => /"(.+)"/.exec(font)[1]));
+    assert.deepEqual([...families].sort(), ['Anek Devanagari', 'Anek Tamil', 'Inter', 'JetBrains Mono', 'Lexend']);
+    assert.match(w.document.querySelector('.dyn-stage').style.getPropertyValue('--dyn-font-display'), /^'Lexend', 'Inter', 'Anek Tamil'/);
+  }
 });
 
 test('TeX in the timeline is converted before ready (no MathJax work while frames are captured)', async () => {

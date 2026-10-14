@@ -448,7 +448,7 @@ LOOK_TOKENS = {"struct.accent": "#F2A33A", "bg": "#1B1F3B", "bg-alt": "#232849",
 DYNAMIC_TOKEN = "parity.dynamic"  # noqa: S105 - a placeholder: the engine answers the page's timeline request
 # The live side loads exactly the stylesheets of web/watch.html (and the Studio's player), in that order: the classic
 # player's unscoped rules (e.g. .rt-k, .rt-code) are part of what the live stage must neutralise (§7.4.7b).
-LIVE_STYLESHEETS = ("tokens.css", "base.css", "player.css", "panels.css", "dynamic.css")
+LIVE_STYLESHEETS = ("tokens.css", "base.css", "player.css", "panels.css", "dynamic.css", "dynamic-fonts.css")
 DYNAMIC_PARITY_PAGE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 """ + "".join(f'<link rel="stylesheet" href="/web/css/{name}">' for name in LIVE_STYLESHEETS) + """

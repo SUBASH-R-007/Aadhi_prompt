@@ -23,6 +23,10 @@ choices with ``pipeline/direct.py``. The stored timeline keeps whatever was reso
   its chapter list and kicker changed (B2 read, compose-classic bug 4).
 * R-54: every crossfade lasts 0.3-0.45 s (:func:`crossfade_seconds`); B1 halved it on scenes shorter than 0.6 s.
 * ``TimelinePresentation`` gains ``content_alt``, ``family``, ``mode``, ``motion_scale`` and ``entity_colors``.
+* ``TimelinePresentation.fonts`` (B2b, plan §1.3) is the B2 form ``{display, body, mono, indic}``
+  (``faces.resolver_fonts``) naming exactly the faces the B1 stage drew for the same presentation (a display id
+  the B1 stage did not draw is stored as ``outfit``, which it drew instead), so no look changes; the stage derives
+  the render page's font requests from it (``web/js/dynamic/fonts.js``). B2e's direct.py rotates the display face.
 
 ``compose.timeline`` imports this module for every build, classic ones too, so the Dynamic modules are imported
 lazily, inside the functions a Dynamic build calls (``FAMILIES`` and ``Family`` resolve on first access): a classic
@@ -285,8 +289,9 @@ def timeline_presentation(presentation: Presentation, scenes: Sequence[TimedScen
                           total_duration: float) -> TimelinePresentation:
     """``Timeline.presentation`` (§6.7): the resolved content tokens and the global choices of the video, plus (plan
     §1.3) the other mode's content tokens (``content_alt``), the resolved family and its mode, the motion scale
-    (:func:`motion_scale`) and the lesson-wide entity map (``Presentation.entity_colors``, R-30)."""
-    from .dynamic import themes
+    (:func:`motion_scale`) and the lesson-wide entity map (``Presentation.entity_colors``, R-30). The fonts are
+    the faces the stage draws today, in the B2 form (``faces.resolver_fonts``; B2b)."""
+    from .dynamic import faces, themes
 
     family = family_for(presentation.theme_family)
     inserted = sum(s.duration for s in scenes if s.type == "clip")  # R-01: teacher clips are not generated runtime
@@ -294,7 +299,7 @@ def timeline_presentation(presentation: Presentation, scenes: Sequence[TimedScen
         style="dynamic",
         format=presentation.format,
         content=content_tokens(family.mode),
-        fonts={"display": presentation.display_font, "body": "inter", "mono": "jetbrains_mono"},
+        fonts=faces.resolver_fonts(presentation.display_font),
         personality=presentation.personality,
         caption_style=presentation.caption_style,
         cue_term_style=presentation.cue_term_style,

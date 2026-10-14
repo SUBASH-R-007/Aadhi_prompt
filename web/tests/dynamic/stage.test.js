@@ -137,7 +137,8 @@ test('layout regions keep card text inside the safe zones of both formats (R-59)
 
 test('font stacks: vendored display faces only, Indic families behind every stack', () => {
   const f = fontStacks({ fonts: { display: 'poppins' } });
-  assert.match(f.display, /^'Outfit'/, 'Poppins is not vendored yet (B2): Outfit');
+  assert.match(f.display, /^'Outfit'/, 'a B1-form presentation (no indic) is drawn as B1 drew it: Poppins as Outfit');
+  assert.match(fontStacks({ fonts: { display: 'poppins', indic: 'noto_sans' } }).display, /^'Poppins', 'Inter'/, 'B2 form (fonts.test.js)');
   assert.match(f.body, /^'Inter', 'Noto Sans Tamil'/);
   assert.equal(fontStacks({ fonts: { display: 'inter' } }).display.split(',')[0], "'Inter'");
 });

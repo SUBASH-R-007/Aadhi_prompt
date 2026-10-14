@@ -51,6 +51,8 @@ V3_ONLY_MODELS = {
     "MusicAsset",
     # B2a (plan B2 §1.2): parts of ResolvedLook
     "SlotFix", "LookFixes", "LookIcon", "RoadmapEntry", "RefAnchor", "RefPrediction", "RefNext", "LookRefs",
+    # B2b (plan B2 §1.3): TimelinePresentation.fonts, typed
+    "TimelineFonts",
 }
 
 

@@ -13,6 +13,15 @@ Modules (DYNAMIC_VIDEO_DESIGN §7.3, §7.4, §7.12):
 * ``templates``   the 41 TemplateSpecs of §4.3, the §4.2 semantic-class table, the §4.4 signal rows and ``fit``, the
                   visual-event target grammar, the colour roles and the background / transition registries;
 * ``catalogue``   generates ``web/js/dynamic/catalogue.gen.js`` (the stage's frozen catalogue; ``--check`` in CI);
+* ``faces``       the one face table (B2b, §4.6): the vendored families and their ``@font-face`` rows, what a
+                  ``presentation.fonts`` draws (B1 and B2 forms), CSS font matching for text fit; generates
+                  ``web/css/dynamic-fonts.css`` and ``web/js/dynamic/faces.gen.js`` (``--check`` in CI);
+* ``icons``       item icons from ``icon_hint`` (B2b, §4.12): the offline index of the Lucide and Tabler sets
+                  (``icon_index.json``, generated from the pinned npm packages; ``--check`` in CI), SVG normalised to
+                  sanitised path data, the deterministic match and the ``ResolvedLook.icons`` entries;
+* ``textfit``     measured text fit (B2b, §4.6): a slot's size and line breaks from the vendored faces' advance
+                  widths (Pillow FreeType, basic layout, faces resolved per grapheme cluster in the stage's stack
+                  order, fail closed), biased conservative; certified for Latin text, an estimate for Indic text;
 * ``colour``      CSS colour parsing (hex, ``rgb()``, ``hsl()``, ``oklch()``, ``oklab()``, ``color(srgb ...)``), alpha
                   compositing and the WCAG 2.x contrast ratio used by the analytic contrast check (R-53), on
                   ``colour_math``'s maths;
