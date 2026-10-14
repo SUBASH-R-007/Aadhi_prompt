@@ -29,6 +29,7 @@ import pytest
 from PIL import ImageFont
 
 from aadhi.compose.dynamic import faces as fc
+from aadhi.compose.dynamic import kerning as kn
 from aadhi.compose.dynamic import textfit as tf
 from aadhi.compose.dynamic.templates import TEMPLATES
 from tests.compose.dynamic.helpers import missing
@@ -281,6 +282,25 @@ def test_each_cluster_is_drawn_by_the_first_family_of_the_stage_stack_that_has_i
     assert _files("x=1", B1, role="mono", weight=400) == ["jetbrains-mono-latin-400-normal.woff2"] * 3
 
 
+def test_the_schema_model_measures_with_the_faces_it_names() -> None:
+    """``fonts=timeline.presentation.fonts`` (a ``TimelineFonts`` model) measures the faces it names, exactly as its
+    stored dict does; before the B2b review it measured the B1 defaults (Outfit, ~10% narrower than Poppins) and
+    certified text the page overflows (B2b-CONF-2)."""
+    from aadhi.schemas.timeline import TimelineFonts
+
+    model = TimelineFonts(display="poppins", body="atkinson_hyperlegible_next", mono="jetbrains_mono", indic="anek")
+    stored = model.model_dump(mode="json", exclude_none=True)
+    a = tf.measure("Wide words everywhere", fonts=model, role="display", weight=700, language="ta-IN")
+    b = tf.measure("Wide words everywhere", fonts=stored, role="display", weight=700, language="ta-IN")
+    assert a.stack == b.stack and a.stack[:3] == ("poppins", "atkinson_hyperlegible_next", "anek_tamil")
+    assert [a.width(w, 64) for w in a.words] == [b.width(w, 64) for w in b.words]
+    kw = {"width": 700, "size": (56, 88), "max_lines": 2, "role": "display", "weight": 700}
+    assert tf.fit_text("Wide words everywhere", fonts=model, **kw) == tf.fit_text("Wide words everywhere",
+                                                                                   fonts=stored, **kw)
+    with pytest.raises(TypeError, match="presentation.fonts must be"):
+        tf.measure("x", fonts="poppins", role="display", weight=700)  # type: ignore[arg-type]
+
+
 def test_a_character_no_vendored_face_draws_is_uncovered_and_never_certified() -> None:
     m = tf.measure("Area π r²", fonts=B1, role="display", weight=700)
     assert m.uncovered == ("π",) and not m.reliable
@@ -319,13 +339,78 @@ def test_conservative_widths_add_the_slack_and_the_kerning_floor() -> None:
     (word,) = m.words
     track = -0.015 * 10
     assert m.width(word, 100, "raw") == pytest.approx(100 * (word.em + track))
-    assert m.width(word, 100) == pytest.approx(100 * (word.em * 1.04 + tf.KERN_FLOOR_EM + track))
-    assert m.width(word, 100, "optimistic") == pytest.approx(100 * (word.em * 0.96 + track))
+    # per pair of the word (one face draws it): the measured positive bound, and the face's most negative adjustment
+    face = kn.load()["outfit-latin-700-normal.woff2"]
+    pairs = list(zip("Typography", "Typography"[1:], strict=False))
+    assert word.kern_pos == pytest.approx(sum(face.bound(a, b) for a, b in pairs))
+    assert word.kern_neg == pytest.approx(-face.most_negative * len(pairs)) and word.kern_neg > 0
+    assert m.width(word, 100) == pytest.approx(100 * (word.em * 1.04 + tf.KERN_FLOOR_EM + word.kern_pos + track))
+    assert m.width(word, 100, "optimistic") == pytest.approx(100 * (word.em * 0.96 - word.kern_neg + track))
     assert word.slack == tf.SLACK_LATIN == 0.04 and not word.indic
-    # the floor is the measured worst positive kerning beyond 4% (0.046 em, tests/determinism/test_textfit_page.py)
+    # the per-word floor is kept from the first measurement, beyond the per-pair bounds
     assert tf.KERN_FLOOR_EM == 0.06
     indic = tf.measure("மின்", fonts=B1, role="display", weight=700, language="ta-IN").words[0]
     assert indic.slack == tf.SLACK_INDIC == 0.08 and indic.indic and not indic.reliable
+
+
+# Words whose positive kerning pairs add up, with the width the real render page drew each at 100 px (the B2b review's
+# Chromium measurement, F1): a per-word allowance certified them narrower than the page draws them.
+_PAGE_WIDTHS = [("outfit", 700, -0.015, "f'f'", 147.20), ("outfit", 700, -0.015, "f'f''", 170.70),
+                ("outfit", 700, -0.015, "f'f'f'f'", 295.81), ("outfit", 700, -0.015, "f)f)f)", 231.61),
+                ("atkinson_hyperlegible_next", 400, 0.0, "f'f'f'f'", 210.61),
+                ("atkinson_hyperlegible_next", 600, 0.02, "f'f'f'f'", 254.61)]
+
+
+@pytest.mark.parametrize(("family", "weight", "tracking", "word", "page"), _PAGE_WIDTHS)
+def test_positive_kerning_is_bounded_per_pair(family: str, weight: int, tracking: float, word: str,
+                                              page: float) -> None:
+    fonts = {"display": family, "body": "inter", "mono": "jetbrains_mono", "indic": "noto_sans"}
+    m = tf.measure(word, fonts=fonts, role="display", weight=weight, tracking_em=tracking)
+    assert m.reliable and m.width(m.words[0], 100) > page
+
+
+def test_a_title_of_kerning_pairs_is_not_certified_wider_than_the_page_draws_it() -> None:
+    """board_generic's portrait title (B1 faces): the page draws 17 ``f'`` pairs per word on 4 lines at the minimum
+    (overflow 118 px) and 12 pairs per word only from 76 px down (the review's measurement, F1)."""
+    spec = TEMPLATES["board_generic"].slots["title"]["portrait"]["default"]
+    for pairs, fits, at_most in ((17, False, 56.0), (12, True, 76.0)):
+        r = tf.fit_slot(" ".join(["f'" * pairs] * 2), spec, fonts=B1)
+        assert r.reliable and r.fits is fits and r.size <= at_most, (pairs, r)
+
+
+@pytest.mark.parametrize("title", ["AV" * 10, "TY" * 10, "To" * 11, "Yo" * 11])
+def test_a_word_the_page_may_keep_whole_is_not_read_as_certainly_broken(title: str) -> None:
+    """The page draws these kerned words whole at 56 px on one line (695 px of the 696 px column; the review, F2):
+    "break" must not be decided from the 4% slack alone, so Python's size is the page's (it is laid out broken only at
+    the minimum, the most lines either way)."""
+    spec = TEMPLATES["board_generic"].slots["title"]["portrait"]["default"]
+    m = tf.measure(title, fonts=B1, role=spec.face, weight=spec.weight, tracking_em=spec.tracking_em)
+    assert tf.word_kinds(m, spec.w, spec.size[0]) == ("either",)
+    assert m.width(m.words[0], spec.size[0], "optimistic") <= spec.w  # what the page drew is not ruled out
+    r = tf.fit_slot(title, spec, fonts=B1)
+    assert r.fits and r.size == 56.0, r
+
+
+def test_kern_bounds_count_pairs_of_one_face_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    table = kn.load()
+    outfit = table["outfit-latin-700-normal.woff2"]
+    m = tf.measure("(j", fonts=B1, role="display", weight=700)
+    assert m.words[0].kern_pos == pytest.approx(outfit.bound("(", "j")) and outfit.bound("(", "j") >= 0.09
+    # ħ is drawn by Inter (Poppins and Outfit lack it): no pair across two faces
+    assert tf.measure("aħ", fonts=B1, role="display", weight=700).words[0].kern_pos == 0.0
+    # a default-ignorable character between two letters of one face does not end the pair (counted, here inside one
+    # grapheme cluster: the pairs inside a cluster of several characters count too)
+    zwj = tf.measure("(‍j", fonts=B1, role="display", weight=700).words[0]
+    assert zwj.kern_pos == pytest.approx(outfit.bound("(", "j"))
+    # a character no vendored face draws ends the run; Indic pairs add nothing (never certified)
+    assert tf.measure("(πj", fonts=B1, role="display", weight=700).words[0].kern_pos == 0.0
+    assert tf.measure("மின்", fonts=B1, role="display", weight=700, language="ta-IN").words[0].kern_pos == 0.0
+    # a pair the table does not list is bounded by the epsilon
+    assert outfit.bound("o", "o") == kn.EPSILON_MILLI / 1000 and "oo" not in outfit.positive
+    # a face the table lacks is an error, never an unbounded pair (fail closed)
+    monkeypatch.setattr(tf.kn, "load", lambda: {})
+    with pytest.raises(tf.TextFitError, match="no measured kerning"):
+        tf.measure("oo", fonts=B1, role="display", weight=700)
 
 
 def test_whitespace_between_words_is_as_wide_as_the_page_draws_it() -> None:
@@ -407,13 +492,13 @@ def test_the_preferred_line_count_is_tried_first() -> None:
     assert spec.prefer_lines == 1 and spec.max_lines == 2
     short = tf.fit_slot("Ohm's law", spec, fonts=B1, language="en-IN")
     assert short.fits and len(short.lines) == 1 and short.size == 88
-    m = _m("Series and parallel circuits")
+    m = _m("Parallel circuits explained")
     one = tf.fit(m, width=spec.w, size=spec.size, max_lines=1)
     two = tf.fit(m, width=spec.w, size=spec.size, max_lines=2)
     both = tf.fit(m, width=spec.w, size=spec.size, max_lines=2, prefer_lines=1)
     assert one.fits and two.fits and two.size > one.size and len(two.lines) == 2
     assert (both.size, both.lines) == (one.size, one.lines), "one line at a smaller size wins over two larger"
-    longer = _m("Series and parallel circuits compared side by side")
+    longer = _m("Parallel circuits explained side by side")
     p = tf.fit(longer, width=spec.w, size=spec.size, max_lines=2, prefer_lines=1)
     assert p.fits and len(p.lines) == 2, "one line cannot fit even at 56 px: the line limit decides"
 
@@ -432,8 +517,8 @@ def test_a_word_the_page_must_keep_whole_is_kept_whole() -> None:
     # certainly broken: even the favourable reading is wider at the minimum, so the page breaks it (lines of its own)
     width = opt_lo - 1
     assert tf.word_kinds(m, width, lo) == ("break",)
-    r = tf.fit(m, width=width, size=(lo, hi), max_lines=2)
-    assert r.fits and r.size == hi and len(r.lines) == 2 and "".join(r.lines) == "Electromagnetism"
+    r = tf.fit(m, width=width, size=(lo, hi), max_lines=3)
+    assert r.fits and r.size == hi and len(r.lines) >= 2 and "".join(r.lines) == "Electromagnetism"
     assert all(w <= width for w in r.widths)
     # in between: the page may break it or keep it whole; above the minimum Python cannot be sure the page keeps it
     # whole, at the minimum both ways must fit
@@ -451,13 +536,13 @@ def test_a_word_the_page_must_keep_whole_is_kept_whole() -> None:
 def test_an_over_wide_word_breaks_after_a_hyphen_first_and_never_inside_a_cluster() -> None:
     m = _m("cause-and-effect-relationships")
     (word,) = m.words
-    width = m.width(word, 72, "optimistic") * 0.7
+    width = m.width(word, 72, "raw") * 0.7
     r = tf.fit(m, width=width, size=(72, 72), max_lines=3)
     assert r.lines[0].endswith("-") and "".join(r.lines) == word.text and all(w <= width for w in r.widths)
     # no hyphen: between clusters, as full as the line allows
     m = _m("Pneumonoultramicroscopicsilicovolcanoconiosis")
     (word,) = m.words
-    width = m.width(word, 72, "optimistic") * 0.45
+    width = m.width(word, 72, "raw") * 0.45
     r = tf.fit(m, width=width, size=(72, 72), max_lines=5)
     assert "".join(r.lines) == word.text and len(r.lines) == 3
     first = r.lines[0]
@@ -465,7 +550,7 @@ def test_an_over_wide_word_breaks_after_a_hyphen_first_and_never_inside_a_cluste
     # a hyphen before a digit is not a break opportunity (UAX #14)
     m = _m("abcdefghij-1234567890")
     (word,) = m.words
-    r = tf.fit(m, width=m.width(word, 72, "optimistic") * 0.75, size=(72, 72), max_lines=3)
+    r = tf.fit(m, width=m.width(word, 72, "raw") * 0.75, size=(72, 72), max_lines=3)
     assert not r.lines[0].endswith("-")
     # Indic: pieces are whole clusters
     m = tf.measure("க்ஷேத்திரங்கள்கொண்டவை", fonts=B1, role="display", weight=700, language="ta-IN")

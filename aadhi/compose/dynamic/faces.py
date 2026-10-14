@@ -39,8 +39,10 @@ What is here (data and pure functions; no I/O but the generator's own two files)
   last 3 the teacher used") is B2e's ``direct.py``.
 * **Font requests** (``fonts.js`` ``stageFontRequests``): the render page loads every face of every family a stack
   holds before ``ready`` (§7.3). In the B2 form they are derived from the roles: each Latin family's
-  :attr:`Family.requests` weights, and the Indic family of each script the timeline uses; for today's faces this is
-  ``render/fonts.js`` ``fontRequests`` exactly (pinned by ``web/tests/dynamic/fonts.test.js``).
+  :attr:`Family.requests` weights, and the Indic family of each script the timeline uses. For the fonts the resolver
+  stores this is ``render/fonts.js`` ``fontRequests`` exactly when display is Outfit, and ``fontRequests`` without the
+  Outfit faces when display is Inter (no stack holds Outfit then; the pixels are the same), both pinned by
+  ``web/tests/dynamic/fonts.test.js``.
 * **Character resolution for text fit** (:func:`face_for`, :func:`match_weight`): the CSS font matching a page does per
   family (the weight per CSS Fonts 4 §5.2, then the unicode-range among that weight's faces, last declared first), so
   ``textfit.py`` (B2b) measures every grapheme run with the face Chromium draws it with. A variable face's ``wght``
@@ -63,6 +65,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Final, Literal
+
+from pydantic import BaseModel
 
 FACES_VERSION = 1  # the shape of faces.gen.js (pinned by a test): bump when a key's meaning or shape changes
 ROOT = Path(__file__).resolve().parents[3]
@@ -292,9 +296,28 @@ def faces_of(family_id: str) -> tuple[Face, ...]:
 # --- what a timeline draws (web/js/dynamic/fonts.js) --------------------------------------------------------------
 
 
-def is_b2_fonts(fonts: Mapping[str, Any] | None) -> bool:
+#: ``presentation.fonts`` as callers hold it: the stored JSON dict, the schema's ``TimelineFonts`` model
+#: (``timeline.presentation.fonts``), or None.
+Fonts = Mapping[str, Any] | BaseModel | None
+
+
+def fonts_mapping(fonts: Fonts) -> Mapping[str, Any]:
+    """``presentation.fonts`` as the stored dict: a mapping as it is, a pydantic model (``TimelineFonts``) dumped with
+    its unset roles left out (as the timeline JSON stores it), None as ``{}``. Any other value is a caller error and
+    raises ``TypeError``, never a silent fallback to the default faces (the text fit would measure other faces than
+    the page draws; B2b review B2b-CONF-2)."""
+    if fonts is None:
+        return {}
+    if isinstance(fonts, Mapping):
+        return fonts
+    if isinstance(fonts, BaseModel):
+        return fonts.model_dump(mode="json", exclude_none=True)
+    raise TypeError(f"presentation.fonts must be a mapping, a TimelineFonts model or None, not {type(fonts).__name__}")
+
+
+def is_b2_fonts(fonts: Fonts) -> bool:
     """Whether ``presentation.fonts`` is the B2 form (it names an ``indic`` group): fonts.js ``isB2Fonts``."""
-    return isinstance(fonts, Mapping) and isinstance(fonts.get("indic"), str)
+    return isinstance(fonts_mapping(fonts).get("indic"), str)
 
 
 def _vendored(fid: Any, roles: tuple[Role, ...]) -> bool:
@@ -302,14 +325,14 @@ def _vendored(fid: Any, roles: tuple[Role, ...]) -> bool:
     return f is not None and f.vendored and f.role in roles
 
 
-def stage_roles(fonts: Mapping[str, Any] | None) -> dict[Role, str]:
+def stage_roles(fonts: Fonts) -> dict[Role, str]:
     """The family id the stage draws each role with, for a stored ``presentation.fonts``.
 
     B1 form (no ``indic``): display ``outfit`` or ``inter`` as named, any other id (or none) Outfit; body Inter, mono
     JetBrains Mono, Indic the Noto Sans faces, whatever else the dict says (the B1 stage read ``display`` only).
     B2 form: display any vendored display or body family; body a vendored body family; mono a vendored mono family;
     indic a known group; each else its default (:data:`DEFAULT_FONTS`)."""
-    src: Mapping[str, Any] = fonts if isinstance(fonts, Mapping) else {}
+    src = fonts_mapping(fonts)
     if not is_b2_fonts(src):
         display = src.get("display")
         return {"display": display if display in B1_DISPLAY else "outfit", "body": "inter", "mono": "jetbrains_mono",
@@ -345,7 +368,7 @@ def indic_families(group: str, language: str | None = "") -> tuple[str, ...]:
     return tuple(per_script[s] for s in order)
 
 
-def stack(fonts: Mapping[str, Any] | None, role: Literal["display", "body", "mono"],
+def stack(fonts: Fonts, role: Literal["display", "body", "mono"],
           language: str | None = "") -> tuple[str, ...]:
     """The family ids of a CSS stack in the stage's order (fonts.js ``fontStacks``): display = display face, body face,
     Indic; body = body face, Indic; mono = the mono face (the generic fallbacks follow in CSS, :data:`GENERIC`)."""
@@ -358,7 +381,7 @@ def stack(fonts: Mapping[str, Any] | None, role: Literal["display", "body", "mon
     return (r["mono"],)
 
 
-def css_stack(fonts: Mapping[str, Any] | None, role: Literal["display", "body", "mono"],
+def css_stack(fonts: Fonts, role: Literal["display", "body", "mono"],
               language: str | None = "") -> str:
     """The CSS ``font-family`` value fonts.js writes (``'Outfit', 'Inter', 'Noto Sans Tamil', ..., sans-serif``)."""
     names = ", ".join(f"'{FAMILIES[fid].name}'" for fid in stack(fonts, role, language))

@@ -40,9 +40,11 @@ What is here:
   ``circle``, ``ellipse`` or rounded ``rect`` became arcs.
 * **The match** (:func:`match`, :func:`icon_for`): ``icon_hint`` is one English keyword of at most 24 characters, never
   translated (§4.12, §6.7). It is normalised (NFKC, case-folded, ASCII letters and digits, separators to ``-``; anything
-  else, e.g. a Tamil word, is no keyword and gets no icon) and tried in these forms, in order: as written, without
-  hyphens ("light bulb" -> ``lightbulb``), then each English singular of its last word ("batteries" -> ``battery``,
-  "boxes" -> ``box``, "atoms" -> ``atom``, "buses" -> ``bus``) as written and without hyphens. The tiers are tried in
+  else, e.g. a Tamil word, is no keyword and gets no icon; so is a hint holding a symbol other than a word separator,
+  ``C++`` or ``C#``, whose key would drop it and name something else, and a one-character key; B2b review F4) and tried
+  in these forms, in order: as written, without hyphens ("light bulb" -> ``lightbulb``), then each English singular of
+  its last word ("batteries" -> ``battery``, "boxes" -> ``box``, "atoms" -> ``atom``, "buses" -> ``bus``) as written
+  and without hyphens. The tiers are tried in
   order, each with every form: (1) a Lucide icon NAMED so (or by a deprecated name Lucide still ships, ``home`` ->
   ``house``, ``pie-chart`` -> ``chart-pie``: an alias, matched by identical drawing elements when the index is built),
   (2) a Tabler icon named so, (3) a Lucide TAG, (4) a Tabler tag. An icon a set names by the hint is the hint's own
@@ -161,17 +163,27 @@ PREFERRED: Final[Mapping[SetId, Mapping[str, str]]] = {
         "electricity": "zap", "energy": "zap", "fire": "flame", "food": "utensils", "health": "heart-pulse",
         "light": "sun", "science": "microscope", "sound": "volume-2", "warning": "triangle-alert", "water": "droplet",
         "wave": "line-squiggle",
+        # B2b review (F4): the ranking picked a misleading icon for these lesson words
+        "family": "user-group", "fix": "toolbox", "forest": "trees", "ocean": "waves-horizontal",
+        "sea": "waves-horizontal", "stop": "octagon",
     },
     "tabler": {
-        "chart": "chart-bar", "ice": "iceberg",
+        "answer": "message-reply", "chart": "chart-bar", "ice": "iceberg",
     },
 }
 # Tags whose every icon would mislead a lesson (a pun, or only icons of something else carry them): never matched,
 # so the hint falls through to the next tier or gets no icon. Each must exist in the metadata (checked at generation).
 # B2b proposal, for the owner's review.
 IGNORED_TAGS: Final[Mapping[SetId, frozenset[str]]] = {
-    "lucide": frozenset({"force"}),  # book-up-2 only (a pun)
-    "tabler": frozenset({"algorithm", "evolution", "probability", "quiz"}),  # *-code, a ring, *-question pins
+    "lucide": frozenset({"force",  # book-up-2 only (a pun)
+                         # B2b review (F4): only icons of something else carry them (wallpaper for "art", a bridge
+                         # for "river", a kayak for "lake", a credit card for "plastic", podiums and trophies for
+                         # the metals, decimal-point arrows for "fraction")
+                         "art", "bronze", "fraction", "gold", "lake", "plastic", "river", "silver"}),
+    "tabler": frozenset({"algorithm", "evolution", "probability", "quiz",  # *-code, a ring, *-question pins
+                         # B2b review (F4): a shopping cart for "carbon" (copy), boats for "lake" / "river", hangers
+                         # for "plastic", a treasure chest for "gold", percentages for "fraction"
+                         "carbon", "fraction", "gold", "lake", "plastic", "river"}),
 }
 
 
@@ -617,12 +629,23 @@ def load_index(path: Path = INDEX_PATH) -> dict[SetId, _SetIndex]:
     return _load(path)
 
 
+# What a hint may hold besides letters and digits: word separators. Any other character (``C++``, ``C#``, ``A+``,
+# ``Newton's``) carries meaning the key would drop (``c++`` -> ``c``, a music clef), so such a hint gets no icon.
+_HINT_SEPARATORS: Final = frozenset(" 	-_")
+HINT_MIN_KEY: Final = 2  # a one-character key (``x``, ``c``) is a letter or a digit, never a concept: no icon
+
+
 def match(hint: object, *, path: Path = INDEX_PATH) -> IconMatch | None:
-    """The icon an ``icon_hint`` names (module docstring: forms within tiers), or None."""
+    """The icon an ``icon_hint`` names (module docstring: forms within tiers), or None. A hint holding a character
+    other than letters, digits and word separators, or whose key is one character, matches nothing (B2b review F4:
+    ``C++`` and ``C#`` matched the tag ``c`` of a music clef)."""
     if not isinstance(hint, str):  # a hint is text (a number is a key only as a Tabler tag)
         return None
+    folded = unicodedata.normalize("NFKC", hint).casefold()
+    if any(not (ch.isalnum() or ch in _HINT_SEPARATORS) for ch in folded):
+        return None
     key = normalise_key(hint)
-    if key is None:
+    if key is None or len(key) < HINT_MIN_KEY:
         return None
     index = load_index(path)
     forms = hint_forms(key)
@@ -655,14 +678,21 @@ def icon_for(hint: object, *, path: Path = INDEX_PATH) -> LookIcon | None:
 
 
 def scene_icons(items: Iterable[Any], *, path: Path = INDEX_PATH) -> dict[str, LookIcon]:
-    """``ResolvedLook.icons`` of one scene: board item id -> icon, for the items (objects with ``id`` and
-    ``icon_hint``, e.g. ``BoardItem``) whose hint matches, in item order, at most
-    :data:`timeline.ICONS_PER_SCENE_MAX` (the first ones; an item id seen twice keeps its first icon)."""
+    """``ResolvedLook.icons`` of one scene: board item id -> icon, for the items whose hint matches, in item order, at
+    most :data:`timeline.ICONS_PER_SCENE_MAX` (the first ones; an item id seen twice keeps its first icon). An item is
+    an object with ``id`` and ``icon_hint`` attributes (``BoardItem``) or a mapping with those keys (a dumped or stored
+    item); anything else raises ``TypeError``, so a caller's mistake is never mistaken for "no match" (B2b review
+    B2b-CONF-3)."""
     out: dict[str, LookIcon] = {}
     for item in items:
         if len(out) >= ICONS_PER_SCENE_MAX:
             break
-        item_id, hint = getattr(item, "id", None), getattr(item, "icon_hint", None)
+        if isinstance(item, Mapping):
+            item_id, hint = item.get("id"), item.get("icon_hint")
+        elif hasattr(item, "id") or hasattr(item, "icon_hint"):
+            item_id, hint = getattr(item, "id", None), getattr(item, "icon_hint", None)
+        else:
+            raise TypeError(f"a board item must have id and icon_hint (attributes or keys), not {type(item).__name__}")
         if not isinstance(item_id, str) or item_id in out or hint is None:
             continue
         icon = icon_for(hint, path=path)

@@ -508,25 +508,74 @@ def test_a_dangling_or_unsafe_entry_is_an_error_not_a_silent_none(tmp_path: Path
 
 # --- the match on the real index -------------------------------------------------------------------------------------
 
-TEACHING_WORDS = """
-science idea money time energy growth physics chemistry biology earth water electricity heat speed graph cell dna
-plant sun computer code network book learn question warning check people family health heart brain history map world
-music art food virus bacteria magnet light sound rocket planet moon star atom molecule experiment microscope telescope
-calculator ruler compass clock calendar trophy target key lock shield cloud rain fire tree leaf flower fish bird dog cat
-car train plane ship bicycle house home school hospital factory bank shop coin chart trend arrow link puzzle gear tool
-battery wifi phone camera video image file folder search list grid layers box globe flag user users teacher student
-pencil notebook lightbulb bulb thermometer scale balance flask beaker pill syringe bone eye ear hand smile recycle wind
-mountain ocean volcano formula equation fraction percent geometry triangle circle angle vector matrix statistics dice
-database server cpu robot internet email message chat goal success summary exam test reading writing language
-translate dictionary library law government vote tax savings city village farm wheat soil gene lungs blood tooth
-muscle skeleton vaccine medicine doctor exercise sleep temperature pressure mass weight volume wave frequency circuit
-motor engine fuel solar nuclear climate weather storm snow ice desert forest island war peace king castle palette tag
-""".split()
+# Common lesson keywords and the icon each resolves to, every one reviewed (B2b review F4: a coverage check alone
+# let misleading matches through, e.g. "ocean" -> a lighthouse, "plastic" -> a credit card).
+TEACHING_ICONS: dict[str, str] = {
+    "science": "lucide/microscope", "idea": "lucide/lightbulb", "money": "lucide/coins", "time": "lucide/clock",
+    "energy": "lucide/zap", "growth": "tabler/growth", "physics": "lucide/atom", "chemistry": "lucide/flask-conical",
+    "biology": "lucide/germ", "earth": "lucide/earth", "water": "lucide/droplet", "electricity": "lucide/zap",
+    "heat": "lucide/flame", "speed": "lucide/gauge", "graph": "tabler/graph", "cell": "tabler/cell",
+    "dna": "lucide/dna", "plant": "tabler/plant", "sun": "lucide/sun", "computer": "lucide/computer",
+    "code": "lucide/code", "network": "lucide/network", "book": "lucide/book", "learn": "lucide/graduation-cap",
+    "question": "lucide/file-question-mark", "warning": "lucide/triangle-alert", "check": "lucide/check",
+    "people": "lucide/users", "family": "lucide/user-group", "health": "lucide/heart-pulse", "heart": "lucide/heart",
+    "brain": "lucide/brain", "history": "lucide/rotate-ccw-clock", "map": "lucide/map", "world": "tabler/world",
+    "music": "lucide/music", "art": "tabler/brush", "food": "lucide/utensils", "virus": "lucide/virus",
+    "bacteria": "lucide/germ", "magnet": "lucide/magnet", "light": "lucide/sun", "sound": "lucide/volume-2",
+    "rocket": "lucide/rocket", "planet": "tabler/planet", "moon": "lucide/moon", "star": "lucide/star",
+    "atom": "lucide/atom", "molecule": "lucide/atom", "experiment": "lucide/beaker", "microscope": "lucide/microscope",
+    "telescope": "lucide/telescope", "calculator": "lucide/calculator", "ruler": "lucide/ruler",
+    "compass": "lucide/compass", "clock": "lucide/clock", "calendar": "lucide/calendar", "trophy": "lucide/trophy",
+    "target": "lucide/target", "key": "lucide/key", "lock": "lucide/lock", "shield": "lucide/shield",
+    "cloud": "lucide/cloud", "rain": "lucide/umbrella", "fire": "lucide/flame", "tree": "tabler/tree",
+    "leaf": "lucide/leaf", "flower": "lucide/flower", "fish": "lucide/fish", "bird": "lucide/bird",
+    "dog": "lucide/dog", "cat": "lucide/cat", "car": "lucide/car", "train": "lucide/tram-front",
+    "plane": "lucide/plane", "ship": "lucide/ship", "bicycle": "lucide/bike", "house": "lucide/house",
+    "home": "lucide/house", "school": "lucide/school", "hospital": "lucide/hospital", "factory": "lucide/factory",
+    "bank": "lucide/landmark", "shop": "lucide/store", "coin": "tabler/coin", "chart": "tabler/chart-bar",
+    "trend": "tabler/trending-up-down", "arrow": "lucide/move-right", "link": "lucide/link", "puzzle": "lucide/puzzle",
+    "gear": "lucide/settings", "tool": "tabler/tool", "battery": "lucide/battery", "wifi": "lucide/wifi",
+    "phone": "lucide/phone", "camera": "lucide/camera", "video": "lucide/video", "image": "lucide/image",
+    "file": "lucide/file", "folder": "lucide/folder", "search": "lucide/search", "list": "lucide/list",
+    "grid": "lucide/grid-3x3", "layers": "lucide/layers", "box": "lucide/box", "globe": "lucide/globe",
+    "flag": "lucide/flag", "user": "lucide/user", "users": "lucide/users", "teacher": "tabler/chalkboard-teacher",
+    "student": "lucide/school", "pencil": "lucide/pencil", "notebook": "lucide/notebook",
+    "lightbulb": "lucide/lightbulb", "bulb": "tabler/bulb", "thermometer": "lucide/thermometer",
+    "scale": "lucide/scale", "balance": "lucide/scale", "flask": "tabler/flask", "beaker": "lucide/beaker",
+    "pill": "lucide/pill", "syringe": "lucide/syringe", "bone": "lucide/bone", "eye": "lucide/eye",
+    "ear": "lucide/ear", "hand": "lucide/hand", "smile": "lucide/face-slightly-smiling", "recycle": "lucide/recycle",
+    "wind": "lucide/wind", "mountain": "lucide/mountain", "ocean": "lucide/waves-horizontal",
+    "volcano": "tabler/volcano", "formula": "lucide/radical", "equation": "tabler/sum", "percent": "lucide/percent",
+    "geometry": "tabler/geometry", "triangle": "lucide/triangle", "circle": "lucide/circle", "angle": "lucide/angle",
+    "vector": "tabler/vector", "matrix": "tabler/matrix", "statistics": "lucide/chart-bar", "dice": "lucide/dice-1",
+    "database": "lucide/database", "server": "lucide/server", "cpu": "lucide/cpu", "robot": "tabler/robot",
+    "internet": "lucide/ethernet-port", "email": "lucide/mail", "message": "tabler/message",
+    "chat": "lucide/message-circle", "goal": "lucide/goal", "success": "lucide/podium", "summary": "lucide/summary",
+    "exam": "lucide/school", "test": "lucide/test-tube", "reading": "lucide/book", "writing": "tabler/writing",
+    "language": "tabler/language", "translate": "lucide/languages", "dictionary": "lucide/book-a",
+    "library": "lucide/library", "law": "lucide/gavel", "government": "lucide/landmark", "vote": "lucide/vote",
+    "tax": "tabler/tax", "savings": "lucide/hand-coins", "city": "lucide/building-complex", "village": "lucide/houses",
+    "farm": "tabler/pig", "wheat": "lucide/wheat", "soil": "tabler/seedling", "gene": "lucide/dna",
+    "lungs": "tabler/lungs", "blood": "lucide/syringe", "tooth": "tabler/dental", "muscle": "lucide/biceps-flexed",
+    "skeleton": "lucide/bone", "vaccine": "tabler/vaccine", "medicine": "lucide/pill", "doctor": "lucide/hospital",
+    "exercise": "lucide/activity", "sleep": "lucide/bed", "temperature": "tabler/temperature",
+    "pressure": "lucide/gauge", "mass": "lucide/weight", "weight": "lucide/weight", "volume": "lucide/volume",
+    "wave": "lucide/line-squiggle", "frequency": "lucide/radio", "circuit": "lucide/cpu", "motor": "lucide/engine",
+    "engine": "lucide/engine", "fuel": "lucide/fuel", "solar": "lucide/solar-panel", "nuclear": "lucide/atom",
+    "climate": "tabler/haze", "weather": "lucide/wind", "storm": "tabler/storm", "snow": "lucide/mountain-snow",
+    "ice": "tabler/iceberg", "desert": "tabler/cactus", "forest": "lucide/trees", "island": "lucide/tree-palm",
+    "war": "lucide/sword", "peace": "tabler/peace", "king": "lucide/crown", "castle": "lucide/castle",
+    "palette": "tabler/palette", "tag": "tabler/tag",
+}
+TEACHING_WORDS = list(TEACHING_ICONS)
 
 
-def test_common_teaching_keywords_have_icons() -> None:
-    missing = [w for w in TEACHING_WORDS if ic.icon_for(w) is None]
-    assert missing == []
+def test_common_teaching_keywords_have_their_reviewed_icons() -> None:
+    got = {}
+    for w in TEACHING_WORDS:
+        icon = ic.icon_for(w)
+        got[w] = f"{icon.set}/{icon.name}" if icon is not None else None
+    assert got == TEACHING_ICONS
     assert len(TEACHING_WORDS) > 200
 
 
@@ -544,6 +593,14 @@ def test_common_teaching_keywords_have_icons() -> None:
     ("chart", ("tabler", "chart-bar", "tag")), ("ice", ("tabler", "iceberg", "tag")),
     ("force", ("tabler", "magnetic", "tag")),  # Lucide's only "force" tag is a pun (IGNORED_TAGS)
     ("accessible", ("tabler", "disabled-2", "tag")),  # never accessible-off
+    # B2b review F4: PREFERRED / IGNORED_TAGS entries for words the ranking matched to misleading icons
+    ("ocean", ("lucide", "waves-horizontal", "tag")), ("sea", ("lucide", "waves-horizontal", "tag")),
+    ("stop", ("lucide", "octagon", "tag")), ("fix", ("lucide", "toolbox", "tag")),
+    ("forest", ("lucide", "trees", "tag")), ("family", ("lucide", "user-group", "tag")),
+    ("answer", ("tabler", "message-reply", "tag")), ("art", ("tabler", "brush", "tag")),
+    # separators are fine; only other symbols refuse a hint
+    ("e-mail", ("lucide", "mail", "tag")), ("wi-fi", ("lucide", "wifi", "name")),
+    ("light_bulb", ("lucide", "lightbulb", "name")),
 ])
 def test_pinned_matches(hint: str, expected: tuple[str, str, str]) -> None:
     m = ic.match(hint)
@@ -551,7 +608,13 @@ def test_pinned_matches(hint: str, expected: tuple[str, str, str]) -> None:
 
 
 @pytest.mark.parametrize("hint", ["photosynthesis", "zzzz", "quiz", "algorithm", "தமிழ்", "naïve", "", "   ",
-                                  "x" * 25, None, 3, ["atom"]])
+                                  "x" * 25, None, 3, ["atom"],
+                                  # B2b review F4: only misleading icons carry these tags (IGNORED_TAGS) ...
+                                  "carbon", "plastic", "river", "lake", "gold", "silver", "bronze", "fraction",
+                                  # ... a symbol the key would drop changes the word (C++ -> c, a music clef) ...
+                                  "C++", "C#", "A+", "Newton's", "f(x)", "x/y",
+                                  # ... and a one-character key is a letter or digit, never a concept
+                                  "x", "c", "C", " c ", "7"])
 def test_no_match_is_no_icon(hint: object) -> None:
     assert ic.match(hint) is None and ic.icon_for(hint) is None
 
@@ -637,6 +700,22 @@ def test_scene_icons_follow_item_order_and_the_cap() -> None:
     assert list(capped) == [f"i{k}" for k in range(ICONS_PER_SCENE_MAX)]
     ResolvedLook.model_validate({"template": "x", "tokens": {}, "background": {}, "transition_in": {},
                                  "icons": {k: v.model_dump() for k, v in capped.items()}})
+
+
+def test_scene_icons_read_dumped_items_and_refuse_anything_else() -> None:
+    """A scene's items as stored JSON or ``model_dump`` output give the same icons as the models (they were silently
+    skipped, which looked like "no match"; B2b review B2b-CONF-3); an item with neither attributes nor keys is a
+    caller error."""
+    items = [BoardItem(id="b1", kind="bullet", text="x", icon_hint="atom"),
+             BoardItem(id="b2", kind="bullet", text="x"),
+             BoardItem(id="b4", kind="bullet", text="x", icon_hint="lungs")]
+    dumped = [item.model_dump(mode="json") for item in items]
+    assert ic.scene_icons(dumped) == ic.scene_icons(items) and list(ic.scene_icons(dumped)) == ["b1", "b4"]
+    assert ic.scene_icons([{"id": "a", "icon_hint": "atom"}])["a"] == ic.icon_for("atom")
+    assert ic.scene_icons([{"id": "a"}, {"icon_hint": "atom"}, {"id": 7, "icon_hint": "atom"}]) == {}
+    for bad in (42, None, "atom", ["a", "atom"]):
+        with pytest.raises(TypeError, match="board item must have id and icon_hint"):
+            ic.scene_icons([bad])
 
 
 # --- run-time cost and isolation -------------------------------------------------------------------------------------

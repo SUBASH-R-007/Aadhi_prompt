@@ -29,6 +29,8 @@ copy('chart.js/dist/chart.umd.min.js', 'chartjs/chart.umd.min.js');
 copy('three/build/three.module.js', 'three/three.module.js');
 copy('three/build/three.core.js', 'three/three.core.js');
 copy('mathjs/lib/browser/math.js', 'mathjs/math.js');
+// math.js' banner points at this file (the licences of the code its bundle holds; THIRD_PARTY_NOTICES quotes it).
+copy('mathjs/lib/browser/math.js.LICENSE.txt', 'mathjs/math.js.LICENSE.txt');
 copy('p5/lib/p5.min.js', 'p5/p5.min.js');
 copy('dompurify/dist/purify.min.js', 'dompurify/purify.min.js');
 copy('marked/lib/marked.umd.js', 'marked/marked.umd.js');

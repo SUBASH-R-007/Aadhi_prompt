@@ -6,7 +6,9 @@
 // No look changes in B2b: a B1-form presentation.fonts (B1 and B2a timelines) gives exactly what the B1 stage gave
 // (oracle: the B1 stage's own fontStacks, copied below verbatim from stage.js at c3a1e9b, and render/fonts.js
 // fontRequests), and the B2 form the B2b resolver writes (aadhi/compose/dynamic/faces.py resolver_fonts: B1's faces)
-// gives the same stacks and requests, string for string. The B2 form draws and loads any vendored face it names.
+// gives the same stacks, string for string, and the same requests when display is Outfit; when display is Inter the
+// requests are B1's without the Outfit faces, which no stack holds then (the pixels are the same). The B2 form draws
+// and loads any vendored face it names.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';

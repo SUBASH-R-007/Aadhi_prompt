@@ -2,8 +2,10 @@
 B2 plan §1.11, §2 "Fonts"): what Python's measurement promises, checked where the page decides the pixels.
 
 * **Every word.** In every vendored Latin face at every weight and letter-spacing a slot uses, the page draws each word
-  of a corpus (kerning-prone pairs, digits, punctuation, lesson words) no wider than ``textfit``'s conservative width
-  (Pillow's advance + the 4% slack + the kerning floor): the per-word bound everything else rests on.
+  of a corpus (kerning-prone pairs, digits, punctuation, lesson words; each face's largest measured positive pairs,
+  alone and repeated, and words of several such pairs: B2b review F1) no wider than ``textfit``'s conservative width
+  (Pillow's advance + the 4% slack + the kerning floor + the measured bound of every pair): the per-word bound
+  everything else rests on.
 * **board_generic's slots** (title: stack, quiz and chapter-card layouts; the kicker; the chapter card's subtitle), both
   formats, the B1 faces and two B2-form sets (Poppins / Atkinson / Anek, Lexend / Inter / Noto Sans), for typical
   titles, wide-glyph titles at and past the line limit (a sweep of growing prefixes, so both answers and the edge
@@ -11,9 +13,11 @@ B2 plan §1.11, §2 "Fonts"): what Python's measurement promises, checked where 
   - Python fits => the page reports overflow 0 (the kicker: is not cut with an ellipsis), at a size >= Python's
     (unless the page took the slot's preferred line count at a smaller size);
   - Python overflow => the page overflows, or fits only within Python's margins: the page's own measured words, made
-    as much wider as Python makes a word (the 4% slack and the kerning floor), no longer fit (the plan's "within 4% /
-    8% slack");
+    as much wider as Python makes a word (the 4% slack, the kerning floor and its pairs' bounds), no longer fit (the
+    plan's "within 4% / 8% slack");
   - the subtitle (no line limit): Python's line count is never below the page's.
+* **Kerned words the page keeps whole** (``AVAV...``, B2b review F2): drawn up to 12% narrower than Pillow's advance,
+  so whether the page breaks them is not decided from the slack alone; Python's size is the page's.
 * **Indic text is not certified** (Tamil, Hindi, mixed Tamil + English): ``fits`` is None. The basic layout cannot
   bound a shaped Indic cluster (measured here: syllables drawn far wider and far narrower than their characters'
   advances, more than the design's 8% either way), so the 8% gives an estimate only; the estimate is still a size
@@ -28,6 +32,7 @@ from typing import Any
 import pytest
 
 from aadhi.compose.dynamic import faces as fc
+from aadhi.compose.dynamic import kerning as kn
 from aadhi.compose.dynamic import textfit as tf
 from aadhi.compose.dynamic.stage_page import open_stage
 from aadhi.compose.dynamic.templates import TEMPLATES
@@ -171,16 +176,17 @@ async def _page(real_app, served: dict[str, Any]) -> list[dict[str, Any]]:
     return out
 
 
-def _page_fits_with_margins(got: dict[str, Any], spec: Any, slack: float) -> bool:
+def _page_fits_with_margins(got: dict[str, Any], spec: Any, slack: float, m: tf.Measured) -> bool:
     """Whether the page's own text still fits the slot at its minimum size when every word is made as much wider as
-    Python's margins make a word (``slack`` and the kerning floor): the page's rules (whole words, greedy lines; a word
-    wider than the column even at the minimum breaks, into at least as many lines as its width needs)."""
+    Python's margins make a word (``slack``, the kerning floor and the bounds of its kerning pairs, from ``m``): the
+    page's rules (whole words, greedy lines; a word wider than the column even at the minimum breaks, into at least as
+    many lines as its width needs)."""
     lo = spec.size[0]
     scale = lo / got["size"]
     width = got["width"]
     lines, cur = 0, None
-    for w in got["words"]:
-        ww = w * scale * (1 + slack) + tf.KERN_FLOOR_EM * lo
+    for w, word in zip(got["words"], m.words, strict=True):
+        ww = w * scale * (1 + slack) + (tf.KERN_FLOOR_EM + word.kern_pos) * lo
         if ww > width:  # unavoidable at the minimum: lines of its own
             lines += (1 if cur is not None else 0) + math.ceil(ww / width)
             cur = None
@@ -232,7 +238,7 @@ async def test_python_fits_implies_the_page_fits_on_board_generic_slots(real_app
                 seen["overflow"] += 1
             else:
                 seen["band"] += 1
-                assert not _page_fits_with_margins(got, spec, tf.SLACK_LATIN), ("beyond the slack", where, r, got)
+                assert not _page_fits_with_margins(got, spec, tf.SLACK_LATIN, m), ("beyond the slack", where, r, got)
         # the kicker (one line, cut with an ellipsis on the page)
         if got["kicker"] is not None:
             kspec = SLOTS["kicker"][fmt][SLOT_VARIANT[variant]]
@@ -245,7 +251,9 @@ async def test_python_fits_implies_the_page_fits_on_board_generic_slots(real_app
                 assert not got["kicker"]["cut"], ("kicker", where, kicker, k, got["kicker"])
             else:
                 seen["kicker_cut"] += 1
-                margins = tf.KERN_FLOOR_EM * kspec.size[0] * len(tf.words(kicker))  # Python's floor, per word
+                km = tf.measure(kicker, fonts=fonts, role=kspec.face, weight=kspec.weight, language="en-IN",
+                                tracking_em=kspec.tracking_em)  # Python's floor and pair bounds, per word
+                margins = sum(tf.KERN_FLOOR_EM + w.kern_pos for w in km.words) * kspec.size[0]
                 assert got["kicker"]["cut"] or got["kicker"]["natural"] * (1 + tf.SLACK_LATIN) + margins > room, (
                     "kicker beyond the slack", where, kicker, k, got["kicker"])
         # the chapter card's subtitle: Python never counts fewer lines than the page draws
@@ -257,6 +265,23 @@ async def test_python_fits_implies_the_page_fits_on_board_generic_slots(real_app
     # both answers and the edge between them were met (the sweep crosses it), and the kicker both ways
     assert seen["fits"] >= 10 and seen["overflow"] + seen["band"] >= 3, seen
     assert seen["kicker_fits"] >= 5 and seen["kicker_cut"] >= 3, seen
+
+
+# Words the page draws up to 12% narrower than Pillow's advance (B2b review F2): wider than the portrait title's column
+# by Pillow's advance at the minimum size, yet drawn whole on one line there by the page
+_KERNED_TITLES = ["AV" * 10, "TY" * 10, "To" * 11, "Yo" * 11]
+
+
+async def test_a_kerned_word_the_page_keeps_whole_is_not_read_as_broken(real_app) -> None:
+    spec = SLOTS["title"]["portrait"]["default"]
+    fonts = FONT_SETS["b1"]
+    cases = [("default", t, "Basics", "") for t in _KERNED_TITLES]
+    pages = await _page(real_app, _timeline("portrait", fonts, "en-IN", cases))
+    for title, got in zip(_KERNED_TITLES, pages, strict=True):
+        r = tf.fit_slot(title, spec, fonts=fonts, language="en-IN")
+        assert r.fits and got["overflow"] == 0, (title, r, got)
+        # no exemption for the preferred line count: Python's size is the page's, its line count never fewer
+        assert got["size"] == r.size and len(r.lines) >= got["lines"], (title, r, got)
 
 
 _INDIC_CASES = {
@@ -288,7 +313,10 @@ _WORDS = ("Ohm's law: voltage, current and resistance (series) [parallel] “quo
           "x² √2 Pneumonoultramicroscopicsilicovolcanoconiosis").split(" ")
 _KERN = "AFLPTVWYfrvwy.,'\")]?7"
 _NEXT = "AVWYTacdeoqsvwy.,')]?"
-CORPUS = tuple(dict.fromkeys([*_WORDS, *(a + b for a in _KERN for b in _NEXT)]))
+# words whose positive pairs add up (B2b review F1: a per-word allowance certified them narrower than the page)
+_MULTI = ("f'f'", "f'f''", "f'f'f'f'", "f)f)f)", "f'(x)g'(x)", "f''(x)", "(j(j(j", "qjqjqj", "ïïïï",
+          "<–<–", "[j]f?")
+CORPUS = tuple(dict.fromkeys([*_WORDS, *_MULTI, *(a + b for a in _KERN for b in _NEXT)]))
 # (family, weight, tracking) of every slot's text: titles (display 700, -0.015 em), kickers (body 600, +0.02 em),
 # body text (400 in 16:9, 600 in 9:16), chips and subtitles
 STYLES = [(f, 700, -0.015) for f in ("outfit", "poppins", "lexend", "inter", "atkinson_hyperlegible_next")] + [
@@ -309,6 +337,14 @@ _WIDTHS_JS = """async ([css, words, weight, tracking]) => {
 }"""
 
 
+def _top_pairs(family: str, weight: int, n: int = 24) -> list[str]:
+    """The face's ``n`` largest measured positive pairs (its Latin face at ``weight``), alone and three times over."""
+    face = fc.face_for(family, weight, ord("a"))
+    assert face is not None
+    pairs = sorted(kn.load()[kn.face_name(face)].positive.items(), key=lambda kv: (-kv[1], kv[0]))[:n]
+    return [w for pair, _ in pairs for w in (pair, pair * 3)]
+
+
 async def test_every_latin_face_draws_every_word_within_its_conservative_width(real_app) -> None:
     served = _timeline("landscape", FONT_SETS["b1"], "en-IN", [("default", TYPICAL, "Basics", "")])
     worst: dict[str, float] = {}
@@ -318,10 +354,11 @@ async def test_every_latin_face_draws_every_word_within_its_conservative_width(r
         for family, weight, tracking in STYLES:
             fonts = {"display": family, "body": "inter", "mono": "jetbrains_mono", "indic": "noto_sans"}
             css = fc.css_stack(fonts, "display", "en-IN")
-            got = await page.page.evaluate(_WIDTHS_JS, [css, list(CORPUS), weight, tracking])
-            m = tf.measure(" ".join(CORPUS), fonts=fonts, role="display", weight=weight, language="en-IN",
+            corpus = list(dict.fromkeys([*CORPUS, *_top_pairs(family, weight)]))
+            got = await page.page.evaluate(_WIDTHS_JS, [css, corpus, weight, tracking])
+            m = tf.measure(" ".join(corpus), fonts=fonts, role="display", weight=weight, language="en-IN",
                            tracking_em=tracking)
-            assert [w.text for w in m.words] == list(CORPUS)
+            assert [w.text for w in m.words] == corpus
             key = f"{family} {weight} {tracking:+}"
             for word, page_w in zip(m.words, got, strict=True):
                 if not word.reliable:  # drawn by a system font (Greek and maths are not in the vendored subsets)

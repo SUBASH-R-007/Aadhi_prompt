@@ -247,6 +247,28 @@ def test_b2_form_draws_what_it_names_when_vendored_for_the_role() -> None:
         "jetbrains_mono")
 
 
+def test_the_schema_model_is_read_as_its_stored_dict_and_anything_else_is_refused() -> None:
+    """``timeline.presentation.fonts`` is a ``TimelineFonts`` model, not a mapping: it is read as the dict the timeline
+    stores, never as "no fonts" (the B1 defaults); any other value is a caller error (B2b review B2b-CONF-2)."""
+    from aadhi.schemas.timeline import TimelineFonts
+
+    model = TimelineFonts(display="poppins", body="atkinson_hyperlegible_next", mono="jetbrains_mono", indic="anek")
+    stored = model.model_dump(mode="json", exclude_none=True)
+    assert fc.is_b2_fonts(model) and fc.stage_roles(model) == fc.stage_roles(stored) == stored
+    for language in ("", "ta-IN", "hi-IN"):
+        for role in ("display", "body", "mono"):
+            assert fc.stack(model, role, language) == fc.stack(stored, role, language), (role, language)
+            assert fc.css_stack(model, role, language) == fc.css_stack(stored, role, language), (role, language)
+    assert fc.stack(model, "display", "ta-IN")[:3] == ("poppins", "atkinson_hyperlegible_next", "anek_tamil")
+    b1 = TimelineFonts(display="inter", body="inter", mono="jetbrains_mono")  # the B1 form: no indic
+    assert not fc.is_b2_fonts(b1) and fc.stage_roles(b1) == fc.stage_roles({"display": "inter"})
+    assert fc.stage_roles(TimelineFonts()) == fc.stage_roles(None) == fc.stage_roles({})
+    for bad in ("poppins", 7, ["display", "poppins"], object()):
+        for fn in (fc.stage_roles, fc.is_b2_fonts, lambda f: fc.stack(f, "display")):
+            with pytest.raises(TypeError, match="presentation.fonts must be"):
+                fn(bad)
+
+
 def test_languages_and_indic_order() -> None:
     assert fc.script_for_language("ta-IN") == "tamil" and fc.script_for_language("MR_in") == "devanagari"
     assert fc.script_for_language("sa") is None and fc.script_for_language(None) is None

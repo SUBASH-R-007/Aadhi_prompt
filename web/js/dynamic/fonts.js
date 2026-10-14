@@ -12,8 +12,10 @@
  *   that family is vendored for the role (display: a display or body face; body, mono: their own), else the role's
  *   default; `indic` is `noto_sans` (Noto Sans per script) or `anek` (Anek per script). The render page loads every
  *   requested weight of each family a stack holds, and the Indic family of every script the timeline uses
- *   (`stageFontRequests`). For the faces the B2b resolver names (B1's), the stacks and the requests are the B1 ones,
- *   string for string (web/tests/dynamic/fonts.test.js), so no look changes; B2e's direct.py rotates the display face.
+ *   (`stageFontRequests`). For the faces the B2b resolver names (B1's), the stacks are the B1 ones, string for
+ *   string, so no look changes (web/tests/dynamic/fonts.test.js); the requests are B1's `fontRequests` when display is
+ *   Outfit, and B1's without the Outfit faces when display is Inter (no stack holds Outfit then, so it is not loaded:
+ *   the pixels are the same). B2e's direct.py rotates the display face.
  *
  * Ids are resolved through the face table only, so no stored string ever reaches CSS as text. The stacks hold, in
  * order: display = display face, body face, Indic families; body = body face, Indic families; mono = the mono face.
@@ -140,7 +142,8 @@ export function fontStacks(presentation, language = '') {
  * render/fonts.js `fontRequests` (B1's list, unchanged). B2 form: each requested weight of the body, display and mono
  * families (each family once, in that order) with Latin sample text, then for every Indic script of the timeline's
  * text and languages (render/fonts.js `detectScripts`, `scriptForLanguage`) the group's family of that script with
- * its sample text: for B1's faces, the same list as `fontRequests`.
+ * its sample text. For the B2b resolver's fonts: display Outfit gives the same list as `fontRequests`; display Inter
+ * gives that list without the Outfit faces (Outfit is in no stack then).
  * @param {any} timeline
  * @returns {FontRequest[]}
  */

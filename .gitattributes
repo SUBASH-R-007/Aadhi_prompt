@@ -20,3 +20,5 @@ docker/** text eol=lf
 *.woff2 binary
 # Generated (scripts/gen_third_party_notices.py; its --check compares bytes)
 THIRD_PARTY_NOTICES text eol=lf
+# Licence texts of third-party code inside vendored bundles (scripts/gen_third_party_notices.py reads them)
+scripts/third_party_licences/*.txt text eol=lf
