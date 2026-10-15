@@ -1,6 +1,6 @@
 # Session handoff — Batch B2 (Dynamic video visual system)
 
-Updated 2026-10-15 (deadline mode), after B2b-H landed and while B2c was being finished. To continue, paste the
+Updated 2026-10-15 (deadline mode), after B2b-H and B2c landed. NEXT: the demo phase (step 3 of the prompt). To continue, paste the
 "Prompt for the next session" block below into a new session.
 
 ## Where things are (2026-10-15, end of the first account's session)
@@ -16,15 +16,13 @@ superseded where they conflict.
   HarfBuzz-shaped text fit for every script, kerning table retired (`65e6f1d`). B2b-H's two rare open edge cases
   (ZWSP-joined flow text; an over-wide word starting with a hyphen) are recorded in `b2b_h_review.md` and accepted
   for the deadline: `textfit` is not wired into rendering yet.
-- **B2c (vertical slice)** was built in the git worktree `C:/t/b2c` on the branch `b2c` (from `d63ff94`):
-  `templates/_shared.js`, `cues.js`, `state.js` additions, and the templates `formula_focus`, `media_split`,
-  `list_build` (registered in `stage.js` and the catalogue; `presentation.TEMPLATES` still `("board_generic",)`, so
-  no existing timeline changes). Commits on `b2c`: `17121d2` (build + partial integration), `4829875` (review fix
-  round 1, partial). Its review ran (3 lenses + skeptics); the workflow was capped at ONE fix/audit round and was
-  being resumed when this handoff was written. **Check `git -C C:/t/b2c log --oneline -5` and `git status`:**
-  - if the branch has a final "B2c" commit and `overhaul/v2` contains it (`git branch --contains`), B2c is done;
-  - otherwise finish B2c yourself (see the prompt below), quickly: fix what the last audit reports, write
-    `docs/plans/b2/b2c_review.md` + `b2c_design_notes.md` in the worktree, commit, merge.
+- **B2c (vertical slice) is MERGED** into `overhaul/v2` (`3f3899b`, merge `6ff938a`, 2026-10-15): `templates/_shared.js`,
+  `cues.js`, `state.js` additions, and the templates `formula_focus`, `media_split`, `list_build` (registered in
+  `stage.js` and the catalogue; `presentation.TEMPLATES` still `("board_generic",)`, so no existing timeline changes
+  until `direct.py`). Record: `docs/plans/b2/b2c_review.md` (one review round; 15 fixed, 3 deferred; all gates green;
+  no-visible-change differential 2,664 frames, 0 differences). The design doc does not yet carry B2c "As built"
+  notes: add them from `b2c_review.md` when convenient. On the merged tree: ruff, tsc, all generated-file checks and
+  npm (1402 passed) are green; the full fast suite on the merged tree was started but its result is not recorded here.
 - **Worktree hygiene:** `C:/t/b2c/node_modules` is a JUNCTION to the main repo's `node_modules`; `C:/t/b2c/web/vendor`
   is a real copy. Before `git worktree remove --force C:/t/b2c`, run `cmd /c rmdir C:\t\b2c\node_modules` (never let
   a junction be deleted recursively). The merged tree needs no worktree.
