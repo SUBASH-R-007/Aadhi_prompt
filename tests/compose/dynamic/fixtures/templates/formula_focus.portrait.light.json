@@ -23,19 +23,34 @@
       "text": "Ohm's law in\nits second form."
     },
     {
-      "end": 2.65,
+      "end": 2.25,
       "start": 1.65,
-      "text": "I is the\ncurrent,"
+      "text": "I is the"
+    },
+    {
+      "end": 2.65,
+      "start": 2.25,
+      "text": "current,\nமின்னோட்டம்,"
+    },
+    {
+      "end": 3.2,
+      "start": 2.8,
+      "text": "V is"
     },
     {
       "end": 3.8,
-      "start": 2.8,
-      "text": "V is the\nvoltage,"
+      "start": 3.2,
+      "text": "the voltage,\nமின்னழுத்தம்,"
     },
     {
-      "end": 5.35,
+      "end": 4.617,
       "start": 3.95,
-      "text": "and R is the\nresistance."
+      "text": "and R is the"
+    },
+    {
+      "end": 5.617,
+      "start": 4.617,
+      "text": "resistance,\nமின்தடை."
     }
   ],
   "chapters": [
@@ -192,9 +207,14 @@
           "board_item_id": null,
           "captions": [
             {
-              "end": 2.65,
+              "end": 2.25,
               "start": 1.65,
-              "text": "I is the\ncurrent,"
+              "text": "I is the"
+            },
+            {
+              "end": 2.65,
+              "start": 2.25,
+              "text": "current,\nமின்னோட்டம்,"
             }
           ],
           "end": 2.65,
@@ -202,31 +222,36 @@
           "fill_item_id": null,
           "highlight_item_ids": [],
           "index": 1,
-          "narration": "I is the current,",
+          "narration": "I is the current, மின்னோட்டம்,",
           "phase": "main",
           "speech_end": 2.65,
           "start": 1.65,
           "visual_cue": null,
           "words": [
             {
-              "end": 1.9,
+              "end": 1.85,
               "start": 1.65,
               "text": "I"
             },
             {
-              "end": 2.15,
-              "start": 1.9,
+              "end": 2.05,
+              "start": 1.85,
               "text": "is"
             },
             {
-              "end": 2.4,
-              "start": 2.15,
+              "end": 2.25,
+              "start": 2.05,
               "text": "the"
             },
             {
-              "end": 2.65,
-              "start": 2.4,
+              "end": 2.45,
+              "start": 2.25,
               "text": "current,"
+            },
+            {
+              "end": 2.65,
+              "start": 2.45,
+              "text": "மின்னோட்டம்,"
             }
           ]
         },
@@ -235,9 +260,14 @@
           "board_item_id": null,
           "captions": [
             {
-              "end": 3.8,
+              "end": 3.2,
               "start": 2.8,
-              "text": "V is the\nvoltage,"
+              "text": "V is"
+            },
+            {
+              "end": 3.8,
+              "start": 3.2,
+              "text": "the voltage,\nமின்னழுத்தம்,"
             }
           ],
           "end": 3.8,
@@ -245,31 +275,36 @@
           "fill_item_id": null,
           "highlight_item_ids": [],
           "index": 2,
-          "narration": "V is the voltage,",
+          "narration": "V is the voltage, மின்னழுத்தம்,",
           "phase": "main",
           "speech_end": 3.8,
           "start": 2.8,
           "visual_cue": null,
           "words": [
             {
-              "end": 3.05,
+              "end": 3.0,
               "start": 2.8,
               "text": "V"
             },
             {
-              "end": 3.3,
-              "start": 3.05,
+              "end": 3.2,
+              "start": 3.0,
               "text": "is"
             },
             {
-              "end": 3.55,
-              "start": 3.3,
+              "end": 3.4,
+              "start": 3.2,
               "text": "the"
             },
             {
-              "end": 3.8,
-              "start": 3.55,
+              "end": 3.6,
+              "start": 3.4,
               "text": "voltage,"
+            },
+            {
+              "end": 3.8,
+              "start": 3.6,
+              "text": "மின்னழுத்தம்,"
             }
           ]
         },
@@ -278,9 +313,14 @@
           "board_item_id": null,
           "captions": [
             {
-              "end": 5.35,
+              "end": 4.617,
               "start": 3.95,
-              "text": "and R is the\nresistance."
+              "text": "and R is the"
+            },
+            {
+              "end": 5.617,
+              "start": 4.617,
+              "text": "resistance,\nமின்தடை."
             }
           ],
           "end": 7.95,
@@ -288,36 +328,41 @@
           "fill_item_id": null,
           "highlight_item_ids": [],
           "index": 3,
-          "narration": "and R is the resistance.",
+          "narration": "and R is the resistance, மின்தடை.",
           "phase": "main",
           "speech_end": 4.95,
           "start": 3.95,
           "visual_cue": null,
           "words": [
             {
-              "end": 4.15,
+              "end": 4.117,
               "start": 3.95,
               "text": "and"
             },
             {
-              "end": 4.35,
-              "start": 4.15,
+              "end": 4.283,
+              "start": 4.117,
               "text": "R"
             },
             {
-              "end": 4.55,
-              "start": 4.35,
+              "end": 4.45,
+              "start": 4.283,
               "text": "is"
             },
             {
-              "end": 4.75,
-              "start": 4.55,
+              "end": 4.617,
+              "start": 4.45,
               "text": "the"
             },
             {
+              "end": 4.783,
+              "start": 4.617,
+              "text": "resistance,"
+            },
+            {
               "end": 4.95,
-              "start": 4.75,
-              "text": "resistance."
+              "start": 4.783,
+              "text": "மின்தடை."
             }
           ]
         }
@@ -359,17 +404,17 @@
           "text": "மின்னோட்டம் [[current]] equals $V$ over $R$",
           "variables": [
             {
-              "meaning": "current மின்னோட்டம்",
+              "meaning": "மின்னோட்டம்",
               "symbol_latex": "I",
               "unit": "A"
             },
             {
-              "meaning": "voltage மின்னழுத்தம்",
+              "meaning": "மின்னழுத்தம்",
               "symbol_latex": "V",
               "unit": "V"
             },
             {
-              "meaning": "resistance மின்தடை",
+              "meaning": "மின்தடை",
               "symbol_latex": "R",
               "unit": "ohm"
             }
@@ -386,16 +431,16 @@
           "dur": 1.5,
           "kind": "look_here",
           "sfx": null,
-          "t": 5.53,
+          "t": 5.563,
           "target": "f:var:I",
           "words": ""
         },
         {
           "anchored": false,
-          "dur": 0.92,
+          "dur": 0.887,
           "kind": "look_here",
           "sfx": null,
-          "t": 7.53,
+          "t": 7.563,
           "target": "f:var:V",
           "words": ""
         }
@@ -454,8 +499,8 @@
           "item_id": "f",
           "kind": "var",
           "part": "var:0",
-          "start": 2.4,
-          "words": "current"
+          "start": 2.45,
+          "words": "மின்னோட்டம்"
         },
         {
           "beat_id": "ff-ohm-b3",
@@ -463,8 +508,8 @@
           "item_id": "f",
           "kind": "var",
           "part": "var:1",
-          "start": 3.55,
-          "words": "voltage"
+          "start": 3.6,
+          "words": "மின்னழுத்தம்"
         },
         {
           "beat_id": "ff-ohm-b4",
@@ -472,8 +517,8 @@
           "item_id": "f",
           "kind": "var",
           "part": "var:2",
-          "start": 4.75,
-          "words": "resistance"
+          "start": 4.783,
+          "words": "மின்தடை"
         }
       ],
       "title": "Ohm's law",

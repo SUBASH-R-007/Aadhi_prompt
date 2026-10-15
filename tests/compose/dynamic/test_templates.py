@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import re
 from pathlib import Path
 from typing import Any
@@ -212,6 +213,34 @@ def test_consumes() -> None:
     assert tp.TEMPLATES["formula_focus"].consumes.accepts("var", "f1:var:R")
     assert tp.TEMPLATES["check"].consumes.accepts("answer", "option:2")
     assert tp.TEMPLATES["chart_build"].consumes.accepts("look_here", "panel:bar:0:3")
+
+
+def test_consumes_forms_per_kind(monkeypatch: pytest.MonkeyPatch) -> None:
+    """B2c review CG-5: a kind is accepted only on the forms the template draws it on (not the cross product of its
+    kinds and forms): media_split draws no cue_term on a panel, formula_focus no var on a whole item."""
+    for tid, spec in tp.TEMPLATES.items():
+        for kind in spec.consumes.kinds:
+            assert spec.consumes.forms(kind), (tid, kind)
+            assert set(spec.consumes.forms(kind)) <= set(spec.consumes.targets), (tid, kind)
+        assert spec.consumes.forms("nope") == ()
+    media = tp.TEMPLATES["media_split"].consumes
+    assert media.accepts("cue_term", "b1") and media.accepts("cue_term", "b1:term:0")
+    assert not media.accepts("cue_term", "panel") and not media.accepts("cue_term", "panel:row:1")
+    assert media.accepts("look_here", "panel") and media.accepts("look_here", "b1:term:0")
+    assert media.accepts("look_here", "panel:row:2") and not media.accepts("reveal", "panel")
+    ff = tp.TEMPLATES["formula_focus"].consumes
+    assert ff.accepts("var", "f:var:R") and not ff.accepts("var", "f")
+    assert ff.accepts("draw", "f") and not ff.accepts("draw", "f:var:R")
+    assert ff.accepts("look_here", "f") and ff.accepts("look_here", "f:var:R")
+    lb = tp.TEMPLATES["list_build"].consumes
+    assert lb.accepts("cue_term", "b1:term:1") and lb.accepts("look_here", "b1:term:1")
+    assert not lb.accepts("reveal", "b1:term:1")
+    # a narrowing outside the template's kinds or targets is a registry problem
+    bad = dict(tp.TEMPLATES)
+    bad["list_build"] = dataclasses.replace(tp.TEMPLATES["list_build"],
+                                            consumes=tp.Consumes(("reveal",), ("item",), (("reveal", ("panel",)),)))
+    monkeypatch.setattr(tp, "TEMPLATES", bad)
+    assert any("list_build: consumes narrows 'reveal'" in p for p in tp.registry_problems())
 
 
 def test_roles() -> None:
@@ -559,7 +588,8 @@ def test_fit_quantity_formula_procedure_code_refutation() -> None:
     assert fits(board(item("heading"), panel="graph"))["function_plot"] == 1.0
     beside = board(item("bullet", 1), item("bullet", 2), panel="chart")  # the chart beside bullets: media_split's
     assert rows(beside) == ["list", "chart", "media"] and "chart_build" not in fits(beside)
-    assert fits(beside)["media_split"] == 1.0 and fits(beside)["list_build"] == 1.0
+    # list_build draws a picture or clip panel only (B2c review CG-2): a chart beside the bullets is media_split's
+    assert fits(beside)["media_split"] == 1.0 and "list_build" not in fits(beside)
     assert fits(board(item("formula"))) == {"formula_focus": 1.0, "board_generic": FIT_FALLBACK}
     assert "formula_focus" not in fits(board(item("formula"), panel="figure"))  # no side panel (formula_focus.js fitsScene)
     worked = board(item("formula"), item("example_step", 1), item("example_step", 2, blank=True))
@@ -591,6 +621,14 @@ def test_fit_media_row() -> None:
     assert rows(two) == ["list", "media"]
     assert fits(two) == {"list_build": 1.0, "media_split": 1.0, "spotlight_image": FIT_ALTERNATIVE,
                          "board_generic": FIT_FALLBACK}
+    # list_build.js draws a panel in 16:9 only, and only a picture or clip one (drawsScene; B2c review CG-2)
+    assert "list_build" not in fits(two, "portrait")
+    assert fits(board(item("bullet", 1), item("bullet", 2)), "portrait")["list_build"] == 1.0
+    assert tp.LIST_PANELS == ("figure", "image", "manim", "gif")
+    for kind in ("terminal", "chart", "graph", "model_3d", "skill_tree"):
+        assert "list_build" not in fits(board(item("bullet", 1), item("bullet", 2), panel=kind)), kind
+    for kind in tp.LIST_PANELS:
+        assert fits(board(item("bullet", 1), item("bullet", 2), panel=kind))["list_build"] == 1.0, kind
     label = board(item("bullet"), panel="image")  # an application image under a one-line label
     assert fits(label)["full_bleed_media"] == FIT_ALTERNATIVE
     assert fits(board(item("bullet"), panel="manim")) == {"animation_stage": FIT_ALTERNATIVE,

@@ -16,7 +16,7 @@
 import { h, svg } from '../../shared/dom.js';
 import { ease } from '../../motion/easing.js';
 import { progress } from '../../motion/track.js';
-import { composite, contrastRatio, mixOklch, toOklch } from '../../motion/color.js';
+import { mixOklch, toOklch } from '../../motion/color.js';
 import { splitWords } from '../../motion/text.js';
 import { strokeDash } from '../../motion/draw.js';
 import { mathSpans, mountTex, parseRich, plainText, renderRich } from '../../player/richtext.js';
@@ -25,6 +25,11 @@ import { planScene } from '../../player/schedule.js';
 import { SCRIM_ALPHA_HEX, TYPE_FLOORS, fixesOf, fx, templateSlots } from '../core.js';
 import { shownIn } from '../media.js';
 import { itemTimings, INITIAL_DELAY, INITIAL_STAGGER, REVEAL_LEAD } from '../state.js';
+import { scrimmedBg } from './_shared.js';
+
+// scrimmedBg lives in _shared.js (B2c: every template that reports text on a scrim uses it); re-exported for the
+// callers and tests that import it from here since B2a
+export { scrimmedBg };
 
 /** @typedef {import('./types.js').TemplateContext} TemplateContext */
 /** @typedef {import('./types.js').TemplateModule} TemplateModule */
@@ -649,29 +654,6 @@ function richWordSpans(ctx, host, nodes) {
     if (part.ws) fill(host, end, end + part.ws.length);
   }
   return { words, tex };
-}
-
-/**
- * What text of `ink` over the title block's translucent `scrim` sits on: the scrim composited over each colour the
- * background shows, the one with the least contrast against `ink` (R-53's worst case). Opaque hex, the colour
- * preflight's contrast check then measures, so a scrim that helps reads as fixed.
- * @param {string} scrim   #rrggbbaa
- * @param {{bg: string, bgs?: string[]}} onBackground
- * @param {string} ink
- */
-export function scrimmedBg(scrim, onBackground, ink) {
-  const bgs = onBackground.bgs && onBackground.bgs.length ? onBackground.bgs : [onBackground.bg];
-  let worst = composite(scrim, bgs[0]);
-  let low = contrastRatio(ink, worst);
-  for (const b of bgs.slice(1)) {
-    const c = composite(scrim, b);
-    const ratio = contrastRatio(ink, c);
-    if (ratio < low) {
-      low = ratio;
-      worst = c;
-    }
-  }
-  return worst;
 }
 
 /** @type {TemplateModule} */

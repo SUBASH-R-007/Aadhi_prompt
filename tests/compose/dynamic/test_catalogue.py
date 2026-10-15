@@ -63,7 +63,12 @@ def test_the_registries_are_the_python_ones() -> None:
         "w": 696, "max_lines": 2, "size": [56, 88], "role": "title", "face": "display", "weight": 700,
         "line_height": 1.06, "tracking_em": -0.015, "max_words": None, "max_chars": None, "prefer_lines": 1,
         "critical": True}
-    assert bg["consumes"] == {"kinds": ["reveal", "fill"], "targets": ["item"]}
+    assert bg["consumes"] == {"kinds": ["reveal", "fill"], "targets": ["item"],
+                              "forms": {"reveal": ["item"], "fill": ["item"]}}
+    # B2c review CG-5: the forms per kind, so the stage applies a cue only on a form its template draws it on
+    media = data["templates"]["media_split"]["consumes"]
+    assert media["forms"]["cue_term"] == ["item", "item:term"]
+    assert media["forms"]["look_here"] == ["item", "item:term", "panel", "panel:row"]
     assert data["templates"]["thumbnail"]["formats"] == ["landscape"]
     assert data["templates"]["clip_scene"]["duration"]["portrait"] == {
         "min": 0.5, "max": None, "per_item": False, "end_screen": None}

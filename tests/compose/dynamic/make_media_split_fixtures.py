@@ -6,7 +6,8 @@ with the presentation and look tokens of a released family as the resolver compu
 ``themes.scene_tokens``, ``presentation.motion_scale`` / ``text_entrance`` of the family's default personality), a
 picture panel or a terminal panel, beats revealing the text items, and the cue events events.py (B2d) will write:
 ``cue_term`` on an item with a [[term]], ``look_here`` on the panel, a terminal row or an item (a camera push: media_split
-is push_ok). The pictures are flat-colour Pillow drawings embedded as ``data:`` PNG URLs (no media server needed by the
+is push_ok), each push after the entrances around it (§4.8 grammar: nothing enters during a camera move; the jsdom
+test checks every fixture). The pictures are flat-colour Pillow drawings embedded as ``data:`` PNG URLs (no media server needed by the
 real-Chromium gate; each at least as large as it is shown, §P: pictures only ever downscale). Clips are covered by the
 jsdom tests (web/tests/dynamic/templates/media_split.test.js): the slow gate serves no pre-extracted frames.
 
@@ -150,7 +151,8 @@ def fixtures() -> dict[str, Obj]:
         "landscape", "midnight_indigo", "s-split", "How current flows in a circuit", items,
         beats("k", items, ["Current is the flow of charge.", "Voltage is the push that drives it.",
                            "And Ohm's law ties them together."]),
-        [cue(1.4, "cue_term", "b1"), cue(6.4, "look_here", "panel", 2.0)], "media_right",
+        # the push after b3's entrance (§4.8: nothing enters during a camera move; B2c review V6)
+        [cue(1.4, "cue_term", "b1"), cue(7.0, "look_here", "panel", 2.0)], "media_right",
         image_panel("A simple circuit", wide, 1600, 900), seed=1101)
 
     items = [{"id": "w1", "kind": "bullet", "text": "WWWW MMMM WWWW MMMM WWWW MMMM WWWW MMMM"},
@@ -159,7 +161,7 @@ def fixtures() -> dict[str, Obj]:
     out["landscape.light"] = timeline(
         "landscape", "paper_ink", "s-wide", "Maximum Wattage Warms Wide Metal Wires", items,
         beats("l", items, ["Wide words first.", "A very long word.", "Wide words make maximum demands."]),
-        [cue(3.4, "look_here", "w2"), cue(6.8, "cue_term", "w3", 2.0)], "media_left",
+        [cue(4.0, "look_here", "w2"), cue(6.8, "cue_term", "w3", 2.0)], "media_left",
         image_panel("A tall circuit", tall, 900, 1200), seed=2202)
 
     items = [{"id": "t1", "kind": "bullet", "text": "Run the [[simulation]]"},

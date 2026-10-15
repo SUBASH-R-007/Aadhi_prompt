@@ -7,7 +7,8 @@
  * limits (R-26: <= 2 concurrent, <= 1 new per 2 s, no repeat within 4 s; Python's budget) see every cue drawn.
  *
  * Which events: those the scene's template consumes (the catalogue's `templates.<id>.consumes`, core.js
- * `templateBehaviour`: the kind and the target's form), with a target in the §1.7 grammar (core.js `parseTarget`).
+ * `templateBehaviour`: the kind, and the target's form among the forms the template resolves for that kind,
+ * `consumes.forms`), with a target in the §1.7 grammar (core.js `parseTarget`).
  * Anything else is skipped, never guessed, so a template that declares no cue (board_generic) is never given one.
  *
  * Timing (a pure function of the scene time t; no state carried between frames):
@@ -36,10 +37,19 @@
  *
  * `cue.look_here` (§4.8, plan §1.5): the template's `focusRect(ctx, target)` (whole px, read after its update this
  * frame) gets a 4 px `focus` outline outset by >= 8 px (rect, ring or bar), drawn in the Slot's `.dyn-cues` layer and
- * clamped to the critical zone that holds the target; every `dimGroups` element that does not hold the target fades
- * to 70%. On a template whose spec allows it (`push_ok`) the cue is a camera push instead (a scale of the Slot's
+ * clamped to the critical zone that holds the target (text) or to the shapes area (a picture, card or drawing,
+ * `FocusRect.kind` 'shape': `shapeArea`, B2c review CG-1); every `dimGroups` element that does not hold the target
+ * (nor one of the elements `FocusRect.keep` names) fades to 70%. On a template whose spec allows it (`push_ok`) the cue is a camera push instead (a scale of the Slot's
  * `.dyn-camera` wrapper about the target's centre, PUSH_SCALE; §P (a) measured scaled text order-independent), except
- * in the live player under reduced motion, where it keeps the outline form (§4.8; render mode never applies it).
+ * in the live player under reduced motion, where it keeps the outline form (§4.8; render mode never applies it), and
+ * in a scene that shows a clip (`showsClip`), which never pushes: its look_here cues keep the outline form in both
+ * modes. Measured (B2c integration, real Chromium on Windows, --disable-partial-raster, tests/determinism/
+ * test_template_clips.py): a contain_blur clip under the 3% push differed by render order (a page started inside the
+ * push drew every later frame of the clip differently: 80 of 120 frames, in both formats, with the box's
+ * `will-change: transform` layer, dynamic.css; 63 of 120 9:16 frames in reverse order with its backdrop shown, with
+ * or without that layer), while stills under the same push, and clips under the medium's own 0.96 -> 1 entrance,
+ * were order-independent. A clip is a new picture every frame, so a raster scale Chromium keeps from an earlier
+ * frame shows; §P (d) measured a downscaled still only.
  *
  * Text that a look_here dims stays critical for preflight: `dimOf(el)` gives the stage the factor it composites into
  * the reported ink and background (stage.js textBoxes, plan §1.5).
@@ -119,7 +129,9 @@ export function cueEvents(scene, templateId) {
     if (!e || (e.kind !== 'cue_term' && e.kind !== 'look_here')) return;
     if (!behaviour.consumes.kinds.includes(e.kind) || typeof e.t !== 'number' || !Number.isFinite(e.t)) return;
     const parsed = parseTarget(e.target);
-    if (!parsed || !behaviour.consumes.targets.includes(parsed.form)) return;
+    // the target forms the template resolves for this kind (templates.py Consumes.forms: B2c review CG-5, a cross
+    // product of kinds and forms let through pairs no template draws, such as a cue_term on a panel)
+    if (!parsed || !behaviour.consumes.forms[e.kind].includes(parsed.form)) return;
     const draw = e.kind === 'cue_term' ? TERM_DRAW : OUTLINE_DRAW;
     const dur = typeof e.dur === 'number' && Number.isFinite(e.dur) && e.dur > 0 ? e.dur : CUE_HOLD;
     out.push({ kind: e.kind, target: String(e.target), parsed, start: e.t, hold: e.t + Math.max(draw, dur), order });
@@ -278,6 +290,28 @@ export function clampOf(zones, r) {
 }
 
 /**
+ * The box a look_here outline around a non-text target (`FocusRect.kind` 'shape': a picture, a card, a drawing) is
+ * clamped to (B2c review CG-1): the bounds of the content stage and the critical boxes (zones.body: shapes span x
+ * 60-1020 in 9:16, wider than the text column), grown by the outline's reach (FOCUS_OUTSET + FOCUS_PX) so an outline
+ * around anything inside them is never cut, inside the frame and above the caption band. Clamping such a target to
+ * the critical text boxes (clampOf) drew its outline across it: a 9:16 media_split picture spanning x 277-802 got its
+ * right edge at x 778, inside the picture; a 9:16 formula_focus card (x 156-924) got x 194-886, on the formula's own
+ * text column (measured on the real page, B2c review).
+ * @param {Zones} zones
+ * @returns {{x0: number, y0: number, x1: number, y1: number}}
+ */
+export function shapeArea(zones) {
+  const grow = FOCUS_OUTSET + FOCUS_PX;
+  const boxes = [zones.body, ...zones.critical];
+  return {
+    x0: Math.max(0, Math.min(...boxes.map((b) => b.x0)) - grow),
+    y0: Math.max(0, Math.min(...boxes.map((b) => b.y0)) - grow),
+    x1: Math.min(zones.width, Math.max(...boxes.map((b) => b.x1)) + grow),
+    y1: Math.min(zones.caption.y0, Math.max(...boxes.map((b) => b.y1)) + grow),
+  };
+}
+
+/**
  * The critical box (R-59) a target lies in: the one holding its centre, else the one it overlaps most; null without
  * critical boxes.
  * @param {Zones} zones @param {{x: number, y: number, w: number, h: number}} r
@@ -418,7 +452,19 @@ function centreFraction(span, node) {
  */
 
 /**
- * Whether a Slot of `scene` drawn by `templateId` needs the camera wrapper (a look_here it may push) and the cue layer.
+ * Whether `scene` shows a clip (a video medium: its own `media` or its side panel's, in any mode): such a scene never
+ * pushes the camera (see the header: a clip under a push is drawn differently by render order).
+ * @param {TimedScene} scene
+ */
+export function showsClip(scene) {
+  const own = scene.media;
+  const panel = scene.side_panel ? scene.side_panel.media : null;
+  return (!!own && own.kind === 'video') || (!!panel && panel.kind === 'video');
+}
+
+/**
+ * Whether a Slot of `scene` drawn by `templateId` needs the camera wrapper (a look_here it may push: a push_ok template,
+ * never over a clip, `showsClip`) and the cue layer.
  * @param {TimedScene} scene @param {string} templateId
  */
 export function cueNeeds(scene, templateId) {
@@ -426,7 +472,7 @@ export function cueNeeds(scene, templateId) {
   const behaviour = templateBehaviour(templateId);
   return {
     events,
-    camera: !!behaviour && behaviour.pushOk && events.some((e) => e.kind === 'look_here'),
+    camera: !!behaviour && behaviour.pushOk && !showsClip(scene) && events.some((e) => e.kind === 'look_here'),
     layer: events.some((e) => e.kind === 'look_here'),
   };
 }
@@ -543,7 +589,8 @@ export function createCues({ template, ctx, events, layer, camera, termStyle: st
           }
           return;
         }
-        const zone = clampOf(ctx.zones, focus.rect);
+        // text: inside the critical text boxes (R-59); a picture, card or drawing: the shapes area (CG-1)
+        const zone = focus.kind === 'shape' ? shapeArea(ctx.zones) : clampOf(ctx.zones, focus.rect);
         const shape = outlinePath(focus, zone);
         const draw = ease('ease.move', progress(t, cue.start, OUTLINE_DRAW));
         const fade = 1 - ease('ease.move', progress(t, cue.hold, outExit));
@@ -562,8 +609,9 @@ export function createCues({ template, ctx, events, layer, camera, termStyle: st
         const k = cueLevel(t, cue.start, DIM_RAMP, cue.hold, DIM_RAMP);
         const holder = /** @type {Element | undefined} */ (focus.el);
         const centre = { x: focus.rect.x + focus.rect.w / 2, y: focus.rect.y + focus.rect.h / 2 };
+        const keep = Array.isArray(focus.keep) ? focus.keep.filter(Boolean) : [];
         for (const g of groups) {
-          if (holdsTarget(ctx, g, holder, centre)) continue;
+          if (holdsTarget(ctx, g, holder, centre) || keep.some((k) => g === k || g.contains(k) || k.contains(g))) continue;
           level.set(g, Math.max(/** @type {number} */ (level.get(g)), k));
         }
       });

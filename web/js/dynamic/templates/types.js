@@ -99,12 +99,19 @@
  * What `focusRect` returns: the target's box in whole stage px, its shape (cues.js draws the look_here outline around
  * it, outset >= 8 px: `rect` a rounded rectangle, `ring` a circle, `bar` a pill around a line) and its own corner
  * radius; `el`, the target's element, tells cues.js which dim group holds it (without it, the group whose box holds
- * the target's centre is the one left undimmed).
+ * the target's centre is the one left undimmed); `keep`, further elements whose dim groups stay undimmed with it (the
+ * target's own explanation elsewhere: formula_focus keeps a symbol's legend row bright while the walk points at the
+ * symbol). `kind` (B2c review CG-1): `text` (the default) for text, whose outline is clamped to the critical text
+ * boxes (R-59, cues.js clampOf); `shape` for a picture, card or drawing, which may legitimately reach past the text
+ * column (the 9:16 stage's x 60-1020, a card's padding), whose outline is clamped only to the shapes area (cues.js
+ * shapeArea), so it is drawn around the target and never across it.
  * @typedef {object} FocusRect
  * @property {{x: number, y: number, w: number, h: number}} rect
  * @property {'rect' | 'ring' | 'bar'} shape
  * @property {number} radius
  * @property {Element} [el]
+ * @property {Element[]} [keep]
+ * @property {'text' | 'shape'} [kind]
  */
 
 /**

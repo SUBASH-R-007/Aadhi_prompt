@@ -11,12 +11,20 @@
  *   text in the mirror of `right-45`, x 96-862, medium in the mirror of `left-55`, x 886-1824). The text keeps a
  *   further GUTTER from the medium (a 48 px gap with the regions' own 24 px). The medium is contained in its region
  *   at its own aspect (24 px radius, the soft shadow: layout tokens radius.media and shadow level 3) and centred; the
- *   text column holds the scene's title above the text items, its top level with the medium's top when it fits.
- * - 9:16: a headline (the title, one line when it fits at >= 56 px, R-25; else two) in the `headline` region, the
- *   medium in the stage (x 60-1020, from y 460, or 340 without a headline: `tall`) and a key phrase above the caption
- *   band (x 120-780, the TikTok rail's column, ending PHRASE_BOTTOM). Reading of §4.3: the key phrase is the scene's
- *   current text item, one at a time, each replacing the one before on its beat (≤ 2 lines; a 9:16 reel shows one
- *   phrase, never a list: that is list_build's compact stack). The medium is shown in what the tallest phrase leaves.
+ *   text column holds the scene's title above the text items, its top level with the medium's top when it fits. Every
+ *   item but a heading starts with a dot in the marker column (B2c review V10: a definition or callout without one read
+ *   as the bullet above's second paragraph); a heading is the column's own sub-head, bold, its column empty.
+ * - Line heights are the type scale's per script (§4.6, plan §2 R-29; the catalogue's `type.scale`): the title the
+ *   display role's (Latin 1.05, Indic >= 1.25), the items the body role's (Latin 1.35, Indic >= 1.45), per text: Tamil
+ *   and Devanagari marks need the room (B2c review V5: a Tamil phrase at 1.2 touched the TeX line under it).
+ * - 9:16: a headline (the title, one line when it fits at >= 56 px, else two: R-25 asks one line, B2c reading pending
+ *   the owner, as board_generic's title) in the `headline` region, the medium in the stage (x 60-1020, from y 460, or
+ *   340 without a headline: `tall`) and a key phrase above the caption band (from the headline's left edge, x 192, to
+ *   the TikTok rail's x 780, ending 8 px above the caption band: `phraseBottom`). The headline and the phrase share one
+ *   left edge (B2c review V7: the phrase started at x 120, 72 px left of the headline). Reading of §4.3: the key phrase
+ *   is the scene's current text item, one at a time, each replacing the one before on its beat (≤ 2 lines; a 9:16 reel
+ *   shows one phrase, never a list: that is list_build's compact stack). The medium is shown in what the tallest phrase
+ *   leaves.
  * - Without a picture or clip the render can show (a GIF, a chart or graph panel, which this template does not draw,
  *   or an unsafe URL) the medium's box shows the panel's title on the card surface (board_generic's convention: never
  *   an empty black box); a terminal panel is a code card with its output lines (§4.3 data).
@@ -25,13 +33,16 @@
  * with the personality's text entrance (`ctx.motion.entrance`: Soft fades in with a 16 px rise, Crisp is revealed
  * from its baseline) over TEXT_ENTER; the text items one per beat (state.js itemTimings: a reveal event, else the beat
  * that reveals the item, 120 ms ahead of its anchor); the medium fades in and scales 0.96 -> 1 over MEDIA_ENTER (§4.3;
- * §P: a picture only ever downscales, and mediaBox leaves room for the push too). In 9:16 a phrase leaves 30% faster
+ * §P: a picture only ever downscales, and mediaBox leaves room for the push too); a clip only fades in (`clipShown`:
+ * a contain_blur clip scaled by its entrance was measured order-dependent on its first visible frame, B2c,
+ * tests/determinism/test_template_clips.py; a clip is never scaled, nor pushed, cues.js showsClip). In 9:16 a phrase leaves 30% faster
  * than it entered (§4.8) just before the next one enters; a phrase with no beat of its own waits until the one before
  * was shown MIN_DWELL. Reduced motion (live only): fades in place, no scale. Everything is a pure function of t.
  *
  * Cues (cues.js draws them; this template never draws emphasis, §4.2): `look_here` on `panel` / `panel:row:<n>` /
  * `<item>` (focusRect) is a camera push of <= 3% (push_ok, §4.3 "push <= 3%"), the outline form under reduced motion
- * in the live player; `cue_term` on `<item>` finds the item's [[term]] spans (itemEl). A push scales the whole layer
+ * in the live player and in a scene that shows a clip (cues.js showsClip: a clip under the push was measured
+ * order-dependent, B2c; such a scene keeps the full regions); `cue_term` on `<item>` finds the item's [[term]] spans (itemEl). A push scales the whole layer
  * about the target's centre, which would carry text near the zone edges out of its critical box (R-59) or into the
  * caption band; so a scene whose look_here cues push lays its text out inside `pushArea`: the box from which text,
  * scaled by 1 + PUSH_SCALE about any centre a push can take, stays inside its critical box. Scenes without a push keep
@@ -50,14 +61,13 @@ import { progress } from '../../motion/track.js';
 import { splitWords } from '../../motion/text.js';
 import { mathSpans } from '../../player/richtext.js';
 import { planScene } from '../../player/schedule.js';
-import { LAYOUT_TOKENS, fixesOf, fx, parseTarget } from '../core.js';
+import { LAYOUT_TOKENS, ZONES, fixesOf, fx, parseTarget } from '../core.js';
 import { PUSH_SCALE, cueNeeds } from '../cues.js';
 import { shownIn } from '../media.js';
 import { itemTimings } from '../state.js';
-import { scrimmedBg } from './board_generic.js';
 import {
   RADIUS, SPACE, containRect, enterAt, fitLines, group, mediaAspect, paintMedia, paintTextEntrance, pushHeadroom,
-  region, revealMask, richWords, seconds, slotRange,
+  region, revealMask, richWords, scrimmedBg, seconds, slotRange,
 } from './_shared.js';
 
 /** @typedef {import('./types.js').TemplateContext} TemplateContext */
@@ -94,22 +104,25 @@ export const VARIANTS = Object.freeze(['media_left', 'media_right']);
 export const DEFAULT_VARIANT = 'media_right';
 
 /**
- * Per-format layout (stage px; B2c proposals). Text sizes per R-29 (16:9 body 48-56 with a fit down to 44, titles
- * 64-88 in the 45% column; 9:16 the R-25 one-line headline 56-88 and a phrase of at most 2 lines 48-64 at weight 700,
- * R-29's >= 600 below 64 px), each fitted on the page in 4 px steps (`_shared.js` fitLines, the rule textfit.py
- * mirrors), never below the R-29 floor (slotRange).
+ * Per-format layout (stage px; B2c proposals, pending the owner's review: several sit below R-29's type scale, above
+ * its floors). 16:9: body 44-52 (R-29's body is 48-56: the fit may go to 44, as board_generic's), titles 64-88 in the
+ * 45% column, up to 3 lines (R-29's headings are 84-120); 9:16: the headline 56-88, one line preferred, two allowed
+ * (R-25 asks one line), and a phrase of at most 2 lines 48-64 at weight 700 (R-29's body is 56-64; >= 600 below 64 px).
+ * Each is fitted on the page in 4 px steps (`_shared.js` fitLines, the rule textfit.py mirrors), never below the R-29
+ * floor (slotRange). Line heights: LINE_HEIGHT, per script.
  * - `gutter`: what the text keeps from the medium on top of the regions' 24 px gutter (16:9);
  * - `marker`: the bullet column every 16:9 item's text starts after (a dot for bullets, empty for the other kinds, so
  *   every item's text starts at one x and the body slot has one width); `dot` its dot;
  * - `titleGap` / `itemGap`: title to first item, item to item (16:9);
- * - `stageGap`: headline to medium and medium to phrase (9:16); `phraseBottom`: where the phrase ends, 8 px above the
- *   caption band (y 1040);
+ * - `stageGap`: headline to medium and medium to phrase (9:16); `phraseBottom`: where the phrase ends, 8 px (the
+ *   spacing scale's first step) above the caption band (the catalogue's zones.caption.y0, y 1040; B2c review CG-3:
+ *   catalogue geometry, never a literal);
  * - `terminal`: the code card's text (mono; 9:16 at weight 700, R-29: JetBrains Mono has 400 and 700) and padding.
  */
 export const LAYOUT = Object.freeze({
   landscape: Object.freeze({
-    title: Object.freeze({ max: 88, min: 64, lines: 3, lh: 1.08 }),
-    body: Object.freeze({ max: 52, min: 44, lh: 1.3 }),
+    title: Object.freeze({ max: 88, min: 64, lines: 3 }),
+    body: Object.freeze({ max: 52, min: 44 }),
     bodyWeight: 400,
     gutter: 24,
     marker: 36,
@@ -119,14 +132,39 @@ export const LAYOUT = Object.freeze({
     terminal: Object.freeze({ max: 44, min: 36, lh: 1.35, weight: 400, pad: 32 }),
   }),
   portrait: Object.freeze({
-    title: Object.freeze({ max: 88, min: 56, lines: 2, prefer: 1, lh: 1.06 }),
-    body: Object.freeze({ max: 64, min: 48, lines: 2, lh: 1.2 }),
+    title: Object.freeze({ max: 88, min: 56, lines: 2, prefer: 1 }),
+    body: Object.freeze({ max: 64, min: 48, lines: 2 }),
     bodyWeight: 700,
     stageGap: 24,
-    phraseBottom: 1032,
+    phraseBottom: ZONES.portrait.caption.y0 - SPACE[0],
     terminal: Object.freeze({ max: 44, min: 40, lh: 1.35, weight: 700, pad: 28 }),
   }),
 });
+/**
+ * Line heights (§4.6 type scale, the catalogue's `type.scale`; media_split.test.js pins them): the title the display
+ * role's, the items the body role's; Indic text (Devanagari to Sinhala) the Indic minimums (plan §2 R-29).
+ */
+export const LINE_HEIGHT = Object.freeze({
+  display: Object.freeze({ latin: 1.05, indic: 1.25 }),
+  body: Object.freeze({ latin: 1.35, indic: 1.45 }),
+});
+/** Indic scripts (Devanagari to Sinhala), whose text takes the taller line heights (list_build's rule). */
+const INDIC = new RegExp(`[${['Devanagari', 'Bengali', 'Gurmukhi', 'Gujarati', 'Oriya', 'Tamil', 'Telugu', 'Kannada',
+  'Malayalam', 'Sinhala'].map((x) => `\\p{Script=${x}}`).join('')}]`, 'u');
+
+/**
+ * The line height of `text` in role `role` (LINE_HEIGHT: Indic text takes the Indic value). Pure.
+ * @param {'display' | 'body'} role @param {string} text
+ */
+export function lineHeight(role, text) {
+  return INDIC.test(String(text || '')) ? LINE_HEIGHT[role].indic : LINE_HEIGHT[role].latin;
+}
+
+/** The text of a text item as one string (its term and text; the line height reads its script). @param {BoardItem} item */
+function itemString(item) {
+  return `${item.kind === 'definition' && item.term ? item.term : ''} ${item.text || ''}`;
+}
+
 /** Title weight and tracking (dynamic.css .dyn-title's, so the title slot measures like board_generic's). */
 export const TITLE_WEIGHT = 700;
 export const TITLE_TRACKING_EM = -0.015;
@@ -170,6 +208,15 @@ export function mediaOf(scene, mode = 'live') {
     return { slot: 'panel', ref: sp.media, start: Math.max(0, Number(sp.show_at) || 0), shown: shownIn(sp.media, m) };
   }
   return null;
+}
+
+/**
+ * Whether the medium `mediaOf` gives is a clip (a video, in either mode): it enters by a fade only, never scaled (see
+ * the module comment).
+ * @param {{ref: MediaRef} | null} media
+ */
+export function clipShown(media) {
+  return !!media && media.ref.kind === 'video';
 }
 
 /**
@@ -285,9 +332,10 @@ export function portraitBoxes(scene, titleH, phraseH) {
   const tall = region(at, 'tall');
   const lower = region(at, 'text-below');
   const upper = region(at, 'text-above');
-  // the phrase: the column below the TikTok rail's top (x 120-780, y >= 840), ending above the caption band
+  // the phrase: below the TikTok rail's top (y >= 840) from the headline's left edge (x 192: one left edge for the
+  // text, V7) to the rail (x 780), ending above the caption band
   /** @type {Box} */
-  let phrase = { x0: lower.x0, y0: lower.y0, x1: lower.x1, y1: L.phraseBottom };
+  let phrase = { x0: headline.x0, y0: lower.y0, x1: lower.x1, y1: L.phraseBottom };
   /** @type {Box} */
   let title = { x0: headline.x0, y0: headline.y0, x1: headline.x1, y1: headline.y0 + titleH };
   const push = pushTargets(scene);
@@ -299,11 +347,14 @@ export function portraitBoxes(scene, titleH, phraseH) {
     if (push.panel) o = union(o, { x0: (stage.x0 + stage.x1) / 2, x1: (stage.x0 + stage.x1) / 2, y0: tall.y0, y1: stage.y1 });
     if (push.item) o = union(o, { x0: (phrase.x0 + phrase.x1) / 2, x1: (phrase.x0 + phrase.x1) / 2, y0: phrase.y0, y1: phrase.y1 });
     const origins = /** @type {Box} */ (o);
-    // the phrase's critical box (R-59, below y 840) ends where the caption band starts
-    const captionTop = 1040;
-    phrase = intersect(phrase, pushArea({ ...lower, y1: captionTop }, origins));
+    // the phrase's critical box (R-59, below y 840) ends where the caption band starts (the catalogue's zones)
+    phrase = intersect(phrase, pushArea({ ...lower, y1: ZONES.portrait.caption.y0 }, origins));
     const room = pushArea(upper, origins);
     title = { ...title, x0: Math.max(title.x0, room.x0), x1: Math.min(title.x1, room.x1) };
+    // one left edge for the headline and the phrase (V7), the further in of the two push areas'
+    const x0 = Math.max(title.x0, phrase.x0);
+    title = { ...title, x0 };
+    phrase = { ...phrase, x0 };
   }
   const top = titleH > 0 ? Math.max(stage.y0, Math.ceil(title.y1 + L.stageGap)) : tall.y0;
   const phraseTop = phraseH > 0 ? Math.floor(phrase.y1 - phraseH) : stage.y1 + L.stageGap;
@@ -388,7 +439,7 @@ function wordSpans(host, text, locale) {
 /**
  * One text item: its rich-lite fields as word spans that keep their [[term]] spans (richWords; cue.term's targets,
  * `fields` in the item's field order term, text), with a callout's label before them. `weight`: the format's body
- * weight, 700 for a heading or a takeaway; `lh`: the slot's line height.
+ * weight, 700 for a heading or a takeaway; `lh`: its line height (0: the body role's for its script, `lineHeight`).
  * @param {TemplateContext} ctx
  * @param {BoardItem} item
  * @param {number} bodyWeight
@@ -396,6 +447,7 @@ function wordSpans(host, text, locale) {
  */
 function itemText(ctx, item, bodyWeight, lh) {
   const weight = BOLD_KINDS.has(item.kind) ? 700 : bodyWeight;
+  lh = lh || lineHeight('body', itemString(item));
   const content = h('div', {
     class: 'dyn-ms-text', dir: 'auto',
     style: { overflowWrap: 'anywhere', minWidth: '0', fontWeight: String(weight), lineHeight: String(lh) },
@@ -424,7 +476,7 @@ function itemText(ctx, item, bodyWeight, lh) {
     if (item.text) content.append(LABELS.definitionJoin);
   }
   if (item.text || !fields.length) field(String(item.text || ''), false);
-  return { content, fields, words, tex, weight };
+  return { content, fields, words, tex, weight, lh };
 }
 
 /** @type {TemplateModule} */
@@ -459,7 +511,7 @@ export default {
         class: 'dyn-ms-title', dir: 'auto',
         style: {
           margin: '0', color: ink, fontFamily: 'var(--dyn-font-display)', fontWeight: String(TITLE_WEIGHT),
-          lineHeight: String(L.title.lh), letterSpacing: `${TITLE_TRACKING_EM}em`, overflowWrap: 'anywhere',
+          lineHeight: String(lineHeight('display', text)), letterSpacing: `${TITLE_TRACKING_EM}em`, overflowWrap: 'anywhere',
         },
       });
       titleWords = wordSpans(title, text, ctx.locale);
@@ -474,16 +526,17 @@ export default {
       .sort((a, b) => a.enter - b.enter || a.order - b.order), Number(scene.duration) || 0, seconds(ctx, 1)) : [];
     const items = drawn.map((item, order) => {
       const t = timings.get(item.id);
-      const parts = itemText(ctx, item, L.bodyWeight, L.body.lh);
+      const parts = itemText(ctx, item, L.bodyWeight, 0);
       /** @type {HTMLElement[]} */
       const row = [];
       if (!portrait) {
         const LL = LAYOUT.landscape;
-        const dot = item.kind === 'bullet'
+        // every item a dot (each reads as its own item, V10), but a heading (the column's sub-head)
+        const dot = item.kind !== 'heading'
           ? h('span', { class: 'dyn-ms-dot', 'aria-hidden': 'true', style: { display: 'block', width: `${LL.dot}px`, height: `${LL.dot}px`, borderRadius: '50%', background: ink } })
           : null;
         // the marker column is one line high, so the dot sits on the first line's middle at any size
-        row.push(h('span', { class: 'dyn-ms-marker', style: { display: 'flex', alignItems: 'center', flex: 'none', width: `${LL.marker}px`, height: `${L.body.lh}em` } }, dot));
+        row.push(h('span', { class: 'dyn-ms-marker', style: { display: 'flex', alignItems: 'center', flex: 'none', width: `${LL.marker}px`, height: `${parts.lh}em` } }, dot));
       }
       parts.content.style.flex = '1 1 auto';
       row.push(parts.content);
@@ -580,7 +633,9 @@ export default {
       byId: new Map(items.map((it) => [it.id, it])), media, mediaView, frame, mediaGroup, missing, term, column,
       titleScrim, phraseScrim, scrim: scrimColour, ink,
       mediaStart: media && media.start > 0 ? media.start : terminal && terminal.start > 0 ? terminal.start : MEDIA_DELAY,
+      clip: clipShown(media),
       titleSize: L.title.max, titleRange: { min: L.title.min, max: L.title.max }, titleOverflow: 0,
+      titleLh: lineHeight('display', text),
       bodySize: L.body.max, bodyRange: { min: L.body.min, max: L.body.max },
       titleAlpha: 0, mediaAlpha: 0,
       /** laid out: the text column / phrase box and the medium's box (stage px) */
@@ -618,12 +673,12 @@ export default {
     const te = v.title ? enterAt(ctx, t, TITLE_DELAY, TEXT_ENTER) : 0;
     v.titleAlpha = te;
     if (v.title) paintTextEntrance(ctx, v.title, v.titleMask, te);
-    // the medium: fades in and scales 0.96 -> 1 about its centre (a picture only ever downscales, §P)
+    // the medium: fades in and scales 0.96 -> 1 about its centre (a picture only ever downscales, §P); a clip only fades
     const me = enterAt(ctx, t, v.mediaStart, MEDIA_ENTER);
     v.mediaAlpha = me;
     p.style(v.frame, 'opacity', fx(me));
     p.style(v.frame, 'visibility', me > 0.001 ? 'visible' : 'hidden');
-    const scale = ctx.reducedMotion || me >= 1 ? 1 : MEDIA_FROM + (1 - MEDIA_FROM) * me;
+    const scale = ctx.reducedMotion || v.clip || me >= 1 ? 1 : MEDIA_FROM + (1 - MEDIA_FROM) * me;
     p.style(v.frame, 'transform', scale === 1 ? 'none' : `scale(${fx(scale, 4)})`);
     // painted every frame, also while hidden, so the element never keeps a frame from an earlier seek
     if (v.mediaView) paintMedia(ctx, v.mediaView, t);
@@ -646,7 +701,8 @@ export default {
 
   /**
    * Where cue.look_here points (B2 plan §1.5, §1.7): `panel` the medium's frame (also a terminal card), `panel:row:<n>`
-   * a terminal's n-th output line (a bar), `<item>` the text item while it is on screen. Its box as painted now (read
+   * a terminal's n-th output line (a bar), `<item>` (or `<item>:term:<n>`: its item) the text item while it is on
+   * screen. Its box as painted now (read
    * after `update`), edges rounded to whole stage px; null for anything else, a row this scene does not have, or an
    * item not shown.
    * @param {TemplateContext} ctx
@@ -667,7 +723,8 @@ export default {
       el = line || null;
       shape = 'bar';
       radius = 0;
-    } else if (parsed.form === 'item') {
+    } else if (parsed.form === 'item' || parsed.form === 'item:term') {
+      // a term of an item: the item it is in (B2c review CG-5: the catalogue lets look_here name a term)
       const it = v.byId.get(String(parsed.item));
       el = it && it.alpha > 0.01 ? it.inner : null;
       radius = SPACE[0];
@@ -678,7 +735,10 @@ export default {
     const y0 = Math.round(r.y);
     const x1 = Math.round(r.x + r.w);
     const y1 = Math.round(r.y + r.h);
-    return { rect: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, shape, radius, el: /** @type {Element} */ (el) };
+    // the medium and a terminal's line are shapes (the 9:16 stage spans x 60-1020, past the text column): their
+    // outline goes round them, never across (cues.js shapeArea, B2c review CG-1); an item is text
+    const kind = parsed.form === 'panel' || parsed.form === 'panel:row' ? 'shape' : 'text';
+    return { rect: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, shape, radius, el: /** @type {Element} */ (el), kind };
   },
 
   /**
@@ -736,9 +796,12 @@ export default {
       return pushHeadroom({ w: m.x1 - m.x0, h: m.y1 - m.y0 });
     }
     const L = LAYOUT.portrait;
-    // one line at each slot's minimum, a pixel under (the page rounds a measured height to whole px)
-    const titleH = titleOf(scene) ? Math.floor(L.title.min * L.title.lh) - 1 : 0;
-    const phraseH = textItemsOf(scene).length ? Math.floor(L.body.min * L.body.lh) - 1 : 0;
+    // one line at each slot's minimum, at the scene's own line heights (the smallest: per script), a pixel under (the
+    // page rounds a measured height to whole px)
+    const items = textItemsOf(scene);
+    const titleH = titleOf(scene) ? Math.floor(L.title.min * lineHeight('display', titleOf(scene))) - 1 : 0;
+    const bodyLh = Math.min(...items.map((i) => lineHeight('body', itemString(i))));
+    const phraseH = items.length ? Math.floor(L.body.min * bodyLh) - 1 : 0;
     const box = portraitBoxes(scene, titleH, phraseH).media;
     return pushHeadroom({ w: box.x1 - box.x0, h: box.y1 - box.y0 });
   },
@@ -800,10 +863,11 @@ export default {
 
 /**
  * Words broken inside at size `s` (taller than a line: overflow-wrap broke them; a TeX word: wider than its line).
- * @param {HTMLElement[]} words @param {boolean[]} tex @param {number} s @param {number} lh @param {number} width
+ * `lhs`: each word's line height.
+ * @param {HTMLElement[]} words @param {boolean[]} tex @param {number} s @param {number[]} lhs @param {number} width
  */
-function brokenWords(words, tex, s, lh, width) {
-  return words.map((w, i) => (tex[i] ? w.offsetWidth > width + 1 : w.offsetHeight > 1.5 * s * lh));
+function brokenWords(words, tex, s, lhs, width) {
+  return words.map((w, i) => (tex[i] ? w.offsetWidth > width + 1 : w.offsetHeight > 1.5 * s * lhs[i]));
 }
 
 /**
@@ -935,6 +999,8 @@ function fitColumn(v, col, frame, titleRange, bodyRange) {
   const textW = width - L.marker;
   const words = v.items.flatMap((/** @type {any} */ it) => it.words);
   const tex = v.items.flatMap((/** @type {any} */ it) => it.tex);
+  // each word's line height (its item's, per script)
+  const lhs = v.items.flatMap((/** @type {any} */ it) => it.words.map(() => it.lh));
   /** @param {number} s the items' height at body size s */
   const total = (s) => {
     column.style.fontSize = `${s}px`;
@@ -944,13 +1010,13 @@ function fitColumn(v, col, frame, titleRange, bodyRange) {
   let unavoidable = [];
   if (v.items.length) {
     total(bodyRange.min);
-    unavoidable = brokenWords(words, tex, bodyRange.min, L.body.lh, textW);
+    unavoidable = brokenWords(words, tex, bodyRange.min, lhs, textW);
   }
   /** @param {number} room @returns {{size: number, fits: boolean}} the largest body size whose items fit `room` */
   const body = (room) => {
     if (!v.items.length) return { size: bodyRange.min, fits: true };
     for (let s = bodyRange.max; ; s = Math.max(bodyRange.min, s - 4)) {
-      const fits = total(s) <= room && brokenWords(words, tex, s, L.body.lh, textW).every((b, i) => !b || unavoidable[i]);
+      const fits = total(s) <= room && brokenWords(words, tex, s, lhs, textW).every((b, i) => !b || unavoidable[i]);
       if (fits || s <= bodyRange.min) return { size: s, fits };
     }
   };
@@ -959,7 +1025,7 @@ function fitColumn(v, col, frame, titleRange, bodyRange) {
   if (v.title) {
     let max = titleRange.max;
     for (;;) {
-      const t = fitLines(v.title, { max, min: titleRange.min, lines: L.title.lines, lh: L.title.lh }, v.titleWords);
+      const t = fitLines(v.title, { max, min: titleRange.min, lines: L.title.lines, lh: v.titleLh }, v.titleWords);
       v.titleSize = t.size;
       v.titleOverflow = t.overflow;
       titleH = v.title.offsetHeight;
@@ -1004,7 +1070,7 @@ function layoutPortrait(ctx, v, titleRange, bodyRange) {
   let titleH = 0;
   if (v.title && v.titleGroup) {
     Object.assign(v.titleGroup.style, { position: 'absolute', left: `${pre.title.x0}px`, top: `${pre.title.y0}px`, width: `${pre.title.x1 - pre.title.x0}px` });
-    const fit = fitLines(v.title, { max: titleRange.max, min: titleRange.min, lines: L.title.lines, lh: L.title.lh, prefer: L.title.prefer }, v.titleWords);
+    const fit = fitLines(v.title, { max: titleRange.max, min: titleRange.min, lines: L.title.lines, lh: v.titleLh, prefer: L.title.prefer }, v.titleWords);
     v.titleSize = fit.size;
     v.titleOverflow = fit.overflow;
     titleH = v.title.offsetHeight;
@@ -1014,7 +1080,7 @@ function layoutPortrait(ctx, v, titleRange, bodyRange) {
   let size = bodyRange.max;
   for (const it of v.items) {
     Object.assign(it.group.style, { position: 'absolute', left: `${pre.phrase.x0}px`, width: `${width}px` });
-    const fit = fitLines(it.content, { max: bodyRange.max, min: bodyRange.min, lines: L.body.lines, lh: L.body.lh }, it.words, it.tex);
+    const fit = fitLines(it.content, { max: bodyRange.max, min: bodyRange.min, lines: L.body.lines, lh: it.lh }, it.words, it.tex);
     size = Math.min(size, fit.size);
   }
   let phraseH = 0;
@@ -1027,9 +1093,9 @@ function layoutPortrait(ctx, v, titleRange, bodyRange) {
   for (const it of v.items) {
     it.group.style.top = `${boxes.phrase.y0}px`;
     const h = it.content.offsetHeight;
-    const lines = Math.round(h / (size * L.body.lh));
+    const lines = Math.round(h / (size * it.lh));
     const wide = Math.max(0, ...it.words.map((/** @type {HTMLElement} */ w, /** @type {number} */ i) => (it.tex[i] ? w.offsetWidth - width : 0)));
-    const over = lines > L.body.lines ? Math.max(1, h - L.body.lines * size * L.body.lh) : 0;
+    const over = lines > L.body.lines ? Math.max(1, h - L.body.lines * size * it.lh) : 0;
     it.overflow = Math.max(over, wide > 2 ? wide : 0);
   }
   v.textBox = boxes.phrase;

@@ -314,6 +314,17 @@ class Consumes:
 
     kinds: tuple[VisualEventKind, ...] = ()
     targets: tuple[TargetForm, ...] = ()
+    # kinds the template draws on fewer forms than ``targets`` (B2c review CG-5): (kind, its forms) pairs. Without it,
+    # ``accepts`` was the cross product of kinds and forms, which let through pairs no template draws (a cue_term on a
+    # panel, a look_here on a term media_split did not resolve, a var on a whole item); events.py (B2d), the fixture
+    # validator and the stage's cues.js all gate on the per-kind forms
+    narrow: tuple[tuple[VisualEventKind, tuple[TargetForm, ...]], ...] = ()
+
+    def forms(self, kind: str) -> tuple[TargetForm, ...]:
+        """The target forms an event of ``kind`` may name (none for a kind the template does not draw)."""
+        if kind not in self.kinds:
+            return ()
+        return next((forms for k, forms in self.narrow if k == kind), self.targets)
 
     def accepts(self, kind: str, target: str | None) -> bool:
         """True when an event of ``kind`` on ``target`` (None: the scene) is drawn by the template."""
@@ -322,7 +333,7 @@ class Consumes:
         if target is None:
             return True
         try:
-            return parse_target(target).form in self.targets
+            return parse_target(target).form in self.forms(kind)
         except ValueError:
             return False
 
@@ -653,7 +664,18 @@ def _fit_kinetic_statement(scene: SceneBase, fmt: Format) -> float:
     return _ok(_words(items[0].text) <= (12 if fmt == "landscape" else 8))
 
 
+# list_build.js PICTURE_PANELS: the side panels list_build draws beside the list, in 16:9 only (a picture or a clip; a
+# GIF's title card in an MP4, board_generic's convention). 9:16 draws no panel (the compact stack takes the stage).
+LIST_PANELS: Final = ("figure", "image", "manim", "gif")
+
+
 def _fit_list_build(scene: SceneBase, fmt: Format) -> float:
+    # >= 2 bullets; a side panel only when the page draws it (B2c review CG-2: a terminal, chart, graph, model or
+    # skill-tree panel beside a list, and any panel in a reel, were dropped; list_build.js drawsScene hands such a scene
+    # to board_generic, and direct.py, which builds on this score, never sends it here)
+    panel = _panel(scene)
+    if panel is not None and (fmt == "portrait" or panel not in LIST_PANELS):
+        return FIT_NONE
     return FIT_PREFERRED if _shape(scene, {"bullet": (2, None)}) else FIT_NONE
 
 
@@ -1002,18 +1024,21 @@ def _formula_focus_slots() -> SlotTable:
 # --- media_split's slots (web/js/dynamic/templates/media_split.js LAYOUT, B2c; B2c proposals, pending the owner's
 # review). 16:9: the 45% text region (right-45 or its mirror, 766 px) less the 24 px gutter = 742 px; the body text
 # starts after the 36 px marker column; the terminal card is the 938 px medium region less 2 x 32 px padding. 9:16: the
-# headline region (696 px), the phrase column below the TikTok rail (x 120-780, 660 px), the stage (960 px) less
-# 2 x 28 px padding. Heading / takeaway items are drawn at 700 in 16:9 (the slot's weight is the 400 of the others).
+# headline region (696 px), the phrase column from the headline's left edge to the TikTok rail (x 192-780, 588 px; one
+# left edge for the text, B2c review V7), the stage (960 px) less 2 x 28 px padding. Heading / takeaway items are drawn
+# at 700 in 16:9 (the slot's weight is the 400 of the others). Line heights: the type scale's Latin values (display
+# 1.05, body 1.35, media_split.js LINE_HEIGHT); the page sets Indic text at the Indic floors (1.25 / 1.45, B2c review
+# V5), as formula_focus and list_build do.
 def _media_split_slots() -> SlotTable:
     variants = ("media_left", "media_right")
-    title_l = SlotSpec(w=742, max_lines=3, size=(64, 88), role="title", face="display", weight=700, line_height=1.08,
+    title_l = SlotSpec(w=742, max_lines=3, size=(64, 88), role="title", face="display", weight=700, line_height=1.05,
                        tracking_em=-0.015)
-    body_l = SlotSpec(w=742 - 36, max_lines=None, size=(44, 52), role="body", face="body", weight=400, line_height=1.3)
+    body_l = SlotSpec(w=742 - 36, max_lines=None, size=(44, 52), role="body", face="body", weight=400, line_height=1.35)
     term_l = SlotSpec(w=938 - 2 * 32, max_lines=None, size=(36, 44), role="body", face="mono", weight=400,
                       line_height=1.35)
-    title_p = SlotSpec(w=696, max_lines=2, size=(56, 88), role="title", face="display", weight=700, line_height=1.06,
+    title_p = SlotSpec(w=696, max_lines=2, size=(56, 88), role="title", face="display", weight=700, line_height=1.05,
                        tracking_em=-0.015, prefer_lines=1)
-    body_p = SlotSpec(w=660, max_lines=2, size=(48, 64), role="body", face="body", weight=700, line_height=1.2)
+    body_p = SlotSpec(w=780 - 192, max_lines=2, size=(48, 64), role="body", face="body", weight=700, line_height=1.35)
     term_p = SlotSpec(w=960 - 2 * 28, max_lines=None, size=(40, 44), role="body", face="mono", weight=700,
                       line_height=1.35)
     out = {slot: MappingProxyType({"landscape": MappingProxyType({v: land for v in variants}),
@@ -1026,7 +1051,9 @@ def _media_split_slots() -> SlotTable:
 # --- list_build's slots (B2c): web/js/dynamic/templates/list_build.js LAYOUT, PAD, boxes() and slotRows();
 # list_build.test.js pins the catalogue's rows to slotRows. The 16:9 "default" variant is the split layout (the
 # narrower boxes: a size fitted there is an upper bound for the centred one too).
-LIST_PAD: Final = 12  # cues.js FOCUS_OUTSET + FOCUS_PX: the look_here outline around a row's text lies on the row's edge
+# list_build.js PAD (cues.js FOCUS_OUTSET + FOCUS_PX): a row's text sits as far inside its card as the look_here outline
+# runs outside it (B2c review V4: the outline goes round the card, outside its state border)
+LIST_PAD: Final = 12
 LIST_NUMBER: Final[Mapping[Format, tuple[int, int]]] = MappingProxyType({"landscape": (64, 16), "portrait": (56, 12)})
 
 
@@ -1079,10 +1106,13 @@ def _v(landscape: Iterable[str] = (), portrait: Iterable[str] | None = None) -> 
     return MappingProxyType({"landscape": lv, "portrait": lv if portrait is None else tuple(portrait)})
 
 
-def _c(kinds: Iterable[VisualEventKind], targets: Iterable[TargetForm] | None = None) -> Consumes:
-    """``Consumes`` of ``kinds`` on ``targets`` (default: whole board items; none when there are no kinds)."""
+def _c(kinds: Iterable[VisualEventKind], targets: Iterable[TargetForm] | None = None,
+       narrow: Mapping[VisualEventKind, Iterable[TargetForm]] | None = None) -> Consumes:
+    """``Consumes`` of ``kinds`` on ``targets`` (default: whole board items; none when there are no kinds), with the
+    kinds of ``narrow`` drawn only on the forms it gives them."""
     k = tuple(kinds)
-    return Consumes(k, tuple(targets) if targets is not None else (("item",) if k else ()))
+    return Consumes(k, tuple(targets) if targets is not None else (("item",) if k else ()),
+                    tuple((kind, tuple(forms)) for kind, forms in (narrow or {}).items()))
 
 
 _R19 = _d(SCENE_LENGTH["landscape"], SCENE_LENGTH["portrait"])
@@ -1123,12 +1153,13 @@ _SPECS: Final[tuple[TemplateSpec, ...]] = (
     TemplateSpec("kinetic_statement", "statement", False, "R1", _d((3.0, 7.0), (2.0, 5.0)),
                  _c(("reveal", "cue_term")), _fit_kinetic_statement),
     TemplateSpec("list_build", "enumeration", False, "R1", _d((3.0, 5.0), per_item=True),
-                 _c(("reveal", "cue_term", "look_here"), ("item", "item:term")), _fit_list_build, implemented=True,
-                 slots=_list_build_slots()),
+                 _c(("reveal", "cue_term", "look_here"), ("item", "item:term"), {"reveal": ("item",)}),
+                 _fit_list_build, implemented=True, slots=_list_build_slots()),
     # variant names "media_left" / "media_right": A2 proposal, pending owner review; not in the design (§4.3 / §4.4
     # say only that the media side changes at chapter boundaries); 9:16 stacks, so it has none
     TemplateSpec("media_split", "media", True, "R1", _d((8.0, 20.0), (5.0, 12.0)),
-                 _c(("reveal", "cue_term", "look_here", "output"), ("item", "item:term", "panel", "panel:row")),
+                 _c(("reveal", "cue_term", "look_here", "output"), ("item", "item:term", "panel", "panel:row"),
+                    {"reveal": ("item",), "cue_term": ("item", "item:term"), "output": ("panel",)}),
                  _fit_media_split, implemented=True, variants=_v(("media_left", "media_right"), ()), holds=_DIAGRAM,
                  push_ok=True, slots=_media_split_slots()),
     TemplateSpec("full_bleed_media", "media", True, "R1", _d((3.0, 12.0)), _c(("reveal",)), _fit_full_bleed_media,
@@ -1154,7 +1185,8 @@ _SPECS: Final[tuple[TemplateSpec, ...]] = (
     TemplateSpec("concept_tree", "hierarchy", True, "W2", _d((8.0, 15.0)), _c(("reveal", "look_here"), ("panel",)),
                  _fit_concept_tree, holds=_DIAGRAM),
     TemplateSpec("formula_focus", "formula", True, "R1", _d((10.0, 25.0), (8.0, 16.0)),
-                 _c(("reveal", "var", "draw", "look_here"), ("item", "item:var")), _fit_formula_focus,
+                 _c(("reveal", "var", "draw", "look_here"), ("item", "item:var"),
+                    {"reveal": ("item",), "var": ("item:var",), "draw": ("item",)}), _fit_formula_focus,
                  implemented=True, holds=("formula",), dense=True, slots=_formula_focus_slots()),
     TemplateSpec("worked_steps", "procedure", True, "R1", _d((15.0, 45.0), (10.0, 30.0)),
                  _c(("reveal", "fill", "countdown", "look_here"), ("item", "item:var")), _fit_worked_steps,
@@ -1217,6 +1249,9 @@ def registry_problems() -> list[str]:
             problems.append(f"{tid}: variants / duration not keyed by its formats")
         if not set(spec.consumes.kinds) <= set(EVENT_KINDS) or not set(spec.consumes.targets) <= set(TARGET_FORMS):
             problems.append(f"{tid}: unknown event kind or target form in consumes")
+        for kind, forms in spec.consumes.narrow:
+            if kind not in spec.consumes.kinds or not forms or not set(forms) <= set(spec.consumes.targets):
+                problems.append(f"{tid}: consumes narrows {kind!r} to forms outside its kinds or targets")
         for slot, per_format in spec.slots.items():
             if not set(per_format) <= set(spec.formats):
                 problems.append(f"{tid}: slot {slot} for a format it does not render")

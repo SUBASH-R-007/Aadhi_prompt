@@ -4,16 +4,22 @@
  * members of a set, one per narration beat.
  *
  * Data (§4.3, templates.py `_fit_list_build`): >= 2 `bullet` items, an optional `heading`, optional `icon_hint`s (the
- * resolver stores the matched icons in `look.icons`, §4.12; this template draws them with `_shared.js storedIcon`).
- * Every board item other than the first heading that has text is a list row (the registry only scores bullets, so in
- * practice the rows are bullets; nothing a timeline names is silently dropped).
+ * resolver stores the matched icons in `look.icons`, §4.12; this template draws them with `_shared.js storedIcon`),
+ * and in 16:9 an optional picture or clip panel (PICTURE_PANELS). Every board item other than the first heading that
+ * has text is a list row (the registry only scores bullets, so in practice the rows are bullets). Nothing a timeline
+ * names is silently dropped: a scene with a side panel this template does not draw (any panel in 9:16, a terminal,
+ * chart, graph, model or skill-tree panel in 16:9; `drawsScene`) is drawn by board_generic whole, every hook handed
+ * on (formula_focus's convention), and `_fit_list_build` scores such a scene 0 so direct.py never sends it here (B2c
+ * review CG-2).
  *
  * 16:9 (§4.3): a numbered list. With something to show beside it (the scene's picture or clip panel, or a stored icon
- * of a row while rows take turns being current) the list takes the left 55% and the right 45% shows the panel or the
- * current row's large icon (`feature_px`, §4.12); with nothing beside it the list is set in the centre 60% (the
- * named regions of §2.5, core.js REGIONS), so a list without icons never leaves half the frame empty. The heading
- * spans its variant's width above. Rows stay where the list puts them (board order); a row enters in its place on its
- * beat.
+ * for every row while rows take turns being current) the list takes the left 55% and the right 45% shows the panel
+ * (its title on the card surface when this mode cannot show its medium, board_generic's convention) or the current
+ * row's large icon (`feature_px`, §4.12); with nothing beside it the list is set in the centre 60% (the named regions of
+ * §2.5, core.js REGIONS), so the right 45% is never left empty: a list where only some rows have icons is centred and
+ * draws none (icons are decoration, §4.12 "no match means no icon"; one current row without an icon would leave the
+ * right side blank, B2c review V12). The heading spans its variant's width above. Rows stay where the list puts them
+ * (board order); a row enters in its place on its beat.
  *
  * 9:16 (§4.3, [RV L-13]): a persistent compact stack. The current row is large (56-64 px); when the next row enters,
  * the row before it shrinks in place to a compact 40 px row (R-29's 9:16 text floor) and the new row appears large
@@ -23,10 +29,13 @@
  * list fits at the large minimum, else every row compact.
  *
  * Item states (plan §1.5, state.js `ITEM_STATES` / `itemStateStyle` / `itemStatesAt`): the row entered last is
- * `current` (weight 700, a 2 px `ink2` inset border), every earlier one `past` (`ink2`, §4.3 "earlier items are ink2,
- * no accent colour"). §4.3 reads "bold, full ink with a 3 px ink outline"; the binding plan §1.5 state is 2 px ink2 and
- * never an outline (the look_here cue's), so a current row reads apart from a look_here outline (4 px focus, outset >=
- * 8 px). Without any beat-revealed row there is no current row and no state. The states are painted here, from
+ * `current` (weight 700, a 2 px `ink2` inset border on the row's card), every earlier one `past` (`ink2`, §4.3 "earlier
+ * items are ink2, no accent colour"). §4.3 reads "bold, full ink with a 3 px ink outline"; the binding plan §1.5 state
+ * is 2 px ink2 and never an outline (the look_here cue's), and it must read apart from a look_here (plan §1.5 "visually
+ * distinct from look_here"): `focusRect` gives the row's card, so the look_here outline (4 px focus) runs FOCUS_OUTSET
+ * outside the state border, never on it (B2c review V4: the outline used to lie exactly on the border, which in light
+ * families, where `focus` is `ink`, made the two the same dark rectangle). Without any beat-revealed row there is no
+ * current row and no state. The states are painted here, from
  * `itemStateStyle`, rather than through `_shared.js paintItemState`, because that helper clears properties ('' when a
  * state is off), which makes the element's style attribute depend on the order frames were painted in (the jsdom order
  * gate compares DOM); every value painted here is written on every frame.
@@ -38,10 +47,10 @@
  * (`ctx.motion.scale`, `_shared.js seconds` / `enterAt`); the cues keep their own (cues.js).
  *
  * Emphasis is cues.js's (§4.2, plan §1.4/§1.5): `itemEl` hands it a row's text (its [[term]] `.rt-k` spans, kept by
- * `_shared.js richWords`, so `<item>` and `<item>:term:<n>` both resolve), `focusRect` the row's text box (PAD inside
- * the row, so the look_here outline lies on the row's own edge and is never clamped into the text by the zone),
- * `dimGroups` the heading, every row (a 16:9 row's icon is inside its row's group, so a look_here on a row keeps its
- * icon) and the panel, which the stage dims (this template never writes their opacity: it animates their children).
+ * `_shared.js richWords`, so `<item>` and `<item>:term:<n>` both resolve), `focusRect` the row's card (a shape: the
+ * outline goes round it, outside the state border, clamped only to the shapes area, cues.js shapeArea), `dimGroups`
+ * the heading, every row (a 16:9 row's icon is inside its row's group, so a look_here on a row keeps its icon) and the
+ * panel, which the stage dims (this template never writes their opacity: it animates their children).
  * Nothing here writes outline, text-decoration, filter, backdrop-filter or will-change, and no structure role colours a
  * row (§4.2): the numbers take the row's own ink.
  *
@@ -59,11 +68,11 @@ import { LAYOUT_TOKENS, fixesOf, fx } from '../core.js';
 import { FOCUS_OUTSET, FOCUS_PX } from '../cues.js';
 import { shownIn } from '../media.js';
 import { itemStateStyle, itemStatesAt, itemTimings } from '../state.js';
+import boardGeneric from './board_generic.js';
 import {
   RADIUS, STATE_BORDER, STATE_WEIGHT, containRect, enterAt, fitLines, group, mediaAspect, paintMedia, paintRise,
-  paintTextEntrance, region, revealMask, richWords, seconds, slotRange, storedIcon,
+  paintTextEntrance, region, revealMask, richWords, scrimmedBg, seconds, slotRange, storedIcon,
 } from './_shared.js';
-import { scrimmedBg } from './board_generic.js';
 
 /** @typedef {import('./types.js').TemplateContext} TemplateContext */
 /** @typedef {import('./types.js').TemplateModule} TemplateModule */
@@ -116,13 +125,19 @@ export const LINE_HEIGHT = Object.freeze({
 });
 
 /**
- * A row's padding on every side: the look_here outline (cues.js: FOCUS_PX wide, its inner edge FOCUS_OUTSET outside the
- * target) drawn around a row's text (`focusRect` gives the text's box) then lies exactly on the row's own edge, over
- * its state border, so a row never needs room outside its box for the outline: rows can fill their column up to the
- * critical zone's edge (in 9:16 the text column x 192-780, the part both critical boxes share, R-59), and the outline
- * is never clamped into the text (cues.js clamps it to the zone).
+ * A row's padding on every side (12 px): its text sits as far inside its card (where the state border is drawn) as
+ * the look_here outline's outer edge sits outside it (cues.js: FOCUS_PX wide, its inner edge FOCUS_OUTSET outside the
+ * card), so a row's text, its state border and the outline are evenly spaced. The rows fill their column up to the
+ * critical zone's edge (9:16: the text column x 192-780, the part both critical boxes share, R-59); the outline around
+ * a card is a shape's (cues.js shapeArea), so it is drawn whole just outside the column, never across the text.
  */
 export const PAD = FOCUS_OUTSET + FOCUS_PX;
+/** The label over a panel whose medium this mode cannot show (board_generic's .dyn-media-missing size; media_split's
+ * MISSING_LABEL_PX in 16:9). */
+export const MISSING_LABEL_PX = 52;
+/** The side-panel kinds this template draws (16:9 only): a picture or a clip (§4.3 "the scene's panel"); a GIF shows
+ * in the live player, its title card in the MP4 (media.js shownIn). templates.py LIST_PANELS mirrors it. */
+export const PICTURE_PANELS = Object.freeze(['figure', 'image', 'manim', 'gif']);
 
 /**
  * Per-format layout. `heading`: the heading's size range, lines and preferred lines (16:9: R-29 headings 84-120 px,
@@ -293,16 +308,37 @@ export function listItems(scene) {
 }
 
 /**
- * The scene's picture or clip panel when `mode` can show it (board_generic's rule for a side panel: `media.shownIn`,
- * never when the layout hides the panel), with when it enters; null otherwise. 9:16 draws no panel (the stack takes the
- * stage; direct.py prefers media_split for a reel scene with a panel).
+ * The scene's side panel when the layout shows it (null when there is none or `layout.show_side_panel` is false).
+ * @param {TimedScene} scene
+ */
+export function shownPanel(scene) {
+  const sp = scene.side_panel;
+  return sp && scene.layout?.show_side_panel !== false ? sp : null;
+}
+
+/**
+ * Whether this template draws the scene whole in `format` (B2c review CG-2; templates.py `_fit_list_build` gives 0
+ * otherwise): no shown side panel, or (16:9) a picture or clip panel (PICTURE_PANELS). 9:16 draws no panel (the stack
+ * takes the stage). Anything else is drawn by board_generic, every hook handed on.
+ * @param {TimedScene} scene @param {'landscape' | 'portrait'} format
+ */
+export function drawsScene(scene, format) {
+  const sp = shownPanel(scene);
+  return !sp || (format === 'landscape' && PICTURE_PANELS.includes(String(sp.panel && sp.panel.kind)));
+}
+
+/**
+ * The scene's picture or clip panel (16:9; a scene `drawsScene` takes): `ref` its medium when `mode` can show it
+ * (board_generic's rule for a side panel: `media.shownIn`; else null and the panel's title is shown on the card surface
+ * instead), `title` that title, `start` when it enters; null without one.
  * @param {TimedScene} scene @param {'live' | 'render'} mode
- * @returns {{ref: MediaRef, start: number} | null}
+ * @returns {{ref: MediaRef | null, title: string, start: number} | null}
  */
 export function panelOf(scene, mode) {
-  const sp = scene.side_panel;
-  if (!sp || !sp.media || scene.layout?.show_side_panel === false || !shownIn(sp.media, mode)) return null;
-  return { ref: sp.media, start: Math.max(0, Number(sp.show_at) || 0) };
+  const sp = shownPanel(scene);
+  if (!sp || !PICTURE_PANELS.includes(String(sp.panel && sp.panel.kind))) return null;
+  const ref = sp.media && shownIn(sp.media, mode) ? sp.media : null;
+  return { ref, title: String((sp.panel && sp.panel.title) || scene.title || ''), start: Math.max(0, Number(sp.show_at) || 0) };
 }
 
 /**
@@ -316,7 +352,8 @@ export function anchored(scene, ids) {
 
 /**
  * Layout variant: 9:16 `stack` (rows take turns being current) or `list` (no row is beat-revealed); 16:9 `split` (a
- * panel, or a stored icon of a row while rows take turns) or `centred`.
+ * panel, or a stored icon for every row while rows take turns: never a current row with nothing beside it, B2c review
+ * V12) or `centred`.
  * @param {TimedScene} scene @param {'landscape' | 'portrait'} format @param {'live' | 'render'} mode
  * @param {any} look
  * @returns {'split' | 'centred' | 'stack' | 'list'}
@@ -328,7 +365,7 @@ export function variantOf(scene, format, mode, look) {
   if (format === 'portrait') return turns ? 'stack' : 'list';
   if (panelOf(scene, mode)) return 'split';
   const icons = look && look.icons && typeof look.icons === 'object' ? look.icons : {};
-  return turns && ids.some((id) => Object.prototype.hasOwnProperty.call(icons, id)) ? 'split' : 'centred';
+  return turns && ids.length > 0 && ids.every((id) => Object.prototype.hasOwnProperty.call(icons, id)) ? 'split' : 'centred';
 }
 
 /**
@@ -455,9 +492,25 @@ export default {
    */
   build(ctx) {
     const { scene, format } = ctx;
+    if (!drawsScene(scene, format)) {
+      // a side panel this template does not draw (a look naming it on such a scene): board_generic draws it whole
+      const inner = boardGeneric.build(ctx);
+      inner.lbFallback = true;
+      return inner;
+    }
     const L = LAYOUT[format];
-    const variant = variantOf(scene, format, ctx.mode, ctx.look);
     const { heading, rows: items } = listItems(scene);
+    let variant = variantOf(scene, format, ctx.mode, ctx.look);
+    const panel = variant === 'split' ? panelOf(scene, ctx.mode) : null;
+    // 16:9 split by icons: every row's stored icon (feature size, §4.12), else none at all and the list centred (an
+    // icon the schema check refuses, `storedIcon` null, counts as missing: V12, never a current row with nothing beside)
+    /** @type {(SVGElement | null)[] | null} */
+    let icons = null;
+    if (variant === 'split' && !panel) {
+      const drawn = items.map((item) => storedIcon(ctx, item.id, { size: ICON_SIZE, block: true }));
+      if (drawn.every(Boolean)) icons = drawn;
+      else variant = 'centred';
+    }
     const fixes = fixesOf(ctx.look);
     const baseline = !!ctx.motion && ctx.motion.entrance === 'baseline_reveal';
     const ink = ctx.onBackground.ink;
@@ -526,25 +579,36 @@ export default {
     // layout, so a look_here on a row keeps its icon undimmed
     /** @type {any} */
     let visual = null;
-    if (variant === 'split') {
-      const panel = panelOf(scene, ctx.mode);
-      if (panel) {
-        // sized by this template's mediaBox for slot 'panel' (the box mediaPlan extracts a clip at)
-        const view = ctx.media(panel.ref, { slot: 'panel', start: panel.start, alt: String(scene.side_panel?.panel?.title || scene.title || '') });
-        const frame = h('div', { class: 'dyn-lb-media', style: { position: 'absolute', overflow: 'hidden', borderRadius: `${RADIUS.media}px` } }, view.el);
-        // the whole stage, so the frame's box (set at layout) is in stage px
-        const el = group('dyn-lb-visual', frame);
-        Object.assign(el.style, { position: 'absolute', left: '0px', top: '0px', right: '0px', bottom: '0px' });
-        root.appendChild(el);
-        visual = { el, frame, view, ref: panel.ref, start: panel.start, missing: !!view.missing };
-      } else {
-        for (const r of rows) {
-          const svgEl = storedIcon(ctx, r.item.id, { size: ICON_SIZE, block: true });
-          if (!svgEl) continue;
-          r.icon = h('div', { class: 'dyn-lb-icon', style: { position: 'absolute', color: ink } }, svgEl);
-          r.el.appendChild(r.icon);
-        }
+    if (panel) {
+      // sized by this template's mediaBox for slot 'panel' (the box mediaPlan extracts a clip at)
+      const view = panel.ref ? ctx.media(panel.ref, { slot: 'panel', start: panel.start, alt: panel.title }) : null;
+      const frame = h('div', { class: 'dyn-lb-media', style: { position: 'absolute', overflow: 'hidden', borderRadius: `${RADIUS.media}px` } }, view ? view.el : null);
+      /** @type {HTMLElement | null} */
+      let label = null;
+      if (!view || view.missing) {
+        // nothing this mode can show (a GIF in the MP4, an unsafe URL): the panel's title on the card surface
+        // (board_generic's and media_split's convention: never an empty box beside the list)
+        frame.style.background = ctx.roles.color('surface');
+        label = h('div', {
+          class: 'dyn-lb-missing', dir: 'auto', text: panel.title || '·',
+          style: {
+            position: 'absolute', left: '0px', top: '0px', right: '0px', bottom: '0px', display: 'flex', alignItems: 'center',
+            justifyContent: 'center', padding: '0 1em', textAlign: 'center', fontSize: `${MISSING_LABEL_PX}px`,
+            fontWeight: '600', lineHeight: '1.2', color: ctx.roles.color('ink2'), overflowWrap: 'anywhere',
+          },
+        });
+        frame.appendChild(label);
       }
+      // the whole stage, so the frame's box (set at layout) is in stage px
+      const el = group('dyn-lb-visual', frame);
+      Object.assign(el.style, { position: 'absolute', left: '0px', top: '0px', right: '0px', bottom: '0px' });
+      root.appendChild(el);
+      visual = { el, frame, view, label, ref: panel.ref, start: panel.start, missing: !view || !!view.missing };
+    } else if (icons) {
+      rows.forEach((r, k) => {
+        r.icon = h('div', { class: 'dyn-lb-icon', style: { position: 'absolute', color: ink } }, icons && icons[k]);
+        r.el.appendChild(r.icon);
+      });
     }
 
     ctx.root.appendChild(root);
@@ -567,6 +631,10 @@ export default {
    * @param {TemplateContext} ctx
    */
   layout(ctx) {
+    if (isFallback(ctx)) {
+      if (typeof boardGeneric.layout === 'function') boardGeneric.layout(ctx);
+      return;
+    }
     const v = ctx.view;
     const { format, zones } = ctx;
     const L = LAYOUT[format];
@@ -677,6 +745,10 @@ export default {
    * @param {import('../../shared/types.js').SceneState} _state
    */
   update(ctx, t, _state) {
+    if (isFallback(ctx)) {
+      boardGeneric.update(ctx, t, _state);
+      return;
+    }
     const v = ctx.view;
     const p = ctx.paint;
     const L = LAYOUT[ctx.format];
@@ -743,11 +815,12 @@ export default {
     // 16:9 split: the panel, or the current row's icon (in with its row, out when the next row takes over)
     if (v.visual) {
       const vis = v.visual;
-      const e = vis.missing ? 0 : enterAt(ctx, t, vis.start > 0 ? vis.start : PANEL_DELAY, PANEL_ENTER);
+      vis.alpha = enterAt(ctx, t, vis.start > 0 ? vis.start : PANEL_DELAY, PANEL_ENTER);
+      const e = vis.alpha;
       paintRise(ctx, vis.frame, e, RISE);
       p.style(vis.frame, 'visibility', e > 0 ? 'visible' : 'hidden');
       // painted even while hidden, so the element never keeps a frame from an earlier seek
-      paintMedia(ctx, vis.view, t);
+      if (vis.view) paintMedia(ctx, vis.view, t);
     }
     for (const r of v.rows) {
       if (!r.icon) continue;
@@ -772,10 +845,11 @@ export default {
    * @returns {FocusRect | null}
    */
   focusRect(ctx, target) {
+    if (isFallback(ctx)) return typeof boardGeneric.focusRect === 'function' ? boardGeneric.focusRect(ctx, target) : null;
     const v = ctx.view;
     const id = String(target || '').split(':')[0];
     const row = v.rows.find((/** @type {any} */ r) => r.item.id === id);
-    const el = row ? row.body : v.head && v.head.item.id === id ? v.head.text : null;
+    const el = row ? row.card : v.head && v.head.item.id === id ? v.head.text : null;
     const holder = row ? row.el : v.head && v.head.item.id === id ? v.head.el : null;
     const r = el ? ctx.rectOf(el) : null;
     if (!r || !holder) return null;
@@ -783,18 +857,25 @@ export default {
     const y0 = Math.round(r.y);
     const x1 = Math.round(r.x + r.w);
     const y1 = Math.round(r.y + r.h);
-    return { rect: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, shape: 'rect', radius: row ? RADIUS.card - PAD : 0, el: holder };
+    // a row: its card (the box its state border is drawn on), a shape whose outline runs outside it (V4); the
+    // heading: its text
+    return {
+      rect: { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, shape: 'rect', radius: row ? RADIUS.card : 0, el: holder,
+      kind: row ? 'shape' : 'text',
+    };
   },
 
   /**
    * The element holding an item's text, where cue.term finds its [[term]] spans (`.rt-k`, one per word piece with the
    * term's `data-dyn-term`, `_shared.js richWords`): a row's text, or the heading's. One element in every format (a
-   * 9:16 row changes size in place, so the same spans are the term's large and compact). Null for anything else.
+   * 9:16 row changes size in place, so the same spans are the term's large and compact). Null for anything else
+   * (board_generic's answer for a scene it draws).
    * @param {TemplateContext} ctx
    * @param {string} itemId
-   * @returns {Element | null}
+   * @returns {Element | Element[] | null}
    */
   itemEl(ctx, itemId) {
+    if (isFallback(ctx)) return typeof boardGeneric.itemEl === 'function' ? boardGeneric.itemEl(ctx, itemId) : null;
     const v = ctx.view;
     const row = v.rows.find((/** @type {any} */ r) => r.item.id === itemId);
     if (row) return row.text;
@@ -808,6 +889,7 @@ export default {
    * @returns {Element[]}
    */
   dimGroups(ctx) {
+    if (isFallback(ctx)) return typeof boardGeneric.dimGroups === 'function' ? boardGeneric.dimGroups(ctx) : [];
     const v = ctx.view;
     return [v.head ? v.head.el : null, ...v.rows.map((/** @type {any} */ r) => r.el), v.visual ? v.visual.el : null].filter(Boolean);
   },
@@ -833,6 +915,7 @@ export default {
    * @returns {{w: number, h: number} | null}
    */
   mediaBox(_scene, zones, _mode, slot, _fixes) {
+    if (!drawsScene(_scene, zones.format)) return typeof boardGeneric.mediaBox === 'function' ? boardGeneric.mediaBox(_scene, zones, _mode, slot, _fixes) : null;
     if (zones.format !== 'landscape' || slot !== 'panel') return null;
     const b = /** @type {Box} */ (boxes('landscape', 'split', zones).visual);
     return { w: b.x1 - b.x0, h: b.y1 - b.y0 };
@@ -845,6 +928,7 @@ export default {
    * @param {'landscape' | 'portrait'} _fmt
    */
   tex(scene, _look, _fmt) {
+    if (!drawsScene(scene, _fmt)) return typeof boardGeneric.tex === 'function' ? boardGeneric.tex(scene, _look, _fmt) : [];
     return texOf(scene);
   },
 
@@ -856,6 +940,7 @@ export default {
    * @returns {TextEntry[]}
    */
   texts(ctx) {
+    if (isFallback(ctx)) return typeof boardGeneric.texts === 'function' ? boardGeneric.texts(ctx) : [];
     const v = ctx.view;
     /** @type {TextEntry[]} */
     const out = [];
@@ -877,9 +962,18 @@ export default {
         text: `${r.k + 1} ${plainText(String(r.item.text || ''))}`,
       });
     }
+    if (v.visual && v.visual.label) {
+      out.push({
+        el: v.visual.label, role: 'label', critical: false, ink: ctx.roles.color('ink2'), bg: ctx.roles.color('surface'),
+        alpha: v.visual.alpha || 0, size: MISSING_LABEL_PX, weight: 600, text: v.visual.label.textContent || '',
+      });
+    }
     return out;
   },
 };
+
+/** @param {TemplateContext} ctx */
+const isFallback = (ctx) => !!(ctx.view && ctx.view.lbFallback);
 
 /**
  * When the row after `id` (in entrance order) enters: the moment a 9:16 row stops being current; null for the last.

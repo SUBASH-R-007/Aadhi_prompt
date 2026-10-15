@@ -14,7 +14,7 @@ import {
 } from '../../js/dynamic/core.js';
 import {
   CUE_HOLD, DIM_ALPHA, DIM_RAMP, EXIT_FACTOR, FOCUS_OUTSET, FOCUS_PX, OUTLINE_DRAW, PUSH_IN, PUSH_SCALE, TERM_DRAW,
-  UNDERLINE_PX, asElements, bandGradient, clampOf, cueEvents, cueLevel, cueNeeds, outlinePath, pieceBand, termBand, termSpans,
+  UNDERLINE_PX, asElements, bandGradient, clampOf, cueEvents, cueLevel, cueNeeds, outlinePath, pieceBand, shapeArea, showsClip, termBand, termSpans,
   termStyle, termsOf, zoneOf,
 } from '../../js/dynamic/cues.js';
 import { createDynamicStage, motionOf, DEFAULT_TEXT_ENTRANCE } from '../../js/dynamic/stage.js';
@@ -85,7 +85,7 @@ test('cueColours: dark-on-mark marker, mark underline (dark); mark at 35% under 
 });
 
 test('templateBehaviour: what each template consumes and whether it may push (the catalogue registry)', () => {
-  assert.deepEqual(templateBehaviour('board_generic'), { consumes: { kinds: ['reveal', 'fill'], targets: ['item'] }, pushOk: false });
+  assert.deepEqual(templateBehaviour('board_generic'), { consumes: { kinds: ['reveal', 'fill'], targets: ['item'], forms: { reveal: ['item'], fill: ['item'] } }, pushOk: false });
   const list = templateBehaviour('list_build');
   assert.ok(list && list.consumes.kinds.includes('cue_term') && list.consumes.kinds.includes('look_here') && !list.pushOk);
   const media = templateBehaviour('media_split');
@@ -136,10 +136,37 @@ test('cueEvents: only cue kinds the template consumes, on targets of forms it re
   assert.deepEqual(cueEvents(sceneWith(undefined), 'list_build'), []);
   const needs = cueNeeds(sceneWith(events), 'list_build');
   assert.deepEqual([needs.camera, needs.layer, needs.events.length], [false, true, 4]);
+  // the forms per kind (B2c review CG-5): media_split resolves a term for cue_term and a panel for look_here, never
+  // a cue_term on a panel (the cross product of its kinds and forms let that through)
+  const pairs = [
+    { t: 1, kind: 'cue_term', target: 'panel' }, { t: 1, kind: 'cue_term', target: 'panel:row:1' },
+    { t: 2, kind: 'cue_term', target: 'm1:term:0' }, { t: 3, kind: 'look_here', target: 'm1:term:0' },
+    { t: 4, kind: 'look_here', target: 'panel:row:1' },
+  ];
+  assert.deepEqual(cueEvents(sceneWith(pairs), 'media_split').map((e) => `${e.kind} ${e.target}`),
+    ['cue_term m1:term:0', 'look_here m1:term:0', 'look_here panel:row:1']);
   const push = cueNeeds(sceneWith([{ t: 1, kind: 'look_here', target: 'panel' }]), 'media_split');
   assert.deepEqual([push.camera, push.layer], [true, true]);
   const terms = cueNeeds(sceneWith([{ t: 1, kind: 'cue_term', target: 'b1' }]), 'media_split');
   assert.deepEqual([terms.camera, terms.layer, terms.events.length], [false, false, 1], 'no camera without a look_here');
+});
+
+test('a scene that shows a clip never pushes: its look_here keeps the outline form (measured order-dependent)', () => {
+  const clip = { kind: 'video', asset_key: 'c', url: '/media/c.mp4', duration: 10, fit: 'contain_blur' };
+  const still = { kind: 'image', asset_key: 's', url: '/media/s.png', fit: 'contain' };
+  const look = [{ t: 1, kind: 'look_here', target: 'panel' }];
+  const panel = (/** @type {any} */ media) => ({ panel: { kind: 'figure', title: 'A', rationale: '', figure_id: 'f' }, media, show_at: 0 });
+  for (const [name, extra, camera] of /** @type {[string, any, boolean][]} */ ([
+    ['a still on the panel', { side_panel: panel(still) }, true],
+    ['a clip on the panel', { side_panel: panel({ ...clip }) }, false],
+    ['a clip as the scene medium', { media: { ...clip } }, false],
+    ['a GIF (no clip)', { media: { kind: 'gif', asset_key: 'g', url: '/media/g.gif' } }, true],
+  ])) {
+    const scene = /** @type {any} */ ({ ...sceneWith(look), ...extra });
+    assert.equal(showsClip(scene), !camera, name);
+    const needs = cueNeeds(scene, 'media_split');
+    assert.deepEqual([needs.camera, needs.layer, needs.events.length], [camera, true, 1], name);
+  }
 });
 
 test('cue timing: the sweep in, the hold, the sweep off from the left (exits 30% shorter)', () => {
@@ -421,6 +448,55 @@ test('the cues run after the template\'s update (they read its geometry as paint
   tpl.calls.length = 0;
   await stage.seek(45);
   assert.deepEqual(tpl.calls, ['update 1.5', 'focus b2']);
+  done();
+});
+
+test('shapeArea: a picture, card or drawing keeps its whole outline (B2c review CG-1); text keeps the critical clamp', () => {
+  const grow = FOCUS_OUTSET + FOCUS_PX;
+  assert.deepEqual(shapeArea(ZONES.portrait), { x0: 60 - grow, y0: 288 - grow, x1: 1020 + grow, y1: ZONES.portrait.caption.y0 });
+  assert.deepEqual(shapeArea(ZONES.landscape), { x0: 96 - grow, y0: 54 - grow, x1: 1824 + grow, y1: ZONES.landscape.caption.y0 });
+  // the review's cases: a 9:16 picture in the stage, a 9:16 formula card, a 16:9 picture at the critical box's edge
+  const cases = [
+    [ZONES.portrait, { x: 277, y: 460, w: 525, h: 394 }],
+    [ZONES.portrait, { x: 156, y: 456, w: 768, h: 181 }],
+    [ZONES.landscape, { x: 886, y: 131, w: 938, h: 704 }],
+  ];
+  for (const [zones, rect] of /** @type {any[]} */ (cases)) {
+    const focus = /** @type {any} */ ({ rect, shape: 'rect', radius: 24, kind: 'shape' });
+    const around = /** @type {any} */ (outlinePath(focus, shapeArea(zones))).box;
+    // the stroke's centre line lies FOCUS_OUTSET + FOCUS_PX / 2 outside the target on every side: never cut
+    const free = /** @type {any} */ (outlinePath(focus, null)).box;
+    assert.deepEqual(around, free, JSON.stringify(rect));
+    assert.ok(around.x0 < rect.x && around.y0 < rect.y && around.x1 > rect.x + rect.w && around.y1 > rect.y + rect.h);
+    const text = /** @type {any} */ (outlinePath(focus, clampOf(zones, rect))).box;
+    assert.ok(text.x0 > free.x0 || text.x1 < free.x1, 'the text clamp would have cut it');
+  }
+});
+
+test('look_here: a shape target\'s outline is clamped to the shapes area, a text target\'s to the critical boxes; keep stays bright', async () => {
+  const tpl = standIn('list_build');
+  const rect = { x: 60, y: 520, w: 960, h: 300 };
+  tpl.focusRect = (/** @type {any} */ ctx, /** @type {string} */ target) => {
+    // b1: a picture across the 9:16 stage (a shape), keeping b2's group bright; b2: text at the same place
+    const it = ctx.view.items.find((/** @type {any} */ x) => x.id === target);
+    return target === 'b1' ? { rect, shape: 'rect', radius: 24, el: it.g, kind: 'shape', keep: [ctx.view.items[1].text] }
+      : { rect, shape: 'rect', radius: 24, el: it.g };
+  };
+  const tl = oneScene(tpl, [{ t: 1, kind: 'look_here', target: 'b1', dur: 2 }, { t: 6, kind: 'look_here', target: 'b2', dur: 2 }], 'portrait');
+  const { stage, done } = stageFor(tl, tpl);
+  await stage.seek(0);
+  const paths = [...stage.el.querySelectorAll('path.dyn-cue-outline')];
+  const groups = [...stage.el.querySelectorAll('.sx-group')];
+  const panel = /** @type {HTMLElement} */ (tpl.ctxSeen.view.panel);
+  await stage.seek(2 * 30);
+  assert.equal(paths[0].getAttribute('d'), /** @type {any} */ (outlinePath({ rect, shape: 'rect', radius: 24 }, null)).d, 'never cut');
+  assert.equal(/** @type {HTMLElement} */ (groups[1]).style.opacity, '', 'kept: the group holding a keep element');
+  assert.ok(Number(panel.style.opacity) < 1, 'the rest dims');
+  await stage.seek(7 * 30);
+  const clamped = /** @type {any} */ (outlinePath({ rect, shape: 'rect', radius: 24 }, clampOf(ZONES.portrait, rect)));
+  assert.equal(paths[1].getAttribute('d'), clamped.d, 'text: the critical clamp');
+  assert.notEqual(clamped.d, paths[0].getAttribute('d'));
+  assert.ok(Number(/** @type {HTMLElement} */ (groups[0]).style.opacity) < 1, 'b2 keeps nothing else: b1 dims');
   done();
 });
 

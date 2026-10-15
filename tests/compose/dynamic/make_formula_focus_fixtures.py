@@ -18,8 +18,11 @@ Cases, each in both formats (B2 plan §G text cases):
   formula revealed by its beat and its legend rows by B1's sync cues only (no var events: the fallback path);
 * ``.stress``: a dark family with Crisp (deep_teal), four short scenes: the lint-limit case (R-25's 24 prose words on
   screen, in wide glyphs: a six-word headline, a seven-word sentence, five variables of two and three words: two legend
-  columns in 16:9, the formula broken at "=" and the legend a compact stack in 9:16), one very long word, Tamil,
-  Hindi.
+  columns in 16:9, the formula broken at "=" in 9:16), one very long word, Tamil, Hindi. In 9:16 each legend keeps
+  R-25's three visible items at most (REEL_LEGEND; the lint-limit scene one, all its reel has room for): every row
+  of a legend stays on screen (RV L-13, B2c review V2), and a five-row legend under a broken formula does not fit a
+  reel, which preflight blocks ("Shorten text"; tests/determinism/test_formula_focus_page.py shows it on the real
+  page).
 
 Run ``python -m tests.compose.dynamic.make_formula_focus_fixtures`` to write them, ``--check`` to compare (exit 1 on a
 difference). Byte-deterministic: sorted keys, two-space indent, LF, a final newline.
@@ -46,6 +49,12 @@ from tests.schemas.v3_fixtures import PRESENTATION
 
 TEMPLATE = "formula_focus"
 LEAD = 0.12  # R-17: a reveal starts 120 ms before its anchor word
+# the stress case's 9:16 legends (the rows kept, a slice of the variables): R-25's <= 3 visible text items; the
+# lint-limit scene (its two-line headline over a formula broken at "=") one, all its reel has room for at the label
+# floor: its mass row (m, on the broken formula's last line, so its brace goes under it; a brace over the first line
+# would push the formula below the rail and into the narrow card, where it does not fit)
+REEL_LEGEND: dict[str, tuple[int, int]] = {"ff-lint": (1, 2)}
+REEL_LEGEND_DEFAULT = (0, 3)
 CUE_GAP = 2.0  # R-26: at most one new cue per 2 s
 
 Scene = dict[str, Any]
@@ -88,9 +97,12 @@ TYPICAL = [_formula_scene(
 LIGHT = [_formula_scene(
     "ff-ohm", "Ohm's law", "ஓம் விதி: Ohm's law $V = I R$", r"I = \frac{V}{R}",
     "மின்னோட்டம் [[current]] equals $V$ over $R$",
-    _variables(("I", "current மின்னோட்டம்", "A"), ("V", "voltage மின்னழுத்தம்", "V"),
-               ("R", "resistance மின்தடை", "ohm")),
-    ["Ohm's law in its second form.", "I is the current,", "V is the voltage,", "and R is the resistance."],
+    # Tamil meanings (the heading and the sentence carry the English): every row stays on screen in a reel, so the
+    # legend must fit its room at the label floor (B2c review V2: no row is dropped to make room any more)
+    _variables(("I", "மின்னோட்டம்", "A"), ("V", "மின்னழுத்தம்", "V"), ("R", "மின்தடை", "ohm")),
+    # the narration names each Tamil meaning, so B1's word-anchored var:<n> sync cues place the rows and braces
+    ["Ohm's law in its second form.", "I is the current, மின்னோட்டம்,", "V is the voltage, மின்னழுத்தம்,",
+     "and R is the resistance, மின்தடை."],
     hold=3.0)]
 
 STRESS = [
@@ -189,6 +201,12 @@ def build(case: str, fmt: str) -> dict[str, Any]:
                             "asset_style": {"family": family, "personality": personality}, "captions_burn": True,
                             "music": {"source": "procedural", "provider": "procedural"}, "entity_colors": entities}
     data["scenes"] = json.loads(json.dumps(scenes))
+    if case == "stress" and fmt == "portrait":
+        for scene in data["scenes"]:
+            for item in scene["board"]:
+                if item["kind"] == "formula":
+                    first, last = REEL_LEGEND.get(scene["id"], REEL_LEGEND_DEFAULT)
+                    item["variables"] = item["variables"][first:last]
     sp = Screenplay.model_validate(data)
     with _formula_focus_resolved():
         tl = build_timeline(sp, make_manifest(sp), settings=Settings(_env_file=None, dynamic_enabled=True))

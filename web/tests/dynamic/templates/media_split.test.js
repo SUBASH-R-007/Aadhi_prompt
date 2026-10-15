@@ -12,11 +12,13 @@ import { readFileSync, readdirSync } from 'node:fs';
 
 import { installDom, uninstallDom } from '../../player/_dom.js';
 import mediaSplit, {
-  DEFAULT_VARIANT, EXIT_FACTOR, LABELS, LAYOUT, MEDIA_FROM, MIN_DWELL, TEXT_ENTER, TEXT_KINDS, landscapeColumn, mediaOf, phraseSchedule,
+  DEFAULT_VARIANT, EXIT_FACTOR, LABELS, LAYOUT, LINE_HEIGHT, MEDIA_FROM, MIN_DWELL, TEXT_ENTER, TEXT_KINDS, clipShown, landscapeColumn,
+  lineHeight, mediaOf, phraseSchedule,
   portraitBoxes, pushArea, pushTargets, splitRegions, terminalOf, texOf, textItemsOf, variantOf,
 } from '../../../js/dynamic/templates/media_split.js';
 import { pushHeadroom } from '../../../js/dynamic/templates/_shared.js';
-import { PUSH_SCALE, termSpans } from '../../../js/dynamic/cues.js';
+import { PUSH_IN, PUSH_SCALE, cueEvents, cueNeeds, termSpans } from '../../../js/dynamic/cues.js';
+import { sceneStateAt } from '../../../js/player/schedule.js';
 import { REGIONS, ZONES, parseTarget, templateBehaviour, templateSlots } from '../../../js/dynamic/core.js';
 import { CATALOGUE } from '../../../js/dynamic/catalogue.gen.js';
 import { mediaKey, mediaSize } from '../../../js/dynamic/media.js';
@@ -215,6 +217,10 @@ test('pushTargets: only look_here cues this template consumes', () => {
   assert.deepEqual(pushTargets({ ...s, events: [{ t: 1, kind: 'look_here', target: 'b1:line:0' }] }), { item: false, panel: false }, 'a form it does not consume');
   assert.deepEqual(pushTargets({ ...s, events: [] }), { item: false, panel: false });
   assert.equal(templateBehaviour('media_split')?.pushOk, true, '§4.3: media_split pushes');
+  // a scene that shows a clip never pushes (cues.js showsClip), so its text keeps the full regions
+  const clip = { kind: 'video', asset_key: 'c', url: '/media/c.mp4', duration: 10, fit: 'contain_blur' };
+  assert.deepEqual(pushTargets({ ...s, side_panel: { ...s.side_panel, media: clip } }), { item: false, panel: false });
+  assert.deepEqual(pushTargets({ ...s, media: clip, events: [{ t: 1, kind: 'look_here', target: 'b2' }] }), { item: false, panel: false });
 });
 
 test('phraseSchedule (9:16): one phrase at a time, the one before leaving 30% faster just before; MIN_DWELL for unanchored', () => {
@@ -267,23 +273,46 @@ test('TEXT_KINDS is templates.py TEXT_KINDS (the text items the fit of media_spl
   assert.deepEqual([...TEXT_KINDS].sort(), kinds);
 });
 
-test('the catalogue slots of media_split are its LAYOUT (once the registry lists them; until then none)', () => {
+test('the catalogue slots of media_split are its LAYOUT (registered: never skipped, B2c review CG-4)', () => {
   const spec = /** @type {any} */ (CATALOGUE.templates).media_split;
   const slots = /** @type {any} */ (templateSlots('media_split'));
-  if (!spec.implemented) {
-    assert.deepEqual(slots, {}, 'not implemented: no slots (templates.py)');
-    return;
-  }
+  assert.equal(spec.implemented, true);
   for (const v of ['media_left', 'media_right']) {
     const t = slots.title.landscape[v];
-    assert.deepEqual([t.w, t.max_lines, t.size, t.weight, t.line_height], [742, 3, [LAYOUT.landscape.title.min, LAYOUT.landscape.title.max], 700, LAYOUT.landscape.title.lh]);
+    assert.deepEqual([t.w, t.max_lines, t.size, t.weight, t.line_height], [742, 3, [LAYOUT.landscape.title.min, LAYOUT.landscape.title.max], 700, LINE_HEIGHT.display.latin]);
     const b = slots.body.landscape[v];
-    assert.deepEqual([b.w, b.size, b.weight, b.line_height], [742 - LAYOUT.landscape.marker, [LAYOUT.landscape.body.min, LAYOUT.landscape.body.max], 400, LAYOUT.landscape.body.lh]);
+    assert.deepEqual([b.w, b.size, b.weight, b.line_height], [742 - LAYOUT.landscape.marker, [LAYOUT.landscape.body.min, LAYOUT.landscape.body.max], 400, LINE_HEIGHT.body.latin]);
   }
   const t = slots.title.portrait.default;
-  assert.deepEqual([t.w, t.max_lines, t.prefer_lines, t.size], [696, 2, 1, [LAYOUT.portrait.title.min, LAYOUT.portrait.title.max]]);
+  assert.deepEqual([t.w, t.max_lines, t.prefer_lines, t.size, t.line_height], [696, 2, 1, [LAYOUT.portrait.title.min, LAYOUT.portrait.title.max], LINE_HEIGHT.display.latin]);
   const b = slots.body.portrait.default;
-  assert.deepEqual([b.w, b.max_lines, b.size, b.weight, b.line_height], [660, 2, [LAYOUT.portrait.body.min, LAYOUT.portrait.body.max], 700, LAYOUT.portrait.body.lh]);
+  assert.deepEqual([b.w, b.max_lines, b.size, b.weight, b.line_height], [780 - 192, 2, [LAYOUT.portrait.body.min, LAYOUT.portrait.body.max], 700, LINE_HEIGHT.body.latin]);
+  // the forms per kind (CG-5): a term or an item for cue_term, never a panel; look_here also on a term (its item)
+  assert.deepEqual(spec.consumes.forms, { reveal: ['item'], cue_term: ['item', 'item:term'], look_here: ['item', 'item:term', 'panel', 'panel:row'], output: ['panel'] });
+});
+
+test('line heights per script (§4.6, plan §2 R-29; B2c review V5): the type scale\'s, Indic text at the Indic floors', () => {
+  const scale = /** @type {any} */ (CATALOGUE).type.scale;
+  assert.ok(LINE_HEIGHT.display.latin >= scale.display.line_height.latin[0] && LINE_HEIGHT.display.latin <= scale.display.line_height.latin[1]);
+  assert.equal(LINE_HEIGHT.display.indic, scale.display.line_height.indic[0]);
+  assert.equal(LINE_HEIGHT.body.latin, scale.body.line_height.latin[0]);
+  assert.equal(LINE_HEIGHT.body.indic, scale.body.line_height.indic[0]);
+  assert.equal(lineHeight('body', 'Ohm விதி: $R = V/I$'), LINE_HEIGHT.body.indic);
+  assert.equal(lineHeight('body', 'बल'), LINE_HEIGHT.body.indic);
+  assert.equal(lineHeight('body', 'Power is $P = VI$'), LINE_HEIGHT.body.latin);
+  assert.equal(lineHeight('display', 'மின்தடை'), LINE_HEIGHT.display.indic);
+});
+
+test('the Indic fixture\'s phrase is set at the Indic body line height (no Tamil mark meets the line under it)', async () => {
+  const tl = load('media_split.portrait.indic.json');
+  const m = mount(tl);
+  await m.stage.seek(30);
+  const v = m.view();
+  const tamil = v.items.filter((/** @type {any} */ it) => /[\u0B80-\u0BFF]/u.test(it.content.textContent || ''));
+  assert.ok(tamil.length > 0, 'the fixture has Tamil phrases');
+  for (const it of tamil) assert.equal(Number(it.content.style.lineHeight), LINE_HEIGHT.body.indic);
+  if (/[\u0B80-\u0BFF]/u.test(v.titleText)) assert.equal(Number(v.title.style.lineHeight), LINE_HEIGHT.display.indic);
+  m.done();
 });
 
 test('mediaBox (static): the largest box shown, with push headroom; the same under every fix and in both variants', () => {
@@ -300,7 +329,8 @@ test('mediaBox (static): the largest box shown, with push headroom; the same und
   const box = /** @type {any} */ (mediaSplit.mediaBox?.(p, ZONES.portrait, 'render', 'panel', { safe: false, slots: {} }));
   assert.equal(box.w, Math.ceil(960 * 1.06));
   const L = LAYOUT.portrait;
-  const bare = portraitBoxes(/** @type {any} */ ({ ...p, events: [] }), Math.floor(L.title.min * L.title.lh) - 1, Math.floor(L.body.min * L.body.lh) - 1).media;
+  const bodyLh = Math.min(...p.board.map((/** @type {any} */ i) => lineHeight('body', `${i.term || ''} ${i.text || ''}`)));
+  const bare = portraitBoxes(/** @type {any} */ ({ ...p, events: [] }), Math.floor(L.title.min * lineHeight('display', p.title)) - 1, Math.floor(L.body.min * bodyLh) - 1).media;
   assert.ok(box.h >= Math.ceil((bare.y1 - bare.y0) * 1.06) - (pushTargets(p).item ? 30 : 0), 'under a one-line headline, above a one-line phrase');
   const tall = /** @type {any} */ (mediaSplit.mediaBox?.({ ...p, title: '', board: [], events: [] }, ZONES.portrait, 'render', 'main', { safe: false, slots: {} }));
   assert.equal(tall.h, Math.ceil((1040 - 340) * 1.06), 'no headline, no phrase: the tall region');
@@ -309,7 +339,9 @@ test('mediaBox (static): the largest box shown, with push headroom; the same und
 test('portraitBoxes: the phrase ends above the caption band in the column below the rail; a push narrows text to its push area', () => {
   const p = load('media_split.portrait.json').scenes[0];
   const calm = portraitBoxes(/** @type {any} */ ({ ...p, events: [] }), 60, 150);
-  assert.deepEqual([calm.phrase.x0, calm.phrase.x1, calm.phrase.y1], [120, 780, LAYOUT.portrait.phraseBottom]);
+  // one left edge with the headline (V7), the rail's x 780, 8 px above the caption band (the catalogue's, CG-3)
+  assert.deepEqual([calm.phrase.x0, calm.phrase.x1, calm.phrase.y1], [192, 780, LAYOUT.portrait.phraseBottom]);
+  assert.equal(LAYOUT.portrait.phraseBottom, ZONES.portrait.caption.y0 - 8);
   assert.equal(calm.phrase.y0, LAYOUT.portrait.phraseBottom - 150);
   assert.deepEqual([calm.title.x0, calm.title.x1], [192, 888]);
   assert.deepEqual(calm.media, { x0: 60, y0: 460, x1: 1020, y1: LAYOUT.portrait.phraseBottom - 150 - LAYOUT.portrait.stageGap });
@@ -323,7 +355,8 @@ test('portraitBoxes: the phrase ends above the caption band in the column below 
     const [c, d] = [at(pushed.title.x0, pushed.title.y0), at(pushed.title.x1, pushed.title.y0 + 60)];
     assert.ok(c[0] >= 192 - 1e-9 && d[0] <= 888 + 1e-9 && c[1] >= 288 - 1e-9, `headline pushed about ${ox},${oy}`);
   }
-  assert.ok(pushed.phrase.x0 > 120 && pushed.phrase.x1 < 780 && pushed.title.x0 > 192, 'the push costs room only when it pushes');
+  assert.ok(pushed.phrase.x0 > 192 && pushed.phrase.x1 < 780 && pushed.title.x0 > 192, 'the push costs room only when it pushes');
+  assert.equal(pushed.phrase.x0, pushed.title.x0, 'pushed too: one left edge');
   const none = portraitBoxes(/** @type {any} */ ({ ...p, title: '', board: [] }), 0, 0);
   assert.deepEqual(none.media, { x0: 60, y0: 340, x1: 1020, y1: 1040 }, 'without headline and phrase: the tall region');
 });
@@ -363,14 +396,14 @@ test('16:9 fit: the title gives up size before the body overflows; at the minimu
   const undo = layoutModel();
   try {
     const long = 'Wide words make maximum width demands on every line';
-    // the model: a title of two lines at any size; items of 4, 4 and 3 lines at the body minimum, which fit below the
-    // title only when it is at its own minimum
+    // the model: a title of two lines at its minimum and three above it; items of 4, 4 and 2 lines at the body
+    // minimum, which fit below the title only when it is at its own minimum
     const tl = edited('media_split.landscape.json', (s) => {
       s.events = [];
-      s.title = 'Wattage warms wide metal wires';
+      s.title = 'Wattage warms wide metal wires so quickly';
       s.board[1] = { id: 'b2', kind: 'bullet', text: 'word '.repeat(20).trim() };
       s.board[0].text = 'word '.repeat(20).trim();
-      s.board[2].text = 'word '.repeat(14).trim();
+      s.board[2].text = 'word '.repeat(10).trim();
     });
     const m = mount(tl);
     await m.stage.seek(290);
@@ -463,17 +496,17 @@ test('9:16 layout: headline, the medium between it and the phrase, one phrase bo
     const phraseH = Math.max(...v.items.map((/** @type {any} */ it) => fakeHeight(it.group)));
     assert.equal(v.textBox.y1, L.phraseBottom);
     assert.equal(Math.round(v.textBox.y0), Math.floor(L.phraseBottom - phraseH));
-    for (const it of v.items) assert.deepEqual([px(it.group.style.left), px(it.group.style.width), px(it.group.style.top)], [120, 660, v.textBox.y0]);
+    for (const it of v.items) assert.deepEqual([px(it.group.style.left), px(it.group.style.width), px(it.group.style.top)], [192, 588, v.textBox.y0]);
     const frame = boxOf(v.frame);
     assert.ok(frame.y0 >= 460 && (frame.y1 || 0) <= v.textBox.y0 - L.stageGap + 1, 'between the headline and the phrase');
-    assert.equal(Math.round(((frame.x0 || 0) + frame.x1) / 2), 540, 'centred in the stage');
+    assert.ok(Math.abs(((frame.x0 || 0) + frame.x1) / 2 - 540) <= 1, 'centred in the stage (whole px)');
     assert.ok(v.items.every((/** @type {any} */ it) => px(it.content.style.fontSize) === v.bodySize), 'every phrase at one size');
     m.done();
     // phrases of different lengths: all at the size the longest fits at, none past its two lines
     const mixed = edited('media_split.portrait.json', (s) => {
       s.events = [];
       s.board[0].text = 'Short';
-      s.board[1].text = `${'x'.repeat(23)} ${'y'.repeat(24)}`;
+      s.board[1].text = `${'x'.repeat(21)} ${'y'.repeat(22)}`;
     });
     const mm = mount(mixed);
     await mm.stage.seek(290);
@@ -557,6 +590,22 @@ test('the medium enters: a fade and a 0.96 -> 1 scale (§4.3; downscale only, §
   assert.equal(lv.frame.style.transform, 'none', 'reduced motion: a fade in place');
   assert.ok(Number(lv.frame.style.opacity) > 0 && Number(lv.frame.style.opacity) < 1);
   live.done();
+  // a clip only fades in, in both modes (measured order-dependent when scaled, B2c: test_template_clips.py)
+  const clip = { kind: 'video', asset_key: 'c', url: '/media/c.mp4', duration: 10, src_fps: 30, fit: 'contain_blur', end_behavior: 'freeze' };
+  const still = mediaOf(tl.scenes[0], 'render');
+  assert.equal(clipShown(still), false);
+  for (const mode of /** @type {const} */ (['render', 'live'])) {
+    const ctl = load('media_split.landscape.json');
+    ctl.scenes[0].side_panel.media = { ...clip };
+    assert.equal(clipShown(mediaOf(ctl.scenes[0], mode)), true);
+    const c = mount(ctl, { mode });
+    if (mode === 'render') await c.stage.seek(frameAt(ctl, 0.15 + 0.25 * 1.15));
+    else c.stage.update(0.15 + 0.25 * 1.15);
+    const cv = c.view();
+    assert.equal(cv.frame.style.transform, 'none', `${mode}: a clip is never scaled`);
+    assert.ok(Number(cv.frame.style.opacity) > 0 && Number(cv.frame.style.opacity) < 1, `${mode}: it fades in`);
+    c.done();
+  }
 });
 
 test('16:9: text items enter one per beat; 9:16: one key phrase at a time', async () => {
@@ -708,6 +757,10 @@ test('cue hooks: itemEl gives the term spans in field order; focusRect the frame
     const item = /** @type {any} */ (mediaSplit.focusRect?.(ctx, 'b3'));
     assert.equal(item.el, v.items[2].inner);
     assert.ok(['x', 'y', 'w', 'h'].every((k) => Number.isInteger(item.rect[k])));
+    // a term of an item points at its item (the catalogue lets look_here name one: B2c review CG-5)
+    assert.deepEqual(mediaSplit.focusRect?.(ctx, 'b1:term:0'), mediaSplit.focusRect?.(ctx, 'b1'));
+    // the medium is a shape (its outline goes round it, never across, cues.js shapeArea: CG-1); an item is text
+    assert.deepEqual([panel.kind, item.kind], ['shape', 'text']);
     assert.equal(mediaSplit.focusRect?.(ctx, 'b1:line:0'), null, 'a form it does not draw');
     assert.equal(mediaSplit.focusRect?.(ctx, 'B 1'), null, 'not a target');
     await m.stage.seek(frameAt(tl, 0.1));
@@ -718,6 +771,54 @@ test('cue hooks: itemEl gives the term spans in field order; focusRect the frame
     m.done();
   } finally {
     undo();
+  }
+});
+
+test('16:9: every item but a heading starts with a dot in the marker column (B2c review V10: no item reads as the one above\'s paragraph)', async () => {
+  const tl = edited('media_split.landscape.json', (s) => {
+    s.board = [
+      { id: 'b1', kind: 'bullet', text: 'A bullet' }, { id: 'b2', kind: 'definition', term: 'Term', text: 'its meaning' },
+      { id: 'b3', kind: 'callout_warning', text: 'Careful' },
+    ];
+  });
+  const m = mount(tl);
+  await m.stage.seek(30);
+  const dots = m.view().items.map((/** @type {any} */ it) => !!it.inner.querySelector('.dyn-ms-marker .dyn-ms-dot'));
+  assert.deepEqual(dots, [true, true, true]);
+  m.done();
+  const head = edited('media_split.landscape.json', (s) => {
+    s.board = [{ id: 'h', kind: 'heading', text: 'A sub-head' }, { id: 'b1', kind: 'paragraph', text: 'A paragraph' }];
+  });
+  const hm = mount(head);
+  await hm.stage.seek(30);
+  assert.deepEqual(hm.view().items.map((/** @type {any} */ it) => !!it.inner.querySelector('.dyn-ms-dot')), [false, true], 'a heading is the column\'s sub-head');
+  assert.ok(hm.view().items.every((/** @type {any} */ it) => it.inner.querySelector('.dyn-ms-marker')), 'every text starts at one x');
+  hm.done();
+});
+
+test('§4.8 grammar on every fixture: nothing enters while the camera pushes in or out (B2c review V6)', async () => {
+  for (const name of FIXTURES) {
+    const tl = load(name);
+    const scene = tl.scenes[0];
+    const m = mount(tl);
+    await m.stage.seek(0);
+    const v = m.view();
+    const scale = m.ctx().motion.scale;
+    const moves = cueNeeds(scene, 'media_split').camera
+      ? cueEvents(scene, 'media_split').filter((e) => e.kind === 'look_here').flatMap((e) => [[e.start, e.start + PUSH_IN], [e.hold, e.hold + PUSH_IN * EXIT_FACTOR]])
+      : [];
+    const entrances = [
+      ...v.items.map((/** @type {any} */ it) => [it.enter, it.enter + TEXT_ENTER * scale, it.id]),
+      [v.mediaStart, v.mediaStart + 0.5 * scale, 'medium'],
+    ];
+    for (const [a, b] of moves) {
+      for (const [x, y, what] of entrances) assert.ok(y <= a + 1e-6 || x >= b - 1e-6, `${name}: ${what} enters ${x}-${y} during the move ${a}-${b}`);
+      // a terminal's output lines neither (the schedule's lines shown, sampled through the move)
+      const lines = new Set();
+      for (let t = a; t <= b; t += 1 / 60) lines.add(sceneStateAt(scene, t).terminalLines.length);
+      assert.equal(lines.size, 1, `${name}: an output line appears during the move ${a}-${b}`);
+    }
+    m.done();
   }
 });
 

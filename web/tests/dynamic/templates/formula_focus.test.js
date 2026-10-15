@@ -19,9 +19,9 @@ import { composite, contrastRatio } from '../../../js/motion/color.js';
 import { REVEAL_LEAD } from '../../../js/dynamic/state.js';
 import { TINT_BASE } from '../../../js/dynamic/templates/_shared.js';
 import template, {
-  BOX_PX, BRACE_DRAW, BRACE_EXIT, FORMULA_FADE, FORMULA_SLOT, LAYOUT, LINE_HEIGHT, ROW_EXIT, ROW_SECONDS, TINT_SECONDS,
-  TITLE_TRACKING, boxDrawAt, boxPath, bracePath, breakAtEquals, brokenTex, fitsScene, formulaTex, geometry, slotWidths,
-  texOf, variableIndex, variableTimes,
+  BOX_PX, BRACE_DRAW, BRACE_EXIT, BRACE_GAP, BRACE_HOLD, FORMULA_FADE, FORMULA_SLOT, LAYOUT, LINE_HEIGHT, ROW_SECONDS,
+  TINT_SECONDS, TITLE_TRACKING, boxDrawAt, boxPath, braceBands, braceEnds, bracePath, bracePlace, breakAtEquals,
+  brokenTex, fitsScene, formulaTex, geometry, slotWidths, texOf, variableIndex, variableTimes,
 } from '../../../js/dynamic/templates/formula_focus.js';
 import { contractProblems, orderProblems, renderStage } from './_harness.js';
 
@@ -295,15 +295,15 @@ test('tints (§4.7, R-30): each symbol from ink to its lesson-wide entity colour
   run.done();
 });
 
-test('braces (§4.3): drawn under the symbol on its cue (300 ms), in the band under the formula, gone at the next symbol\'s cue', async () => {
+test('braces (§4.3): drawn under the symbol on its cue (300 ms), gone at the next symbol\'s cue; the last at the walk\'s first look_here', async () => {
   const { run, v, scene, ctx } = await typical();
   const scale = ctx.motion.scale;
   const brace = (/** @type {number} */ k) => v.braces.find((/** @type {any} */ b) => b.index === k);
   const b0 = brace(0);
   assert.equal(v.braces.length, 4);
   assert.ok(b0.drawn);
-  // under the first symbol's box (x 700.4 + 60.2 rounded), below the formula's bottom (400 + 110) and the gap
-  assert.equal(b0.path.getAttribute('d'), bracePath(700, 761, 510 + 8, Math.round(0.24 * v.formulaSize)));
+  // under the first symbol's own glyphs (x 700.4 + 60.2 rounded, bottom 410 + 90), BRACE_GAP below them
+  assert.equal(b0.path.getAttribute('d'), bracePath(700, 761, 500 + BRACE_GAP, Math.round(0.24 * v.formulaSize)));
   assert.equal(b0.path.getAttribute('stroke'), ctx.roles.color('entity:0'), 'in the symbol\'s colour');
   assert.equal(brace(3).path.getAttribute('stroke'), ctx.roles.color('ink2'), 'a symbol without a slot: ink2');
   const atV = scene.events.find((/** @type {any} */ e) => e.target === 'f:var:v').t;
@@ -320,8 +320,94 @@ test('braces (§4.3): drawn under the symbol on its cue (300 ms), in the band un
   await run.seekT(atV0 + BRACE_EXIT * scale + 0.05);
   assert.equal(b0.path.style.visibility, 'hidden', 'the next symbol\'s cue ends it');
   assert.equal(brace(1).path.style.visibility, 'visible');
-  await run.seekT(9.9);
-  assert.equal(brace(3).path.style.visibility, 'visible', 'the last symbol keeps its brace');
+  // the last symbol's brace (t) leaves at the walk's first look_here (B2c review V3: never a second pointer beside the
+  // walk's outline, never a lone brace through the hold)
+  const atT = scene.events.find((/** @type {any} */ e) => e.target === 'f:var:t').t;
+  const walk = scene.events.find((/** @type {any} */ e) => e.kind === 'look_here').t;
+  assert.ok(walk > atT && walk < atT + BRACE_HOLD);
+  assert.equal(brace(3).until, walk);
+  await run.seekT(walk - 0.05);
+  assert.equal(brace(3).path.style.visibility, 'visible');
+  await run.seekT(walk + BRACE_EXIT * scale + 0.05);
+  assert.equal(brace(3).path.style.visibility, 'hidden', 'gone once the walk starts');
+  await run.seekT(scene.duration - 0.05);
+  assert.ok(v.braces.every((/** @type {any} */ b) => b.path.style.visibility === 'hidden'), 'no brace through the hold');
+  run.done();
+});
+
+test('braceEnds: the next symbol\'s cue, else the first look_here after the cue, the last at most BRACE_HOLD', () => {
+  const cued = [{ at: 1 }, { at: 3 }, { at: 3 }, { at: 6 }];
+  const look = (/** @type {number} */ t) => ({ kind: 'look_here', t });
+  assert.deepEqual(braceEnds(cued, []), [3, 6, 6, 6 + BRACE_HOLD]);
+  assert.deepEqual(braceEnds(cued, [look(2), look(7)]), [2, 6, 6, 7], 'a look_here before the next cue ends it first');
+  assert.deepEqual(braceEnds(cued, [look(1), { kind: 'cue_term', t: 2 }, { kind: 'look_here', t: Number.NaN }]), [3, 6, 6, 6 + BRACE_HOLD],
+    'only look_here cues strictly after the brace\'s own cue');
+  assert.deepEqual(braceEnds([], [look(1)]), []);
+});
+
+test('bracePlace (B2c review V1): at the symbol\'s own glyphs: under them, over a numerator, none when boxed in', () => {
+  const bh = 20;
+  const reach = 2 * BRACE_GAP + bh;
+  // I = V / R: I at the axis, V over the bar, R under it (stage px)
+  const I = { x: 700, y: 450, w: 40, h: 60 };
+  const V = { x: 820, y: 400, w: 50, h: 60 };
+  const bar = { x: 810, y: 470, w: 70, h: 6 };
+  const R = { x: 820, y: 490, w: 50, h: 60 };
+  const eq = { x: 760, y: 470, w: 40, h: 20 };
+  assert.deepEqual(bracePlace(I, [V, bar, R, eq], bh), { dir: 1, x0: 700, x1: 740, y: 510 + BRACE_GAP }, 'I: under its own glyph, not the formula\'s bottom');
+  assert.deepEqual(bracePlace(V, [I, bar, R, eq], bh), { dir: -1, x0: 820, x1: 870, y: 400 - BRACE_GAP }, 'V: over it (the bar is under it)');
+  assert.deepEqual(bracePlace(R, [I, V, bar, eq], bh), { dir: 1, x0: 820, x1: 870, y: 550 + BRACE_GAP });
+  // a numerator whose bar is further below than a brace's reach still takes the open side, over it (a brace between
+  // it and the bar would read as part of the fraction)
+  assert.equal(bracePlace(V, [{ ...bar, y: 460 + reach + 6 }], bh)?.dir, -1);
+  // the middle of a stack takes the side with room, under first; boxed in above and below: none
+  const mid = { x: 820, y: 400 + 60 + reach - 10, w: 50, h: 40 };
+  assert.equal(bracePlace(mid, [V, { ...R, y: mid.y + 40 + 10 }], bh), null);
+  assert.equal(bracePlace(mid, [V, { ...R, y: mid.y + 40 + reach + 2 }], bh)?.dir, 1);
+  assert.equal(bracePlace(mid, [{ ...V, y: V.y - 20 }, { ...R, y: mid.y + 40 + 10 }], bh)?.dir, -1);
+  // a glyph merely touching the span's edge (<= 1 px of overlap) does not block it
+  assert.equal(bracePlace(V, [{ x: 869, y: 470, w: 30, h: 30 }], bh)?.dir, 1);
+  // the bands the card keeps for them past the formula's box (I = V / R: 400-550)
+  const f = { x: 700, y: 400, w: 180, h: 150 };
+  const places = [bracePlace(I, [V, bar, R, eq], bh), bracePlace(V, [I, bar, R, eq], bh), bracePlace(R, [I, V, bar, eq], bh)];
+  assert.deepEqual(braceBands(f, places, bh), { above: reach, below: reach });
+  assert.deepEqual(braceBands(f, [places[0]], bh), { above: 0, below: 0 }, 'I\'s brace stays inside the formula\'s box');
+  assert.deepEqual(braceBands(f, [null], bh), { above: 0, below: 0 });
+  // the over-brace's path: its ends at y, its tip bh above
+  assert.match(bracePath(820, 870, 392, bh, -1), /Q845\.0 382\.0 845\.0 372\.0/);
+});
+
+test('a stacked formula: each brace points at its own symbol (V over the fraction, I right under I), the card keeps bands', async () => {
+  const tl = load('formula_focus.landscape.light.json');
+  const run = staged(tl);
+  await run.seekT(0);
+  const ctx = run.ctx();
+  const v = ctx.view;
+  assert.equal(v.item.latex.replace(/\s+/g, ''), 'I=\\frac{V}{R}');
+  const order = v.tints.map((/** @type {any} */ t) => t.symbol);
+  const groups = [...v.texEl.querySelectorAll('g[fill], g[data-dyn-tint]')];
+  const boxes = /** @type {Record<string, {x: number, y: number, w: number, h: number}>} */ ({ I: { x: 700, y: 450, w: 40, h: 60 }, V: { x: 820, y: 400, w: 50, h: 60 }, R: { x: 820, y: 490, w: 50, h: 60 } });
+  groups.forEach((g, i) => {
+    stubRect(g, boxes[order[i]]);
+    for (const leaf of g.querySelectorAll('path')) stubRect(leaf, boxes[order[i]]);
+  });
+  // the fraction bar: a rule of the picture outside every symbol
+  const bar = svg('rect', { width: '10', height: '1' });
+  v.texEl.querySelector('svg')?.appendChild(bar);
+  stubRect(bar, { x: 810, y: 470, w: 70, h: 6 });
+  stubRect(v.texEl, { x: 700, y: 400, w: 180, h: 150 });
+  /** @type {any} */ (template).layout(ctx);
+  const bh = Math.max(12, Math.min(28, Math.round(0.24 * v.formulaSize)));
+  const d = (/** @type {string} */ sym) => v.braces.find((/** @type {any} */ b) => v.item.variables[b.index].symbol_latex === sym).path.getAttribute('d');
+  assert.equal(d('V'), bracePath(820, 870, 400 - BRACE_GAP, bh, -1), 'V: an over-brace above V, never under R');
+  assert.equal(d('I'), bracePath(700, 740, 510 + BRACE_GAP, bh, 1), 'I: right under I');
+  assert.equal(d('R'), bracePath(820, 870, 550 + BRACE_GAP, bh, 1));
+  // above: the reach less what the card's top padding gives while keeping BRACE_GAP clear of the box's stroke
+  const above = 2 * BRACE_GAP + bh + BOX_PX - LAYOUT.landscape.card.padY;
+  assert.ok(above > 0);
+  assert.deepEqual(v.bands, { above, below: 2 * BRACE_GAP + bh });
+  assert.equal(v.bandAbove.style.height, `${above}px`, 'room in the card above the formula');
+  assert.equal(v.band.style.height, `${2 * BRACE_GAP + bh}px`, 'and below it, before the sentence');
   run.done();
 });
 
@@ -395,34 +481,40 @@ test('focusRect: a symbol\'s first place in the formula (whole px, the card hold
   assert.deepEqual(sym.rect, { x: 800, y: 410, w: 61, h: 90 });
   assert.equal(sym.shape, 'rect');
   assert.equal(sym.el, v.card);
+  assert.equal(sym.kind, 'shape', 'a glyph in the card: its outline goes round it (cues.js shapeArea)');
+  assert.deepEqual(sym.keep, [v.rows[1].slot], 'the symbol\'s own legend row stays bright');
+  assert.equal(fr(ctx, 'f').kind, 'shape', 'the card');
   assert.equal(fr(ctx, 'f:var:v_0 '), null, 'outside the grammar (a symbol is never padded)');
   assert.deepEqual(fr(ctx, 'f').rect, { x: 600, y: 360, w: 720, h: 300 });
   assert.equal(fr(ctx, 'f').el, v.card);
   stubRect(v.title, { x: 96, y: 54, w: 900, h: 101 });
   assert.equal(fr(ctx, 'h').el, v.title);
+  assert.equal(fr(ctx, 'h').kind, 'text');
   for (const t of ['f:var:zz', 'g:var:v', 'option:0', 'panel', 'f:line:0', 'nope', '']) assert.equal(fr(ctx, t), null, t);
   // a symbol the formula does not show: its legend row
   v.targets.set('t', []);
   stubRect(v.rows[3].row, { x: 400, y: 700, w: 300.6, h: 60 });
   assert.deepEqual(fr(ctx, 'f:var:t').rect, { x: 400, y: 700, w: 301, h: 60 });
   assert.equal(fr(ctx, 'f:var:t').el, v.rows[3].row);
-  // the dim groups: the headline, the card (with its braces), the legend; the same elements at every t
+  // the dim groups: the headline, the card (with its braces), each legend row; the same elements at every t
   const groups = /** @type {any} */ (template).dimGroups(ctx);
-  assert.deepEqual(groups, [v.titleGroup, v.cardGroup, v.legendGroup]);
+  assert.deepEqual(groups, [v.titleGroup, v.cardGroup, ...v.rows.map((/** @type {any} */ r) => r.slot)]);
   await run.seekT(7);
   assert.equal(/** @type {any} */ (template).dimGroups(ctx)[1], groups[1]);
   assert.ok(groups[1].contains(v.card) && groups[1].contains(v.bracesSvg));
   run.done();
 });
 
-test('the R-16 walk is drawn by cues.js once the catalogue consumes look_here on <item>:var (integration)', { skip: !(templateBehaviour(ID)?.consumes.kinds.includes('look_here')) && 'pending the templates.py consumes change (integrator request)' }, async () => {
+test('the R-16 walk is drawn by cues.js (the catalogue consumes look_here on <item>:var): the symbol\'s own row stays bright', async () => {
   const { run, v, scene, ctx } = await typical();
   const walk = cueEvents(scene, ID).filter((e) => e.kind === 'look_here');
   assert.deepEqual(walk.map((e) => e.target), ['f:var:v', 'f:var:v_0']);
   await run.seekT(walk[0].start + 0.5);
   const outline = run.stage.el.querySelector('.dyn-cue-outline');
   assert.ok(outline && outline.getAttribute('d'));
-  assert.equal(v.legendGroup.style.opacity !== '' && Number(v.legendGroup.style.opacity) < 1, true, 'the legend dims');
+  const dimmed = (/** @type {HTMLElement} */ el) => el.style.opacity !== '' && Number(el.style.opacity) < 1;
+  assert.deepEqual(v.rows.map((/** @type {any} */ r) => dimmed(r.slot)), [false, true, true, true], 'v\'s row stays, the others dim');
+  assert.equal(dimmed(v.titleGroup), true);
   assert.equal(v.cardGroup.style.opacity, '', 'the card holds the target');
   assert.equal(ctx.view, v);
   run.done();
@@ -562,6 +654,72 @@ test('9:16: a formula wider than the card at its smallest size is set broken at 
   land.done();
 });
 
+test('9:16: a formula crossing the rail is first set smaller in the wide card (§4.3\'s 768 px); the narrow card only when its minimum crosses too', async () => {
+  const tl = load('formula_focus.portrait.json');
+  const run = staged(tl);
+  await run.seekT(0);
+  const ctx = run.ctx();
+  const v = ctx.view;
+  const g = geometry(ZONES.portrait);
+  const L = LAYOUT.portrait;
+  const top = g.title.y0 + L.titleGap; // jsdom: the headline has no height
+  /** A formula `wEm` x `hEm` em, at the size the page sets. @param {number} wEm @param {number} hEm */
+  const em = (wEm, hEm) => {
+    const fs = () => parseFloat(v.formulaHost.style.fontSize) || L.formula.max;
+    Object.defineProperty(v.wideTex, 'offsetWidth', { configurable: true, get: () => (v.wideTex.style.display === 'none' ? 0 : Math.round(wEm * fs())) });
+    Object.defineProperty(v.wideTex, 'offsetHeight', { configurable: true, get: () => Math.round(hEm * fs()) });
+  };
+  // 8 em wide (fitted to the wide card's 696 px at 84; its right end past x 780 at any size), 5.5 em tall: ends below
+  // the rail at 84 px, above it at 80
+  em(8, 5.5);
+  assert.ok(8 * 84 <= 696 && 8 * 88 > 696 && 540 + 8 * L.formula.min / 2 > 780);
+  assert.ok(top + L.card.padY + 5.5 * 84 > g.rail && top + L.card.padY + 5.5 * 80 <= g.rail);
+  /** @type {any} */ (template).layout(ctx);
+  assert.deepEqual([v.narrow, v.formulaSize], [false, 80], 'the wide card, the formula at the largest size that ends above the rail');
+  // 7 em tall: below the rail even at its minimum (68 x 7 = 476 + 388 > 840): the narrow card
+  em(8, 7);
+  assert.ok(top + L.card.padY + 7 * L.formula.min > g.rail);
+  /** @type {any} */ (template).layout(ctx);
+  assert.equal(v.narrow, true);
+  run.done();
+});
+
+test('9:16: the brace band above the formula counts toward where it ends (a numerator\'s over-brace can push it below y 840)', async () => {
+  const tl = load('formula_focus.portrait.light.json');
+  const run = staged(tl);
+  await run.seekT(0);
+  const ctx = run.ctx();
+  const v = ctx.view;
+  const g = geometry(ZONES.portrait);
+  const L = LAYOUT.portrait;
+  const top = g.title.y0 + L.titleGap; // jsdom: the headline has no height
+  const fs = L.formula.max;
+  const bh = Math.max(12, Math.min(28, Math.round(0.24 * fs)));
+  const above = 2 * BRACE_GAP + bh + BOX_PX - L.card.padY;
+  // a formula 600 px wide (its right end past x 780) ending 5 px above the rail without the band, below it with it
+  const texH = g.rail - 5 - top - L.card.padY;
+  Object.defineProperty(v.wideTex, 'offsetWidth', { configurable: true, get: () => (v.wideTex.style.display === 'none' ? 0 : 600) });
+  Object.defineProperty(v.wideTex, 'offsetHeight', { configurable: true, get: () => texH });
+  // I = V / R: V over the bar, so its brace goes over it (the band above)
+  stubRect(v.wideTex, { x: 240, y: 500, w: 600, h: texH });
+  const order = v.tints.map((/** @type {any} */ t) => t.symbol);
+  /** @param {number} rx R's x: under V (V's brace over it, the band above) or beside it (V's under it, no band) */
+  const lay = (rx) => {
+    const boxes = /** @type {Record<string, any>} */ ({ I: { x: 300, y: 600, w: 40, h: 60 }, V: { x: 500, y: 500, w: 50, h: 60 }, R: { x: rx, y: 700, w: 50, h: 60 } });
+    [...v.wideTex.querySelectorAll('g[fill], g[data-dyn-tint]')].forEach((el, i) => {
+      stubRect(el, boxes[order[i]]);
+      for (const leaf of el.querySelectorAll('path')) stubRect(leaf, boxes[order[i]]);
+    });
+    /** @type {any} */ (template).layout(ctx);
+  };
+  assert.ok(above > 0 && top + L.card.padY + texH <= g.rail && top + L.card.padY + above + texH > g.rail);
+  lay(700);
+  assert.equal(v.narrow, false, 'no glyph under V: its brace under it, no band above, the formula ends above the rail');
+  lay(500);
+  assert.equal(v.narrow, true, 'the band above moves the formula below the rail, wider than the column there: the narrow card');
+  run.done();
+});
+
 test('9:16: a formula that would reach below y 840 outside the column there (R-59) gets the narrow card; one inside it keeps the wide one', async () => {
   const tl = load('formula_focus.portrait.json');
   const run = staged(tl);
@@ -607,15 +765,15 @@ async function tallPortrait(h) {
   return { tl, run, ctx, v };
 }
 
-test('the fit: legend, sentence, headline, formula shrink in turn; then the sentence is left out; then the legend stacks', async () => {
+test('the fit: legend, sentence, headline, formula shrink in turn; then the sentence is left out; then overflow, never a dropped row', async () => {
   const L = LAYOUT.portrait;
   const g = geometry(ZONES.portrait);
   const top = g.title.y0 + L.titleGap; // jsdom: the headline has no height
   const avail = g.bottom - top;
-  // everything fits with the sentence: all at their largest, the sentence drawn, no stack
+  // everything fits with the sentence: all at their largest, the sentence drawn
   {
     const { run, v, ctx } = await tallPortrait({ withText: 300, bare: 150, rowEm: 1 });
-    assert.deepEqual([v.textShown, v.stack, v.legendSize, v.formulaSize, v.titleSize], [true, 4, L.legend.max, L.formula.max, L.title.max]);
+    assert.deepEqual([v.textShown, v.legendSize, v.formulaSize, v.titleSize, v.legendOverflow], [true, L.legend.max, L.formula.max, L.title.max, 0]);
     assert.ok(/** @type {any} */ (template).texts(ctx).some((/** @type {any} */ e) => e.slot === 'text'));
     run.done();
   }
@@ -634,56 +792,27 @@ test('the fit: legend, sentence, headline, formula shrink in turn; then the sent
     assert.equal(v.textShown, false);
     assert.equal(/** @type {HTMLElement} */ (v.textMask || v.textEl).style.display, 'none');
     assert.ok(!/** @type {any} */ (template).texts(ctx).some((/** @type {any} */ e) => e.slot === 'text'), 'not reported: not drawn');
-    assert.equal(v.stack, 4);
     assert.equal(v.formulaSize, L.formula.max);
+    assert.equal(v.legendOverflow, 0);
     run.done();
   }
-  // still too tall without it: everything at its minimum, then the newest rows that fit as a compact stack
+  // still too tall without it: everything at its minimum, every row kept, the excess reported as the legend's overflow
+  // (preflight blocks with "Shorten text"; RV L-13: no row is dropped or faded out to make room, B2c review V2)
   {
-    const { run, v } = await tallPortrait({ withText: 600, bare: 150, rowEm: 3 });
-    const room = avail - 150 - L.legendGap;
-    const row = 3 * L.legend.min;
-    assert.equal(v.stack, Math.floor((room + L.rowGap) / (row + L.rowGap)), `rows of ${row} px in ${room} px`);
-    assert.ok(v.stack >= 2 && v.stack < 4);
+    const { run, v, ctx, tl } = await tallPortrait({ withText: 600, bare: 150, rowEm: 3 });
+    const legendH = 4 * 3 * L.legend.min + 3 * L.rowGap;
     assert.deepEqual([v.legendSize, v.formulaSize, v.titleSize], [L.legend.min, L.formula.min, L.title.min]);
-    assert.equal(v.legendOverflow, 0, 'a stack that fits is no overflow');
-    assert.equal(v.legend.style.height, `${room}px`, 'the stack\'s box is its room (a scrim stays out of the caption band)');
-    assert.deepEqual(v.order.map((/** @type {any} */ r) => r.index), v.rows.slice().sort((/** @type {any} */ a, /** @type {any} */ b) => a.enter - b.enter || a.index - b.index).map((/** @type {any} */ r) => r.index), 'entrance order');
-    assert.deepEqual([...v.legend.children], v.order.map((/** @type {any} */ r) => r.slot));
+    assert.equal(v.legendOverflow, 150 + L.legendGap + legendH - avail, 'the spill past the bottom');
+    assert.deepEqual([...v.legend.children], v.rows.map((/** @type {any} */ r) => r.slot), 'every row, in legend order');
+    assert.equal(v.legend.style.height, '', 'the legend is its rows\' height');
+    // every row that entered stays on screen to the scene's end, at full opacity (never a one-item carousel)
+    await run.seekT(tl.scenes[0].duration - 0.05);
+    assert.deepEqual(v.rows.map((/** @type {any} */ r) => Number(r.row.style.opacity)), [1, 1, 1, 1]);
+    assert.ok(v.rows.every((/** @type {any} */ r) => r.slot.style.visibility !== 'hidden' && r.slot.style.transform === ''));
+    const entries = /** @type {any} */ (template).texts(ctx).filter((/** @type {any} */ e) => e.slot === 'legend');
+    assert.deepEqual(entries.map((/** @type {any} */ e) => [e.alpha, e.overflow > 0]), v.rows.map(() => [1, true]));
     run.done();
   }
-  // not even one row fits: the legend is laid out whole and its overflow reported (preflight: "Shorten text")
-  {
-    const { run, v } = await tallPortrait({ withText: 900, bare: 640, rowEm: 3 });
-    assert.equal(v.stack, 4);
-    assert.ok(v.legendOverflow > 0);
-    run.done();
-  }
-});
-
-test('the compact stack paints the oldest row out (30% faster than an entrance) and the rows under it up by its height', async () => {
-  const { run, v, ctx, tl } = await tallPortrait({ withText: 600, bare: 150, rowEm: 3 });
-  const scale = ctx.motion.scale;
-  const k = v.stack;
-  const [first, second] = v.order;
-  const next = v.order[k];
-  assert.equal(first.exitAt, next.enter - ROW_EXIT * scale);
-  assert.equal(v.order[k].exitAt, Infinity, 'the newest rows never leave');
-  const h = first.row.offsetHeight + LAYOUT.portrait.rowGap;
-  await run.seekT(first.exitAt - 0.05);
-  assert.equal(second.slot.style.transform, 'none');
-  assert.equal(first.slot.style.opacity, '', 'the fade is on the row itself (see paintEntrance)');
-  assert.equal(Number(first.row.style.opacity), 1);
-  await run.seekT(first.exitAt + 0.5 * ROW_EXIT * scale);
-  const fading = Number(first.row.style.opacity);
-  assert.ok(fading > 0 && fading < 1, `leaving: ${fading}`);
-  await run.seekT(next.enter + 0.05);
-  assert.equal(first.slot.style.visibility, 'hidden');
-  assert.equal(second.slot.style.transform, `translate(0, -${h}px)`, 'moved up by the first row and its gap (2D)');
-  const entries = /** @type {any} */ (template).texts(ctx).filter((/** @type {any} */ e) => e.slot === 'legend');
-  assert.equal(entries.find((/** @type {any} */ e) => e.el === first.row).alpha, 0, 'a row that left is not on screen');
-  assert.ok(tl.scenes[0].duration > next.enter);
-  run.done();
 });
 
 // --- geometry, slots and the catalogue -----------------------------------------------------------------------------
@@ -722,9 +851,9 @@ test('sizes keep R-29\'s floors; line heights are the catalogue type scale\'s (I
   assert.equal(LINE_HEIGHT.body.indic, scale.body.line_height.indic[0]);
 });
 
-const implemented = !!(/** @type {any} */ (CATALOGUE).templates[ID].implemented);
-
-test('the catalogue\'s slots are this template\'s (templates.py mirrors LAYOUT; no drift)', { skip: !implemented && 'pending registration (templates.py implemented=True + slots, catalogue regenerated)' }, () => {
+test('the catalogue\'s slots are this template\'s (templates.py mirrors LAYOUT; no drift)', () => {
+  // registered (B2c review CG-4: never skipped, so a lost slot table or consumes entry fails here)
+  assert.equal(/** @type {any} */ (CATALOGUE).templates[ID].implemented, true);
   const slots = /** @type {any} */ (templateSlots(ID));
   assert.deepEqual(Object.keys(slots).sort(), ['formula', 'legend', 'text', 'title']);
   for (const f of /** @type {const} */ (['landscape', 'portrait'])) {
@@ -754,6 +883,7 @@ test('the catalogue\'s slots are this template\'s (templates.py mirrors LAYOUT; 
   const behaviour = templateBehaviour(ID);
   assert.deepEqual(behaviour?.consumes.kinds, ['reveal', 'var', 'draw', 'look_here']);
   assert.deepEqual(behaviour?.consumes.targets, ['item', 'item:var']);
+  assert.deepEqual(behaviour?.consumes.forms, { reveal: ['item'], var: ['item:var'], draw: ['item'], look_here: ['item', 'item:var'] });
   assert.equal(behaviour?.pushOk, false, 'R-30: no camera motion on a formula');
 });
 

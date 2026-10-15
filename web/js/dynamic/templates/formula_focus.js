@@ -19,24 +19,33 @@
  *   When even the formula's smallest size is wider, it is set again broken at its top-level "=" signs (`breakAtEquals`:
  *   one line per "=", aligned on it); when that is still wider, the overflow is reported (preflight blocks with
  *   "Shorten text"; Python's lint `portrait.formula_wide` warns earlier). A formula that would reach below y 840
- *   (where the TikTok rail narrows the critical column to x 120-780) wider than that column gets the narrow card
- *   instead (x 156-816, text x 192-780). The sentence (left-aligned) and the legend keep to the text column x 192-780.
+ *   (where the TikTok rail narrows the critical column to x 120-780) wider than that column is first set smaller in
+ *   the wide card, down to its minimum, until it ends above y 840; only when it cannot does it get the narrow card
+ *   (x 156-816, text x 192-780). The sentence (left-aligned) and the legend keep to the text column x 192-780.
  *   Everything ends above the caption band (y 1020).
  * - **Fit** (`layout`): sizes shrink in 4 px steps to their R-29 minimums (legend, sentence, headline, formula last);
  *   when that is not enough the sentence is left out (§4.3 names no sentence for this template; the legend is its
- *   own), then a one-column legend becomes a compact stack (RV L-13); what still does not fit is reported as overflow.
+ *   own); what still does not fit is reported as overflow (preflight blocks with "Shorten text", §7.12). Every legend
+ *   row stays on screen once it entered: no row ever leaves to make room (RV L-13: 9:16 never makes content disappear,
+ *   never a one-item carousel; B2c review V2 removed a "compact stack" that faded the oldest rows out).
  * - **Choreography** (§4.3, §4.8): the headline enters with the personality's text entrance (`ctx.motion.entrance`);
  *   the card fades in (400 ms) on the formula's entrance (its reveal event, else its beat, R-17's 120 ms lead); on each
  *   symbol's `var` event (`<item>:var:<symbol>`, events.py; B1's `var:<n>` sync cue until B2d writes them) the symbol
  *   tints to its lesson-wide entity colour (§4.7, R-30: `presentation.entity_colors` through `ctx.entityRole`; a
- *   symbol without a slot stays `ink`), a brace draws under it (300 ms, in the band under the formula) and its legend
- *   row enters; a brace stays until the next symbol's cue and leaves 30% faster than it drew. No camera motion (R-30:
- *   the template never transforms anything but its own text entrances, and its spec is not push_ok). Every duration is
- *   the personality's (`_shared.js` `seconds`).
+ *   symbol without a slot stays `ink`), a brace draws at it (300 ms) and its legend row enters. The brace is the
+ *   symbol's own pointer, so it is placed at the symbol's glyphs (`bracePlace`, B2c review V1): under them when the
+ *   room under them is clear of the formula's other glyphs, else over them (a numerator, whose fraction bar is right
+ *   under it), else none (the tint and the legend row still mark it); a band of room is kept in the card above or
+ *   below the formula where a brace reaches past it. A brace stays until the next symbol's cue or the first look_here
+ *   after it, whichever comes first, the last one at most CUE_HOLD (B2c review V3: never a second pointer next to the
+ *   R-16 walk's outline, never a lone brace through the hold), and leaves 30% faster than it drew. No camera motion
+ *   (R-30: the template never transforms anything but its own text entrances, and its spec is not push_ok). Every
+ *   duration is the personality's (`_shared.js` `seconds`).
  * - **Holds** (R-16, R-55): the background freezes from the scene start because the template is dense (the resolver
  *   writes `look.background.frozen_at = 0`, presentation.py DENSE_TEMPLATES; the stage pins the background clock and
  *   desaturates it, state.js / stage.js), and the R-16 hold's look_here walk over the symbols is drawn by cues.js from
- *   `focusRect(ctx, '<item>:var:<symbol>')`. No SFX (R-49): the template makes no sound.
+ *   `focusRect(ctx, '<item>:var:<symbol>')`, which keeps the symbol's own legend row bright (`FocusRect.keep`: every
+ *   legend row is a dim group of its own) while the rest dims. No SFX (R-49): the template makes no sound.
  * - **Emphasis** is cues.js's alone (§4.2): this module never writes `outline`, `text-decoration`, `filter` or the
  *   `mark` / `focus` roles; the tints are content colours, the braces and the box are drawings.
  *
@@ -55,6 +64,7 @@ import { splitWords } from '../../motion/text.js';
 import { mathSpans } from '../../player/richtext.js';
 import { planScene } from '../../player/schedule.js';
 import { LAYOUT_TOKENS, fixesOf, fx, parseTarget } from '../core.js';
+import { CUE_HOLD, cueEvents } from '../cues.js';
 import { REVEAL_LEAD, itemTimings } from '../state.js';
 import boardGeneric from './board_generic.js';
 import {
@@ -192,7 +202,8 @@ export function slotWidths(zones) {
 export const BOX_PX = Number(LAYOUT_TOKENS.border.structure_min);
 /** Brace stroke width, px (a drawing on the card: graphics >= 3:1, R-53; entity colours hold 4.5:1 on surface). */
 export const BRACE_PX = 4;
-/** The brace band under the formula: the gap above and below a brace, its height as a share of the TeX size. */
+/** A brace's room: the gap between it and its symbol's glyphs (and the gap it keeps clear past its tip), its height as
+ * a share of the TeX size. */
 export const BRACE_GAP = 8;
 export const BRACE_SHARE = 0.24;
 export const BRACE_MIN = 12;
@@ -219,8 +230,9 @@ export const BRACE_EXIT = BRACE_DRAW * 0.7;
 /** A legend row enters over 450 ms (§4.8 entrance 400-600 ms); rows with no cue follow the formula, staggered. */
 export const ROW_SECONDS = 0.45;
 export const ROW_STAGGER = 0.09;
-/** A row leaving a compact stack fades and the rows under it move up, 30% faster than an entrance (§4.8). */
-export const ROW_EXIT = ROW_SECONDS * 0.7;
+/** The last symbol's brace stays at most this long after its cue (no next symbol ends it): a cue's hold without its
+ * own `dur` (cues.js CUE_HOLD; B2c review V3). */
+export const BRACE_HOLD = CUE_HOLD;
 /** The box draws round the card over 600 ms on a `draw` event (§4.8 "stroke draw 600-1200 ms per group"). */
 export const BOX_DRAW = 0.6;
 /** Corner radius of a look_here outline's target box round a symbol (cues.js adds its outset). */
@@ -436,19 +448,93 @@ export function boxDrawAt(scene, item, enter) {
 }
 
 /**
- * The SVG path of an under-brace over [x0, x1] whose top is at y, `height` px tall, its tip at the middle (quadratic
- * curves; whole and half px). Drawn left to right.
- * @param {number} x0 @param {number} x1 @param {number} y @param {number} height
+ * The SVG path of a brace over [x0, x1] whose ends are at y, `height` px tall, its tip at the middle (quadratic
+ * curves; whole and half px): `dir` 1 an under-brace (its tip below y), -1 an over-brace (its tip above y). Drawn
+ * left to right.
+ * @param {number} x0 @param {number} x1 @param {number} y @param {number} height @param {1 | -1} [dir]
  */
-export function bracePath(x0, x1, y, height) {
+export function bracePath(x0, x1, y, height, dir = 1) {
   const w = Math.max(0, x1 - x0);
   const q = Math.min(height / 2, w / 4);
   const mid = x0 + w / 2;
   const half = (/** @type {number} */ v) => fx(Math.round(v * 2) / 2, 1);
-  const ym = y + height / 2;
+  const ym = y + (dir * height) / 2;
+  const tip = y + dir * height;
   return `M${half(x0)} ${half(y)}Q${half(x0)} ${half(ym)} ${half(x0 + q)} ${half(ym)}L${half(mid - q)} ${half(ym)}`
-    + `Q${half(mid)} ${half(ym)} ${half(mid)} ${half(y + height)}Q${half(mid)} ${half(ym)} ${half(mid + q)} ${half(ym)}`
+    + `Q${half(mid)} ${half(ym)} ${half(mid)} ${half(tip)}Q${half(mid)} ${half(ym)} ${half(mid + q)} ${half(ym)}`
     + `L${half(x1 - q)} ${half(ym)}Q${half(x1)} ${half(ym)} ${half(x1)} ${half(y)}`;
+}
+
+/**
+ * @typedef {{x: number, y: number, w: number, h: number}} Rect
+ * @typedef {{dir: 1 | -1, x0: number, x1: number, y: number}} BracePlace
+ */
+
+/**
+ * Where a symbol's brace goes (B2c review V1; pure): at the symbol's own glyphs `r`, so it points at that symbol in any
+ * formula, a stacked one included. On the open side first: under them (`dir` 1, its ends BRACE_GAP below them) when
+ * no other glyph of the formula (`others`) lies anywhere below them across the symbol's x span, else over them
+ * (`dir` -1) when none lies above (a numerator: its fraction bar and denominator are under it, so its brace goes over
+ * it, never squeezed between it and the bar, which reads as part of the fraction). A symbol with glyphs on both sides
+ * (the middle of a stack) takes the side with room for a brace (its gap, its height and a gap past its tip), under
+ * first; else null (no brace: the tint and the legend row still mark it). Room past the formula's own box is the
+ * card's band, which `layout` keeps (`braceBands`). Whole px.
+ * @param {Rect} r   the symbol's glyphs (its first placeholder group as drawn)
+ * @param {Rect[]} others   every other glyph of the formula (`glyphRects`)
+ * @param {number} height   the brace's height
+ * @returns {BracePlace | null}
+ */
+export function bracePlace(r, others, height) {
+  const x0 = Math.round(r.x);
+  const x1 = Math.round(r.x + r.w);
+  const reach = 2 * BRACE_GAP + height;
+  /** @param {number} y0 @param {number} y1 */
+  const clear = (y0, y1) => !others.some((o) => Math.min(o.x + o.w, x1) - Math.max(o.x, x0) > 1
+    && Math.min(o.y + o.h, y1) - Math.max(o.y, y0) > 0);
+  const bottom = Math.round(r.y + r.h);
+  const top = Math.round(r.y);
+  const under = { dir: /** @type {1} */ (1), x0, x1, y: bottom + BRACE_GAP };
+  const over = { dir: /** @type {-1} */ (-1), x0, x1, y: top - BRACE_GAP };
+  if (clear(bottom, Infinity)) return under;
+  if (clear(-Infinity, top)) return over;
+  if (clear(bottom, bottom + reach)) return under;
+  if (clear(top - reach, top)) return over;
+  return null;
+}
+
+/**
+ * The room the braces need past the formula's box `f` (px above its top and below its bottom, whole, >= 0): the card
+ * keeps it as bands, so a brace never reaches the card's edge, the sentence or the headline.
+ * @param {Rect} f @param {(BracePlace | null)[]} places @param {number} height
+ */
+export function braceBands(f, places, height) {
+  let above = 0;
+  let below = 0;
+  for (const p of places) {
+    if (!p) continue;
+    // from the brace's ends to past its tip, with BRACE_GAP clear beyond
+    if (p.dir === 1) below = Math.max(below, p.y + height + BRACE_GAP - (f.y + f.h));
+    else above = Math.max(above, f.y - (p.y - height - BRACE_GAP));
+  }
+  return { above: Math.max(0, Math.ceil(above)), below: Math.max(0, Math.ceil(below)) };
+}
+
+/**
+ * The boxes of a TeX picture's glyphs and rules (MathJax SVG: a glyph is a `<use>` of its cached path, a fraction bar
+ * or a root's vinculum a `<rect>`, a stretchy part a `<path>`; nothing in `<defs>`), stage px, skipping the elements
+ * inside `skip` (the symbol's own groups) and empty boxes.
+ * @param {TemplateContext} ctx @param {Element} texEl @param {Element[]} skip
+ * @returns {Rect[]}
+ */
+function glyphRects(ctx, texEl, skip) {
+  /** @type {Rect[]} */
+  const out = [];
+  for (const el of texEl.querySelectorAll('use, rect, path, text, line, polygon')) {
+    if (el.closest('defs') || skip.some((s) => s === el || s.contains(el))) continue;
+    const r = ctx.rectOf(el);
+    if (r && r.w > 0 && r.h > 0) out.push(r);
+  }
+  return out;
 }
 
 /**
@@ -539,18 +625,14 @@ function padMask(mask, size) {
  * overflow-clipped mask of the baseline reveal rasterised up to 2 levels differently in a forward and a reverse render
  * of the same frames (the bottom row of the glyphs, while it moved); with `translate` 0 frames differed. A 2D transform
  * is painted in its parent's layer, at its whole-px offset, like a still element (§7.4).
- * `fade` (0..1) multiplies the opacity (a row leaving a compact stack fades on the row itself, the element whose
- * opacity the entrance already sets: a fade written on its slot instead left the row's glyphs up to 2 levels apart in a
- * forward and a reverse render once the slot was back at full opacity, measured in real Chromium).
  * @param {TemplateContext} ctx @param {HTMLElement} el @param {HTMLElement | null} mask @param {number} e
- * @param {number} [fade]
  */
-function paintEntrance(ctx, el, mask, e, fade = 1) {
+function paintEntrance(ctx, el, mask, e) {
   const p = ctx.paint;
   const kind = ctx.motion ? ctx.motion.entrance : 'fade_rise';
   const reveal = kind === 'baseline_reveal' && !!mask && !ctx.reducedMotion;
   const dy = ctx.reducedMotion || e >= 1 ? 0 : Math.round((1 - e) * (reveal && mask ? mask.offsetHeight || 0 : TEXT_RISE));
-  p.style(el, 'opacity', fx((reveal ? (e > 0 ? 1 : 0) : e) * fade));
+  p.style(el, 'opacity', fx(reveal ? (e > 0 ? 1 : 0) : e));
   p.style(el, 'transform', dy ? `translate(0, ${dy}px)` : 'none');
 }
 
@@ -564,11 +646,9 @@ function paintEntrance(ctx, el, mask, e, fade = 1) {
  * @property {string} symbol
  * @property {HTMLElement} row
  * @property {HTMLElement | null} mask
- * @property {HTMLElement} slot     the row's place in the legend (a compact stack moves and fades it)
+ * @property {HTMLElement} slot     the row's place in the legend: its own dim group (a look_here on its symbol keeps it)
  * @property {number | null} at     its cue (null: with the formula)
  * @property {number} enter         its entrance start
- * @property {number} exitAt        when it leaves a compact stack (Infinity: never)
- * @property {number} height        its height with the row gap, px (layout)
  * @property {string} text
  */
 
@@ -577,9 +657,27 @@ function paintEntrance(ctx, el, mask, e, fade = 1) {
  * @property {number} index        the variable
  * @property {SVGElement} path
  * @property {number} at           its cue
- * @property {number} until        the next symbol's cue (Infinity: none)
- * @property {boolean} drawn       it has geometry (the symbol is in the formula)
+ * @property {number} until        when it leaves: the next symbol's cue or the first look_here after it, the last one
+ *                                 at most BRACE_HOLD after its cue
+ * @property {boolean} drawn       it has geometry (the symbol is in the formula, with room for a brace)
  */
+
+/**
+ * When each cued symbol's brace leaves (B2c review V3; pure): at the next cue of another symbol (strictly later), or
+ * at the first look_here after its own cue (the R-16 walk's outline is then the one pointer on screen), whichever comes
+ * first; the last symbol's at most BRACE_HOLD after its cue (never a lone brace through the hold). `cued` in cue order.
+ * @param {{at: number}[]} cued @param {readonly {kind?: string, t?: unknown}[]} events
+ * @returns {number[]}
+ */
+export function braceEnds(cued, events) {
+  const looks = (events || []).filter((e) => e && e.kind === 'look_here' && typeof e.t === 'number' && Number.isFinite(e.t))
+    .map((e) => /** @type {number} */ (e.t));
+  return cued.map((c, j) => {
+    const next = cued.slice(j + 1).find((d) => d.at > c.at);
+    const look = looks.filter((t) => t > c.at).reduce((a, b) => Math.min(a, b), Infinity);
+    return Math.min(next ? next.at : c.at + BRACE_HOLD, look);
+  });
+}
 
 /** @param {TemplateContext} ctx */
 const isFallback = (ctx) => !!(ctx.view && ctx.view.ffFallback);
@@ -639,6 +737,8 @@ export default {
     const brokenEl = brokenString ? h('span', { class: 'ff-tex ff-tex--broken', style: { display: 'none', lineHeight: '0' } }) : null;
     if (brokenEl && brokenString) tex(ctx, brokenEl, brokenString, true);
     const formulaHost = h('div', { class: 'ff-formula', style: { textAlign: 'center', lineHeight: '0', whiteSpace: 'nowrap' } }, wideTex, brokenEl);
+    // the braces' room in the card past the formula's box (layout sizes them: braceBands)
+    const bandAbove = h('div', { class: 'ff-band ff-band--above', 'aria-hidden': 'true' });
     const band = h('div', { class: 'ff-band', 'aria-hidden': 'true' });
     const sentence = typeof item.text === 'string' && item.text.trim() ? item.text : '';
     const textEl = sentence ? h('div', {
@@ -658,9 +758,9 @@ export default {
         position: 'absolute', boxSizing: 'border-box', borderRadius: `${RADIUS.card}px`, background: surface, color: ink,
         boxShadow: String(LAYOUT_TOKENS.shadow['2']),
       },
-    }, boxSvg, formulaHost, band, textMask || textEl);
+    }, boxSvg, bandAbove, formulaHost, band, textMask || textEl);
 
-    // --- the braces (one per variable that has a cue; drawn in stage px over the card's band)
+    // --- the braces (one per variable that has a cue; drawn in stage px at their symbols, bracePlace)
     // entrances (state.js itemTimings: a reveal event, else the beat that reveals the item, R-17's lead, else with
     // the scene): the formula's, and the headline's (a heading's own, else the scene start)
     const timings = itemTimings(scene);
@@ -669,6 +769,9 @@ export default {
     const times = variableTimes(scene, item, enter);
     const cued = times.map((x, k) => ({ k, at: x.at })).filter((x) => x.at !== null)
       .sort((a, b) => /** @type {number} */ (a.at) - /** @type {number} */ (b.at) || a.k - b.k);
+    // the look_here cues cues.js draws on this scene (the walk): their starts end a brace
+    const ends = braceEnds(cued.map((c) => ({ at: /** @type {number} */ (c.at) })),
+      cueEvents(scene, ID).map((e) => ({ kind: e.kind, t: e.start })));
     const bracesSvg = svg('svg', { class: 'ff-braces', 'aria-hidden': 'true', focusable: 'false' });
     bracesSvg.setAttribute('viewBox', `0 0 ${ctx.zones.width} ${ctx.zones.height}`);
     bracesSvg.setAttribute('width', String(ctx.zones.width));
@@ -677,22 +780,21 @@ export default {
     /** @type {Brace[]} */
     const braces = cued.map((c, j) => {
       const at = /** @type {number} */ (c.at);
-      // the next cue of another symbol, strictly later, ends this brace (the current symbol keeps its brace)
-      const next = cued.slice(j + 1).find((d) => /** @type {number} */ (d.at) > at);
       const sym = symbolsOf(item)[c.k];
       const path = svg('path', {
         class: 'ff-brace', fill: 'none', 'stroke-width': String(BRACE_PX), 'stroke-linecap': 'round',
-        'stroke-linejoin': 'round', pathLength: '1',
+        'stroke-linejoin': 'round', pathLength: '1', 'data-var': String(c.k),
       });
       // a drawing in the symbol's entity colour (the colour the symbol takes), else the quieter ink
       path.setAttribute('stroke', entityColour(ctx, sym) || ink2);
       bracesSvg.appendChild(path);
-      return { index: c.k, path, at, until: next ? /** @type {number} */ (next.at) : Infinity, drawn: false };
+      return { index: c.k, path, at, until: ends[j], drawn: false };
     });
     const cardGroup = group('ff-main', card, bracesSvg);
 
-    // --- the legend (text on the background): one row per variable, each in a slot (the compact stack moves and
-    // fades the slot; the row's own text entrance is painted on the row)
+    // --- the legend (text on the background): one row per variable, each in a slot that is a dim group of its own
+    // (a look_here on a symbol keeps that symbol's row bright, FocusRect.keep; the row's text entrance is painted on
+    // the row, never on the slot)
     const legendInk = onBg.ink;
     /** @type {LegendRow[]} */
     const rows = (item.variables || []).map((v, k) => {
@@ -711,11 +813,11 @@ export default {
         // the unit runs on after the meaning (never split inside), not pushed to the row's far end
         unit ? ' ' : null, unit ? h('span', { class: 'ff-unit', text: `(${unit})`, style: { whiteSpace: 'nowrap' } }) : null));
       const mask = maskFor(ctx, row);
-      const slot = h('div', { class: 'ff-slot' }, mask || row);
+      const slot = group('ff-slot', mask || row);
       const at = times[k].at;
       const enterRow = at !== null ? at : enter + seconds(ctx, TEXT_DELAY) + seconds(ctx, ROW_STAGGER) * k;
       return {
-        index: k, symbol, row, mask, slot, at, enter: enterRow, exitAt: Infinity, height: 0,
+        index: k, symbol, row, mask, slot, at, enter: enterRow,
         text: `${symbol} ${meaning}${unit ? ` (${unit})` : ''}`,
       };
     });
@@ -725,29 +827,28 @@ export default {
       style: { position: 'absolute', boxSizing: 'border-box', display: 'grid', fontWeight: String(L.legend.weight) },
     }, rows.map((r) => r.slot)) : null;
     if (legend && legendScrim) Object.assign(legend.style, { background: legendScrim, borderRadius: '16px' });
-    const legendGroup = legend ? group('ff-legendgroup', legend) : null;
 
     const root = h('div', {
       class: ['ff', `ff--${format}`],
       style: { position: 'absolute', left: '0', top: '0', width: `${ctx.zones.width}px`, height: `${ctx.zones.height}px` },
-    }, titleGroup, cardGroup, legendGroup);
+    }, titleGroup, cardGroup, legend);
     ctx.root.appendChild(root);
     return {
       root, item, heading, titleText, title, titleMask, titleBox, titleScrim, words, wordTex, titleGroup,
-      card, boxSvg, boxPathEl, formulaHost, wideTex, brokenEl, band, textEl, textMask, textWords, cardGroup,
-      bracesSvg, braces, legend, legendGroup, rows, legendScrim, tints: ft.tints,
+      card, boxSvg, boxPathEl, formulaHost, wideTex, brokenEl, bandAbove, band, textEl, textMask, textWords, cardGroup,
+      bracesSvg, braces, legend, rows, legendScrim, tints: ft.tints,
       /** @type {HTMLElement} the formula form on screen (layout may pick the broken one in 9:16) */
       texEl: wideTex,
       /** @type {Map<string, Element[]>} the placeholder groups of each symbol in the shown form */
       targets: new Map(), enter, titleStart, boxAt: boxDrawAt(scene, item, enter), times,
-      groups: [titleGroup, cardGroup, legendGroup].filter(Boolean),
+      groups: [titleGroup, cardGroup, ...rows.map((r) => r.slot)],
       ink, ink2, surface, legendInk,
       // what layout measured (texts() reports it)
       titleSize: L.title.max, titleMin: L.title.min, titleOverflow: 0, formulaSize: L.formula.max, formulaMin: L.formula.min,
       formulaOverflow: 0, textSize: L.text.max, textMin: L.text.min, textOverflow: 0, legendSize: L.legend.max,
-      legendMin: L.legend.min, legendOverflow: 0, narrow: false, broken: false, laidOut: false,
-      /** @type {LegendRow[]} the rows in the order they are drawn (a compact stack: entrance order) */
-      order: rows, stack: rows.length, textShown: !!textEl,
+      legendMin: L.legend.min, legendOverflow: 0, narrow: false, broken: false, laidOut: false, textShown: !!textEl,
+      /** the room kept in the card above and below the formula for its braces (layout) */
+      bands: { above: 0, below: 0 },
       // what update painted (texts() reports it)
       titleAlpha: 0, cardAlpha: 0, textAlpha: 0, rowAlpha: rows.map(() => 0),
     };
@@ -761,11 +862,12 @@ export default {
    * headline and last the formula (the scene's focus) shrink in that order, 4 px at a time, each to its minimum.
    * When even that does not fit, the formula's sentence (`item.text`, which §4.3 does not list among the template's
    * data) is left out and the sizes fitted again from their largest, so the legend (the symbols' meanings, the
-   * template's own) keeps its room (R-25; the narration says the sentence); then a one-column legend becomes a
-   * compact stack (the newest rows that fit stay, the oldest leaving as a new one needs its room, RV L-13). What still
-   * does not fit is reported as overflow (preflight shrinks the slot or blocks with "Shorten text", §7.12). 9:16 lays the card out wide (768 px) unless the formula
-   * would then reach below the rail outside the column there (R-59), else narrow. Then the card, the box and the
-   * braces are placed.
+   * template's own) keeps its room (R-25; the narration says the sentence). What still does not fit is reported as
+   * overflow (preflight shrinks the slot or blocks with "Shorten text", §7.12); no legend row is ever dropped or faded
+   * out to make room (RV L-13, B2c review V2). 9:16 lays the card out wide (768 px) unless the formula would then reach
+   * below the rail outside the column there (R-59), else narrow. The card keeps bands above and below the formula for
+   * the braces that reach past it, measured at every size tried (`braceBands`). Then the card, the box and the braces
+   * are placed.
    * @param {TemplateContext} ctx
    */
   layout(ctx) {
@@ -804,23 +906,48 @@ export default {
     if (v.textEl) Object.assign(v.textEl.style, { lineHeight: String(textLh), textAlign: g.legend ? 'left' : 'center' });
     const twoColumns = n >= L.twoColumns;
     const braceH = (/** @type {number} */ f) => Math.max(BRACE_MIN, Math.min(BRACE_MAX, Math.round(BRACE_SHARE * f)));
-    const hasBand = v.braces.length > 0;
     /** @param {HTMLElement} el @param {boolean} on */
     const show = (el, on) => {
       el.style.display = on ? 'inline-block' : 'none';
     };
-    // the legend's rows in entrance order (ties: legend order): the order of a compact stack
-    const byEntrance = rows.slice().sort((a, b) => a.enter - b.enter || a.index - b.index);
-    /** Lay the legend out whole (legend order; one or two columns) or as a stack (entrance order, one column). @param {boolean} stack */
-    const arrangeLegend = (stack) => {
-      if (!v.legend) return;
-      const cols = twoColumns && !stack;
+    // the legend: legend order, one column (two in 16:9 from L.twoColumns rows on)
+    if (v.legend) {
       Object.assign(v.legend.style, {
-        lineHeight: String(rowLh), rowGap: `${L.rowGap}px`, columnGap: cols ? `${L.columnGap}px` : '0',
-        gridAutoFlow: cols ? 'column' : 'row', gridTemplateColumns: cols ? '1fr 1fr' : '1fr',
-        gridTemplateRows: cols ? `repeat(${Math.ceil(n / 2)}, auto)` : '', height: '', overflow: 'visible',
+        lineHeight: String(rowLh), rowGap: `${L.rowGap}px`, columnGap: twoColumns ? `${L.columnGap}px` : '0',
+        gridAutoFlow: twoColumns ? 'column' : 'row', gridTemplateColumns: twoColumns ? '1fr 1fr' : '1fr',
+        gridTemplateRows: twoColumns ? `repeat(${Math.ceil(n / 2)}, auto)` : '',
       });
-      for (const r of stack ? byEntrance : rows) v.legend.appendChild(r.slot);
+    }
+    /**
+     * Where each brace goes in the formula form `texEl` as laid out now (`bracePlace`; null: no brace), at TeX size
+     * `fs`: each symbol's first placeholder group (`tintTargets`, idempotent) against the form's other glyphs.
+     * @param {HTMLElement} texEl @param {number} fs
+     * @returns {(BracePlace | null)[]}
+     */
+    const placeBraces = (texEl, fs) => {
+      const targets = tintTargets(texEl, v.tints);
+      return /** @type {Brace[]} */ (v.braces).map((b) => {
+        const els = targets.get(symbolsOf(v.item)[b.index]) || [];
+        const r = els.length ? ctx.rectOf(els[0]) : null;
+        if (!r || !(r.w > 0 && r.h > 0)) return null;
+        return bracePlace(r, glyphRects(ctx, texEl, [els[0]]), braceH(fs));
+      });
+    };
+    /**
+     * Size the card's brace bands for the form `texEl` at `fs` (the room its braces reach past the formula's box).
+     * Above, the card's own top padding takes the part of an over-brace's reach that keeps BRACE_GAP clear of the box's
+     * stroke (BOX_PX), so an over-brace costs the card only what the padding cannot give; below, the sentence follows,
+     * so the band is the whole reach.
+     * @param {HTMLElement} texEl @param {number} fs
+     */
+    const sizeBands = (texEl, fs) => {
+      const f = v.braces.length ? ctx.rectOf(texEl) : null;
+      const reach = f ? braceBands(f, placeBraces(texEl, fs), braceH(fs)) : { above: 0, below: 0 };
+      const bands = { above: reach.above > 0 ? Math.max(0, reach.above + BOX_PX - C.padY) : 0, below: reach.below };
+      v.bandAbove.style.height = `${bands.above}px`;
+      v.band.style.height = `${bands.below}px`;
+      v.bands = bands;
+      return bands;
     };
 
     /**
@@ -873,7 +1000,7 @@ export default {
     const measure = (span, texEl, fs, withText, xs, ls) => {
       const maxInner = (span ? span.x1 - span.x0 : g.maxWidth) - 2 * C.padX;
       v.formulaHost.style.fontSize = `${fs}px`;
-      v.band.style.height = hasBand ? `${2 * BRACE_GAP + braceH(fs)}px` : '0px';
+      const bands = sizeBands(texEl, fs);
       const text = withText ? v.textEl : null;
       if (v.textEl) /** @type {HTMLElement} */ (v.textMask || v.textEl).style.display = text ? '' : 'none';
       // the card's inner width: 9:16 fixed; 16:9 the widest of the formula and the sentence's own line, at least
@@ -894,7 +1021,8 @@ export default {
       if (text) {
         // 9:16: the text column (x 192-780, R-59 below the rail too), from the card's content edge
         const w = g.legend ? g.legend.x1 - g.legend.x0 : inner;
-        Object.assign(text.style, { width: `${w}px`, marginTop: hasBand ? '0px' : `${TEXT_GAP}px` });
+        // TEXT_GAP under the formula, or BRACE_GAP under a brace reaching past it (the band's own last gap)
+        Object.assign(text.style, { width: `${w}px`, marginTop: `${Math.max(0, TEXT_GAP - bands.below)}px` });
         textFit = fitLines(text, { max: xs, min: rText.min, lines: L.text.lines, lh: textLh }, v.textWords.words, v.textWords.tex);
         padMask(v.textMask, textFit.size);
       }
@@ -916,41 +1044,25 @@ export default {
       const cardH = v.card.offsetHeight;
       return {
         inner, cardH, legendW, legendH, total: cardH + (v.legend ? L.legendGap + legendH : 0), textFit, text: !!text,
-        texW: texEl.offsetWidth, texH: texEl.offsetHeight,
+        texW: texEl.offsetWidth, texH: texEl.offsetHeight, above: bands.above,
       };
     };
 
     /**
-     * How many legend rows fit `room` px as a stack: the largest k for which every k rows entering one after the
-     * other fit (their heights now, in entrance order); n when all fit.
-     * @param {number} room
+     * Fit everything with the card's x span `span` (see the method comment), with or without the sentence, the
+     * formula at most `formulaCap` px.
+     * @param {{x0: number, x1: number} | null} span @param {boolean} withText @param {number} [formulaCap]
      */
-    const stackRows = (room) => {
-      // the row's own box: a Crisp mask's clip padding is margined back out (its slot's box would count it twice)
-      const hs = byEntrance.map((r) => r.row.offsetHeight);
-      for (let k = n; k >= 1; k--) {
-        let worst = 0;
-        for (let i = 0; i + k <= n; i++) worst = Math.max(worst, hs.slice(i, i + k).reduce((a, b) => a + b, 0) + (k - 1) * L.rowGap);
-        if (worst <= room) return k;
-      }
-      return 0;
-    };
-
-    /**
-     * Fit everything with the card's x span `span` (see the method comment), with or without the sentence.
-     * @param {{x0: number, x1: number} | null} span @param {boolean} withText
-     */
-    const solve = (span, withText) => {
+    const solve = (span, withText, formulaCap = rFormula.max) => {
       const maxInner = (span ? span.x1 - span.x0 : g.maxWidth) - 2 * C.padX;
-      let caps = { title: rTitle.max, formula: rFormula.max, text: rText.max, legend: rLegend.max };
+      let caps = { title: rTitle.max, formula: Math.max(rFormula.min, Math.min(rFormula.max, formulaCap)), text: rText.max, legend: rLegend.max };
       for (let guard = 0; ; guard++) {
-        arrangeLegend(false);
         const title = fitTitle(caps.title);
         const formula = fitFormula(maxInner, caps.formula);
         const m = measure(span, formula.el, formula.size, withText, caps.text, caps.legend);
         const avail = g.bottom - title.top;
         const spill = Math.max(0, m.total - avail);
-        const out = { span, title, formula, m, legend: caps.legend, spill, avail, top: title.top, stack: n };
+        const out = { span, title, formula, m, legend: caps.legend, spill, avail, top: title.top };
         if (spill === 0 || guard > 200) return out;
         // shrink the next part that can, from the least to the most important (the formula is the scene's focus)
         const step = (/** @type {number} */ now, /** @type {number} */ min) => Math.max(min, now - 4);
@@ -958,25 +1070,27 @@ export default {
         else if (m.text && m.textFit.size > rText.min) caps = { ...caps, text: step(m.textFit.size, rText.min) };
         else if (title.fit.size > rTitle.min) caps = { ...caps, title: step(title.fit.size, rTitle.min) };
         else if (formula.size > rFormula.min) caps = { ...caps, formula: step(formula.size, rFormula.min) };
-        else if (!withText && v.legend && !twoColumns) {
-          // everything at its minimum, the sentence already left out: the legend as a compact stack (one column,
-          // entrance order) of the rows that fit, else what is left is overflow
-          arrangeLegend(true);
-          const k = stackRows(avail - m.cardH - L.legendGap);
-          return k > 0 ? { ...out, stack: k, spill: 0 } : (arrangeLegend(false), out);
-        } else return out;
+        else return out; // everything at its minimum: what is left is overflow
       }
     };
 
-    // 9:16: wide unless the formula would reach below the rail outside the column there (R-59); narrow in the safe
-    // layout. A sentence leaving no room for two legend rows is left out (see above).
+    // 9:16: the wide card (§4.3's 768 px) unless the formula would reach below the rail outside the column there
+    // (R-59); first the formula smaller in the wide card, 4 px at a time down to its minimum, until it ends above the
+    // rail; only when even its minimum does not, the narrow card. The safe layout is the narrow card. A sentence
+    // leaving no room for two legend rows is left out (see above).
     const attempt = (/** @type {boolean} */ withText) => {
       if (!g.wide || !g.narrow || !g.below) return solve(null, withText);
       if (fixes.safe) return solve(g.narrow, withText);
-      const wide = solve(g.wide, withText);
-      const bottom = wide.top + C.padY + wide.m.texH;
-      const x1 = (g.wide.x0 + g.wide.x1) / 2 + wide.m.texW / 2;
-      return bottom <= g.rail || x1 <= g.below.x1 ? wide : solve(g.narrow, withText);
+      /** Whether the wide card's formula crosses the rail outside the column there. @param {any} a */
+      const crosses = (a) => {
+        // the formula's bottom in the wide card: under the card's padding and its brace band above
+        const bottom = a.top + C.padY + a.m.above + a.m.texH;
+        const x1 = (g.wide.x0 + g.wide.x1) / 2 + a.m.texW / 2;
+        return bottom > g.rail && x1 > /** @type {{x1: number}} */ (g.below).x1;
+      };
+      let wide = solve(g.wide, withText);
+      while (crosses(wide) && wide.formula.size > rFormula.min) wide = solve(g.wide, withText, wide.formula.size - 4);
+      return crosses(wide) ? solve(g.narrow, withText) : wide;
     };
     let a = attempt(true);
     if (v.textEl && a.spill > 0) a = attempt(false);
@@ -998,27 +1112,11 @@ export default {
     v.legendOverflow = v.legend ? a.spill : 0;
     v.formulaOverflow = Math.max(a.formula.over, v.legend ? 0 : a.spill);
 
-    // --- the compact stack: each row leaves (30% faster than it entered, §4.8) just before the row `k` places after
-    // it enters, and the rows under it move up by its height
-    v.stack = a.stack > 0 && a.stack < n ? a.stack : n;
-    const stacked = v.stack < n;
-    v.order = stacked ? byEntrance : rows;
-    for (const r of rows) r.exitAt = Infinity;
-    if (stacked) {
-      byEntrance.forEach((r, i) => {
-        const next = byEntrance[i + v.stack];
-        if (next) r.exitAt = next.enter - seconds(ctx, ROW_EXIT);
-      });
-    }
-    for (const r of rows) r.height = r.row.offsetHeight + L.rowGap;
-
     // --- place: 16:9 the card and the legend as one block centred in the room under the headline; 9:16 under it
     const cardW = a.m.inner + 2 * C.padX;
     const cardH = a.m.cardH;
     const cardX = a.span ? a.span.x0 : Math.round(g.centre - cardW / 2);
-    const legendRoom = a.avail - cardH - L.legendGap;
-    const blockH = stacked ? cardH + L.legendGap + legendRoom : a.m.total;
-    const y = a.span ? a.top : a.top + Math.max(0, Math.round((a.avail - blockH) / 2));
+    const y = a.span ? a.top : a.top + Math.max(0, Math.round((a.avail - a.m.total) / 2));
     Object.assign(v.card.style, { left: `${cardX}px`, top: `${y}px` });
     if (v.legend) {
       const legendX = g.legend ? g.legend.x0 : Math.round(g.centre - a.m.legendW / 2);
@@ -1026,8 +1124,6 @@ export default {
       Object.assign(v.legend.style, {
         left: `${legendX - pad}px`, top: `${y + cardH + L.legendGap - pad}px`, padding: pad ? `${pad}px` : '0',
         width: `${a.m.legendW + 2 * pad}px`,
-        // a stack's box is its room (a scrim stays above the caption band); the rows below it are not on screen yet
-        height: stacked ? `${legendRoom + 2 * pad}px` : '',
       });
     }
     // the box round the card
@@ -1037,19 +1133,17 @@ export default {
     v.boxPathEl.setAttribute('d', boxPath(cardW, cardH, RADIUS.card, BOX_PX));
 
     // --- tints and braces: the placeholder groups MathJax drew (tintTargets tags them, so a second layout finds
-    // them after they were recoloured), each brace under its symbol's first group, in the band under the formula
+    // them after they were recoloured); each brace at its symbol's first group, under or over it (bracePlace), in
+    // the room the card's bands keep (sized for this form and size in the last measure)
     v.targets = tintTargets(v.texEl, v.tints);
-    const formulaRect = ctx.rectOf(v.texEl);
-    const bandTop = formulaRect ? Math.round(formulaRect.y + formulaRect.h) + BRACE_GAP : 0;
     const bh = braceH(a.formula.size);
-    for (const b of /** @type {Brace[]} */ (v.braces)) {
-      const sym = symbolsOf(v.item)[b.index];
-      const els = v.targets.get(sym) || [];
-      const r = els.length ? ctx.rectOf(els[0]) : null;
-      b.drawn = !!(r && r.w > 0 && formulaRect);
-      if (b.drawn && r) b.path.setAttribute('d', bracePath(Math.round(r.x), Math.round(r.x + r.w), bandTop, bh));
+    const places = placeBraces(v.texEl, a.formula.size);
+    /** @type {Brace[]} */ (v.braces).forEach((b, i) => {
+      const at = places[i];
+      b.drawn = !!at;
+      if (at) b.path.setAttribute('d', bracePath(at.x0, at.x1, at.y, bh, at.dir));
       else b.path.removeAttribute('d');
-    }
+    });
     v.laidOut = true;
   },
 
@@ -1109,18 +1203,12 @@ export default {
       p.style(b.path, 'visibility', shown ? 'visible' : 'hidden');
     }
 
-    // the legend rows: each on its cue (the personality's text entrance); in a compact stack the oldest leaves (its
-    // slot fades) and the rows under it move up by its height, on whole px (§P)
-    let lift = 0;
-    for (const r of /** @type {LegendRow[]} */ (v.order)) {
+    // the legend rows: each on its cue (the personality's text entrance), on the row itself (its slot is a dim group,
+    // whose opacity is the stage's); a row that entered stays (RV L-13)
+    for (const r of /** @type {LegendRow[]} */ (v.rows)) {
       const e = enterAt(ctx, t, r.enter, ROW_SECONDS);
-      const x = Number.isFinite(r.exitAt) ? ease('ease.move', progress(t, r.exitAt, seconds(ctx, ROW_EXIT))) : 0;
-      v.rowAlpha[r.index] = e * (1 - x);
-      paintEntrance(ctx, r.row, r.mask, e, 1 - x);
-      const dy = Math.round(lift);
-      p.style(r.slot, 'transform', dy ? `translate(0, -${dy}px)` : 'none'); // 2D: see paintEntrance
-      p.style(r.slot, 'visibility', x < 1 ? 'visible' : 'hidden');
-      lift += r.height * x;
+      v.rowAlpha[r.index] = e;
+      paintEntrance(ctx, r.row, r.mask, e);
     }
   },
 
@@ -1137,24 +1225,31 @@ export default {
     const v = ctx.view;
     const parsed = parseTarget(target);
     if (!parsed) return null;
-    /** @param {Element | null} el @param {Element} holder @param {number} radius */
-    const rectFor = (el, holder, radius) => {
+    /**
+     * @param {Element | null} el @param {Element} holder @param {number} radius
+     * @param {'text' | 'shape'} kind @param {Element[]} [keep]
+     * @returns {FocusRect | null}
+     */
+    const rectFor = (el, holder, radius, kind, keep = []) => {
       const r = el ? ctx.rectOf(el) : null;
       if (!r || !(r.w > 0 && r.h > 0)) return null;
       const x0 = Math.round(r.x);
       const y0 = Math.round(r.y);
-      return { rect: { x: x0, y: y0, w: Math.round(r.x + r.w) - x0, h: Math.round(r.y + r.h) - y0 }, shape: /** @type {'rect'} */ ('rect'), radius, el: holder };
+      return { rect: { x: x0, y: y0, w: Math.round(r.x + r.w) - x0, h: Math.round(r.y + r.h) - y0 }, shape: 'rect', radius, el: holder, kind, keep };
     };
-    if (parsed.form === 'item' && parsed.item === v.item.id) return rectFor(v.card, v.card, RADIUS.card);
-    if (parsed.form === 'item' && v.heading && parsed.item === v.heading.id) return rectFor(v.title, v.title, 0);
+    // the card and a symbol drawn in it are shapes (the card spans x 156-924 in 9:16, past the text column, and the
+    // formula's glyphs reach its padding): their outline goes round them, never across (cues.js shapeArea, CG-1)
+    if (parsed.form === 'item' && parsed.item === v.item.id) return rectFor(v.card, v.card, RADIUS.card, 'shape');
+    if (parsed.form === 'item' && v.heading && parsed.item === v.heading.id) return rectFor(v.title, v.title, 0, 'text');
     if (parsed.form === 'item:var' && parsed.item === v.item.id) {
       const k = variableIndex(v.item, String(parsed.symbol));
       if (k < 0) return null;
-      const els = v.targets.get(symbolsOf(v.item)[k]) || [];
-      const inFormula = els.length ? rectFor(els[0], v.card, SYMBOL_RADIUS) : null;
-      if (inFormula) return inFormula;
       const row = v.rows[k];
-      return row ? rectFor(row.row, row.row, SYMBOL_RADIUS) : null;
+      const els = v.targets.get(symbolsOf(v.item)[k]) || [];
+      // the symbol's own legend row stays bright while the walk points at it (its meaning, R-16)
+      const inFormula = els.length ? rectFor(els[0], v.card, SYMBOL_RADIUS, 'shape', row ? [row.slot] : []) : null;
+      if (inFormula) return inFormula;
+      return row ? rectFor(row.row, row.row, SYMBOL_RADIUS, 'text') : null;
     }
     return null;
   },
@@ -1176,8 +1271,9 @@ export default {
   },
 
   /**
-   * The content groups a look_here dims (all but the target's): the headline, the card (with its braces) and the
-   * legend. The same elements at every t; this template writes the opacity of what is inside them, never theirs.
+   * The content groups a look_here dims (all but the target's and the ones its FocusRect keeps): the headline, the
+   * card (with its braces) and each legend row. The same elements at every t; this template writes the opacity of what
+   * is inside them, never theirs.
    * @param {TemplateContext} ctx
    * @returns {Element[]}
    */

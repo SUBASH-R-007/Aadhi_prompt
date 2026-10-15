@@ -10,11 +10,12 @@ The six timelines cover the cases the B2 plan §G gallery names, in both formats
 with Poppins as the display face in one dark and one light timeline (and Anek for the Indic text there):
 
 * ``list_build.landscape.json`` (Teal / Crisp: ``baseline_reveal``, x0.85, marker cue): the typical list: a heading,
-  four beat-revealed rows, three with stored icons (the split layout: the current row's icon on the right), a
+  four beat-revealed rows, each with a stored icon (the split layout: the current row's icon on the right), a
   ``cue_term`` and a ``look_here``.
 * ``list_build.landscape.stress.json`` (Teal / Crisp): the stress rows with no beat (the centred plain list): the
   lint-limit longest row in wide capitals (R-25: 8 words), one word longer than any line, TeX beside a [[term]]; then,
-  entered by a crossfade, two beat-revealed rows (an icon, a ``cue_term``).
+  entered by a crossfade, two beat-revealed rows, one with an icon (partial icons: the list is centred and draws none,
+  B2c review V12), a ``cue_term``.
 * ``list_build.landscape.tamil.json`` (Paper / Crisp, light, ta-IN, Poppins + Anek): a Tamil list, then (crossfade) a
   mixed Tamil + English + TeX list, ``cue_term`` on a Tamil and on an English term, a ``look_here``.
 * ``list_build.portrait.json`` (Indigo / Soft: ``fade_rise``, x1.15, underline cue, Poppins): the 9:16 compact stack:
@@ -144,7 +145,7 @@ def _english_typical(sid: str, beat_len: float) -> dict[str, Any]:
             _item("b1", "bullet", "A [[source]] that pushes charge", "battery"),
             _item("b2", "bullet", "A closed path for the current", "plug"),
             _item("b3", "bullet", "A [[load]] that turns energy into work", "lightbulb"),
-            _item("b4", "bullet", "A switch to open the loop"),
+            _item("b4", "bullet", "A switch to open the loop", "toggle-left"),
         ],
         "beats": [("b1", "First, something has to push the charge around."),
                   ("b2", "Then the charge needs a complete loop to travel."),
@@ -222,7 +223,7 @@ def fixtures() -> dict[str, Timeline]:
     land = _english_typical("lb-l-typical", 2.1)  # 9.7 s
     land["events"] = [_cue(1.2, "cue_term", "b1", 1.4), _cue(5.0, "look_here", "b3", 1.6)]
     land_stress = _stress("lb-l-stress", 1.6, beats=False)  # 6.1 s, the centred plain list
-    land_short = _short("lb-l-short", 1.4, beats=True)  # 4.1 s, split (an icon), entered by a crossfade
+    land_short = _short("lb-l-short", 1.4, beats=True)  # 4.1 s, centred (one icon of two), entered by a crossfade
     land_short["events"] = [_cue(0.9, "cue_term", "s1", 1.0)]
     tamil = _tamil("lb-ta-list", 1.3)  # 5.2 s
     tamil["events"] = [_cue(0.9, "cue_term", "t1", 1.2)]

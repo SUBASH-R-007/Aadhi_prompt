@@ -1,7 +1,9 @@
 """Write the B2c reference frames for the owner's review (B2 plan §A step 3: "Reference frames produced for owner
 review"): each pilot template (formula_focus, media_split, list_build) in both formats and two families (one dark, one
-light), drawn by the real render page ``/render-dynamic`` at its semantic instants, into
-``docs/plans/b2/b2c_frames/`` with an ``index.html`` contact sheet.
+light), plus the cases that carry the open owner decisions (B2c review V11: media_split's long 9:16 phrases with a tall
+picture, its terminal card and a clip, which is never scaled; formula_focus's stress scenes with their crossfades),
+drawn by the real render page ``/render-dynamic`` at its semantic instants, into ``docs/plans/b2/b2c_frames/`` with an
+``index.html`` contact sheet.
 
 The instants of each scene the template draws (scene time, seconds):
 
@@ -9,7 +11,11 @@ The instants of each scene the template draws (scene time, seconds):
 * ``beat <n>``: each later beat's entrance done (its start + SETTLE);
 * ``<kind> <target>``: each ``cue_term`` / ``look_here`` / ``var`` / ``draw`` event at its peak (``t`` + CUE_PEAK: the
   marker swept, the outline drawn, the push in, the tint and brace drawn);
-* ``hold``: the scene's last frame (a formula hold, a held list).
+* ``hold``: the scene's last frame (a formula hold, a held list);
+* ``crossfade``: the middle of a crossfade into the scene (its ``transition_in``), the outgoing scene painted under it.
+
+A fixture name with ``+clip`` (``media_split.portrait.json+clip``) is drawn with a ``contain_blur`` clip on its side
+panel, its frames served as ``tests/determinism/test_template_clips.py`` serves them (``_with_clip``).
 
 Instants closer than MIN_GAP to one already taken are dropped, at most MAX_PER_SCENE per scene. Each frame is the
 page's CDP capture (the render's own JPEG path, captions as the fixture burns them), halved and saved as JPEG q85
@@ -45,16 +51,24 @@ MIN_GAP = 0.35
 MAX_PER_SCENE = 9
 QUALITY = 85
 
-# (template, format) -> (dark fixture, light fixture): the typical case of each, and a light family with its own text
-# case (Tamil / Hindi / mixed, a wide headline)
-CHOSEN: dict[tuple[str, str], tuple[str, str]] = {
-    ("formula_focus", "landscape"): ("formula_focus.landscape.json", "formula_focus.landscape.light.json"),
-    ("formula_focus", "portrait"): ("formula_focus.portrait.json", "formula_focus.portrait.light.json"),
-    ("media_split", "landscape"): ("media_split.landscape.json", "media_split.landscape.light.json"),
-    ("media_split", "portrait"): ("media_split.portrait.json", "media_split.portrait.indic.json"),
+# (template, format) -> fixtures: the typical case of each (dark), a light family with its own text case (Tamil /
+# Hindi / mixed, a wide headline), and the cases behind the open owner decisions (V11): media_split's terminal card,
+# its long 9:16 phrases beside a tall picture (the media share) and a clip (a fade, never a push); formula_focus's
+# stress scenes (the lint limit, a long word, Tamil, Hindi; crossfades between them). list_build's Tamil and Hindi
+# timelines cross-fade into their second scene.
+CHOSEN: dict[tuple[str, str], tuple[str, ...]] = {
+    ("formula_focus", "landscape"): ("formula_focus.landscape.json", "formula_focus.landscape.light.json",
+                                     "formula_focus.landscape.stress.json"),
+    ("formula_focus", "portrait"): ("formula_focus.portrait.json", "formula_focus.portrait.light.json",
+                                    "formula_focus.portrait.stress.json"),
+    ("media_split", "landscape"): ("media_split.landscape.json", "media_split.landscape.light.json",
+                                   "media_split.landscape.terminal.json"),
+    ("media_split", "portrait"): ("media_split.portrait.json", "media_split.portrait.indic.json",
+                                  "media_split.portrait.long.json", "media_split.portrait.json+clip"),
     ("list_build", "landscape"): ("list_build.landscape.json", "list_build.landscape.tamil.json"),
     ("list_build", "portrait"): ("list_build.portrait.json", "list_build.portrait.hindi.json"),
 }
+CLIP = "+clip"
 
 
 @dataclass(frozen=True)
@@ -76,6 +90,9 @@ def instants(scene: dict[str, Any]) -> list[tuple[str, float]]:
     # in order of priority: the settled entrance and the hold, then the cues, then the beats (a beat within MIN_GAP
     # of a cue is shown by the cue's frame)
     first = [("settled", beats[0] + SETTLE if beats else 1.2), ("hold", last)]
+    tin = scene.get("transition_in") or {}
+    if tin.get("kind") == "crossfade" and float(tin.get("seconds") or 0) > 0:
+        first.append(("crossfade", float(tin["seconds"]) / 2))
     cues = [(f"{e['kind']} {e.get('target') or ''}".strip(), float(e["t"]) + CUE_PEAK)
             for e in scene.get("events") or [] if e["kind"] in ("cue_term", "look_here", "var", "draw")]
     later = [(f"beat {k + 1}", b + SETTLE) for k, b in enumerate(beats[1:], start=1)]
@@ -97,13 +114,28 @@ async def _capture(settings: Any, base: str, name: str, out: Path) -> list[Shot]
     from aadhi.compose.dynamic.stage_page import open_stage
     from aadhi.schemas.timeline import Timeline
 
-    served = json.loads((FIXTURE_DIR / name).read_text("utf-8"))
+    file = name.removesuffix(CLIP)
+    template = fixture_name(FIXTURE_DIR / file)[0]
+    frames = None
+    if name.endswith(CLIP):
+        from tests.determinism.test_kenburns_determinism import CLIP_FRAME, CLIP_SIZE, _clip_frame
+        from tests.determinism.test_template_clips import _with_clip
+
+        served = _with_clip(file, template, sized=True)
+
+        def frames(path: str) -> bytes | None:  # the worker's extraction, as test_template_clips.py serves it
+            m = CLIP_FRAME.match(path)
+            if m is None:
+                return None
+            k = max(int(m[2]) / CLIP_SIZE[0], int(m[3]) / CLIP_SIZE[1])
+            return _clip_frame(int(m[4]), 2 * round(CLIP_SIZE[0] * k / 2), 2 * round(CLIP_SIZE[1] * k / 2))
+    else:
+        served = json.loads((FIXTURE_DIR / file).read_text("utf-8"))
     tl = Timeline.model_validate(served)
-    template = fixture_name(FIXTURE_DIR / name)[0]
     burn = bool(tl.presentation and tl.presentation.captions_burn)
     shots: list[Shot] = []
     async with open_stage(settings, size=(tl.width, tl.height), token=TOKEN, base_url=base,
-                          served_timeline=served) as page:
+                          served_timeline=served, frames=frames) as page:
         await page.set_layers(captions=burn, stage=True)
         info = await page.info()
         for sc, scene in zip(info.scenes, served["scenes"], strict=True):
@@ -115,9 +147,10 @@ async def _capture(settings: Any, base: str, name: str, out: Path) -> list[Shot]
                 jpeg = await page.capture_jpeg(95)
                 img = Image.open(io.BytesIO(jpeg)).convert("RGB")
                 img = img.resize((img.width // 2, img.height // 2), Image.Resampling.LANCZOS)
-                file = f"{Path(name).stem}__{sc.index}__{frame:04d}__{_slug(label)}.jpg"
-                img.save(out / file, "JPEG", quality=QUALITY, optimize=True, progressive=True)
-                shots.append(Shot(name, sc.index, scene["scene_id"], label, round(t, 2), frame, file))
+                stem = Path(file).stem + ("_clip" if name.endswith(CLIP) else "")
+                jpg = f"{stem}__{sc.index}__{frame:04d}__{_slug(label)}.jpg"
+                img.save(out / jpg, "JPEG", quality=QUALITY, optimize=True, progressive=True)
+                shots.append(Shot(name, sc.index, scene["scene_id"], label, round(t, 2), frame, jpg))
         if page.errors:
             raise RuntimeError(f"{name}: page errors {page.errors}")
     return shots
@@ -148,8 +181,10 @@ figcaption b { color: var(--ink); font-weight: 600; }
 <h1>B2c reference frames</h1>
 <p>The three pilot templates drawn by the real render page (<code>/render-dynamic</code>, render mode) from the
 template fixtures in <code>tests/compose/dynamic/fixtures/templates/</code>, at their semantic instants: entrance
-settled, each beat, each cue at its peak, and the hold (the scene's last frame). Both formats, one dark and one light
-family each. Frames are halved and saved as JPEG q85; click one for the full file. Regenerate with
+settled, each beat, each cue at its peak, a crossfade's middle, and the hold (the scene's last frame). Both formats,
+a dark and a light family each, and the cases behind the open owner decisions (media_split's terminal card, long 9:16
+phrases beside a tall picture and a clip; formula_focus's stress scenes). Frames are saved at half size (960 x 540 or
+540 x 960) as JPEG q85; click one to open that file on its own. Regenerate with
 <code>python -m tests.compose.dynamic.make_reference_frames</code>.</p>
 """]
     for template in ("formula_focus", "media_split", "list_build"):
@@ -171,7 +206,8 @@ family each. Frames are halved and saved as JPEG q85; click one for the full fil
     return "\n".join(parts)
 
 
-def _serve_and_capture(out: Path) -> dict[tuple[str, str], list[tuple[str, str, list[Shot]]]]:
+def _serve_and_capture(out: Path, only: frozenset[str] = frozenset()) -> dict[tuple[str, str],
+                                                                              list[tuple[str, str, list[Shot]]]]:
     """The real app on a free loopback port with a temporary data dir and database (``real_app``'s setup)."""
     work = Path(tempfile.mkdtemp(prefix="b2c-frames-"))
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -195,8 +231,10 @@ def _serve_and_capture(out: Path) -> dict[tuple[str, str], list[tuple[str, str, 
         with parity_eval().live_server(settings) as base:
             for (template, fmt), names in CHOSEN.items():
                 for name in names:
-                    mode = json.loads((FIXTURE_DIR / name).read_text("utf-8"))["presentation"]
-                    family = f"{mode['mode']} ({mode.get('family_id')}, {mode.get('personality')})"
+                    if only and name not in only:
+                        continue
+                    mode = json.loads((FIXTURE_DIR / name.removesuffix(CLIP)).read_text("utf-8"))["presentation"]
+                    family = f"{mode['mode']} ({mode['family']}, {mode['personality']})"
                     shots = asyncio.run(_capture(settings, base, name, out))
                     groups.setdefault((template, fmt), []).append((family, name, shots))
                     print(f"{name}: {len(shots)} frames")
@@ -209,12 +247,13 @@ def _serve_and_capture(out: Path) -> dict[tuple[str, str], list[tuple[str, str, 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--out", type=Path, default=OUT_DIR, help="output directory (emptied of .jpg files first)")
+    ap.add_argument("--only", nargs="*", default=[], help="only these CHOSEN names (a scratch look at a few)")
     args = ap.parse_args(argv)
     out: Path = args.out
     out.mkdir(parents=True, exist_ok=True)
     for old in out.glob("*.jpg"):
         old.unlink()
-    groups = _serve_and_capture(out)
+    groups = _serve_and_capture(out, frozenset(args.only))
     (out / "index.html").write_text(contact_sheet(groups), "utf-8", newline="\n")
     total = sum(p.stat().st_size for p in out.iterdir())
     print(f"wrote {sum(1 for _ in out.glob('*.jpg'))} frames and index.html to {out} ({total / 1e6:.1f} MB)")

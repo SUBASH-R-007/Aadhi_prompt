@@ -15,6 +15,8 @@
  *   pixels), `revealMask` + `paintTextEntrance` (the personality's text entrance), `group` (a dim group the stage owns,
  *   plan §1.4).
  * - Item states (plan §1.5, state.js ITEM_STATES): `itemStateParts`, `layoutStrike`, `paintItemState`.
+ * - Scrims (§7.12 scrim fix): `scrimmedBg`, the colour text on a scrim is reported on (moved here from board_generic
+ *   in B2c, which re-exports it).
  * - Icons (plan §1.2, B2b): `sanitiseIcon` / `storedIcon` draw `look.icons[item]` after checking it again against the
  *   schema's pattern and caps (the `LookIcon` model of aadhi.schemas.timeline and its JSON schema in web/schemas),
  *   path data set with setAttribute only.
@@ -28,6 +30,7 @@
 import { h, svg } from '../../shared/dom.js';
 import { ease } from '../../motion/easing.js';
 import { progress } from '../../motion/track.js';
+import { composite, contrastRatio } from '../../motion/color.js';
 import { splitWords } from '../../motion/text.js';
 import { mountTex, parseRich, renderRich } from '../../player/richtext.js';
 import { icon } from '../../player/icons.js';
@@ -477,6 +480,29 @@ export function paintItemState(ctx, el, parts, state, k, base) {
     p.attr(line, 'stroke-dasharray', `${len} ${len}`);
     p.attr(line, 'stroke-dashoffset', fx(len * (1 - on), 2));
   }
+}
+
+/**
+ * What text of `ink` over a translucent `scrim` sits on (a template's scrim fix; board_generic's title block): the
+ * scrim composited over each colour the background shows, the one with the least contrast against `ink` (R-53's
+ * worst case). Opaque hex, the colour preflight's contrast check then measures, so a scrim that helps reads as fixed.
+ * @param {string} scrim   #rrggbbaa
+ * @param {{bg: string, bgs?: string[]}} onBackground
+ * @param {string} ink
+ */
+export function scrimmedBg(scrim, onBackground, ink) {
+  const bgs = onBackground.bgs && onBackground.bgs.length ? onBackground.bgs : [onBackground.bg];
+  let worst = composite(scrim, bgs[0]);
+  let low = contrastRatio(ink, worst);
+  for (const b of bgs.slice(1)) {
+    const c = composite(scrim, b);
+    const ratio = contrastRatio(ink, c);
+    if (ratio < low) {
+      low = ratio;
+      worst = c;
+    }
+  }
+  return worst;
 }
 
 // ---------------------------------------------------------------------------------------------

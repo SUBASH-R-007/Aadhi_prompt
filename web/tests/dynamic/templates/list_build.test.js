@@ -12,14 +12,15 @@ import { readFileSync } from 'node:fs';
 import { installDom, uninstallDom } from '../../player/_dom.js';
 import { CATALOGUE } from '../../../js/dynamic/catalogue.gen.js';
 import { Painter, TYPE_FLOORS, ZONES, fx, parseTarget, templateSlots } from '../../../js/dynamic/core.js';
-import { FOCUS_OUTSET, FOCUS_PX, clampOf, outlinePath, termPieces, zoneOf } from '../../../js/dynamic/cues.js';
+import { FOCUS_OUTSET, FOCUS_PX, clampOf, outlinePath, shapeArea, termPieces, zoneOf } from '../../../js/dynamic/cues.js';
 import { itemTimings } from '../../../js/dynamic/state.js';
 import { STATE_WEIGHT, TEXT_RISE } from '../../../js/dynamic/templates/_shared.js';
-import { scrimmedBg } from '../../../js/dynamic/templates/board_generic.js';
+import { scrimmedBg } from '../../../js/dynamic/templates/_shared.js';
 import listBuild, {
-  DIP, ICON_EXIT, ICON_SIZE, ITEM_ENTER, LAYOUT, LINE_HEIGHT, PAD, RISE, STATE_EASE, TEXT_DELAY, boxes, lineHeight,
-  listItems, panelOf, sizeSteps, slotRows, texOf, variantOf,
+  DIP, ICON_EXIT, ICON_SIZE, ITEM_ENTER, LAYOUT, LINE_HEIGHT, PAD, PICTURE_PANELS, RISE, STATE_EASE, TEXT_DELAY, boxes,
+  drawsScene, lineHeight, listItems, panelOf, sizeSteps, slotRows, texOf, variantOf,
 } from '../../../js/dynamic/templates/list_build.js';
+import boardGeneric from '../../../js/dynamic/templates/board_generic.js';
 import { contractProblems, orderProblems, recordingTex, renderStage } from './_harness.js';
 
 before(() => installDom());
@@ -120,11 +121,15 @@ test('listItems: the first heading with text is the heading; every other item wi
   assert.deepEqual(listItems(/** @type {any} */ ({ board: [] })), { heading: null, rows: [] });
 });
 
-test('variantOf: 9:16 stack when a beat walks the rows, else a plain list; 16:9 split for a panel or a current icon, else centred', () => {
+test('variantOf: 9:16 stack when a beat walks the rows, else a plain list; 16:9 split for a panel or an icon for every row, else centred', () => {
   const tl = load('list_build.landscape.json');
   const typical = tl.scenes[0];
-  assert.equal(variantOf(typical, 'landscape', 'render', typical.look), 'split', 'beat-revealed rows with stored icons');
+  assert.equal(variantOf(typical, 'landscape', 'render', typical.look), 'split', 'beat-revealed rows, each with a stored icon');
   assert.equal(variantOf(typical, 'landscape', 'render', { ...typical.look, icons: {} }), 'centred', 'no icon: nothing beside the list');
+  // B2c review V12: one row without an icon would leave the right 45% empty while it is current (the hold included)
+  const partial = { ...typical.look.icons };
+  delete partial.b4;
+  assert.equal(variantOf(typical, 'landscape', 'render', { ...typical.look, icons: partial }), 'centred', 'partial icons: centred, none drawn');
   assert.equal(variantOf(typical, 'portrait', 'render', typical.look), 'stack');
   const still = { ...typical, beats: typical.beats.map((/** @type {any} */ b) => ({ ...b, board_item_id: null })) };
   assert.equal(variantOf(still, 'landscape', 'render', typical.look), 'centred', 'icons need rows that take turns');
@@ -132,8 +137,37 @@ test('variantOf: 9:16 stack when a beat walks the rows, else a plain list; 16:9 
   const withPanel = { ...still, side_panel: { panel: { kind: 'image', title: 'P' }, media: { kind: 'image', url: '/media/p.png', width: 800, height: 600 }, show_at: 0 }, layout: { show_side_panel: true } };
   assert.equal(variantOf(withPanel, 'landscape', 'render', { ...typical.look, icons: {} }), 'split', 'a panel is shown beside any list');
   assert.equal(variantOf({ ...withPanel, layout: { show_side_panel: false } }, 'landscape', 'render', { icons: {} }), 'centred');
-  assert.equal(panelOf(withPanel, 'render')?.ref.url, '/media/p.png');
-  assert.equal(panelOf({ ...withPanel, side_panel: { ...withPanel.side_panel, media: { kind: 'gif', url: '/x.gif' } } }, 'render'), null, 'render mode shows no GIF');
+  assert.equal(panelOf(withPanel, 'render')?.ref?.url, '/media/p.png');
+  // a medium this mode cannot show: the panel stays (its title card, board_generic's convention), never dropped
+  const gif = { ...withPanel, side_panel: { panel: { kind: 'gif', title: 'A spark' }, media: { kind: 'gif', url: '/x.gif' }, show_at: 0 } };
+  assert.deepEqual(panelOf(gif, 'render'), { ref: null, title: 'A spark', start: 0 }, 'render mode shows no GIF: its title');
+  assert.equal(panelOf(gif, 'live')?.ref?.url, '/x.gif');
+  assert.equal(variantOf(gif, 'landscape', 'render', { icons: {} }), 'split');
+  // drawsScene (B2c review CG-2): 9:16 draws no panel, 16:9 only a picture or clip panel; anything else is board_generic's
+  assert.ok(drawsScene(still, 'portrait') && drawsScene(still, 'landscape'));
+  assert.ok(drawsScene(withPanel, 'landscape') && !drawsScene(withPanel, 'portrait'));
+  for (const kind of ['terminal', 'chart', 'graph', 'model_3d', 'skill_tree', 'quiz']) {
+    assert.ok(!drawsScene({ ...withPanel, side_panel: { panel: { kind }, show_at: 0 } }, 'landscape'), kind);
+  }
+  for (const kind of PICTURE_PANELS) assert.ok(drawsScene({ ...withPanel, side_panel: { panel: { kind }, show_at: 0 } }, 'landscape'), kind);
+  assert.ok(drawsScene({ ...withPanel, layout: { show_side_panel: false } }, 'portrait'), 'a hidden panel is not drawn anyway');
+});
+
+test('a scene with a panel this template does not draw is drawn by board_generic whole, every hook handed on (CG-2)', async () => {
+  for (const [name, panel] of /** @type {const} */ ([['list_build.portrait.json', { kind: 'image', title: 'P' }], ['list_build.landscape.json', { kind: 'terminal', title: 'T', terminal: { command: 'ls', output: 'a' } }]])) {
+    const tl = load(name);
+    tl.scenes[0].side_panel = { panel, media: panel.kind === 'image' ? { kind: 'image', url: '/media/p.png', width: 800, height: 600 } : null, show_at: 0 };
+    tl.scenes[0].layout = { ...(tl.scenes[0].layout || {}), show_side_panel: true };
+    const run = renderStage(tl, { templates: { list_build: listBuild } });
+    await run.stage.seek(30);
+    assert.ok(run.stage.el.querySelector('.dyn-board'), `${name}: board_generic drew it`);
+    assert.equal(run.stage.el.querySelector('.dyn-lb'), null);
+    const fmt = tl.presentation.format;
+    assert.deepEqual(listBuild.tex?.(tl.scenes[0], tl.scenes[0].look, fmt), boardGeneric.tex?.(tl.scenes[0], tl.scenes[0].look, fmt));
+    const zones = ZONES[fmt];
+    assert.deepEqual(listBuild.mediaBox?.(tl.scenes[0], zones, 'render', 'panel', { safe: false, slots: {} }), boardGeneric.mediaBox?.(tl.scenes[0], zones, 'render', 'panel', { safe: false, slots: {} }));
+    run.done();
+  }
 });
 
 test('texOf: the $...$ spans of the heading and the rows, inline, in order (what richWords mounts)', () => {
@@ -234,8 +268,9 @@ test('slotRows: the slot table templates.py mirrors (widths from the boxes), equ
   assert.equal(rows.row.portrait.default.weight, LAYOUT.portrait.weight);
 });
 
-const CATALOGUED = Object.keys(templateSlots('list_build') || {}).length > 0;
-test('the catalogue\'s list_build slots (templates.py) are slotRows exactly', { skip: !CATALOGUED && 'templates.py does not list list_build slots yet (the integrator adds them)' }, () => {
+test('the catalogue\'s list_build slots (templates.py) are slotRows exactly', () => {
+  // registered (B2c review CG-4: never skipped, so a lost slot table fails here)
+  assert.equal(/** @type {any} */ (CATALOGUE.templates).list_build.implemented, true);
   const cat = /** @type {any} */ (templateSlots('list_build'));
   const want = /** @type {any} */ (slotRows(ZONES.landscape, ZONES.portrait));
   for (const slot of Object.keys(want)) {
@@ -249,6 +284,8 @@ test('the catalogue\'s list_build slots (templates.py) are slotRows exactly', { 
     }
   }
   assert.deepEqual(Object.keys(cat).sort(), Object.keys(want).sort());
+  // the forms per kind (CG-5): a term or a row for the cues, a whole row for a reveal
+  assert.deepEqual(/** @type {any} */ (CATALOGUE.templates).list_build.consumes.forms, { reveal: ['item'], cue_term: ['item', 'item:term'], look_here: ['item', 'item:term'] });
 });
 
 test('mediaBox: the right 45% for the 16:9 panel (the largest box it is shown in, from the title zone\'s top); none otherwise', () => {
@@ -417,7 +454,7 @@ test('16:9 icons: the current row\'s stored icon on the right, in its row\'s dim
   let ctx = s.ctx(0);
   const r1 = rowOf(ctx, 'b1');
   const r2 = rowOf(ctx, 'b2');
-  assert.ok(r1.icon && r2.icon && !rowOf(ctx, 'b4').icon, 'icons for the rows the look stores one for');
+  assert.ok(ctx.view.rows.every((/** @type {any} */ r) => r.icon), 'an icon for every row (the look stores one for each)');
   assert.equal(r1.icon.parentElement, r1.el, 'in the row\'s group');
   assert.equal(r1.icon.style.visibility, 'visible');
   assert.equal(r2.icon.style.visibility, 'hidden');
@@ -494,7 +531,7 @@ test('cue.term: the stage marks a row\'s [[term]] through itemEl (marker in a da
   s2.done();
 });
 
-test('cue.look_here: focusRect is the row\'s text box and its group; the stage dims every other group to 70%, never the target\'s', async () => {
+test('cue.look_here: focusRect is the row\'s card (a shape) and its group; the stage dims every other group to 70%, never the target\'s', async () => {
   const tl = load('list_build.landscape.json');
   const cue = tl.scenes[0].events.find((/** @type {any} */ e) => e.kind === 'look_here');
   const s = spyStage(tl);
@@ -504,7 +541,8 @@ test('cue.look_here: focusRect is the row\'s text box and its group; the stage d
   const focus = /** @type {any} */ (listBuild.focusRect?.(ctx, 'b3'));
   assert.equal(focus.el, r3.el);
   assert.equal(focus.shape, 'rect');
-  assert.equal(focus.radius, 24 - PAD, 'the outline\'s curve on the row\'s corners');
+  assert.equal(focus.radius, 24, 'the card\'s radius: the outline\'s curve follows the card\'s corners, outside them');
+  assert.equal(focus.kind, 'shape', 'its outline is drawn whole, outside the card (cues.js shapeArea)');
   assert.ok(['x', 'y', 'w', 'h'].every((k) => Number.isInteger(focus.rect[k])));
   assert.equal(/** @type {any} */ (listBuild.focusRect?.(ctx, 'b3:term:0')).el, r3.el, 'a term target points at its row');
   assert.equal(listBuild.focusRect?.(ctx, 'zz'), null);
@@ -516,7 +554,7 @@ test('cue.look_here: focusRect is the row\'s text box and its group; the stage d
   s.done();
 });
 
-test('focusRect: the row\'s text box (not the row\'s edge) on whole px; the heading\'s text with its group', async () => {
+test('focusRect: the row\'s card (its state border\'s box) on whole px; the heading\'s text with its group', async () => {
   const tl = load('list_build.landscape.json');
   const s = spyStage(tl);
   await s.seekTo(0, 6);
@@ -525,9 +563,32 @@ test('focusRect: the row\'s text box (not the row\'s edge) on whole px; the head
   const rects = new Map([[r2.body, { x: 108.4, y: 300.6, w: 913.2, h: 70.2 }], [r2.card, { x: 96, y: 288, w: 938, h: 94 }],
     [real.view.head.text, { x: 96, y: 112, w: 900, h: 110.4 }]]);
   const ctx = { ...real, rectOf: (/** @type {Element} */ el) => rects.get(el) || null };
-  assert.deepEqual(listBuild.focusRect?.(ctx, 'b2'), { rect: { x: 108, y: 301, w: 914, h: 70 }, shape: 'rect', radius: 24 - PAD, el: r2.el });
-  assert.deepEqual(listBuild.focusRect?.(ctx, 'h1'), { rect: { x: 96, y: 112, w: 900, h: 110 }, shape: 'rect', radius: 0, el: real.view.head.el });
+  assert.deepEqual(listBuild.focusRect?.(ctx, 'b2'), { rect: { x: 96, y: 288, w: 938, h: 94 }, shape: 'rect', radius: 24, el: r2.el, kind: 'shape' });
+  assert.deepEqual(listBuild.focusRect?.(ctx, 'h1'), { rect: { x: 96, y: 112, w: 900, h: 110 }, shape: 'rect', radius: 0, el: real.view.head.el, kind: 'text' });
   s.done();
+});
+
+test('the current state reads apart from a look_here (plan §1.5; B2c review V4): the outline runs outside the state border, in every family and format', async () => {
+  for (const name of ['list_build.landscape.tamil.json', 'list_build.portrait.hindi.json', 'list_build.landscape.json', 'list_build.portrait.json']) {
+    const tl = load(name);
+    const i = tl.scenes.findIndex((/** @type {any} */ sc) => sc.events.some((/** @type {any} */ e) => e.kind === 'look_here'));
+    const cue = tl.scenes[i].events.find((/** @type {any} */ e) => e.kind === 'look_here');
+    const s = spyStage(tl);
+    await s.seekTo(i, cue.t + 0.6);
+    const real = s.ctx(i);
+    const row = rowOf(real, cue.target.split(':')[0]);
+    // the card at the critical column's edge, as the layout puts it (16:9 the list region from x 96; 9:16 x 192-780)
+    const zones = ZONES[tl.presentation.format];
+    const card = tl.presentation.format === 'portrait' ? { x: zones.textColumn.x0, y: 800, w: zones.textColumn.x1 - zones.textColumn.x0, h: 120 } : { x: 96, y: 400, w: 938, h: 94 };
+    const ctx = { ...real, rectOf: (/** @type {Element} */ el) => (el === row.card ? card : null) };
+    const focus = /** @type {any} */ (listBuild.focusRect?.(ctx, cue.target));
+    const outline = /** @type {any} */ (outlinePath(focus, focus.kind === 'shape' ? shapeArea(zones) : clampOf(zones, focus.rect)));
+    // the stroke's inner edge (its centre line less half its width) clears the card, where the 2 px state border is
+    // drawn inside, by FOCUS_OUTSET on every side: two shapes, never one rectangle
+    const inner = { x0: outline.box.x0 + FOCUS_PX / 2, y0: outline.box.y0 + FOCUS_PX / 2, x1: outline.box.x1 - FOCUS_PX / 2, y1: outline.box.y1 - FOCUS_PX / 2 };
+    assert.deepEqual([card.x - inner.x0, card.y - inner.y0, inner.x1 - card.x - card.w, inner.y1 - card.y - card.h], [FOCUS_OUTSET, FOCUS_OUTSET, FOCUS_OUTSET, FOCUS_OUTSET], name);
+    s.done();
+  }
 });
 
 test('texts(): the heading and every row, critical, in the ink, size and weight painted now; 9:16 compact rows in slot row', async () => {

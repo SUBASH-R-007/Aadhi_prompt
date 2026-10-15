@@ -651,7 +651,9 @@ export function insideAny(r, boxes) {
  * template that consumes it (cues.js), so a template that never declared a cue (board_generic) is never given one.
  * Behaviour flags, not colours, durations or personality values (plan §1.1; the source scan allows exactly these two).
  * @typedef {object} TemplateBehaviour
- * @property {{kinds: readonly string[], targets: readonly string[]}} consumes
+ * @property {{kinds: readonly string[], targets: readonly string[], forms: Readonly<Record<string, readonly string[]>>}} consumes
+ *   `targets` every form the template resolves; `forms` the forms per kind (B2c review CG-5: a cue kind is applied
+ *   only on a form the template draws it on, templates.py Consumes.forms)
  * @property {boolean} pushOk
  */
 
@@ -664,7 +666,7 @@ export function templateBehaviour(id) {
   if (!Object.prototype.hasOwnProperty.call(CATALOGUE.templates, id)) return null;
   const consumes = /** @type {Record<string, {consumes: any}>} */ (CATALOGUE.templates)[id].consumes;
   const pushOk = /** @type {Record<string, {push_ok: boolean}>} */ (CATALOGUE.templates)[id].push_ok === true;
-  return { consumes: { kinds: consumes.kinds, targets: consumes.targets }, pushOk };
+  return { consumes: { kinds: consumes.kinds, targets: consumes.targets, forms: consumes.forms }, pushOk };
 }
 
 /**

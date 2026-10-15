@@ -248,29 +248,9 @@
           "text": "Energy is height energy plus motion energy",
           "variables": [
             {
-              "meaning": "Mechanical energy",
-              "symbol_latex": "E_{\\mathrm{total}}",
-              "unit": "J"
-            },
-            {
               "meaning": "Wagon mass",
               "symbol_latex": "m",
               "unit": "kg"
-            },
-            {
-              "meaning": "Gravity's pull",
-              "symbol_latex": "g",
-              "unit": "m/s²"
-            },
-            {
-              "meaning": "Height above ground",
-              "symbol_latex": "h",
-              "unit": "m"
-            },
-            {
-              "meaning": "Maximum velocity",
-              "symbol_latex": "v",
-              "unit": "m/s"
             }
           ]
         }
@@ -295,43 +275,7 @@
           "kind": "var",
           "sfx": null,
           "t": 0.8,
-          "target": "f:var:E_{\\mathrm{total}}",
-          "words": ""
-        },
-        {
-          "anchored": true,
-          "dur": null,
-          "kind": "var",
-          "sfx": null,
-          "t": 1.1,
           "target": "f:var:m",
-          "words": ""
-        },
-        {
-          "anchored": true,
-          "dur": null,
-          "kind": "var",
-          "sfx": null,
-          "t": 1.4,
-          "target": "f:var:g",
-          "words": ""
-        },
-        {
-          "anchored": true,
-          "dur": null,
-          "kind": "var",
-          "sfx": null,
-          "t": 1.7,
-          "target": "f:var:h",
-          "words": ""
-        },
-        {
-          "anchored": true,
-          "dur": null,
-          "kind": "var",
-          "sfx": null,
-          "t": 2.0,
-          "target": "f:var:v",
           "words": ""
         },
         {
@@ -339,8 +283,17 @@
           "dur": null,
           "kind": "draw",
           "sfx": null,
-          "t": 2.4,
+          "t": 1.2,
           "target": "f",
+          "words": ""
+        },
+        {
+          "anchored": false,
+          "dur": 1.5,
+          "kind": "look_here",
+          "sfx": null,
+          "t": 1.7,
+          "target": "f:var:m",
           "words": ""
         }
       ],
@@ -391,17 +344,6 @@
       "side_panel": null,
       "start": 0.0,
       "subtitle": null,
-      "sync_cues": [
-        {
-          "beat_id": "ff-lint-b1",
-          "end": null,
-          "item_id": "f",
-          "kind": "var",
-          "part": "var:3",
-          "start": 0.786,
-          "words": "height"
-        }
-      ],
       "title": "Why work makes moving wagons whizz",
       "type": "content"
     },
@@ -505,16 +447,6 @@
               "meaning": "amount",
               "symbol_latex": "n",
               "unit": "mol"
-            },
-            {
-              "meaning": "Thermodynamicallyuniversalgasconstant",
-              "symbol_latex": "R",
-              "unit": "J/(mol K)"
-            },
-            {
-              "meaning": "temperature",
-              "symbol_latex": "T",
-              "unit": "K"
             }
           ]
         }
@@ -561,30 +493,21 @@
           "words": ""
         },
         {
-          "anchored": true,
-          "dur": null,
-          "kind": "var",
-          "sfx": null,
-          "t": 1.7,
-          "target": "f:var:R",
-          "words": ""
-        },
-        {
-          "anchored": true,
-          "dur": null,
-          "kind": "var",
-          "sfx": null,
-          "t": 2.0,
-          "target": "f:var:T",
-          "words": ""
-        },
-        {
           "anchored": false,
           "dur": null,
           "kind": "draw",
           "sfx": null,
-          "t": 2.4,
+          "t": 1.8,
           "target": "f",
+          "words": ""
+        },
+        {
+          "anchored": false,
+          "dur": 1.1,
+          "kind": "look_here",
+          "sfx": null,
+          "t": 2.3,
+          "target": "f:var:P",
           "words": ""
         }
       ],
@@ -738,11 +661,6 @@
               "meaning": "முடுக்கம்",
               "symbol_latex": "a",
               "unit": "m/s²"
-            },
-            {
-              "meaning": "நேரம்",
-              "symbol_latex": "t",
-              "unit": "s"
             }
           ]
         }
@@ -789,29 +707,20 @@
           "words": ""
         },
         {
-          "anchored": true,
-          "dur": null,
-          "kind": "var",
-          "sfx": null,
-          "t": 1.7,
-          "target": "f:var:t",
-          "words": ""
-        },
-        {
           "anchored": false,
           "dur": null,
           "kind": "draw",
           "sfx": null,
-          "t": 2.1,
+          "t": 1.8,
           "target": "f",
           "words": ""
         },
         {
           "anchored": false,
-          "dur": 0.8,
+          "dur": 1.1,
           "kind": "look_here",
           "sfx": null,
-          "t": 2.6,
+          "t": 2.3,
           "target": "f:var:s",
           "words": ""
         }
