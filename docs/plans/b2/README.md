@@ -16,6 +16,11 @@ here from a local scratchpad so any session can continue it.
   reports were not kept as files).
 - `b2b_h_review.md` is the B2b-H review (HarfBuzz text fit: three lenses, every finding with its skeptics' verdicts
   and outcome, three audited fix rounds, the parity probe numbers, the gates and the two findings still open).
+- `b2c_review.md` is the B2c review record (deadline mode: three lenses, one fix round, the gates and the deferrals);
+  `b2c_design_notes.md` is B2c **as built** — the shared template layer, the cues and the module shape every later
+  template copies. A session or agent building a template reads `b2c_design_notes.md` first.
+- `demo_workflow.js` is the prepared demo-phase Workflow script (direct.py + events.py, six more R1 templates in
+  parallel, one integrator that renders demo MP4s, one review, one fix).
 - `HANDOFF.md` is the session handoff: where things stand, the gates and the next steps.
 
 These files still refer to their old location (`.../scratchpad/b2_plan_v2.md`, `.../scratchpad/reads/`); read those
@@ -70,3 +75,7 @@ committed as final.**
 Status (2026-10-15, deadline mode): B2a, B2b and B2b-H (HarfBuzz text fit) landed on overhaul/v2; B2c (three pilot
 templates, cues.js) built on branch `b2c` and being finished; the demo phase is prepared in `demo_workflow.js`. See
 HANDOFF.md.
+
+Status (2026-10-15, later): the B2c merge is on `overhaul/v2` (`6ff938a`, pushed) and its as-built notes are in
+`b2c_design_notes.md` and design §10.3 B2 "Status (B2c)". The worktree `C:/t/b2c` is removed. Next: the demo phase
+(`demo_workflow.js`).

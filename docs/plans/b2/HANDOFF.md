@@ -20,12 +20,15 @@ superseded where they conflict.
   `cues.js`, `state.js` additions, and the templates `formula_focus`, `media_split`, `list_build` (registered in
   `stage.js` and the catalogue; `presentation.TEMPLATES` still `("board_generic",)`, so no existing timeline changes
   until `direct.py`). Record: `docs/plans/b2/b2c_review.md` (one review round; 15 fixed, 3 deferred; all gates green;
-  no-visible-change differential 2,664 frames, 0 differences). The design doc does not yet carry B2c "As built"
-  notes: add them from `b2c_review.md` when convenient. On the merged tree: ruff, tsc, all generated-file checks and
-  npm (1402 passed) are green; the full fast suite on the merged tree was started but its result is not recorded here.
-- **Worktree hygiene:** `C:/t/b2c/node_modules` is a JUNCTION to the main repo's `node_modules`; `C:/t/b2c/web/vendor`
-  is a real copy. Before `git worktree remove --force C:/t/b2c`, run `cmd /c rmdir C:\t\b2c\node_modules` (never let
-  a junction be deleted recursively). The merged tree needs no worktree.
+  no-visible-change differential 2,664 frames, 0 differences). **As-built notes are written:**
+  `docs/plans/b2/b2c_design_notes.md` (the shared layer, the module shape and the rules every later template copies -
+  a template builder reads it first) and design 10.3 B2 "Status (B2c)". On the merged tree: ruff, tsc, all
+  generated-file checks and npm (1402 passed) are green; the fast suite was re-run on the merged tree in the next
+  session (result recorded with the demo phase).
+- **Worktree hygiene:** the B2c worktree is **removed** (`C:/t/b2c` is gone; nothing is registered but the main
+  checkout). For the next one, remember `C:/t/<wt>/node_modules` is a JUNCTION to the main repo's `node_modules`
+  while `web/vendor` is a real copy: remove the junction with `cmd /c rmdir` BEFORE
+  `git worktree remove --force` (never let a junction be deleted recursively).
 - **The next phase is prepared, not started:** `docs/plans/b2/demo_workflow.js` is a ready Workflow script (pass
   `args: {base: <HEAD after the B2c merge>}`): direct.py + events.py wire the built templates into real lectures
   (template chosen by `TemplateSpec.fit` among implemented R1 templates; events generated from the screenplay),

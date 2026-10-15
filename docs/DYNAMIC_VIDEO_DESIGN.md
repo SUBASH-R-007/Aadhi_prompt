@@ -2949,7 +2949,7 @@ classic render's options as they were. Details: `ARCHITECTURE.md` §14, `INTERFA
   - Cost: `lucide-static` unpacks to about 51 MB in `npm ci` and `@tabler/icons` to about 11 MB (neither reaches the image); `icon_index.json` is 1.37 MB and `kerning.json` 2.9 MB in the repository (*B2b-H deleted `kerning.json`*).
   - Not run: the Docker image build, the container job, and the kerning generator's `--check` (*the generator is deleted in B2b-H*).
 
-**Status (B2b-H, 2026-10-15): HarfBuzz text fit built and reviewed; two audit findings open; not yet committed as final.** B2b-H is the step the owner added after B2b. It rebuilt the text fit on HarfBuzz shaping for every script and retired the kerning table. The build and most of the review's first fix round are the commit `87fa371` ("WIP B2b-H"). The rest of round 1 (one test assertion), rounds 2 and 3 (`textfit.py`, `test_textfit.py`, `test_textfit_parity.py`) and this docs pass are in the working tree. Details: §4.6 "As built (B2b-H)", §4.12, §6.7, §7.13, `docs/INTERFACES.md`, `docs/OPERATIONS.md`, `docs/plans/b2/b2b_h_review.md`.
+**Status (B2b-H, 2026-10-15): HarfBuzz text fit built, reviewed and committed (`65e6f1d`); two audit findings accepted open for the deadline.** B2b-H is the step the owner added after B2b. It rebuilt the text fit on HarfBuzz shaping for every script and retired the kerning table. The build and most of the review's first fix round are the commit `87fa371` ("WIP B2b-H"). The rest of round 1 (one test assertion), rounds 2 and 3 (`textfit.py`, `test_textfit.py`, `test_textfit_parity.py`) and this docs pass are in the working tree. Details: §4.6 "As built (B2b-H)", §4.12, §6.7, §7.13, `docs/INTERFACES.md`, `docs/OPERATIONS.md`, `docs/plans/b2/b2b_h_review.md`.
 - **Built.**
   - **Shaping:** `aadhi/compose/dynamic/shaping.py` decodes WOFF2 with fontTools and brotli, then shapes with uharfbuzz using the stage's `unicode-range` filter, axes, features, script runs (a port of Chromium's `ScriptRunIterator`) and language.
   - **Text fit:** `textfit.py` adds Chromium's font fallback, letter-spacing per cluster, the cursive-script rule and `tnum` for the ring (`SlotSpec.tabular_nums`). It also adds whitespace collapsing as the page does it, flow readings, zero-width-space joins, and the margins 0.5% + 1/64 px.
@@ -2985,6 +2985,68 @@ classic render's options as they were. Details: `ARCHITECTURE.md` §14, `INTERFA
   - For an over-wide word, Python's stored size can be one 4 px step below the page's (owner or B2e).
   - `test_faces.py` still opens every face with Pillow, which is now only a readability check.
   - Wiring textfit into `direct.py`, preflight and the chunker (B2d/B2e).
+
+**Status (B2c, 2026-10-15): the vertical slice built, reviewed and merged (deadline mode).** B2c is plan §A step 3: the
+shared template layer, the cues and three pilot templates through every gate. It is the commit `3f3899b` on the branch
+`b2c`, merged into `overhaul/v2` as `6ff938a`. From here on the owner's deadline process applies (one review round, at
+most one fix round, no skeptic loops; "Deadline mode" below). Details: §4.2–§4.4, §4.7–§4.9, §7.12,
+`docs/plans/b2/b2c_review.md` (what the review found) and `docs/plans/b2/b2c_design_notes.md` (**the as-built pattern
+every later template follows**).
+- **Built.**
+  - **`web/js/dynamic/templates/_shared.js`:** the layer every template draws through — catalogue geometry (`region`,
+    `gridSpan`, `boxRect`, `insetBox`, `place`, `SPACE`, `RADIUS`), text (`rich`, `tex`, `richWords` keeping the
+    `[[term]]` `.rt-k` spans a term cue needs, `fitLines` as the page fits, `slotRange` with preflight's fixes and the
+    R-29 floor), motion (`seconds` for the personality's scale, `enterAt`, `paintRise`, `revealMask` +
+    `paintTextEntrance`, `group`), item states, the §7.12 scrim helper moved out of `board_generic`, the icon helper
+    that re-sanitises a stored `LookIcon` before drawing it (`ICON_PATH_RE` and the schema's caps, `d` through
+    `setAttribute` only), media (`mediaAspect`, `containRect`, `pushHeadroom`, `paintMedia`) and the §4.7 formula
+    tints (`tintTex`, `tintTargets`, `paintTint`).
+  - **`web/js/dynamic/cues.js`:** `cue.term` and `cue.look_here`, drawn by the stage from the scene's events for every
+    template alike (plan §1.5, deviation 3), only for the kinds and target forms the template's `consumes` declares.
+    A template contributes geometry only (`itemEl`, `focusRect`, `dimGroups`).
+  - **`state.js`:** the item states (current / past / done / struck) and `itemStateStyle`, beside B2a's entrance times,
+    frozen background clock and caption.
+  - **Three pilots, both formats and the dark and light families:** `formula_focus` (MathJax at up to 1.6x
+    `board_generic`'s formula size in a drawn box, per-symbol entity tints, braces placed at the symbol's own glyphs, a
+    legend row per variable, the R-16 look_here walk, dense so the background freezes at 0 and makes no sound),
+    `media_split` (a clip or picture beside text, its box sized from the fixes unlike `board_generic`'s, `push_ok`,
+    media side flipping only at a chapter boundary) and `list_build` (per-item build-up with the item states and the
+    2 px `ink2` current-item border). Registered in `stage.js` `TEMPLATES` and in `templates.py` with
+    `implemented=True`, `slots` mirroring the JS constants (pinned against each other by a jsdom test) and `consumes`.
+  - **Gates of their own:** `tests/determinism/test_template_pages.py` (the 1x/3x/reverse order-independence gate in
+    real Chromium), `test_template_fixtures.py`, `test_template_clips.py`, `test_formula_focus_page.py`, the jsdom
+    contract tests under `web/tests/dynamic/templates/`, and the manual reference-frame contact sheet
+    `docs/plans/b2/b2c_frames/index.html` (`python -m tests.compose.dynamic.make_reference_frames`).
+- **No visible change.** `presentation.TEMPLATES` is still `("board_generic",)`, so the pilots draw only a timeline
+  that names them and no existing timeline moved: the no-visible-change differential on the day's 12 timelines gave
+  2,664 frames with 0 differences. Classic output is unchanged (the invariance goldens; the slow classic differential
+  passed in the 72-test group).
+- **Measured.** A `contain_blur` clip under the 3 % look_here push renders differently by frame order (80 of 120
+  frames in both formats; 63 of 120 in 9:16 in reverse order with its backdrop), while stills under the same push and
+  clips under the medium's own 0.96 → 1 entrance do not. **So a scene that shows a clip never pushes**: its look_here
+  cues keep the outline form in both modes (`cues.js` `showsClip`, `tests/determinism/test_template_clips.py`).
+- **Deviations and readings** (`b2c_design_notes.md` §6): the term cue styles the term's own span rather than drawing
+  in the `.dyn-cues` layer (a marker belongs under its glyphs, and a layer above cannot put it there without copying
+  the line layout); cue timings are the design's absolute values, never scaled by the personality; a cue without `dur`
+  holds 2 s; R-59's 696 px critical column wins over §4.3's 768 px for `formula_focus` in 9:16 (the 768 px is the
+  card); `list_build`'s current item takes plan §1.5's 2 px `ink2` inset border instead of §4.3's 3 px outline; 9:16
+  `media_split` gives the medium 16–46 % of the stage (owner decision); R-25 is a lint concern, not a template one.
+- **Deadline mode (owner, 2026-10-15).** About two days remained, so the owner chose a working demo over the full B2
+  scope: parallel build agents writing only their own files plus one integrator, ONE review round, at most one fix
+  round, no skeptic loops, and a push of `overhaul/v2` after each landed phase. B2c was reviewed that way: three
+  lenses (design/visual, code and gates, and the no-visible-change differential), one skeptic per finding, one fix
+  round; the audit and docs agents were skipped for time. 18 findings survived the skeptics: 15 fixed, 3 deferred
+  (V8, V9, NVC-1). The fix round also found a preflight defect and fixed it: `Finding.merge` kept the first sighting's
+  status, so an overflow first seen mid-entrance never blocked; a checked sighting now wins.
+- **Gates on the merged tree:** ruff, `tsc` and `git diff --check` clean; all ten generated-file checks pass
+  (`lock_requirements --check` included, after the merge with B2b-H's pins); `npm test` 1,401 passed, 0 failed; the
+  fast suite 5,330 passed, 0 failed; the B2c slow Chromium gates 94 passed; the other slow gates, the classic
+  invariance differential included, 72 passed.
+- **Open.** The three deferred findings (V8, V9, NVC-1); every template size is a B2c proposal awaiting the owner's
+  review of the reference frames; `textfit` is still not wired into rendering (B2d/B2e); `anchor()` is still null (the
+  morph, B2f); the remaining R1 templates, `direct.py` and `events.py` are the demo phase
+  (`docs/plans/b2/demo_workflow.js`).
+
 
 #### B3. Audio system (in parallel with B1–B2)
 
