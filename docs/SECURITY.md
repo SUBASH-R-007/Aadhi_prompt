@@ -469,6 +469,22 @@ or `user:<id>`).
   converter); their asset ids, `asset:` references and storage paths are never followed, only reported.
   Their extra database tables are ignored; the database is opened read-only as before.
 
+### 3.10 Dynamic video foundations (batch B0)
+
+* **New asset-key fields are authorised from day one.** A clip scene's clip, an overlay's clip, the music bed
+  (`presentation.music.asset_key`) and the teacher's recorded narration (`Beat.voice_override_asset_key`) are
+  checked like the classic key fields: the project must have an `asset_refs` row for the key and the asset's kind
+  and MIME family must fit the field (`aadhi/assets_auth.FIELD_RULES`), else 422 on `PUT /screenplay`, the
+  timeline preview, change requests and Visual Review; import strips the key (and the overlay or clip scene that
+  needs it). A copied or guessed key of another teacher's clip or music therefore never plays in someone else's
+  lecture. `AssetRef` rows are added only by `record_asset_refs`, for media the project uploaded, imported with
+  permission or generated. A test fails when a new `*asset_key*` field is not in the table.
+* **Write gates.** Dynamic features not enabled on the server (`DYNAMIC_FEATURES`) are refused in saves and imports
+  (422 `feature_unavailable`), so a crafted document cannot store data for features whose renderers and checks do
+  not exist yet.
+* **No silent downgrade.** A document from a newer build is refused (409 `newer_document`, a fatal job error)
+  rather than read with its unknown fields dropped and written back.
+
 ---
 
 ## 4. Operations

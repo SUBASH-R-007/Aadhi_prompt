@@ -68,6 +68,24 @@ def test_regenerate_scene(api):
     assert too_long.status_code == 422
 
 
+def test_regenerate_refuses_an_inserted_clip_scene_without_using_the_quota(api):
+    """A teacher-inserted clip scene (v3) is never written by AI: 409 ``action_unavailable`` before any budget check,
+    job or generation token (the worker refuses one too, ``orchestrator._regenerate``)."""
+    from aadhi.schemas.screenplay import Screenplay
+    from tests.schemas.v3_fixtures import with_feature
+
+    api.settings.generation_rate_limit_per_hour = 1
+    _, c, project, version = setup_version(api, screenplay=Screenplay.model_validate(with_feature("clip")),
+                                           built=False)
+    for _ in range(3):
+        r = c.post(f"/api/versions/{version.id}/scenes/c-x/regenerate", json={"instructions": "Shorter."})
+        assert r.status_code == 409 and r.json()["code"] == "action_unavailable", r.text
+        assert "clip" in r.json()["detail"].lower()
+    assert _count(api, Job, Job.kind == "regenerate_scene") == 0
+    ok = c.post(f"/api/versions/{version.id}/scenes/s1/regenerate", json={})  # the hourly token is still there
+    assert ok.status_code == 202, ok.text
+
+
 PLAN = {
     "session_title": "Ohm's Law",
     "learning_objectives": [{"id": "o1", "text": "Apply V = IR"}],

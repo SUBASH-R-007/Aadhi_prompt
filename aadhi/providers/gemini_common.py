@@ -15,11 +15,13 @@ is safe to share between worker threads.
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import logging
 import re
 import sys
 import threading
 import time
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from types import ModuleType
 from typing import Any, TypeVar
 
@@ -30,6 +32,7 @@ from ._retry import NOT_RETRYABLE, ErrorInfo, SleepFn, call_with_retries
 from .base import ContentBlocked, ProviderError, ProviderNotConfigured, RateLimited, Usage
 
 R = TypeVar("R")
+log = logging.getLogger(__name__)
 
 GEMINI_HOST = "generativelanguage.googleapis.com"
 DEFAULT_COOLDOWN_S = 60.0
@@ -52,6 +55,7 @@ _SERVICE_NAMES = {
     "tts": "voice service (Gemini)",
     "image": "image service (Gemini)",
     "video": "video service (Veo)",
+    "omni": "video service (Gemini Omni)",
 }
 
 
@@ -214,6 +218,17 @@ def default_client_factory(timeout_s: float) -> ClientFactory:
     return make
 
 
+async def _aclose_client(client: Any) -> None:
+    """Close a genai client's async transport (best effort, never raises)."""
+    close = getattr(getattr(client, "aio", None), "aclose", None)
+    if not callable(close):
+        return
+    try:
+        await asyncio.wait_for(close(), timeout=5.0)
+    except Exception as exc:  # noqa: BLE001 - closing is best effort
+        log.debug("gemini: closing a client failed (%s)", type(exc).__name__)
+
+
 class GeminiCaller:
     """Runs Gemini SDK requests with retries, key rotation and error mapping."""
 
@@ -226,6 +241,7 @@ class GeminiCaller:
         sleep: SleepFn | None = None,
         max_attempts: int | None = None,
         scope: str = "default",
+        per_loop: bool = False,
     ) -> None:
         keys = settings.all_gemini_keys
         if not keys:
@@ -237,14 +253,31 @@ class GeminiCaller:
         self._factory = client_factory
         self._sleep = sleep
         self.max_attempts = max_attempts or min(10, 4 + self.pool.size)
-        self._clients: dict[str, Any] = {}
+        # per_loop: one client per key and event loop, closed in that loop when its last user is done
+        # (``loop_lease``). The SDK's Interactions resource talks over the client's single httpx.AsyncClient, whose
+        # pooled connections belong to the loop that opened them; every job runs in its own loop
+        # (``jobs.runner.run_job_loop``), closed when the job ends, and worker threads run loops side by side, so
+        # such a client is never shared across loops.
+        self._per_loop = per_loop
+        self._clients: dict[Any, Any] = {}
+        self._leases: dict[asyncio.AbstractEventLoop, int] = {}
         self._lock = threading.Lock()
 
     async def client(self, key: str) -> Any:
-        """Client for ``key`` (created once; creation loads TLS state so it runs in a thread)."""
-        fp = fingerprint(key)
+        """Client for ``key`` (created once, or once per event loop with ``per_loop``; creation loads TLS state so it
+        runs in a thread)."""
+        ident: Any = fingerprint(key)
+        if self._per_loop:
+            loop = asyncio.get_running_loop()  # the loop object itself: a new loop may reuse an old one's id()
+            ident = (ident, loop)
+            with self._lock:  # left behind by a loop that ended without closing them (no lease): forget them
+                stale = [self._clients.pop(k) for k in [k for k in self._clients if k[1].is_closed()]]
+            if stale:
+                # Released off the loop: the SDK's __del__ hooks schedule aclose() on the running loop, which would
+                # try to close the ended loop's connections here ("Event loop is closed", logged).
+                await asyncio.to_thread(stale.clear)
         with self._lock:
-            client = self._clients.get(fp)
+            client = self._clients.get(ident)
         if client is not None:
             return client
         if self._factory is not None:
@@ -252,7 +285,28 @@ class GeminiCaller:
         else:
             client = await asyncio.to_thread(default_client_factory(self.timeout_s), key)
         with self._lock:
-            return self._clients.setdefault(fp, client)
+            return self._clients.setdefault(ident, client)
+
+    @contextlib.asynccontextmanager
+    async def loop_lease(self) -> AsyncIterator[None]:
+        """Hold this event loop's clients (``per_loop``) while a call uses them: the last holder closes them, in
+        their own loop, so nothing of a finished job's connections is left for the next loop to trip over."""
+        loop = asyncio.get_running_loop()
+        with self._lock:
+            self._leases[loop] = self._leases.get(loop, 0) + 1
+        try:
+            yield
+        finally:
+            with self._lock:
+                left = self._leases.pop(loop) - 1
+                if left:
+                    self._leases[loop] = left
+                    mine: list[Any] = []
+                else:
+                    mine = [self._clients.pop(k) for k in [k for k in self._clients
+                                                           if isinstance(k, tuple) and k[1] is loop]]
+            for client in mine:
+                await _aclose_client(client)
 
     async def call(self, fn: Callable[[Any, str], Awaitable[R]], *, what: str) -> R:
         """Run ``fn(client, key)`` with retries; raise ``ProviderError``/``RateLimited``/``ContentBlocked``."""

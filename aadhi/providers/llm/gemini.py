@@ -4,8 +4,13 @@ Files and images are sent inline while the whole request stays under Gemini's 20
 (inline bytes travel base64 encoded, +33 %); otherwise the largest parts go through the Files API
 (uploaded once per key and content hash, reused for about 46 hours).
 
+Sampling: ``temperature`` is sent to Gemini 1.x / 2.x models only. Google asks to keep Gemini 3 and
+later models at their default temperature (1.0): lower values may loop or degrade reasoning, and
+Gemini 3.8 Flash ignores sampling parameters altogether. Thinking is left at each model's default
+(``medium`` for Gemini 3.8 Flash); thinking tokens are billed as output (``usage_from_response``).
+
 Stalled requests: unlike the OpenAI and Claude adapters this one does not stream, and each attempt
-waits up to ``LLM_TIMEOUT_SECONDS``. Gemini 2.5 models think before their first streamed chunk
+waits up to ``LLM_TIMEOUT_SECONDS``. Gemini 2.5 and 3.x models think before their first streamed chunk
 (minutes for a long plan), and the SDK offers no reliable earlier sign of life: thought summaries
 (``include_thoughts``) are returned "only if ... thoughts are available", and the HTTP response
 headers are not exposed by ``generate_content_stream``. A short first-response limit could
@@ -20,6 +25,7 @@ import asyncio
 import hashlib
 import io
 import json
+import re
 import threading
 import time
 from collections.abc import Sequence
@@ -47,6 +53,13 @@ INLINE_LIMIT_BYTES = 19_000_000
 UPLOAD_TTL_S = 46 * 3600  # uploaded files expire after 48 h
 UPLOAD_ACTIVE_TIMEOUT_S = 300.0
 TEXT_RECITATION_RETRIES = 1  # generate_text: paraphrase re-asks after a recitation stop
+#: Model generations that take a caller-chosen temperature (Gemini 3+ keeps its default, see above).
+_TUNABLE_SAMPLING = re.compile(r"^(models/)?gemini-[12][.-]", re.IGNORECASE)
+
+
+def sends_temperature(model: str) -> bool:
+    """Whether requests to ``model`` carry the caller's ``temperature`` (Gemini 1.x / 2.x only)."""
+    return bool(_TUNABLE_SAMPLING.match((model or "").strip()))
 
 
 def base64_size(n: int) -> int:
@@ -173,7 +186,9 @@ class GeminiLLM:
     ) -> Completion:
         types = await genai_types()
 
-        config_kwargs: dict[str, Any] = {"temperature": temperature}
+        config_kwargs: dict[str, Any] = {}
+        if sends_temperature(model):
+            config_kwargs["temperature"] = temperature
         if system:
             config_kwargs["system_instruction"] = system
         if max_output_tokens:

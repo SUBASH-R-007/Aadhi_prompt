@@ -6,7 +6,7 @@
  * undo history of snapshots and the conflict merger can diff them. Each edit keeps the
  * structural invariants the server validates:
  *   - a board item is revealed by at most one beat; references point at existing items;
- *   - a beat may only fill a *blank* example_step that is revealed at or before that beat,
+ *   - a beat may only fill a *blank* item (example_step, question) that is revealed at or before that beat,
  *     and each blank is filled at most once;
  *   - highlights (max 2) point at items already visible at that beat;
  *   - only board scenes reference board items;
@@ -80,10 +80,20 @@ export const MAX_QUIZ_OPTIONS = 5;
 export const MIN_QUIZ_OPTIONS = 2;
 export const MAX_SCENES = 200;
 
-const COMMON_SCENE_KEYS = [
+/**
+ * Fields every scene type has (SceneBase in aadhi/schemas/screenplay.py): a type change keeps them all, so the
+ * teacher's choices (`hidden`, `min_seconds`), the scene's look and the fields a newer build adds are never
+ * dropped (design §6.7, transform survival; web/tests/studio/transformSurvival.test.js checks this list
+ * against web/schemas/screenplay.schema.json).
+ */
+export const COMMON_SCENE_KEYS = /** @type {const} */ ([
   'id', 'concept_id', 'chapter_id', 'title', 'subtitle', 'mascot_position', 'beats', 'side_panel', 'objective_ids',
-  'intent', 'notes',
-];
+  'intent', 'notes', 'hidden', 'min_seconds', 'look', 'colour_is_content',
+]);
+/** Fields of board scenes only (BoardScene): they follow the board between board types. */
+export const BOARD_SCENE_KEYS = /** @type {const} */ (['board', 'sequence']);
+/** Item kinds that may start blank ("______" until a beat fills them, Beat.fill_item_id). */
+export const BLANKABLE_KINDS = new Set(['example_step', 'question']);
 
 /** @param {Scene | null | undefined} scene */
 export function isBoardScene(scene) {
@@ -247,7 +257,7 @@ function applyKindDefaults(item, kind, sp) {
     out.figure_id = first;
   }
   if (kind === 'definition' && !out.term && !out.text) out.term = '';
-  if (kind !== 'example_step') out.blank = false;
+  if (!BLANKABLE_KINDS.has(kind)) out.blank = false;
   else if (out.blank === undefined) out.blank = false;
   if (kind !== 'misconception') out.misconception_id = null;
   return out;
@@ -292,7 +302,8 @@ export function newScene(type, sp, opts = {}) {
 }
 
 /**
- * Give a scene of (possibly) another type the fields its new type needs and drop the others.
+ * Give a scene of (possibly) another type the fields its new type needs and drop the others. Every common
+ * field (COMMON_SCENE_KEYS) is kept, and between board types the board with its `sequence`.
  * @param {Scene} scene
  * @param {string} type
  * @param {{ manimTemplate?: { name: string, example_params?: Record<string, any> } | null }} [opts]
@@ -306,7 +317,9 @@ function convertSceneShape(scene, type, opts = {}) {
   out.beats = Array.isArray(out.beats) ? out.beats : [];
   const wasQuiz = scene.type === 'quiz_checkpoint';
   if (isBoardScene({ type })) {
-    out.board = isBoardScene(scene) ? clone(scene.board || []) : [];
+    out.board = [];
+    if (isBoardScene(scene)) for (const k of BOARD_SCENE_KEYS) if (k in scene) out[k] = clone(scene[k]);
+    if (!Array.isArray(out.board)) out.board = [];
   } else if (type === 'chapter_card') {
     out.chapter_label = scene.chapter_label || 'Part 1';
     out.beats = out.beats.slice(0, MAX_CHAPTER_CARD_BEATS);
@@ -721,7 +734,7 @@ export function fillOptions(scene, beatIdx) {
     if (b.fill_item_id) filledBy.set(b.fill_item_id, i);
   });
   return (scene.board || []).filter((/** @type {BoardItem} */ it) => {
-    if (it.kind !== 'example_step' || !it.blank) return false;
+    if (!BLANKABLE_KINDS.has(it.kind) || !it.blank) return false;
     const r = rev.has(it.id) ? /** @type {number} */ (rev.get(it.id)) : -1;
     if (r > beatIdx) return false;
     return !filledBy.has(it.id) || filledBy.get(it.id) === beatIdx;
@@ -898,7 +911,7 @@ export function setItemBlank(scene, itemId, blank) {
   const out = clone(scene);
   const item = (out.board || []).find((/** @type {BoardItem} */ i) => i.id === itemId);
   if (!item) return scene;
-  if (blank && item.kind !== 'example_step') throw new Error('only example steps can be blank');
+  if (blank && !BLANKABLE_KINDS.has(item.kind)) throw new Error('only example steps and questions can be blank');
   item.blank = !!blank;
   return repairSceneRefs(out);
 }
@@ -1007,7 +1020,7 @@ export function repairSceneRefs(scene) {
     }
   } else {
     out.board = (scene.board || []).map((/** @type {BoardItem} */ i) =>
-      i.kind !== 'example_step' && i.blank ? { ...i, blank: false } : i,
+      !BLANKABLE_KINDS.has(i.kind) && i.blank ? { ...i, blank: false } : i,
     );
     // A legend row's beat (FormulaVariable.beat_id) that is no longer a beat of the scene: automatic again.
     const beatIds = new Set(out.beats.map((/** @type {Beat} */ b) => b.id));
@@ -1036,7 +1049,7 @@ export function repairSceneRefs(scene) {
       if (b.fill_item_id) {
         const item = items.get(b.fill_item_id);
         const r = revealedAt.has(b.fill_item_id) ? /** @type {number} */ (revealedAt.get(b.fill_item_id)) : -1;
-        const ok = item && item.kind === 'example_step' && item.blank && !filled.has(b.fill_item_id) && r <= idx;
+        const ok = item && BLANKABLE_KINDS.has(item.kind) && item.blank && !filled.has(b.fill_item_id) && r <= idx;
         if (ok) filled.add(b.fill_item_id);
         else b.fill_item_id = null;
       }

@@ -30,6 +30,7 @@ import { openVideoPreview } from '../components/videoPreview.js';
 import { href } from '../router.js';
 import { formatDate, formatDuration, formatUsd, formatBytes, formatRelative, copyText, absoluteUrl } from '../util.js';
 import { JOB_KIND_LABELS, isActive } from '../lib/jobStages.js';
+import { dynamicRender } from '../lib/renderOptions.js';
 import { voicesFor } from '../lib/optionsForm.js';
 import { loadDraft } from '../lib/draftStore.js';
 import { showTechnical } from '../lib/debug.js';
@@ -188,6 +189,7 @@ export function mount(container, { app, params, query }) {
     return nextStepCard({
       stage: found.stage,
       next,
+      stageAction: found.next.action, // a failed video of a built lecture keeps its strip under "Open the editor"
       note,
       canDo: (action) => !!v && PAGE_ACTIONS.has(action),
       onAction: (step, btn) => void runStep(step, btn),
@@ -274,8 +276,11 @@ export function mount(container, { app, params, query }) {
     if (destroyed) return;
     const items = (pre && Array.isArray(pre.items) ? pre.items : []).filter((/** @type {any} */ it) => it && it.reason !== 'quality');
     const silent = items.some((/** @type {any} */ it) => it.blocking);
-    const captions = checkbox({ label: 'Burn captions into the video', checked: false, hint: 'Captions are also delivered as SRT and VTT files.' });
-    const intro = checkbox({ label: 'Include the intro (logo and title cards)', checked: true });
+    // A Dynamic lecture (the server's answer, lib/renderOptions.js): "Burn captions" starts from its caption policy
+    // (§2.6) and the choice is always sent; it has no classic intro. A classic lecture's dialog is unchanged.
+    const dyn = dynamicRender(pre);
+    const captions = checkbox({ label: 'Burn captions into the video', checked: dyn ? dyn.captionsBurn : false, hint: 'Captions are also delivered as SRT and VTT files.' });
+    const intro = dyn ? null : checkbox({ label: 'Include the intro (logo and title cards)', checked: true });
     const modal = openModal({
       title: 'Make the video',
       description: 'Makes an MP4 of the built lecture, exactly as the preview shows it. Long lectures take several minutes. The editor has more options.',
@@ -298,7 +303,8 @@ export function mount(container, { app, params, query }) {
     }
     if (choice !== 'render' && choice !== 'degraded') return;
     /** @type {Record<string, any>} */
-    const body = { burn_captions: captions.input.checked, include_intro: intro.input.checked };
+    const body = { burn_captions: captions.input.checked };
+    if (intro) body.include_intro = intro.input.checked;
     if (pre) body.allow_degraded = choice === 'degraded';
     await startRender(v, body);
   }

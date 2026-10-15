@@ -19,12 +19,16 @@ Base path `/api`. JSON in/out unless noted. Times are ISO-8601 UTC strings.
   feature, e.g. the library's AI descriptions), `not_found` (404), `revision_conflict` (409, extra
   `current_revision`), `job_in_progress` (409, extra `job_id`), `version_busy` (409, extra `job_id`),
   `engine_not_configured` (409, extra `engine`),
+  `newer_document` (409, extra `document` (`screenplay` | `timeline` | `asset manifest`), `schema_version`,
+  `reader_version`: the document was saved by a newer build, see [Document versions](#document-versions-and-dynamic-video-features)),
   `timeline_stale` (409), `render_preflight` (409, extra `items`), `not_awaiting_review` (409),
   `source_unavailable` (409, the source extract can no longer be read), `no_screenplay` (409),
   `action_unavailable` / `no_visual` / `confirm_paid_required` (409, Visual Review; `action_unavailable` also for
-  a build of only skipped scenes), `asset_missing`
+  a build of only skipped scenes and for regenerating an inserted clip scene), `asset_missing`
   (409, a library item whose file is no longer stored), `too_large` (413),
-  `unsupported_type` (415), `rate_limited` / `budget` / `render_busy` / `render_queue_full` (429,
+  `unsupported_type` (415), `feature_unavailable` (422, extra `features`: a Dynamic-video feature this server does
+  not enable; one `detail` entry per feature, `{loc, msg, type: "feature_unavailable"}`),
+  `rate_limited` / `budget` / `render_busy` / `render_queue_full` (429,
   `Retry-After` header), `describe_failed` (502), `render_unavailable` / `unavailable` (503).
 * **Storable JSON**: bodies that are stored (screenplay PUT / lint / preview, build, scene regenerate,
   plan, duplicate, translate, project PATCH, regenerate options, multipart `options`, imported files)
@@ -39,7 +43,13 @@ Base path `/api`. JSON in/out unless noted. Times are ISO-8601 UTC strings.
 * **Authorization**: every `/api/versions/{vid}/…` route resolves the version through
   `load_version(user, vid)` (owner or admin; project not deleted). Ids in bodies/queries must belong
   to the path project. Asset keys in a screenplay (`override_asset_key`, `poster_override_asset_key`,
-  `SourceFigure.asset_key`) must be referenced by the project (`asset_refs`) and of an allowed kind.
+  `SourceFigure.asset_key`, and the Dynamic fields `ClipScene.clip.asset_key`, `Overlay.clip.asset_key`,
+  `Presentation.music.asset_key`, `Beat.voice_override_asset_key`) must be referenced by the project (`asset_refs`)
+  and of an allowed kind and MIME family (`aadhi/assets_auth.FIELD_RULES`): 422 `validation` with type
+  `asset_key.unknown` or `asset_key.kind` at the field, e.g. `scenes.2.clip.asset_key`,
+  `scenes.1.beats.0.overlays.0.clip.asset_key` (also in a quiz's `reveal_beats`),
+  `scenes.1.beats.0.voice_override_asset_key` or `presentation.music.asset_key`. This applies to `PUT /screenplay`,
+  the timeline preview, change requests and Visual Review.
   The media library (`/api/library`) is always the signed-in user's own: another user's item is 404
   for everybody, admins included, and library media go only into the user's own lectures.
 * **Body limits**: JSON ≤ `MAX_JSON_BODY_MB` (5 MB); uploads ≤ `UPLOAD_MAX_MB`.
@@ -75,7 +85,8 @@ Base path `/api`. JSON in/out unless noted. Times are ISO-8601 UTC strings.
 // (the provider refused the starter's personal API key - HTTP 401/403, or Gemini's 400
 // API_KEY_INVALID / expired - for any call: scenes, translation, voices, images, AI video; never
 // retried, never run on the server key instead; replace or remove the key under API keys, then
-// retry), "cancelled", "error"
+// retry), "newer_document" (the version's screenplay, timeline or manifest was saved by a newer build: the job did
+// not run; deploy the same build to every worker, then retry), "cancelled", "error"
 // JobEvent
 {"id": 99, "job_id": 12, "created_at": "...", "level": "info", "stage": "script",
  "message": "...", "progress": 0.31, "data": {}}
@@ -88,16 +99,61 @@ Base path `/api`. JSON in/out unless noted. Times are ISO-8601 UTC strings.
 //   made from the version's current revision and its timeline is not stale ("Up to date" / "Out of date")
 // + "preview_url": str | null on GET /api/versions/{vid}/renders: a streamable URL of a finished MP4 (served like
 //   timeline media: a capability URL, or a short-lived presigned one on S3 without a CDN), null otherwise
-// RenderSummary.options: {"burn_captions", "include_intro", "soft_subtitles"?,
+// RenderSummary.options: {"burn_captions"?, "include_intro", "soft_subtitles"?,
+//   ("burn_captions" is absent for a Dynamic render whose request left it to the lecture's presentation,
+//    see POST /api/versions/{vid}/render; a classic render always stores it)
 //   "qa"?: {"ok", "expected_frames", "frames", "fps", "has_audio", "audible", "on_grid", "black_edges",
 //           "color", "subtitle_tracks", "problems": [str], "warnings": [str], ...},
-//   "warnings"?: [{"scene_index", "scene_id", "title", "reason", "message", "scene_number"?}]}   // scenes rendered with a fallback
-//   (scene_index: the place in the timeline, which leaves skipped scenes out; scene_number: the 1-based place in the
-//   screenplay, skipped scenes counted, as the editor numbers scenes; absent on renders made before it was added)
+//   a Dynamic render (motion engine, DYNAMIC_VIDEO_DESIGN §7.12) adds to "qa": "engine": "motion", "schema": 1,
+//     "constant_frame_rate", "duration", "audio_mean_db", "audio_max_db", "loudness" (null in B1),
+//     "starts": {"video", "video_raw" (without the edit list), "audio", "av_offset"} (seconds),
+//     "chunks": [{"index", "expected", "frames"}], "remedies": [{"remedy", "chunks"?, "problems"}] (applied container remedies),
+//     "preflight": {"schema": 1, "ok", "format", "frames", "fps", "sampled", "rounds", "seconds", "webgl",
+//                   "checks": {"text_overflow" | "safe_zones" | "contrast" | "type_floor": {"status", "count"}},
+//                   "items": [...],
+//                   "remedies": [...], "stats": {"frames", "boxes", "contrast_measured"}, "problems", "warnings"},
+//     "motion": {"engine", "frames", "fps", "size", "workers", "slots", "chunks", "reused_chunks", "fps_per_worker",
+//                "aggregate_fps", "page_recycles", "timings": {"boot", "capture", "audio_wait", "mux", "checks",
+//                "total"}, "chromium", "webgl", "budget", "memory_mb", "encoder": {"preset", "crf", "ffmpeg"},
+//                "warnings"};
+//   a render stopped by preflight stores {"ok": false, "engine": "motion", "stage": "preflight", "schema": 1,
+//     "preflight": {...}, "problems", "warnings"} and its job fails with error_code "preflight_blocked" (the message
+//     names the scene and the teacher's action, e.g. "Shorten text"); other Dynamic job codes: "dynamic_disabled",
+//     "render_invalid" (a container problem its remedy did not fix), "render_unavailable", "disk_full"
+//   "warnings"?: [{"scene_index", "scene_id", "title", "reason", "blocking", "message", "scene_number"?}]}   // scenes
+//   rendered with a fallback (scene_index: the place in the timeline, which leaves skipped scenes out; scene_number:
+//   the 1-based place in the screenplay, skipped scenes counted, as the editor numbers scenes; absent on renders made
+//   before it was added). A Dynamic render's warnings may also have reason "panel_not_drawn": a chart, graph, 3D
+//   model, skill tree or quiz side panel the Dynamic video leaves out (message e.g. "This side panel (a chart) is not
+//   shown in Dynamic videos yet: the scene is laid out without it."), in scene order with the others
 // Issue (aadhi/pipeline/base.py); "data" only when set, e.g. {"category": "timeout"} on manim.render_failed
 {"code": "board.too_many_items", "severity": "warning", "message": "...", "scene_id": "s4",
  "beat_id": null, "source": "lint", "fixable": true}
 ```
+
+## Document versions and Dynamic-video features
+
+From Dynamic video batch B0 the screenplay, timeline and asset manifest schemas carry every Dynamic-video field
+(`docs/DYNAMIC_VIDEO_DESIGN.md` §6.7, §8.2). Each new field is left out of the JSON at its default, so classic
+lectures serialise exactly as before.
+
+* **`schema_version`**: `2` for classic documents, `3` for a document that uses any Dynamic field or value (set by
+  the server on every write; a `3` without Dynamic fields goes back to `2`).
+* **Newer documents are refused, never misread.** A document whose `schema_version` is above what the server
+  reads (3) is answered with 409 `newer_document` (`{"detail", "code": "newer_document", "document",
+  "schema_version", "reader_version"}`), whether it is stored or sent: `GET /api/versions/{vid}`,
+  `PUT .../screenplay`, `POST .../lint`, `POST .../timeline/preview`, `GET .../timeline` and
+  `POST /api/projects/import` (also inside an export bundle). Nothing is written: `PUT .../screenplay`,
+  `POST .../scenes/{scene_id}/revert` and the Visual Review endpoints (`PUT .../visual-review/{scene_id}`,
+  `POST .../scenes/{scene_id}/visual`) check the stored screenplay and the stored asset manifest before they write. A job on such a version fails
+  before it runs with `error_code: "newer_document"` (never retried).
+* **Write gates.** `DYNAMIC_FEATURES` (server setting) lists the features this server accepts: `presentation`,
+  `items_v3`, `cuts`, `overlays`, `clip`, `voice_override`. `PUT .../screenplay`, `POST .../lint`,
+  `POST .../timeline/preview`, `POST /api/projects/import` and the JSON `import_legacy` job refuse a screenplay
+  that uses another one with 422 `feature_unavailable` (`features`: the names; `detail`: one entry per feature at
+  its first location, e.g. `["body", "screenplay", "scenes", 0, "beats", 1, "cuts"]`, or `["file", ...]` for an
+  import). A feature the stored screenplay already uses stays writable after it is switched off; an import has no
+  stored screenplay, so it is always checked.
 
 ## Auth
 
@@ -122,7 +178,7 @@ Base path `/api`. JSON in/out unless noted. Times are ISO-8601 UTC strings.
  "llm": {"provider":"gemini","configured":true,                  // server default engine (LLM_PROVIDER)
          "models":{"plan":"...","script":"...","critic":"...","fast":"..."},   // default engine's models
          "engines":[{"id":"gemini","label":"Google Gemini","configured":true,"key_source":"env",
-                     "models":{"plan":"gemini-2.5-pro","script":"gemini-2.5-flash","critic":"...","fast":"..."}},
+                     "models":{"plan":"gemini-3.8-flash","script":"gemini-3.8-flash","critic":"...","fast":"..."}},
                     {"id":"openai","label":"OpenAI","configured":false,"key_source":null,"models":{...}},
                     {"id":"anthropic","label":"Anthropic Claude","configured":true,"key_source":"personal","models":{...}}],
          "override_allowlist": []},                              // admins only, else []
@@ -171,8 +227,9 @@ would use: `"personal"`, `"server"` (saved in the Studio), `"env"` or `null` (no
 validation (422 / 409 `engine_not_configured`) uses the requesting user's keys the same way. The
 daily-budget pre-check of the endpoints that start a job (429 `budget`) is skipped only when the
 lecture's engine **and** every paid voice, generated-image and AI-video provider the job would use
-(Gemini / OpenAI voices, Gemini images, Veo, including a Gemini or Veo backup in the provider chain
-and the lecture's `image_provider`; free providers never count) run on the requester's
+(Gemini / OpenAI voices, Gemini images, Veo or Gemini Omni, including a Gemini, Veo or Omni backup in the
+provider chain and the lecture's `image_provider`; from the Dynamic options on, also generated music, premium voices
+and a pinned paid narrator; free providers never count) run on the requester's
 personal keys, because only then does none of that spend count toward the daily budget. A job that
 would still bill server voices or images is refused up front instead of failing after the user
 paid for its script.
@@ -213,7 +270,7 @@ requester's keys, not those of the user who generated the version.
 |---|---|---|
 | `GET /api/projects?q=&limit=&offset=` | – | `{"items":[ProjectSummary],"total":N}` |
 | `POST /api/projects` | **multipart**: `file` (pdf/docx/txt/md), `options` (JSON string, GenerationOptions), `title`?, `review_source`? (bool, default false) | `201 {"project","version","job"}` — project + source doc + version 1 (`generating`) + `generate_lecture`. The Studio's "Paste your notes" sends the text as a `.txt` `file`, so the usual validation and limits apply. `review_source: true` pauses the job after the source was read (`awaiting_review`, `review_stage: "source"`) |
-| `POST /api/projects/import` | **multipart**: `file` (.json: v2 Screenplay or v1 legacy JSON) | `201 {"project","version","job","warnings":[...]}` — converts/validates, enqueues `build_assets`. Lessons saved by the friend's fork of v1 (`origin/andryan`) are v1 lessons with additions: `scene.edit.hidden` becomes the scene's `hidden`, `scene.edit.min_seconds` its `min_seconds` (clamped to 1–600 s); muted narration, captions turned off, their media asset ids, `asset:` images and their plan / style / Studio / editor keys are ignored with a warning each. The Studio's "Try an example" imports `web/examples/ohms-law.json` here |
+| `POST /api/projects/import` | **multipart**: `file` (.json: v2/v3 Screenplay or v1 legacy JSON) | `201 {"project","version","job","warnings":[...]}` — converts/validates, enqueues `build_assets`; 409 `newer_document` for a screenplay of a newer build; 422 `feature_unavailable` for a Dynamic-video feature this server does not enable. Asset keys the user cannot use are removed with a warning ("Removed unavailable media reference at …"); an overlay or a clip scene whose clip is removed goes with it (the warning ends "(the overlay was removed)" / "(the clip scene was removed)"), and a removed scene leaves the chapters' `scene_ids` and any `look.continues_from`. Lessons saved by the friend's fork of v1 (`origin/andryan`) are v1 lessons with additions: `scene.edit.hidden` becomes the scene's `hidden`, `scene.edit.min_seconds` its `min_seconds` (clamped to 1–600 s); muted narration, captions turned off, their media asset ids, `asset:` images and their plan / style / Studio / editor keys are ignored with a warning each. The Studio's "Try an example" imports `web/examples/ohms-law.json` here |
 | `GET /api/projects/{id}` | – | `{"project": ProjectSummary, "versions": [VersionSummary], "sources": [{"id","filename","mime","size_bytes","page_count","created_at"}], "jobs": [JobSummary (latest 20)], "options": GenerationOptions}` — `options`: the project's stored generation options (validated; invalid legacy values fall back to the defaults; `llm_model_plan`/`llm_model_script` are `null` for non-admins) |
 | `PATCH /api/projects/{id}` | `{"title"?, "subject_name"?, "unit_name"?, "session_number"?, "session_title"?, "current_version_id"?}` | `{"project": ProjectSummary}` (`current_version_id` must belong to the project) |
 | `DELETE /api/projects/{id}` | – | `204` soft delete; same transaction cancels active jobs and revokes share links |
@@ -224,24 +281,24 @@ requester's keys, not those of the user who generated the version.
 
 | Method & path | Body | Response |
 |---|---|---|
-| `GET /api/versions/{vid}` | – | `VersionSummary` + `{"project_id", "screenplay": Screenplay|null, "issues": [Issue], "stale_scenes": [str], "generation_meta": {...}, "plan": LecturePlan|null, "stage", "next_step": NextStep, "checkpoints"}` (`plan` while awaiting review; `stage` / `next_step`: see [Lesson stage](#lesson-stage); `checkpoints`: `{"source": {"state": "waiting" \| "approved" \| "not_requested", "corrected": bool}, "plan": {"state"}, "visuals": {"total","approved","pending","changed","removed","stale"}}`, the teacher's reviews from stored state: the source and plan pauses of this version, and the Visual Review sign-offs of the scenes with a visual, hidden scenes left out) |
-| `GET /api/versions/{vid}/timeline` | – | `Timeline` with URLs resolved at serve time; 404 if never built. `ETag: "r{revision}-b{built_revision}-{hash12}"`, supports `If-None-Match`. |
-| `POST /api/versions/{vid}/timeline/preview` | `{"screenplay": Screenplay}` (unsaved draft ok) | Timeline built from the current manifest where beat clips still match, estimated durations elsewhere (`estimated: true`) — for the editor preview |
-| `PUT /api/versions/{vid}/screenplay` | `{"screenplay": Screenplay, "revision": int}` | `200 {"version": VersionSummary, "issues": [Issue], "stale_scenes": [str]}`; 409 `revision_conflict` (extra `current_revision`); 409 `version_busy` while a mutating job runs; 422 validation (e.g. `min_seconds` outside 1–600). Every issue of a scene skipped in the video (`hidden`), from any source (lint, the reviewer, the system, asset builds), is served and counted (`issue_counts`) as a note (`info`); it is stored at its real severity, so showing the scene again brings that back (also in `GET /api/versions/{vid}` and the revert response) |
+| `GET /api/versions/{vid}` | – | `VersionSummary` + `{"project_id", "screenplay": Screenplay|null, "issues": [Issue], "stale_scenes": [str], "generation_meta": {...}, "plan": LecturePlan|null, "stage", "next_step": NextStep, "checkpoints"}` (`plan` while awaiting review; `stage` / `next_step`: see [Lesson stage](#lesson-stage); `checkpoints`: `{"source": {"state": "waiting" \| "approved" \| "not_requested", "corrected": bool}, "plan": {"state"}, "visuals": {"total","approved","pending","changed","removed","stale"}}`, the teacher's reviews from stored state: the source and plan pauses of this version, and the Visual Review sign-offs of the scenes with a visual, hidden scenes left out; a translation copies its source version's extract key and source corrections, so a translation of a corrected lecture reads `"source": {"state": "not_requested", "corrected": true}`: the corrections were applied to the content it was translated from) |
+| `GET /api/versions/{vid}/timeline` | – | `Timeline` with URLs resolved at serve time; 404 if never built. `ETag: "r{revision}-b{built_revision}-{hash12}"`, supports `If-None-Match` (a 304 is answered before anything is rebuilt). `hash12` also covers `DYNAMIC_ENABLED` and, from Dynamic video batch B2a, the look-engine generation (`presentation.engine_version`, 2), so both refresh cached copies. A build of the current revision made under the other `DYNAMIC_ENABLED` value, or a Dynamic one of an older look-engine generation, is served as the render job would build it now (the stored timeline is not written); the Dynamic timeline fields are in `docs/INTERFACES.md` (`aadhi.schemas`). |
+| `POST /api/versions/{vid}/timeline/preview` | `{"screenplay": Screenplay}` (unsaved draft ok) | Timeline built from the current manifest where beat clips still match, estimated durations elsewhere (`estimated: true`) — for the editor preview; 409 `newer_document`, 422 `feature_unavailable` and asset-key 422s as for `PUT /screenplay` |
+| `PUT /api/versions/{vid}/screenplay` | `{"screenplay": Screenplay, "revision": int}` | `200 {"version": VersionSummary, "issues": [Issue], "stale_scenes": [str]}`; 409 `revision_conflict` (extra `current_revision`); 409 `version_busy` while a mutating job runs; 409 `newer_document` when the stored or the sent screenplay, or the stored asset manifest, was saved by a newer build (checked first; nothing is written); 422 validation (e.g. `min_seconds` outside 1–600, an asset key the project may not use); 422 `feature_unavailable` (see [Document versions](#document-versions-and-dynamic-video-features)). A screenplay using a Dynamic field is stored with `schema_version` 3. Every issue of a scene skipped in the video (`hidden`), from any source (lint, the reviewer, the system, asset builds), is served and counted (`issue_counts`) as a note (`info`); it is stored at its real severity, so showing the scene again brings that back (also in `GET /api/versions/{vid}` and the revert response). The lint checks `source_refs` against the exact chunk ids of the version's extract and runs the admin-leak check when the version names its extract (`generation_meta.ingest_key`): generated versions, and translations made since translations copy it |
 | `GET /api/versions/{vid}/changes` | – | `{"available": bool, "scenes": [{"scene_id", "status": "unchanged" \| "edited" \| "added" \| "moved" \| "removed", "generated_index": int \| null, "current_index": int \| null, "fields_changed": [str], "history": int}]}` — every scene compared with the screenplay as Aadhi wrote it (see [Generated vs edited](#generated-vs-edited)); `available: false` (imports, versions generated before snapshots were kept): the current scenes as `unchanged` with `generated_index: null`, `history` still counted |
 | `GET /api/versions/{vid}/changes/{scene_id}` | – | `{"available", "scene_id", "status", "fields_changed", "generated": Scene \| null, "current": Scene \| null, "history": [{"at", "instructions", "revision", "scene"}]}` (history newest first); 404 when the scene is in neither and has no history |
-| `POST /api/versions/{vid}/scenes/{scene_id}/revert` | `{"revision": int, "to": "generated" \| "history", "history_index"?: 0–99, "position"?: 0–1000}` | `{"revision", "scene_id", "version": VersionSummary, "issues", "stale_scenes"}` — puts the scene back as Aadhi wrote it, or as its `scene_history` entry `history_index` (0 = the scene before the last regeneration); a removed scene comes back at `position` (default: after the nearest earlier generated scene still in its generated order). Saved like `PUT /screenplay`: 409 `revision_conflict` (+ `current_revision`) / `version_busy` (+ `job_id`); 404 `not_found` when there is nothing to revert to; 409 `revert_invalid` when the lecture would no longer validate; 409 `no_screenplay` |
-| `POST /api/versions/{vid}/lint` | `{"screenplay": Screenplay}` | `{"issues": [Issue], "quality": {"version": 1, "repairs": [{"code","scene_id","message","label","edits":[{"scene_id","path","before","after"}]}], "registry": {terms, concepts, abbreviations, symbols, code languages, figures, each with scene ids}}}` — `quality` is additive: safe repairs for some issues (matched by code, scene and message; exact field edits the editor applies as one undoable change) and the lecture's consistency registry |
+| `POST /api/versions/{vid}/scenes/{scene_id}/revert` | `{"revision": int, "to": "generated" \| "history", "history_index"?: 0–99, "position"?: 0–1000}` | `{"revision", "scene_id", "version": VersionSummary, "issues", "stale_scenes"}` — puts the scene back as Aadhi wrote it, or as its `scene_history` entry `history_index` (0 = the scene before the last regeneration); a removed scene comes back at `position` (default: after the nearest earlier generated scene still in its generated order). Saved like `PUT /screenplay`: 409 `revision_conflict` (+ `current_revision`) / `version_busy` (+ `job_id`); 404 `not_found` when there is nothing to revert to; 409 `revert_invalid` when the lecture would no longer validate; 409 `no_screenplay`; 409 `newer_document` when the stored screenplay or asset manifest was saved by a newer build (nothing is written) |
+| `POST /api/versions/{vid}/lint` | `{"screenplay": Screenplay}` (409 `newer_document` / 422 `feature_unavailable` as for `PUT /screenplay`) | `{"issues": [Issue], "quality": {"version": 1, "repairs": [{"code","scene_id","message","label","edits":[{"scene_id","path","before","after"}]}], "registry": {terms, concepts, abbreviations, symbols, code languages, figures, each with scene ids}}}` — `quality` is additive: safe repairs for some issues (matched by code, scene and message; exact field edits the editor applies as one undoable change) and the lecture's consistency registry |
 | `POST /api/versions/{vid}/build` | `{"scene_ids": [str] | null}` | `202 {"job"}` (null = stale scenes); 409 `action_unavailable` when every scene named is skipped in the video (`hidden`: the build never makes it) |
-| `POST /api/versions/{vid}/scenes/{scene_id}/regenerate` | `{"instructions": str}` | `202 {"job"}`; 409 `engine_not_configured` |
+| `POST /api/versions/{vid}/scenes/{scene_id}/regenerate` | `{"instructions": str}` | `202 {"job"}`; 409 `engine_not_configured`; 409 `action_unavailable` for a teacher-inserted clip scene (v3: never written by AI; refused before the budget check and the hourly generation limit) |
 | `POST /api/versions/{vid}/plan` | `{"plan": LecturePlan}` | `200 {"version"}` (while awaiting review; validated); 409 `not_awaiting_review` while the version waits for its source review |
 | `POST /api/versions/{vid}/approve-plan` | – | `202 {"job"}` (continuation job); 409 `engine_not_configured`; 409 `not_awaiting_review` while the version waits for its source review |
 | `PUT /api/versions/{vid}/source-review` | `{"excluded_chunk_ids": [str], "restored_chunk_ids": [str], "concept_names": {concept_key: name}}` (≤ 500 / 500 / 40) | `200 {"version", "source_overrides"}` — the teacher's corrections while the version waits for its source review (set parts aside, restore parts the brief set aside, rename concepts; at least one part must stay); 409 `not_awaiting_review` otherwise; 409 `source_unavailable`; 422 `validation` for unknown chunks / concepts |
 | `POST /api/versions/{vid}/approve-source` | – | `202 {"job"}` — the waiting job succeeds and a continuation plans the lecture with the corrections (it may pause again for plan review); budget and engine checks as approve-plan; 409 `not_awaiting_review` |
 | `POST /api/versions/{vid}/duplicate` | `{"label": str}` | `201 {"version"}`; the copy also gets the version's Visual Review sign-offs |
 | `POST /api/versions/{vid}/translate` | `{"target_language","translate_board": false,"tts_voice"?}` | `202 {"version","job"}` (new version, status generating; uses the source version's engine); 409 `engine_not_configured` |
-| `POST /api/versions/{vid}/render` | `{"burn_captions": false, "include_intro": true, "soft_subtitles"?: bool, "allow_degraded": true}` | `202 {"render","job"}`; 409 `timeline_stale` unless `built_revision == revision`; 409 `all_scenes_hidden` when every scene is skipped in the video; 409 `job_in_progress` while the version renders; 429 `render_busy` (the user has `RENDER_MAX_PER_USER` active renders, extra `limit`) / `render_queue_full` (`RENDER_MAX_QUEUED` on the server), both with `Retry-After`; with `allow_degraded: false`, 409 `render_preflight` (extra `items`, see below) when a scene would be silent; `WORKER_MODE=inline` on a host that cannot render: 503 `render_unavailable` (the reasons only for admins). `soft_subtitles` (default `RENDER_SOFT_SUBTITLES`): a selectable caption track, never with burned-in captions |
-| `GET /api/versions/{vid}/render/preflight` | – | `{"version_id","has_timeline","timeline_stale","blocking": bool,"items":[{"scene_index","scene_id","title","reason","blocking","message","scene_number"}],"quality":[...]}`: `items` = what the MP4 of the built timeline shows differently from the editor (`no_audio` / `audio_mismatch` are blocking; boards replacing missing media, title-only panels, online GIFs are not); `quality` = the version's open lint / reviewer / generation (system: a failed or untranslated scene) errors and warnings, errors first then in scene order, at most 12 plus a last "N more" line (`{"scene_index","scene_id","title","reason": "quality","blocking": false,"message","severity","code","scene_number"}`), never blocking; issues of scenes skipped in the video are not listed. `scene_index` is the place in the timeline (skipped scenes left out), `scene_number` the 1-based place in the screenplay as the editor numbers scenes (null without a scene); the 409 `render_preflight` items carry it too |
+| `POST /api/versions/{vid}/render` | `{"burn_captions"?: bool \| null, "include_intro": true, "soft_subtitles"?: bool, "allow_degraded": true}` | `202 {"render","job"}`; `burn_captions` unset or `null`: a Dynamic lecture (a screenplay `presentation` while `DYNAMIC_ENABLED` is on in the API process) burns captions as `presentation.captions_burn` says (schema default `true`; the field is left out of `Render.options` and the job payload), and a classic lecture stores `false` as before; an explicit `true` / `false` is always honoured. The API and the render workers must share `DYNAMIC_ENABLED` (`docs/OPERATIONS.md` §3); 409 `timeline_stale` unless `built_revision == revision`; 409 `all_scenes_hidden` when every scene is skipped in the video; 409 `job_in_progress` while the version renders; 429 `render_busy` (the user has `RENDER_MAX_PER_USER` active renders, extra `limit`) / `render_queue_full` (`RENDER_MAX_QUEUED` on the server), both with `Retry-After`; with `allow_degraded: false`, 409 `render_preflight` (extra `items`, see below) when a scene would be silent; `WORKER_MODE=inline` on a host that cannot render: 503 `render_unavailable` (the reasons only for admins). `soft_subtitles` (default `RENDER_SOFT_SUBTITLES`): a selectable caption track, never with burned-in captions |
+| `GET /api/versions/{vid}/render/preflight` | – | `{"version_id","has_timeline","timeline_stale","blocking": bool,"items":[{"scene_index","scene_id","title","reason","blocking","message","scene_number"}],"quality":[...],"presentation": {"style": "dynamic", "format": "landscape" \| "portrait", "captions_burn": bool} \| null}`: `presentation` = the Dynamic presentation the render would use (from the stored screenplay, schema defaults where a field is left out), `null` for a classic render, including a lecture with a presentation while `DYNAMIC_ENABLED` is off; the Studio's render dialogs take their Dynamic defaults from it; `items` = what the MP4 of the built timeline shows differently from the editor (`no_audio` / `audio_mismatch` are blocking; boards replacing missing media, title-only panels, online GIFs are not); `quality` = the version's open lint / reviewer / generation (system: a failed or untranslated scene) errors and warnings, errors first then in scene order, at most 12 plus a last "N more" line (`{"scene_index","scene_id","title","reason": "quality","blocking": false,"message","severity","code","scene_number"}`), never blocking; issues of scenes skipped in the video are not listed. `scene_index` is the place in the timeline (skipped scenes left out), `scene_number` the 1-based place in the screenplay as the editor numbers scenes (null without a scene); the 409 `render_preflight` items carry it too |
 | `GET /api/renders/capabilities` | – | `{"available": bool, "advisory": bool, "burn_captions": bool, "reasons"?: [str], "checks"?: {...}}`; `advisory` with external workers (this host's tools only); `reasons` / `checks` in full for admins, a generic reason for others |
 | `GET /api/versions/{vid}/renders` | – | `{"items":[RenderSummary]}` newest first, each with `matches_current` and `preview_url` |
 | `GET /api/videos?limit=24&offset=0` | – | `{"items": [{"render_id","project_id","project_title","version_id","version_number","created_at","status","duration_s","size_bytes","width","height","matches_current","download_url","preview_url","qa_ok","subject_name","unit_name","session_number","session_title","project_language","project_created_at"}], "total": N}` — the current user's renders across their own, not deleted lectures, newest first (administrators too: other teachers' videos are reached through their projects); `download_url` is the authenticated attachment (null without an MP4); `preview_url` a streamable URL for an in-browser player, null unless the render succeeded; `qa_ok` the post-render check (null when it did not run); the lecture's `subject_name` … `project_created_at` let the Studio tell lectures sharing a title apart exactly as the project list does; `limit` 1–200 |
@@ -485,7 +542,7 @@ up the rate limit.
 | `PUT /api/admin/keys/{provider}` | `{"api_key": str}` | `200` the provider's entry as in the list (creates or replaces the server key); 403 `api_keys_disabled`; 422 `validation` (same rules as personal keys) |
 | `DELETE /api/admin/keys/{provider}` | – | `204` (also when none was saved, and also while saved keys are switched off); removes only the key saved in the Studio, the `.env` key stays in use |
 | `POST /api/admin/keys/{provider}/test` | – | `{"ok": bool, "message": str, "source": "stored" \| "env"}` — tests the active server key (saved in the Studio and readable, else `.env`; with saved keys switched off, the `.env` key); stores the result on a saved key; 404 when there is no server key at all; 429 `rate_limited` |
-| `GET /api/admin/media-providers` | – | `{"image": Chain, "video": Chain, "cooldown_seconds", "auth_cooldown_seconds", "cooldowns_source"}`, Chain = `{"enabled","configured","preferred","usable","providers":[{"name","label","role","order","state","reason","paid","model","cooldown_seconds_left"}]}` with `role` preferred \| backup, `state` available \| not_configured \| cooling and a redacted `reason`. `cooldowns_source` is `this process` (inline workers) or `recent worker job events` (external workers: the server-scope cooldowns the workers logged, until their window ends). Server-level keys only, configuration and cooldowns only: no provider is built or called |
+| `GET /api/admin/media-providers` | – | `{"image": Chain, "video": Chain, "cooldown_seconds", "auth_cooldown_seconds", "cooldowns_source"}`, Chain = `{"enabled","configured","preferred","usable","providers":[{"name","label","role","order","state","reason","paid","model","cooldown_seconds_left"}]}` with `role` preferred \| backup, `state` available \| not_configured \| cooling and a redacted `reason`. Video providers are `veo`, `omni` (Gemini Omni, `model` = `OMNI_MODEL`; listed after `veo` automatically unless `VIDEO_PROVIDERS` sets the order) and `fake`; a provider moved behind the others after a payment or account refusal, or after its model was no longer served (Veo answering 404 / 410), reads "moved behind the others after a payment or account refusal (or a model that is no longer served)". `cooldowns_source` is `this process` (inline workers) or `recent worker job events` (external workers: the server-scope cooldowns the workers logged, until their window ends). Server-level keys only, configuration and cooldowns only: no provider is built or called |
 | `GET /api/admin/media-cache?days=30` | – | `{"days", "kinds": {"image" \| "video": {"generated","reused_from_other_lectures","provider_calls","cost_usd","stored"}}, "library": {"items", "by_source": {"upload","generated","figure"}}}` — aggregates only (no prompts, no users) over the last `days` (1..366); reuse within one lecture (a rebuild) is not recorded |
 | `GET /api/admin/manim/sandbox` | – | the Manim sandbox self-check (as `python -m aadhi.cli manim-check`): `{"available","sandbox","isolated","isolation","manim_version","manim_version_ok","latex","network_denied","env_clean","files_denied","probe_ran","notes"}` (the probe runs with `MANIM_AUDIT_HOOK` as configured; `files_denied`: a host file outside the work dir could not be read), never host paths; starts a probe process, so 429 `rate_limited` past 6 a minute |
 
@@ -495,6 +552,14 @@ The render job opens `/render-frame#token=<scoped token>`; `render.js` reads the
 `GET /api/render/timeline` with `Authorization: Bearer <scoped token>` (scope `render`, `vid` claim,
 derived signing key). Response: Timeline with URLs resolved.
 
+A Dynamic lecture (its timeline has `presentation.style: "dynamic"`, only while `DYNAMIC_ENABLED` is on) is rendered
+by the motion engine on `/render-dynamic#token=<scoped token>` instead: the same token, scope and timeline endpoint,
+but the worker answers the page's `GET /api/render/timeline` itself with the timeline it holds (after preflight's
+remedies) and answers `GET /__frames/<key>/<n>.jpg` (pre-extracted media frames) from its own workspace; neither
+request reaches the API. The page's contract (`window.aadhiStage`, version 3) is in `docs/INTERFACES.md`; from batch
+B2a the page refuses a timeline of a newer look-engine generation than it knows (`ready` rejects with
+`timeline_invalid`) and adds `aadhiStage.texConversions()`.
+
 ## Pages
 
 | Path | Serves |
@@ -503,5 +568,6 @@ derived signing key). Response: Timeline with URLs resolved.
 | `/watch/{token}` | `web/watch.html` (public player) |
 | `/preview/{version_id}` | `web/watch.html` (authenticated preview; fetches `/api/versions/{vid}/timeline`) |
 | `/render-frame` | `web/render.html` |
+| `/render-dynamic` | `web/render-dynamic.html` (the motion engine's render page; same CSP and `Referrer-Policy: no-referrer` as `/render-frame`); 404 while `DYNAMIC_ENABLED` is off |
 | `/sandbox/p5` | `web/sandbox/p5.html` with its sandbox CSP |
 | `/web/*` | static frontend files (incl. `/web/vendor`) |

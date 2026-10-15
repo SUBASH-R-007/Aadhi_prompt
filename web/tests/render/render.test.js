@@ -6,11 +6,14 @@ import { JSDOM } from 'jsdom';
 import {
   PLAYER_METHODS,
   RenderError,
+  STAGE,
   TIMELINE_ENDPOINT,
+  applyStageSize,
   boot,
   fetchTimeline,
   normalizeResult,
   readOptions,
+  stageSize,
   takeToken,
   titleOnlyPanels,
 } from '../../js/render/render.js';
@@ -297,7 +300,42 @@ test('render.html is CSP-compatible and wires the module', () => {
   assert.match(html, /data-aadhi-render-root/);
   assert.match(html, /\/web\/css\/panels\.css/);
   assert.match(html, /background: transparent/);
-  assert.match(html, /width: 1920px;\s*height: 1080px/);
+  // The page is sized from the timeline (render.js applyStageSize); the defaults are the classic 1920x1080 stage.
+  assert.match(html, /--render-stage-width: 1920px;\s*--render-stage-height: 1080px/);
+  assert.equal((html.match(/width: var\(--render-stage-width\);\s*height: var\(--render-stage-height\)/g) || []).length, 2);
+  assert.match(html, /<meta name="viewport" content="width=1920, height=1080, initial-scale=1"/);
+});
+
+test('stageSize reads the timeline size and falls back to the classic stage', () => {
+  assert.deepEqual(stageSize({ width: 1920, height: 1080 }), { width: 1920, height: 1080 });
+  assert.deepEqual(stageSize({ width: 1080, height: 1920 }), { width: 1080, height: 1920 });
+  for (const bad of [null, {}, { width: 1080 }, { width: '1080', height: 1920 }, { width: 0, height: 1920 },
+    { width: 1080.5, height: 1920 }, { width: -1, height: 2 }, { width: 99999, height: 1920 }]) {
+    assert.deepEqual(stageSize(bad), { ...STAGE }, JSON.stringify(bad));
+  }
+  assert.deepEqual({ ...STAGE }, { width: 1920, height: 1080 });
+});
+
+test('boot sizes the page from the timeline (classic stays 1920x1080)', async () => {
+  const html = readFileSync(new URL('../../render.html', import.meta.url), 'utf8');
+  for (const [size, expected] of [[{ width: 1920, height: 1080 }, '1920x1080'], [{ width: 1080, height: 1920 }, '1080x1920'],
+    [{}, '1920x1080']]) {
+    const dom = new JSDOM(html.replace(/<script\b[\s\S]*?<\/script>/g, ''), { url: `https://app.test/render-frame#token=${TOKEN}`, pretendToBeVisual: true });
+    const w = dom.window;
+    w.document.fonts = { load: () => Promise.resolve([{}]), ready: Promise.resolve() };
+    const { deps: d } = deps(w, [], { fetch: async () => jsonResponse({ ...TIMELINE, width: undefined, height: undefined, ...size }) });
+    await boot(d);
+    const style = w.document.documentElement.style;
+    const [ew, eh] = expected.split('x');
+    assert.equal(style.getPropertyValue('--render-stage-width'), `${ew}px`);
+    assert.equal(style.getPropertyValue('--render-stage-height'), `${eh}px`);
+    const meta = w.document.querySelector('meta[name="viewport"]');
+    assert.equal(meta && meta.getAttribute('content'), `width=${ew}, height=${eh}, initial-scale=1`);
+  }
+  // applyStageSize works on a page without the viewport meta (the unit-test page above has none)
+  const { w } = makeWindow();
+  applyStageSize(w.document, { width: 1080, height: 1920 });
+  assert.equal(w.document.documentElement.style.getPropertyValue('--render-stage-height'), '1920px');
 });
 
 test('titleOnlyPanels reduces side panels showing a placeholder notice to their title', () => {

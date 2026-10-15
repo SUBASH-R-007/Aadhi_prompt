@@ -31,9 +31,9 @@ T = TypeVar("T", bound=BaseModel)
 
 @dataclass
 class Usage:
-    provider: str  # gemini | openai | anthropic | edge | elevenlabs | pollinations | veo | giphy | fake
+    provider: str  # gemini | openai | anthropic | edge | elevenlabs | pollinations | veo | omni | giphy | fake
     model: str
-    operation: str  # llm | vision | tts | image | video | gif
+    operation: str  # llm | vision | tts | image | video | gif | music (any other operation is priced fail-closed)
     input_tokens: int = 0
     output_tokens: int = 0
     characters: int = 0
@@ -78,6 +78,17 @@ class ProviderUnavailable(ProviderError):
     detection is unchanged either way."""
 
 
+class ModelUnavailable(ProviderUnavailable):
+    """The provider no longer serves the configured model: a request naming it was answered HTTP 404 / 410 (shut
+    down, renamed or misspelt, e.g. ``GEMINI_TTS_MODEL`` once Google retires ``gemini-2.5-flash-preview-tts``, or
+    ``OPENAI_TTS_MODEL`` once OpenAI retires its ``/v1/audio/speech`` models on 2027-01-06). OpenAI answers a model
+    the API key has no access to with the same 404 ``model_not_found``, so that case is one too. Nothing was
+    generated or billed, and retrying cannot help until the setting (or the key's access) changes. A
+    ``ProviderUnavailable`` (long cooldown in a media chain); an asset build narrates with the free Edge voice
+    instead, with a warning (``aadhi.pipeline.assets``, design §10.3 H0). Raised by the Gemini and OpenAI speech
+    adapters (``aadhi.providers.tts.gemini`` / ``.openai``)."""
+
+
 class InvalidMediaOutput(ProviderError):
     """The provider answered, but the media is unusable (not decodable, too small, too large, too
     short). Another provider may do better: the media chain may fall back."""
@@ -86,6 +97,12 @@ class InvalidMediaOutput(ProviderError):
 class OperationLost(ProviderError):
     """A checkpointed provider operation (e.g. a Veo job) cannot be found or polled again: it expired,
     or the API key that started it is no longer configured. Whether it was billed is unknown."""
+
+
+class PaidSubmissionUncertain(ProviderError):
+    """A request that creates a paid job (a Veo / Omni clip) ended without an answer (a timeout, a dropped
+    connection, a 408/504 from a gateway): the provider may have accepted and billed it. The call is not
+    retried and the record becomes ``ambiguous``, so the clip is never paid for twice without a person."""
 
 
 # --- LLM ------------------------------------------------------------------------

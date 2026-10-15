@@ -1,6 +1,6 @@
 # Development / CI tools; versions pinned by requirements.lock (a constraints file):
 #   pip install -c requirements.lock -r requirements.txt -r requirements-dev.txt
-# The Docker image never installs these.
+# The production Docker image never installs these; only its `test` build target does (Dockerfile).
 pytest>=8.3,<10
 pytest-asyncio>=0.24,<2
 respx>=0.21,<1

@@ -11,7 +11,9 @@ tests or when it is the default engine.
 
 Media chains: ``media_chain`` lists ``IMAGE_PROVIDER`` / ``VIDEO_PROVIDER`` followed by the configured
 ``*_FALLBACK_PROVIDERS`` (used by ``aadhi.pipeline.assets``); ``get_image`` / ``get_video`` take an
-optional provider ``name``. ``media_provider_status`` describes the chains for the admin status panel
+optional provider ``name``. The video settings already hold the effective order: ``VIDEO_PROVIDERS`` when
+set, else the two settings with ``omni`` (Gemini Omni, Veo's successor) after a chain that has ``veo``
+(``Settings._video_order``). ``media_provider_status`` describes the chains for the admin status panel
 from configuration and in-process cooldowns only (nothing is built, nothing is sent).
 """
 
@@ -83,12 +85,7 @@ LLM_ENGINE_LABELS = {
 }
 LLM_TIERS = ("plan", "script", "critic", "fast")
 # Gemini models when LLM_MODEL_<TIER> names another engine's model (the Settings defaults).
-GEMINI_DEFAULT_MODELS = {
-    "plan": "gemini-2.5-pro",
-    "script": "gemini-2.5-flash",
-    "critic": "gemini-2.5-flash",
-    "fast": "gemini-2.5-flash",
-}
+GEMINI_DEFAULT_MODELS = {tier: str(Settings.model_fields[f"llm_model_{tier}"].default) for tier in LLM_TIERS}
 _OPENAI_MODEL_RE = re.compile(r"^(gpt|o\d|chatgpt|ft:gpt)", re.I)
 
 
@@ -268,11 +265,12 @@ def available_tts_providers(settings: Settings) -> list[dict[str, Any]]:
 # --- images / video / gifs ---------------------------------------------------------------------
 
 IMAGE_PROVIDERS = ("pollinations", "gemini", "fake")
-VIDEO_PROVIDERS = ("veo", "fake")
+VIDEO_PROVIDERS = ("veo", "omni", "fake")
 MEDIA_LABELS = {
     "pollinations": "Pollinations",
     "gemini": "Google Gemini / Imagen",
     "veo": "Google Veo",
+    "omni": "Google Gemini Omni",
     "fake": "Offline test stand-in",
 }
 
@@ -331,6 +329,10 @@ def media_class(kind: str, name: str) -> type | None:
             from .video.veo import VeoVideo
 
             return VeoVideo
+        if name == "omni":
+            from .video.omni import OmniVideo
+
+            return OmniVideo
     return None
 
 
@@ -339,7 +341,7 @@ def media_unavailable_reason(kind: str, name: str, settings: Settings) -> str | 
     no provider is built and nothing is sent anywhere."""
     if media_class(kind, name) is None:
         return f"unknown {kind} provider {name!r}"
-    if name in ("gemini", "veo") and not settings.all_gemini_keys:
+    if name in ("gemini", "veo", "omni") and not settings.all_gemini_keys:
         return "no Gemini API key is configured"
     return None
 
@@ -385,6 +387,10 @@ def get_video(settings: Settings | None = None, name: str | None = None) -> Vide
             from .video.veo import VeoVideo
 
             return VeoVideo(settings)
+        if name == "omni":
+            from .video.omni import OmniVideo
+
+            return OmniVideo(settings)
         raise ProviderNotConfigured(f"unknown video provider {name!r}", provider=str(name))
 
     return _cached(settings, "video", name, build)
@@ -423,13 +429,13 @@ def media_provider_status(settings: Settings,
             elif cooling is not None:
                 state = "cooling"
                 reason = (
-                    "moved behind the others after a payment or account refusal"
+                    "moved behind the others after a payment or account refusal (or a model that is no longer served)"
                     if cooling.category == "unavailable"
                     else f"moved behind the others after a recent failure ({cooling.category.replace('_', ' ')})"
                 )
             else:
                 state = "available"
-            model = {"gemini": settings.image_model, "veo": settings.veo_model}.get(name, "")
+            model = {"gemini": settings.image_model, "veo": settings.veo_model, "omni": settings.omni_model}.get(name, "")
             items.append({
                 "name": name,
                 "label": MEDIA_LABELS.get(name, name),

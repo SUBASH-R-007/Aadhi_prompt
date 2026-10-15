@@ -30,7 +30,7 @@ python -m venv .venv
 .venv/Scripts/python.exe -m pip install -c requirements.lock -r requirements.txt -r requirements-dev.txt
 .venv/Scripts/python.exe -m playwright install chromium     # only needed for MP4 renders
 
-# Frontend libraries and fonts -> web/vendor (npm ci runs scripts/vendor.mjs)
+# Frontend libraries and fonts -> web/vendor (npm ci runs scripts/vendor.mjs; `npm run vendor` runs it again)
 npm ci
 
 # Optional: configuration (everything has a safe development default)
@@ -39,6 +39,19 @@ cp .env.example .env
 # Run
 .venv/Scripts/python.exe server.py      # http://127.0.0.1:8000
 ```
+
+**What `npm ci` vendors (from Dynamic video batch B2b on).** Besides the libraries and the classic fonts
+(`web/vendor/fonts/`, `fonts.css`, unchanged), `scripts/vendor.mjs` does two new things:
+* It copies the Dynamic stage's faces (Poppins, Lexend, Atkinson Hyperlegible Next, Anek per Indic script) into
+  `web/vendor/fonts/dynamic/<family>/`, each with its package's LICENSE. The face list comes from the generated
+  `web/js/dynamic/faces.gen.js`, through `scripts/vendor_faces.mjs`, which stops the install on a wrong package
+  version, a licence that is not OFL 1.1, or a unicode-range that differs from the package's.
+* It copies `mathjs/math.js.LICENSE.txt` beside `math.js`.
+
+`npm ci` also installs the icon packages `lucide-static` (about 51 MB unpacked) and `@tabler/icons` (about 11 MB).
+Only the Python icon generator reads them; nothing of them is copied to `web/vendor` or into the image. The licences
+of everything served are in the generated `THIRD_PARTY_NOTICES` at the repository root, which the image ships at
+`/app/THIRD_PARTY_NOTICES`.
 
 **First admin password.** On first start, when no admin exists, the server creates the
 `ADMIN_USERNAME` account (default `admin`). If `ADMIN_PASSWORD` is set it is used; otherwise a random
@@ -72,6 +85,110 @@ npm run typecheck && npm test
 .venv/Scripts/python.exe scripts/gen_env_example.py --check        # .env.example in sync with config
 .venv/Scripts/python.exe scripts/gen_chromium_seccomp.py --check   # render-worker seccomp profile current
 .venv/Scripts/python.exe scripts/lock_requirements.py --check      # lock matches the venv + Linux-only pins
+.venv/Scripts/python.exe evals/make_fixtures.py --check             # eval fixtures current
+.venv/Scripts/python.exe -m aadhi.schemas.generate --check          # web/schemas/*.schema.json match the models
+.venv/Scripts/python.exe -m aadhi.compose.dynamic.catalogue --check # web/js/dynamic/catalogue.gen.js is current
+.venv/Scripts/python.exe -m aadhi.compose.dynamic.faces --check     # dynamic-fonts.css + faces.gen.js current
+.venv/Scripts/python.exe -m aadhi.compose.dynamic.icons --check     # icon_index.json current (needs node_modules)
+.venv/Scripts/python.exe scripts/gen_third_party_notices.py --check # THIRD_PARTY_NOTICES current (needs node_modules)
+node scripts/gen_colour_vectors.mjs --check                         # tests/fixtures/colour_vectors.json is current
+```
+
+The Dynamic catalogue (`web/js/dynamic/catalogue.gen.js`, from Dynamic video batch B2a) is generated from
+`aadhi/compose/dynamic/` (zones, templates, themes): after changing those, regenerate it with
+`python -m aadhi.compose.dynamic.catalogue` and commit it with them; `--check` exits 1 and names the first differing
+line (CI's "Generated files are current" step runs it). The colour vectors are written from the stage's JavaScript
+colour code by `node scripts/gen_colour_vectors.mjs`; both test suites read them, and `npm test` fails when they are
+stale.
+
+Dynamic video batch B2b added three generators (`DYNAMIC_VIDEO_DESIGN.md` §4.6, §4.12). All three are checked in
+CI's "Generated files are current" step; the icons and notices checks run after `npm ci`, because they read
+`node_modules`. Each `--check` exits 1 when the committed file is stale; the icons and notices generators exit 2 when
+they cannot generate from what is installed (fail closed). B2b's fourth generator, the kerning table, was retired in
+B2b-H: text fit now shapes with HarfBuzz, and the text-fit parity probe below checks it.
+
+* **Face table** (`aadhi/compose/dynamic/faces.py` -> `web/css/dynamic-fonts.css` and
+  `web/js/dynamic/faces.gen.js`). After changing `faces.py`, run `python -m aadhi.compose.dynamic.faces`, then
+  `npm run vendor` (which copies the faces from the generated table), and commit both generated files. A new face
+  also needs its exact-pinned Fontsource package in `package.json`, then the notices below and the extended text-fit
+  parity probe (below), which measures every vendored face against the page.
+* **Icon index** (`aadhi/compose/dynamic/icon_index.json`, committed). After bumping `lucide-static` or
+  `@tabler/icons` in `package.json`:
+  1. `npm install`;
+  2. `python -m aadhi.compose.dynamic.icons`. It refuses a changed licence text, a listed icon without a file, an
+     ambiguous deprecated file, or a `PREFERRED` / `IGNORED_TAGS` entry the new release made stale or shadowed: read
+     the release and update the lists in `icons.py`;
+  3. `python scripts/gen_third_party_notices.py`;
+  4. review the index diff before committing.
+* **`THIRD_PARTY_NOTICES`** (`scripts/gen_third_party_notices.py`). After any change to the npm dependencies, run
+  `python scripts/gen_third_party_notices.py` and commit the file. It fails closed when a package's installed version
+  differs from the lock (run `npm ci`), when a package has no licence text, or when a vendored bundle no longer
+  matches its reviewed `VENDORED` entry. The entry fails on a new package version, a bundled component's evidence that
+  is gone, a p5 module no component lists, or a copyright statement nobody acknowledged. Then review the new bundle,
+  update the entry and the texts in `scripts/third_party_licences/`, and regenerate.
+* **Text-fit parity probe** (`tests/determinism/test_textfit_parity.py`, slow). Added in Dynamic video batch B2b-H,
+  replacing B2b's kerning table. The text fit (`aadhi/compose/dynamic/textfit.py`, `shaping.py`) shapes text with
+  HarfBuzz on the vendored faces. The probe runs the real `/render-dynamic` page in Playwright's Chromium, over every
+  vendored face and weight the stage draws, in Latin, the five Indic scripts and mixed text. It checks that each text
+  is drawn within 1/16 px + 0.05% of its shaped width, and within textfit's own margins (`DYNAMIC_VIDEO_DESIGN.md` §4.6
+  "As built (B2b-H)"). It needs `web/vendor` and Playwright's Chromium.
+  - **Default form** (about 2 minutes): runs in the slow suite, so in CI's slow job and the container job.
+  - **Extended form** (every 4 px size of each slot's range and 6,000 random runs per Latin style: about 3.9 million
+    word widths, 5.5-7.5 minutes): runs only on demand, because of the owner's rule of no many-minute measurement in
+    CI:
+
+    ```bash
+    AADHI_TEXTFIT_PARITY_FULL=1 .venv/Scripts/python.exe -m pytest -m slow tests/determinism/test_textfit_parity.py -s --basetemp=C:/t/parity
+    # PowerShell: $env:AADHI_TEXTFIT_PARITY_FULL=1; .venv/Scripts/python.exe -m pytest -m slow tests/determinism/test_textfit_parity.py -s --basetemp=C:/t/parity
+    ```
+
+    `-s` prints the max and median residual per style and size.
+
+  Run the extended form after any of these:
+  - a vendored face changes;
+  - a `uharfbuzz`, `fonttools` or `brotli` bump (this is why `requirements.txt` bounds `uharfbuzz` to `<0.57`);
+  - a Playwright (Chromium) bump;
+  - a change to how `textfit.py` or `shaping.py` shapes.
+
+  A failure means the page and HarfBuzz no longer agree. Read the printed residuals before touching the margins.
+
+**Classic invariance (from Dynamic video batch B0).** The classic (Aadhi presenter) output must not change while
+the Dynamic mode is built: `tests/invariance/` holds byte-for-byte goldens of the classic screenplay, scene hashes,
+timelines and every ffmpeg command line (part of the fast suite; the render's command lines also with burned-in
+captions and with the soft caption track), and a differential pixel test that renders the showcase lecture with the
+merge base and with HEAD and compares the frames within measured tolerances (`tests/invariance/README.md`;
+`python tests/invariance/differential.py --base-ref origin/main --out OUT`; a render that fails is a failure, never
+compared through an earlier run's files). A change of the classic output on purpose carries the `classic-change` PR
+label and regenerated goldens (`AADHI_UPDATE_GOLDENS=1`). CI reads the label at run time, so adding it re-runs the
+check and the push after the merge inherits it; a direct push without a PR carries a reviewed
+`Classic-Change: approved` commit trailer instead.
+
+**Container suites.** The Dockerfile's `test` target is the runtime image plus the test tools (never deployed). CI's
+`container` job builds it and runs, against the checkout mounted at `/src`, the fast suite, the ffmpeg 5.1 feature
+checks (`pytest -m container`; the image sets `AADHI_EXPECT_FFMPEG=5.1`, so a base image that moves Debian's ffmpeg
+fails) together with the Dynamic determinism suite of B1 (`tests/determinism/test_frame_hashes.py`: 300 frames of the
+real stage as 1x300, 3x100 and in reverse give identical hashes; it sets `DYNAMIC_ENABLED` itself and uses the image's
+Chromium and the checkout's `web/vendor` fonts; `test_kenburns_determinism.py` does the same for a Ken Burns still
+and `contain_blur` stills and clips), the differential pixel test (a second one with burned-in captions when the
+caption path changed) and the rest of the slow suite. The image sets `AADHI_CONTAINER_TESTS=1`: there a missing tool
+or bundle (ffmpeg / ffprobe, Playwright, its Chromium, the Dynamic stage bundle; `tests/compose/dynamic/helpers.missing`,
+also the live app of `tests/api/test_render_dynamic_route.py` and the tools of `tests/invariance/test_render_slow.py`)
+fails the B1 suites instead of skipping them, so the job cannot pass green by skipping; on a developer machine they
+skip as before. Make "Container suites (Docker test image)" a required check in the repository's branch protection.
+From B2b-H on, the fast suite there runs these face checks:
+- `tests/compose/dynamic/test_textfit.py` pins the HarfBuzz-shaped widths of every vendored WOFF2 face. These do not
+  depend on the platform: fontTools decodes the files, and the pinned `uharfbuzz` wheel bundles its own HarfBuzz.
+- `test_faces.py` still opens each face with Pillow, as a readability check.
+
+The slow suite there also runs the text-fit parity probe (above), which will be its first run against Linux Chromium.
+The job has not run yet.
+Locally (needs a Docker daemon; in PowerShell write `${PWD}`, put the command on one line and leave out `--user`,
+which uses the POSIX `id`):
+
+```bash
+docker build --target test -t aadhi-eduengine:test .
+docker run --rm --shm-size=1g --security-opt seccomp=docker/app/chromium-seccomp.json \
+  --user "$(id -u):$(id -g)" -v "$PWD:/src" aadhi-eduengine:test python -m pytest -m "container and not network"
 ```
 
 After changing `requirements.txt` / `requirements-dev.txt`: install, run the tests, then
@@ -79,9 +196,47 @@ After changing `requirements.txt` / `requirements-dev.txt`: install, run the tes
 Windows (for example `uvloop` from `uvicorn[standard]`); they are pinned with environment markers in
 `PLATFORM_PINS`, and the script fails when the Linux dependency closure needs one that is missing.
 
+Dynamic video batch B2b-H added three runtime dependencies for the text fit (the "Dynamic video text fit" block of
+`requirements.txt`):
+
+| Package | Bound | Locked | Licence |
+|---|---|---|---|
+| `uharfbuzz` | `>=0.56.2,<0.57` | 0.56.2 | Apache-2.0; bundles HarfBuzz 14.5.0 under its "Old MIT" licence |
+| `fonttools` | `>=4.66,<5` | 4.66.1 | MIT |
+| `brotli` | `>=1.2,<2` | 1.2.0 | MIT |
+
+- **Wheels.** Each publishes CPython 3.11 wheels for `win_amd64` and manylinux x86_64 (`uharfbuzz` as cp310-abi3).
+  None has required dependencies, none needed a `PLATFORM_PINS` entry, and the Docker image installs them with the
+  rest of `requirements.txt`.
+- **The `uharfbuzz` bound.** It stays within the 0.56 series on purpose: a minor release can change shaping. Raise the
+  bound only after the extended text-fit parity probe passes with the new version.
+- **`brotli` and the HTTP clients.** Once `brotli` is installed, `httpx`, `urllib3` and `aiohttp` import it and
+  advertise `br` in `Accept-Encoding`; responses are decoded transparently.
+- **Classic isolation.** A classic build must still load none of `uharfbuzz`, `fontTools` or `brotli`
+  (`tests/compose/test_dynamic_isolation.py`). `brotli` is excused only beside an HTTP client that imports it.
+- **Notices.** Their licence notices are not in `THIRD_PARTY_NOTICES`, which covers npm packages and `web/vendor` only.
+  This is an open point for the owner (`DYNAMIC_VIDEO_DESIGN.md` §4.12).
+
 Tests always force fake providers and blank every API key (`tests/conftest.py`), even when your
-`.env` holds real keys. Tests that need the network are marked `network` and only run with
+`.env` holds real keys. They also pin the motion engine's settings to their defaults (`DYNAMIC_ENABLED=false`,
+`RENDER_MOTION_WORKERS=0`, `RENDER_CPU_SLOTS=0`, `RENDER_SLOT_DIR` empty, `MOTION_X264_PRESET=veryfast`,
+`MOTION_X264_CRF=17`), so a developer `.env` cannot change what a test builds or renders; tests that need another
+value set it on their settings. Tests that need the network are marked `network` and only run with
 `AADHI_NETWORK_TESTS=1`.
+
+Slow suites that need more than Python: the Dynamic suites (`tests/determinism` and the slow tests of
+`tests/compose/motion` and `tests/compose/dynamic`) need ffmpeg and Playwright's Chromium and skip without them
+outside the Docker test image. `tests/web/test_player_controls_fit.py` (the control bar of a reel's box, in real
+Chromium) needs Playwright with its Chromium and the vendored fonts from `npm ci` (`web/vendor`, git-ignored); it
+skips without Playwright or `web/vendor`. On Windows, run the slow motion tests with a short `--basetemp` (for example
+`pytest -m slow --basetemp C:\t\pt`): their work files under pytest's default temp path can pass the 260-character
+`MAX_PATH`. B2b added three slow Chromium files: `tests/determinism/test_stage_fonts.py`, `test_icon_pixels.py` and
+`test_textfit_page.py`. B2b-H adds `test_textfit_parity.py` (about 2 minutes); its extended form (5.5-7.5 minutes) runs
+only with `AADHI_TEXTFIT_PARITY_FULL=1`. B2b's `test_kerning_table.py` and `AADHI_KERNING_REMEASURE` are gone.
+The fast suite's face tests (`tests/compose/dynamic/test_faces.py`, `test_textfit.py`) read the vendored faces in
+`web/vendor`: run `npm ci` first. `test_textfit.py` also needs `uharfbuzz`, `fonttools` and `brotli` from
+`requirements.txt`. Without `web/vendor` they skip; inside the Docker test image `test_textfit.py`
+fails instead (`tests/compose/dynamic/helpers.missing`).
 
 ## 3. Configuration
 
@@ -117,6 +272,47 @@ Lecture look and checks (each takes effect when a timeline is built again, unles
 * `QUALITY_AI_TERMINOLOGY` (off): one fast-model call per generated lecture asks about at most 8
   ambiguous term pairs; answers are notes only and count toward the job budget. The deterministic
   quality checks always run and never call a model.
+
+Dynamic video (batch B0 lays the foundations; nothing changes for classic lectures):
+
+* `DYNAMIC_FEATURES` (empty): the Dynamic-video features this server accepts in edits and imports, a comma list
+  of `presentation`, `items_v3`, `cuts`, `overlays`, `clip`, `voice_override` (unknown names fail at start-up).
+  Every Dynamic field is read and kept from B0 on, but a save, lint, timeline preview or import that uses a
+  feature not listed is refused (422 `feature_unavailable`), except a feature the stored lecture already uses,
+  which stays editable after it is switched off. Leave it empty until the batch that ships a feature says so.
+* Lectures, timelines and asset manifests that use a Dynamic field are stored with `schema_version` 3 (classic
+  ones keep 2). A build older than B0 would drop those fields and write the lecture back without them, so **B0
+  is the rollback floor**: once a version-3 document exists, never deploy a build older than B0 (section 4.8).
+  A newer build's documents are refused instead of misread: the API answers 409 `newer_document` and a job
+  fails with `error_code` `newer_document` without running.
+
+Dynamic video, the motion render engine (batch B1; section 4.2 "Dynamic videos" for sizing and the benchmark):
+
+* `DYNAMIC_ENABLED` (off): the admin switch. On: a lecture with a `presentation` gets a Dynamic timeline and its MP4
+  is captured frame by frame from `/render-dynamic` by the motion engine. Off: `/render-dynamic` answers 404 and such
+  a lecture is built, played and rendered as a classic lecture (classic intro, `RENDER_FPS`, classic captions), with
+  one exception: its stage still follows `presentation.format` (`aadhi/compose/timeline.py`, a B0 decision), so a
+  portrait presentation gives a classic timeline on a 1080x1920 stage, rendered as a portrait classic MP4 while the
+  player shows it in its 16:9 box. Classic lectures never change. Flipping it takes effect at once, without
+  rebuilding: a build of the current revision made under the other value is served rebuilt with the current flag
+  (the Studio and watch players, public shares, the render page; the timeline ETag carries the flag), exactly as the
+  render job builds it, so the player and the MP4 always agree. A build that is already stale (the lecture was edited
+  since) is served as built until it is built again, except a Dynamic one while the flag is off, which is served
+  rebuilt as classic. Set it alike on the API and on every render worker: the worker builds the timeline it renders
+  with its own settings, while the player and `/render-dynamic` are served by the API, and the API decides from its
+  own flag whether a render request without `burn_captions` leaves the choice to the lecture's presentation. A worker
+  with the flag off would render such a lecture classic with no `burn_captions` in its payload, and the classic job
+  then burns captions as `RENDER_BURN_CAPTIONS` says instead of leaving them off.
+* `RENDER_MOTION_WORKERS` (0 = auto): capture workers per motion render; auto is `min(6, CPU quota - 1, physical
+  cores - 1, cpuset - 1)` read from the container's cgroup and, on Linux, the process's CPU affinity (Python's
+  `os.cpu_count()` sees the host's cores, not the quota).
+* `RENDER_CPU_SLOTS` (0 = physical cores - 1) and `RENDER_SLOT_DIR` (empty = `<render work dir>/cpu-slots`): every
+  worker of every motion render on the host holds one slot (a lock file `slot-NNN.lock`); a render waits for at least
+  one free slot and starts with what it got, so concurrent renders never oversubscribe the machine. Point every
+  render container of one host at the same directory on a local filesystem (lock files on a network share are not
+  reliable); the OS releases a crashed process's slots.
+* `MOTION_X264_PRESET` (`veryfast`; `ultrafast` ... `slow`) and `MOTION_X264_CRF` (17): the chunk encoder. Encoding
+  shares the cores with the capture; every chunk uses the same parameters (they are part of the chunk cache key).
 
 Media library and Visual Review:
 
@@ -173,7 +369,7 @@ the order above), and the Studio marks them for re-entry. Details: `docs/SECURIT
 
 `IMAGE_PROVIDER` / `VIDEO_PROVIDER` name the preferred provider (`none` switches the medium off,
 backups included). `IMAGE_FALLBACK_PROVIDERS` (gemini, pollinations, fake) and
-`VIDEO_FALLBACK_PROVIDERS` (veo, fake) list backups, tried in order when the preferred provider is
+`VIDEO_FALLBACK_PROVIDERS` (veo, omni, fake) list backups, tried in order when the preferred provider is
 not configured, cooling down, or fails in a way another provider may not (payment or account
 refusal, outage, rate limit, unusable output). The chain never falls back after a safety refusal or
 a refused personal key. **A paid backup costs money**: a Gemini image backup bills the server
@@ -198,8 +394,8 @@ configured ones.
   before: that earlier image is reused only when the chosen provider fails.
 * Output limits: `AI_MAX_IMAGE_BYTES`, `AI_MAX_VIDEO_BYTES`; flat or mis-shaped images are kept and
   flagged (`assets.media_suspect`). `VEO_DURATION_SECONDS` requests a clip length (billed per second;
-  empty = the model's default). Check `VEO_MODEL` (default `veo-2.0-generate-001`) against Google's
-  current models before relying on AI video.
+  Veo 3.x makes 4, 6 or 8 s clips and other values round up; empty = the model's default, 8 s). The
+  default `VEO_MODEL` is a preview with an announced earliest shutdown: see section 3.3.
 * Restarts and Veo: the operation is saved in the job before the paid request and as soon as Veo
   accepts it, so a restarted (or retried) job polls the same operation instead of paying again; its
   charge is noted as soon as it is reported, so a restart during the download never bills it twice.
@@ -209,11 +405,90 @@ configured ones.
   submits normally. A submission whose answer was never saved is **not** re-submitted automatically
   (the scene shows its still with `video.ambiguous_submission`); an explicit rebuild of that scene
   generates it once.
+* **Gemini Omni** (`omni`, `OMNI_MODEL`, default `gemini-omni-1.1-flash`) is the successor Google names for the
+  Veo 3.1 previews, which it lists for shutdown from **2026-10-22**. It runs on the same Gemini key as Veo (the
+  server's, or the teacher's own) through the Gemini Interactions API. While `VIDEO_PROVIDERS` is empty, a video
+  chain that names `veo` gets `omni` appended as its last backup, so clips keep coming once Veo is gone. That
+  automatic successor is used **only while Veo is unavailable**: Veo answering 404 / 410 (a model no longer
+  served) or refusing the account or payment (401 / 402 / 403) bills nothing, counts as unavailable and moves Veo
+  behind Omni for `MEDIA_PROVIDER_AUTH_COOLDOWN_SECONDS`. After any other Veo failure (a poll timeout, a rate
+  limit, a server error, unusable output) the scene shows its still image, as before Omni existed: a Veo job that
+  was accepted may still finish and bill, so a second paid clip is never started for it, and a short Veo cooldown
+  never puts Omni first. To use Omni after those failures as well, name it: `VIDEO_FALLBACK_PROVIDERS=omni` or
+  `VIDEO_PROVIDERS=veo,omni` (a timed-out Veo job may then be billed next to the Omni clip; both charges count in
+  the budgets). `VIDEO_PROVIDERS` (e.g. `veo,omni`, `omni`, or `none`) sets the exact order and replaces
+  `VIDEO_PROVIDER` + `VIDEO_FALLBACK_PROVIDERS`; `VIDEO_PROVIDERS=veo` turns the automatic successor off. Omni is
+  billed per output token, about USD 0.10 per second of 720p video (section 4.6); the budget check before a clip
+  assumes 10 s. Its background jobs need Google to store the interaction (kept 55 days on the paid tier, 1 day on
+  the free tier, which has no Omni access anyway); the job id is what a restarted worker resumes, with the same
+  checkpoint rules as Veo below. Omni clips are keyed by `OMNI_MODEL` (Veo's by `VEO_MODEL`), so a new Omni model
+  means new clips. Each job (its own event loop) uses its own Omni connection, closed when the job's last clip is
+  done.
 * Paid generations are claimed across worker processes (`asset_claims`, `GENERATION_CLAIM_*`), so two
   workers never pay for the same image or clip; a claim of a crashed worker expires after
   `GENERATION_CLAIM_TTL_SECONDS` and is taken over.
 * When a medium is off or not configured, images and clips generated earlier for the same request
-  are still used (info issue `assets.cached_media_used`), unless the lecture opted out.
+  are still used (info issue `assets.cached_media_used`), unless the lecture opted out. The request
+  includes `IMAGE_MODEL` (Gemini) / `VEO_MODEL` (`OMNI_MODEL` for Omni clips); media made under the defaults before
+  the 2026-10 model refresh is still found while these are left at their defaults (section 3.3).
+
+### 3.3 AI models
+
+Defaults as checked against Google's and OpenAI's model, deprecation and pricing pages on 2026-10-10
+([Gemini models](https://ai.google.dev/gemini-api/docs/models),
+[Gemini deprecations](https://ai.google.dev/gemini-api/docs/deprecations),
+[Gemini pricing](https://ai.google.dev/gemini-api/docs/pricing),
+[OpenAI deprecations](https://developers.openai.com/api/docs/deprecations),
+[OpenAI pricing](https://developers.openai.com/api/docs/pricing)). Prices are per 1M tokens unless
+noted; `aadhi.usage.pricing` holds them (section 4.6).
+
+| Setting | Default | Why, and the alternatives |
+|---|---|---|
+| `LLM_MODEL_PLAN`, `_SCRIPT`, `_CRITIC`, `_FAST` | `gemini-3.8-flash` | Stable (GA) and Google's recommendation for new projects; Gemini 2.5 models are served only to keys that used them before. $0.75 / $3.75, doubling to $1.50 / $7.50 on 2027-01-01. Planning uses it as well: `gemini-3.1-pro-preview` ($2 / $12) is still a preview, so it is an opt-in (`LLM_MODEL_PLAN=gemini-3.1-pro-preview`). `gemini-3.5-flash-lite` ($0.30 / $2.50) is a cheaper fast tier. |
+| `GEMINI_TTS_MODEL` | `gemini-3.8-flash-tts` | The 2.5 preview TTS models shut down on 2026-11-17. About $0.014 per minute of speech (double from 2027-01-01); `gemini-3.8-flash-lite-tts` costs two thirds of that. A retired or misspelt model (HTTP 404 / 410) no longer silences lectures: the adapter raises `ModelUnavailable` after that one request (not retried, nothing billed), and builds narrate with the free Edge voice for the lecture's language with an `assets.tts_fallback` warning until the setting is fixed; a rebuild then restores the chosen voice. Without Edge on the server the scenes fail with `assets.tts_failed`. |
+| `OPENAI_TTS_MODEL` | `gpt-4o-mini-tts` | **Every model `/v1/audio/speech` accepts is scheduled to retire on 2027-01-06**: `tts-1`, `tts-1-hd` and the dated `gpt-4o-mini-tts-2025-*` snapshots by name, and the undated `gpt-4o-mini-tts` alias defaults to `gpt-4o-mini-tts-2025-12-15`, which is itself on that list. OpenAI names `gpt-realtime-2.1-mini` as the replacement, but it supports only `v1/realtime` (not `audio/speech`, Chat Completions or Responses). Before 2027-01-06, move deployments and lectures that use OpenAI voices to `TTS_PROVIDER=gemini` or `edge`, or build a Realtime-API TTS adapter. After the retirement OpenAI answers `/v1/audio/speech` with HTTP 404 `model_not_found` (or 410); the adapter raises `ModelUnavailable` after that one request (not retried, nothing billed), and the asset build narrates with the free Edge voice for the lecture's language and adds one lecture-level `assets.tts_fallback` warning, as for a retired `GEMINI_TTS_MODEL`. OpenAI gives the same 404 when the API key has no access to the model, and the Edge fallback with its warning applies there too. Without Edge on the server the scenes still fail with `assets.tts_failed`. The advice to move stands: Edge is only a fallback, and each build first makes one unbilled 404 request per beat already in flight before it switches. $0.60 text + $12 audio per 1M tokens (about $0.015 per minute). |
+| `IMAGE_MODEL` | `gemini-nano-banana-2.1` | Stable (released 2026-10-06), recommended for new projects and listed as the successor of `gemini-3.1-flash-image`, at half its price ($0.034 per 1K image against $0.067). It always thinks (default level `medium`, it cannot be turned off): the prompt ($1.50) and the thinking tokens ($7.50 per 1M) are billed on top of the image and are counted in budgets. `gemini-3.1-flash-lite-image` is the low-latency option at the same price per image; `gemini-2.5-flash-image` is limited-access (shutdown from 2027-03-15) and Imagen was shut down on 2026-08-17. |
+| `VEO_MODEL` | `veo-3.1-fast-generate-preview` | Veo 2 and 3.0 were shut down on 2026-06-30. Veo 3.1 Fast costs $0.10 per second at 720p ($0.80 per 8-second clip); `veo-3.1-generate-preview` is $0.40/s and `veo-3.1-lite-generate-preview` $0.05/s (Lite takes no reference images). **All Veo 3.1 models are previews with an earliest shutdown of 2026-10-22**; Google names `gemini-omni-1.1-flash` as the replacement, supported as the `omni` video provider (next row, section 3.2): a chain with `veo` switches to it automatically once Veo is no longer served (not after a Veo timeout or rate limit). |
+| `OMNI_MODEL` | `gemini-omni-1.1-flash` | Gemini Omni video, served only through the Interactions API. $17.50 per 1M video output tokens at 5,792 tokens per second of 720p video (about $0.10 per second, like Veo 3.1 Fast), $1.50 per 1M input tokens; paid tier only. `gemini-omni-flash-preview` is priced the same. The adapter sends no clip length (the model picks it, up to 10 s) and writes Veo's exclusions into the prompt (Omni has no negative prompt). |
+| `OPENAI_MODEL_*` | `gpt-4.1` / `gpt-4.1-mini` | Unchanged: neither is on OpenAI's deprecation list. The current reasoning models (`gpt-5.6-sol`, `-terra`, `-luna`, `gpt-6-*`) work when configured. |
+| `ANTHROPIC_MODEL_*` | `claude-opus-5-5` | Unchanged. |
+
+How the adapters treat the current models:
+
+* Gemini 3 and later get no `temperature` (Google asks to keep the default 1.0; lower values may loop,
+  and 3.8 Flash ignores sampling parameters); Gemini 1.x / 2.x still get the caller's value. Thinking
+  stays at the model default (`medium` on 3.8 Flash) and is billed as output.
+* OpenAI reasoning models (o-series, gpt-5 and later, gpt-6) get no `temperature`: OpenAI accepts
+  sampling parameters only at reasoning effort `none`, and the adapter leaves the effort at its default.
+* Gemini 3.8 TTS answers with WAV (earlier models with raw PCM, which is still wrapped). Every voice in
+  the catalogue is one of its 30 prebuilt voices.
+* Gemini 3 image models may return interim "thought" images before the final one; only the final
+  image is kept.
+* Veo 3.x: 16:9 by default and 9:16 on request, 720p, 4, 6 or 8 s (8 with a reference image, which
+  becomes an asset reference on 3.1 / 3.1 Fast and the first frame on Lite). Veo 3 always adds an
+  audio track; the player and the MP4 keep B-roll muted.
+
+Changing a model affects new generations only. Stored lectures keep their audio, pictures and clips:
+asset keys include the model, so nothing stored is invalidated or regenerated by itself.
+
+Pictures and clips: a scene that is built again looks its picture or clip up under the configured
+`IMAGE_MODEL` / `VEO_MODEL`. While these are left at their defaults, media made under the defaults before
+this refresh (`gemini-2.5-flash-image`, `veo-2.0-generate-001`) is looked up as well, so it is reused
+instead of paid for again, and it is still shown when the medium is off (`IMAGE_PROVIDER` /
+`VIDEO_PROVIDER=none`). New media is always made with the configured model. An `IMAGE_MODEL` /
+`VEO_MODEL` set to any other value is your own choice of model: scenes built again under it get new,
+paid pictures and clips.
+
+Narration: a lecture voiced by Gemini or OpenAI TTS keeps its narration until it is built again. Its
+next full asset build (`POST .../build` with `scene_ids: null`, the review's "Build changed scenes")
+re-synthesises the narration of every scene with the new model, at TTS cost, even though no scene is
+shown as changed (scene hashes do not cover the voice model). The same holds after any `*_TTS_MODEL`
+change. A build of only some scenes (Visual Review `retry` / `new_version`, or `POST .../build` with
+`scene_ids`) re-voices only those scenes and reuses the others as they are. The lecture, and a render
+made from it, then mixes narration from the old and new models until its next full build. If that
+matters, pin `GEMINI_TTS_MODEL` / `OPENAI_TTS_MODEL` to the previous value until a lecture has been fully
+rebuilt (possible only until that model shuts down: see the table above). Edge narration, and the
+generated pictures and clips of unchanged scenes, are reused.
 
 ## 4. Production deployment (Docker Compose)
 
@@ -250,7 +525,11 @@ configured ones.
    first login (section 3.1).
 2. `docker compose build` (multi-stage image: `npm ci` vendor bundle, Python venv from
    `requirements.lock`, ffmpeg, TeX Live for MathTex, Noto + Indic fonts, Playwright Chromium,
-   non-root user `aadhi`, tini as PID 1).
+   non-root user `aadhi`, tini as PID 1). From Dynamic video batch B2b, the `web` stage also copies
+   `scripts/vendor_faces.mjs` and `web/js/dynamic/faces.gen.js`, which `vendor.mjs` imports (`tests/evals/test_tooling.py`
+   checks that the stage copies every local module it imports), and the runtime image carries `THIRD_PARTY_NOTICES` at
+   `/app`. B2b-H adds three Python packages (`uharfbuzz`, `fonttools`, `brotli`; section 2) to the venv stage. The image
+   build has not been run since B2b.
 3. `docker compose up -d`. The API runs `python -m aadhi.cli migrate` on start (`RUN_MIGRATIONS=1`,
    retried while Postgres starts) and workers wait for the API health check, so migrations always
    finish before any job runs. Only the API sets `RUN_MIGRATIONS`.
@@ -339,6 +618,78 @@ docker compose run --rm -T api python -m aadhi.cli set-password admin --password
 * Per-process concurrency: `WORKER_CONCURRENCY` (jobs), `LLM_MAX_PARALLEL`, `TTS_MAX_PARALLEL`,
   `MANIM_MAX_CONCURRENT`, `RENDER_CONCURRENCY`. Keep
   `processes x (DB_POOL_SIZE + DB_MAX_OVERFLOW)` below Postgres `max_connections` (default 100).
+* **Dynamic videos (motion engine, from batch B1).** With `DYNAMIC_ENABLED=true` a Dynamic lecture's render runs
+  preflight (seconds: the stage is loaded once and sampled frames are checked; a lecture whose text cannot be fixed
+  automatically fails with `preflight_blocked` and a teacher action, before any capture), then captures every frame
+  with W parallel workers (one sandboxed headless Chromium and one x264 encoder each; one shared Playwright driver),
+  joins the chunks and checks the file (`render_invalid` only when an automatic remedy failed). The render worker
+  needs the same Chromium seccomp profile as above. Its capture Chromium gets the classic capture's flags plus
+  `--disable-partial-raster` (frames that do not depend on the order they were rendered in; no measurable cost); the
+  classic capture's flags are unchanged. A remedy that captures chunks again after the file check waits for a CPU slot
+  of its own, like any worker. Errors: `dynamic_disabled` (a Dynamic timeline reached a worker with the flag off),
+  `preflight_blocked`, `render_invalid`, `render_unavailable`, `disk_full`. A failed attempt keeps its encoded chunks
+  in the workspace, so the retry captures only the missing ones. Side panels the Dynamic stage does not draw yet
+  (charts, graphs, 3D models, skill trees, quiz panels) are left out of the video with a render warning
+  (`panel_not_drawn`).
+* **The `motion` compose profile.** The default `render-worker` (4 CPUs, 6 GB, 1 GB shm) is too small for W workers.
+  `render-worker-motion` takes the same jobs (classic renders too) with 8 CPUs, 10 GB and `shm_size: 2gb`, so run it
+  instead of the default one:
+
+  ```bash
+  docker compose --profile motion up -d --scale render-worker=0
+  ```
+
+  Its CPU slots live in `/data/app/render-work/cpu-slots` on the shared appdata volume (every render container of
+  the stack shares them; `RENDER_SLOT_DIR` overrides). The limits are the design's starting point; set them from the
+  benchmark below run on the production host.
+* **Benchmark** (`scripts/bench_motion.py`, the production capture path against the real stage; never touches
+  `data/`, never calls a provider). The production image has neither `scripts/` nor the showcase fixture under
+  `tests/` (the Dockerfile copies an allow-list, and `.dockerignore` leaves `tests` out), so run it with both
+  bind-mounted read-only: in the container the script's root is then `/app`, and it uses the image's `web/` with its
+  vendored fonts. Compose interpolates the whole file, so `BASE_URL`, `POSTGRES_PASSWORD` and `JWT_SECRET` must be
+  set (in `.env` or the shell; any value does, the benchmark uses no database) even with `--no-deps`:
+
+  ```bash
+  docker compose --profile motion build render-worker-motion
+  docker compose --profile motion run --rm --no-deps render-worker-motion \
+      python /app/docker/app/check_chromium.py                    # the Chromium sandbox works on this host
+  mkdir -p bench-out                                              # writable by the container user (uid 1000)
+  docker compose --profile motion run --rm --no-deps \
+      -v "$PWD/scripts:/app/scripts:ro" -v "$PWD/tests:/app/tests:ro" -v "$PWD/bench-out:/out" \
+      render-worker-motion python scripts/bench_motion.py --minutes 5 --json /out/bench-16x9.json   # 5-minute lesson
+  docker compose --profile motion run --rm --no-deps \
+      -v "$PWD/scripts:/app/scripts:ro" -v "$PWD/tests:/app/tests:ro" -v "$PWD/bench-out:/out" \
+      render-worker-motion python scripts/bench_motion.py --format portrait --minutes 3.5 --burn-captions \
+      --json /out/bench-9x16.json                                                                   # 3.5-minute reel
+  ```
+
+  (PowerShell: `${PWD}` instead of `$PWD`, and the backslash continuations on one line.) Options: `--workers N`,
+  `--preset faster`, `--crf 17`, `--stage stub` (engine and capture only), `--driver-per-worker`,
+  `--disable-frame-rate-limit` (an experiment). It prints fps per worker and in aggregate, the phases (boot, capture,
+  mux, checks), peak memory of browsers, encoders and the driver, and projections for the 5-minute lesson and the
+  3.5-minute reel. Under the profile's limit of 8 CPUs the quota allows W = 6 (the host's physical cores and cpuset
+  can lower it). The benchmark renders the showcase through `board_generic` only, so run it again once B2's
+  templates exist (DYNAMIC_VIDEO_DESIGN §7.10).
+
+  **Measured on the development laptop only** (i7-13650HX, 14 physical cores / 20 threads, 16.8 GB, Windows 11,
+  chrome-headless-shell 153, ffmpeg 8.1.1; W = 6 auto; the same configuration varied by up to ±25% between runs).
+  **The production-image benchmark under the `motion` profile is still pending** (Docker Desktop is installed on the
+  development machine, but its C: drive has about 7 GB free, too little for the production image), so P1 and the
+  profile limits are not set yet:
+
+  | Run | Frames | fps per worker | Aggregate | End to end | Per video minute |
+  |---|---|---|---|---|---|
+  | Benchmark, 5-min 16:9, clean | 9,008 | 10.2-11.8 | 55-59 fps | 163-170 s | 33-34 s |
+  | Benchmark, 3.5-min 9:16, burned captions | 6,572 | 9.0-9.6 | 48 fps | 144 s | 39 s |
+  | Render job, showcase 16:9 (5.2 min, 3 clips + 1 simulation, BGM), burned | 9,356 | 6.1-9.1 | 35-48 fps | 250-281 s | 48-54 s |
+  | Render job, showcase 9:16, burned | 9,356 | 8.0-11.1 | 48-60 fps | 191-206 s | 37-40 s |
+  | Render job, showcase 16:9, clean + caption track | 9,356 | 8.9-9.6 | 51 fps | 193 s | 37 s |
+
+  Fixed costs per render: preflight 4-12 s (56-289 sampled frames), boot 3-5 s, mux 0.5-1.8 s, container checks
+  2-6 s. Memory: 6 browsers 1.8-4.4 GB, 6 encoders 1.7 GB (x264 `-threads 4`: 280-290 MB each), one Playwright driver
+  0.2-0.3 GB (a driver per worker adds about 140 MB per worker, at no measurable speed gain), so about 0.6-1.0 GB per
+  worker. One page alone: `seek()` 4-8 ms plus the CDP JPEG capture 37-55 ms per 1080p frame; the `mesh_drift`
+  background's canvas accounts for 8-20 ms of the capture.
 
 ### 4.3 Manim sandbox
 
@@ -455,16 +806,39 @@ caps a single generation job; `DAILY_BUDGET_USD_PER_USER` caps each user (admins
 per-user override). Built-in prices are approximate list prices; override them with a JSON file:
 
 ```json
-{"llm": {"gemini-2.5-flash": {"input": 0.30, "output": 2.50},
+{"llm": {"gemini-3.8-flash": {"input": 0.75, "output": 3.75},
          "claude-opus-5-5": {"input": 4.00, "output": 20.00}},
  "tts": {"elevenlabs": {"default": 200.0}},
  "image": {"gemini": {"default": 0.039}}}
 ```
 
-and `PRICING_FILE=/data/app/pricing.json` (re-read when the file changes). Claude prompt caching is
+and `PRICING_FILE=/data/app/pricing.json` (re-read when the file changes). Announced price changes are
+built in and apply from their date (UTC): on 2027-01-01 Google doubles the Gemini 3.6-3.8 Flash and
+3.8 TTS prices. A value in `PRICING_FILE` always wins over such a step, and `"scheduled": []` in the
+file turns the built-in steps off. Gemini image models are priced per image plus their prompt and
+thinking tokens (`image_tokens`, USD per 1M tokens, e.g.
+`"image_tokens": {"gemini-nano-banana-2.1": {"input": 1.50, "output": 7.50}}`): Gemini 3 image models
+always think, and Google bills that on top of the image. Claude prompt caching is
 billed separately: cache writes cost 1.25x and cache reads 0.10x the model's input price unless the
 model entry sets its own `cache_write` / `cache_read` price (USD per 1M tokens), e.g.
 `"claude-opus-5-5": {"input": 4.00, "output": 20.00, "cache_read": 0.20}` (the built-in value).
+Built-in prices added or re-read on 2026-10-10:
+
+* ElevenLabs voices (elevenlabs.io/pricing/api, the same per-character rate on every plan): v4, v3 and
+  Multilingual v2 $0.08 per 1K characters; v4 Turbo, v3 Conversational and Flash / Turbo $0.04; unlisted models
+  $0.08. The temporary v4 promotion (until 12 Oct 2026) is deliberately not used, so budgets never under-estimate.
+* Generated music, operation `music` (used from batch B3): Lyria 3.5 and Lyria 3 Pro $0.08 per song, Lyria 3 Clip
+  $0.04 per 30 s clip (on the Gemini key; priced the same under the `lyria` and `gemini` provider names);
+  ElevenLabs Music $0.15 per minute; procedural music free; an unknown music provider pays both rates. Override
+  with `"music": {"<provider>": {"<model family>": {"unit": USD per song, "second": USD per second}}}`.
+* Gemini Omni video (`omni`): $0.10136 per second of 720p video (17.50 USD per 1M video tokens at 5,792 tokens
+  per second).
+* **Unknown operations fail closed**: a usage whose operation has no price (a new paid call nobody priced) is
+  charged every quantity it reports at the global default rates (tokens, characters, at least one unit, seconds)
+  instead of nothing, and the log says `no pricing for operation '<op>'; charging the global default rates` once
+  per operation and process. Add the operation to `PRICING_FILE` (or the code) when you see it. Only the `fake`
+  provider stays free.
+
 Spend is visible per user (`GET /api/usage/me`), per project (`GET /api/usage/projects/{id}`) and
 for admins across all users (`GET /api/admin/usage`); per-user budgets are set with
 `PATCH /api/admin/users/{id}` (`daily_budget_usd`).
@@ -477,9 +851,10 @@ there is server-billed spend only, i.e. what the daily budget measures), and adm
 in `GET /api/admin/usage` (whose `today_usd` is server-billed spend too). Once a user's server
 spend is over their daily budget, calls on their own keys and free voices or images still run; only
 a paid, server-billed call is refused. Server-key and `.env`-key calls are `billed_to = "server"` and count
-toward both budgets as before. AI videos (Veo) are paid by the Gemini key, so with a personal
-Gemini key both the cost estimate checked before a clip and the recorded usage stay outside the
-daily budget.
+toward both budgets as before. AI videos (Veo and Gemini Omni) and Lyria music are paid by the Gemini key,
+so with a personal Gemini key both the cost estimate checked before a clip and the recorded usage stay outside
+the daily budget. The up-front budget check of a new lecture also counts the Dynamic options when they arrive
+(generated music, premium voices from any provider, a pinned paid narrator and the voices' calibration).
 
 Claude engine: `ANTHROPIC_TIMEOUT_SECONDS` (default 1800, minimum 60) caps each whole streamed
 Claude call; `LLM_TIMEOUT_SECONDS` (default 600) applies only to Gemini and OpenAI. At the default
@@ -499,7 +874,7 @@ silence before a retry: for OpenAI between stream events, except while a reasoni
 it is thinking; for Claude it is the HTTP read timeout, and the API's keep-alive pings during long
 thinking count as data. Healthy long answers are never cut short by these limits;
 `LLM_TIMEOUT_SECONDS` / `ANTHROPIC_TIMEOUT_SECONDS` still cap each attempt and the retry budget is
-unchanged. Gemini calls are not streamed (Gemini 2.5 thinks before its first streamed chunk and the
+unchanged. Gemini calls are not streamed (Gemini 2.5 and 3.x think before the first streamed chunk and the
 SDK exposes no earlier sign of life), so they keep waiting up to `LLM_TIMEOUT_SECONDS` per attempt.
 OpenAI lets only verified organizations stream some models (o3 and the gpt-5 family: HTTP 400 "Your
 organization must be verified to stream this model"). On such a key the request is sent again
@@ -537,12 +912,30 @@ lines are kept.
 * Preview vs MP4 parity: `python evals/render_parity.py [--out DIR --keep] [--threshold 8]` renders a
   fixture lecture through the app and compares the MP4 with preview screenshots at the same instants
   (mascot masked; needs ffmpeg and Chromium; exit 1 when a sample differs more than the threshold).
+  `--dynamic landscape|portrait` does the same for a Dynamic video (B1): the fixture with a synthetic presentation
+  rendered by the motion engine against the live-mode stage at 20 seeded instants, every SSIM at least 0.98; each
+  sample is split into compositor, JPEG-capture and x264 loss, so a failure shows where it comes from.
 
 ### 4.8 Upgrades
 
+**Deploy order (from Dynamic video batch B0 on).** `docker compose up -d` alone restarts the services
+independently, so an old worker could run a job against documents the new API already wrote. Stop the workers
+first, start the API (which migrates), then start the workers on the same image:
+
 ```bash
-git pull && docker compose build && docker compose up -d
+git pull && docker compose build
+docker compose stop worker render-worker   # 1. no job runs on the old code (+ manim-worker with --profile docker-sandbox)
+docker compose up -d --no-deps api         # 2. migrations run at start; wait until `docker compose ps api` is healthy
+docker compose up -d                       # 3. the workers start on the same image
 ```
+
+**B0 is the rollback floor.** From batch B0 on, lectures, timelines and manifests that use a Dynamic-video field
+are stored with `schema_version` 3 (section 3). Builds before B0 do not know those fields and would drop them
+when they save a lecture, so once any version-3 document exists, never roll back to a build older than B0;
+rolling back to B0 or later is safe, because those refuse documents they cannot read (409 `newer_document`, a
+failed job with `error_code` `newer_document`) instead of rewriting them. A job failing with `newer_document`
+means a worker runs an older image than the API or the worker that wrote the version: finish the deploy order
+above, then retry the job.
 
 The API applies migrations at start; workers restart after it is healthy. Read the release notes
 for migrations that need a maintenance window (large table rewrites), and take a `pg_dump` first.
@@ -559,6 +952,43 @@ for migrations that need a maintenance window (large table rewrites), and take a
 Batch 4 (hidden scenes, minimum durations, "Generated vs edited", the lesson stage, the Videos page) adds no
 migration: the new scene fields live in the screenplay JSON (left out at their defaults) and everything else is
 derived from existing rows.
+
+Dynamic video batch B0 adds no migration either: the new fields live in the JSON documents, the new asset kinds
+(`music`, `clip`, `clip_proxy`, `clip_sprite`, `waveform`, `voice_sample`, `thumbnail`, `narration_upload`, all
+served like the other media) fit the existing string column, and new asset keys are authorised through the
+existing `asset_refs` table. Follow the deploy order above all the same.
+
+Dynamic video batch B2a adds no migration or setting. Its timelines are a new look-engine generation
+(`presentation.engine_version` 2; the B1 ones are 1), which has three one-time effects after the deploy:
+
+* **Timelines are refreshed once.** The timeline ETag carries the engine generation, so every player's cached
+  timeline is fetched again (one 200 instead of a 304). A stored Dynamic timeline of the current revision built by B1
+  is served rebuilt with the new resolver (the stored row is not written), exactly as a new MP4 is built, so the
+  player and the MP4 agree; this costs about 10-45 ms per 40-scene lecture on every request that is not a 304, until
+  the lecture is built again. With `DYNAMIC_ENABLED` off (the default) there are few or none.
+* **Motion chunk caches miss once.** `CHUNK_CACHE_VERSION` is 3 (the chunk key now holds the background clock) and
+  the stage bundle digest changes with `web/js/dynamic`. Chunks are reused only by a retry of the same render, so the
+  effect is limited to a render retried across the deploy, which captures its chunks again.
+* **Stage and server generations.** The stage refuses a timeline of a newer generation than it knows
+  (`timeline_invalid`: the render page fails `ready`, the watch page shows "This lecture could not be played"). Run
+  the API and every render worker on the same image (deploy order above), and reload open Studio and watch pages
+  after the deploy. A stored engine-1 timeline that is stale (the lecture was edited since) is served and drawn as B1
+  drew it until it is built again.
+
+Dynamic video batch B2b adds no migration or setting, and no look changes: the look-engine generation stays 2, so no
+timeline is rebuilt and the timeline ETag is unchanged.
+
+* **New timelines store `presentation.fonts.indic`.** Timelines built after the deploy store the fonts as
+  `{display, body, mono, indic}`, naming the faces the stage drew before. A display face B2a drew as Outfit (for
+  example `poppins`) is now stored as `outfit`. Stored timelines keep their fonts and draw unchanged.
+* **Motion chunk caches miss once.** The stage bundle digest covers `web/js`, `web/css` and `web/vendor`, which B2b
+  changes (`fonts.js`, `faces.gen.js`, `dynamic-fonts.css`, the new faces). As in B2a, this affects only a render
+  retried across the deploy, which captures its chunks again.
+* **Rolling back to B2a** keeps working for these timelines by construction: B2a's schema keeps `fonts` as a free
+  dict, and its stage reads only `display`, which B2b sets to a face B2a draws. This was not tested across images.
+* **Image and installs.** The image gains the Dynamic faces in `web/vendor/fonts/dynamic/` and
+  `/app/THIRD_PARTY_NOTICES`. `npm ci` (the image's `web` stage and CI) downloads about 62 MB more for the icon
+  packages, none of which reaches the image.
 
 Outside Docker, run `python -m aadhi.cli migrate` after pulling.
 

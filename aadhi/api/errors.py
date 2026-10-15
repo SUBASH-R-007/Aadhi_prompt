@@ -4,8 +4,8 @@
 * HTTPExceptions raised by other areas (e.g. ``aadhi.auth.deps``) are mapped too; a ``code``
   attribute (core's ``AppHTTPException``), an ``extra`` dict attribute or a dict ``detail`` with a
   ``code`` key are honoured, otherwise the code is derived from the status.
-* Domain exceptions (``JobInProgress``, ``BudgetExceeded``, ``UploadRejected``, ``InvalidToken``)
-  are translated to their documented status codes.
+* Domain exceptions (``JobInProgress``, ``BudgetExceeded``, ``UploadRejected``, ``InvalidToken``,
+  ``NewerDocumentError`` -> 409 ``newer_document``) are translated to their documented status codes.
 * Anything unexpected becomes a generic 500 without internals (logged with redaction).
 """
 
@@ -198,6 +198,19 @@ async def _job_not_found_handler(request: Request, exc: Exception) -> JSONRespon
     return envelope(404, "not_found", "Job not found")
 
 
+async def _newer_document_handler(request: Request, exc: Exception) -> JSONResponse:
+    """A screenplay / timeline / manifest written by a newer build (``aadhi.schemas.features``): refused, never read
+    with its unknown fields dropped (and so never written back stripped)."""
+    return envelope(
+        409,
+        "newer_document",
+        str(exc),
+        document=getattr(exc, "document", None),
+        schema_version=getattr(exc, "version", None),
+        reader_version=getattr(exc, "reader", None),
+    )
+
+
 async def _unhandled_handler(request: Request, exc: Exception) -> JSONResponse:
     """Last resort (ServerErrorMiddleware): generic message, details only in the log."""
     return envelope(500, "internal", GENERIC_500)
@@ -243,9 +256,11 @@ def install_exception_handlers(app: FastAPI) -> None:
     from ..auth.tokens import InvalidToken
     from ..jobs import queue as job_queue
     from ..jobs.base import BudgetExceeded
+    from ..schemas.features import NewerDocumentError
     from ..security.uploads import UploadRejected
 
     app.add_exception_handler(StarletteHTTPException, _http_exception_handler)
+    app.add_exception_handler(NewerDocumentError, _newer_document_handler)
     app.add_exception_handler(RequestValidationError, _validation_handler)
     app.add_exception_handler(job_queue.JobInProgress, _job_in_progress_handler)
     app.add_exception_handler(BudgetExceeded, _budget_handler)

@@ -549,6 +549,9 @@ def _ensure_hook(g: GenPlan, rep: NormalizeReport, used: set[str]) -> None:
 
 
 def _ensure_recap(g: GenPlan, pc: PlanContext, rep: NormalizeReport, used: set[str]) -> None:
+    """With a previous-session summary, a recap is the second scene: the plan's own recap is moved there (a
+    chapter that held nothing else is dropped: every later pass reads a chapter's first scene), else one is
+    inserted."""
     summary = pc.options.previous_session_summary.strip()
     if not summary:
         return
@@ -561,6 +564,9 @@ def _ensure_recap(g: GenPlan, pc: PlanContext, rep: NormalizeReport, used: set[s
                 ch.scenes.pop(i)
                 g.chapters[0].scenes.insert(1, s)
                 rep.notes.append("moved the recap scene right after the hook")
+                if not ch.scenes:  # never the first chapter: it holds the hook and now the recap
+                    g.chapters = [c for c in g.chapters if c is not ch]
+                    rep.notes.append(f"removed chapter {ch.key}, which held only the recap")
                 return
     recap = _new_scene(
         "recap_previous", used, type="recap", narrative_role="context",

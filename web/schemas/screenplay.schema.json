@@ -135,6 +135,22 @@
      "default": null,
      "title": "Min Seconds"
     },
+    "look": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/SceneLook"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "colour_is_content": {
+     "default": false,
+     "title": "Colour Is Content",
+     "type": "boolean"
+    },
     "type": {
      "const": "ai_video",
      "title": "Type",
@@ -207,6 +223,27 @@
     "video_prompt"
    ],
    "title": "AIVideoScene",
+   "type": "object"
+  },
+  "AssetStyle": {
+   "description": "Frozen at generation: drives the image style suffix and the Manim background (\"New colours\" keeps it).",
+   "properties": {
+    "family": {
+     "pattern": "^[a-z0-9_-]{1,40}$",
+     "title": "Family",
+     "type": "string"
+    },
+    "personality": {
+     "pattern": "^[a-z0-9_-]{1,40}$",
+     "title": "Personality",
+     "type": "string"
+    }
+   },
+   "required": [
+    "family",
+    "personality"
+   ],
+   "title": "AssetStyle",
    "type": "object"
   },
   "Beat": {
@@ -301,6 +338,60 @@
      "maxItems": 10,
      "title": "Source Refs",
      "type": "array"
+    },
+    "speaker": {
+     "default": "narrator",
+     "enum": [
+      "narrator",
+      "aadhi",
+      "student"
+     ],
+     "title": "Speaker",
+     "type": "string"
+    },
+    "answers": {
+     "anyOf": [
+      {
+       "maxLength": 129,
+       "minLength": 3,
+       "pattern": "^[a-z0-9][a-z0-9_\\-]{0,63}/[a-z0-9][a-z0-9_\\-]{0,63}$",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Answers"
+    },
+    "cuts": {
+     "items": {
+      "$ref": "#/$defs/WordRange"
+     },
+     "maxItems": 20,
+     "title": "Cuts",
+     "type": "array"
+    },
+    "overlays": {
+     "items": {
+      "$ref": "#/$defs/Overlay"
+     },
+     "maxItems": 4,
+     "title": "Overlays",
+     "type": "array"
+    },
+    "voice_override_asset_key": {
+     "anyOf": [
+      {
+       "maxLength": 128,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Voice Override Asset Key"
     }
    },
    "required": [
@@ -488,6 +579,84 @@
      "maxItems": 10,
      "title": "Source Refs",
      "type": "array"
+    },
+    "value": {
+     "anyOf": [
+      {
+       "maxLength": 32,
+       "pattern": "^-?[0-9][0-9.,]*$",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Value"
+    },
+    "unit": {
+     "anyOf": [
+      {
+       "maxLength": 40,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Unit"
+    },
+    "date": {
+     "anyOf": [
+      {
+       "maxLength": 40,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Date"
+    },
+    "icon_hint": {
+     "anyOf": [
+      {
+       "maxLength": 24,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Icon Hint"
+    },
+    "pins": {
+     "items": {
+      "$ref": "#/$defs/FigurePin"
+     },
+     "maxItems": 8,
+     "title": "Pins",
+     "type": "array"
+    },
+    "level": {
+     "anyOf": [
+      {
+       "enum": [
+        "recall",
+        "apply",
+        "transfer"
+       ],
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Level"
     }
    },
    "required": [
@@ -512,7 +681,12 @@
     "table",
     "figure",
     "example_step",
-    "takeaway"
+    "takeaway",
+    "question",
+    "stat",
+    "step",
+    "quote",
+    "pair"
    ],
    "title": "BoardItemKind",
    "type": "string"
@@ -652,6 +826,22 @@
      "default": null,
      "title": "Min Seconds"
     },
+    "look": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/SceneLook"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "colour_is_content": {
+     "default": false,
+     "title": "Colour Is Content",
+     "type": "boolean"
+    },
     "type": {
      "enum": [
       "content",
@@ -671,6 +861,25 @@
      "maxItems": 12,
      "title": "Board",
      "type": "array"
+    },
+    "sequence": {
+     "anyOf": [
+      {
+       "enum": [
+        "flow",
+        "cycle",
+        "timeline",
+        "chain",
+        "checklist"
+       ],
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Sequence"
     }
    },
    "required": [
@@ -814,6 +1023,22 @@
      "default": null,
      "title": "Min Seconds"
     },
+    "look": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/SceneLook"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "colour_is_content": {
+     "default": false,
+     "title": "Colour Is Content",
+     "type": "boolean"
+    },
     "type": {
      "const": "chapter_card",
      "title": "Type",
@@ -856,6 +1081,11 @@
      "maxItems": 200,
      "title": "Scene Ids",
      "type": "array"
+    },
+    "builds_on": {
+     "default": true,
+     "title": "Builds On",
+     "type": "boolean"
     }
    },
    "required": [
@@ -953,6 +1183,299 @@
     "datasets"
    ],
    "title": "ChartSpec",
+   "type": "object"
+  },
+  "ClipCaption": {
+   "description": "A caption of an inserted clip, in clip-relative seconds (after the trim).",
+   "properties": {
+    "start": {
+     "minimum": 0.0,
+     "title": "Start",
+     "type": "number"
+    },
+    "end": {
+     "title": "End",
+     "type": "number"
+    },
+    "text": {
+     "maxLength": 300,
+     "minLength": 1,
+     "title": "Text",
+     "type": "string"
+    }
+   },
+   "required": [
+    "start",
+    "end",
+    "text"
+   ],
+   "title": "ClipCaption",
+   "type": "object"
+  },
+  "ClipRange": {
+   "description": "A trimmed range of a normalised clip (asset kind ``clip``, the mezzanine): 30 fps frame grid.",
+   "properties": {
+    "asset_key": {
+     "maxLength": 128,
+     "minLength": 1,
+     "title": "Asset Key",
+     "type": "string"
+    },
+    "in_frame": {
+     "minimum": 0,
+     "title": "In Frame",
+     "type": "integer"
+    },
+    "out_frame": {
+     "title": "Out Frame",
+     "type": "integer"
+    }
+   },
+   "required": [
+    "asset_key",
+    "in_frame",
+    "out_frame"
+   ],
+   "title": "ClipRange",
+   "type": "object"
+  },
+  "ClipScene": {
+   "description": "A teacher-inserted external clip (v3, feature \"clip\"; design \u00a78.2). Never plannable: only the editor\ninserts one. It lasts max(clip length, voice-over narration + its pauses); a longer voice-over freezes the\nlast frame (or loops).",
+   "properties": {
+    "id": {
+     "maxLength": 64,
+     "minLength": 1,
+     "title": "Id",
+     "type": "string"
+    },
+    "concept_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Concept Id"
+    },
+    "chapter_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Chapter Id"
+    },
+    "title": {
+     "default": "",
+     "maxLength": 240,
+     "title": "Title",
+     "type": "string"
+    },
+    "subtitle": {
+     "anyOf": [
+      {
+       "maxLength": 320,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Subtitle"
+    },
+    "mascot_position": {
+     "default": "left",
+     "enum": [
+      "left",
+      "right",
+      "center",
+      "popup_bottom_left",
+      "popup_bottom_right",
+      "hidden"
+     ],
+     "title": "Mascot Position",
+     "type": "string"
+    },
+    "beats": {
+     "items": {
+      "$ref": "#/$defs/Beat"
+     },
+     "maxItems": 40,
+     "title": "Beats",
+     "type": "array"
+    },
+    "side_panel": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/SidePanel"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "objective_ids": {
+     "items": {
+      "maxLength": 64,
+      "minLength": 1,
+      "type": "string"
+     },
+     "maxItems": 10,
+     "title": "Objective Ids",
+     "type": "array"
+    },
+    "intent": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/SceneIntent"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "notes": {
+     "default": "",
+     "maxLength": 4000,
+     "title": "Notes",
+     "type": "string"
+    },
+    "hidden": {
+     "default": false,
+     "title": "Hidden",
+     "type": "boolean"
+    },
+    "min_seconds": {
+     "anyOf": [
+      {
+       "maximum": 600.0,
+       "minimum": 1.0,
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Min Seconds"
+    },
+    "look": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/SceneLook"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "colour_is_content": {
+     "default": false,
+     "title": "Colour Is Content",
+     "type": "boolean"
+    },
+    "type": {
+     "const": "clip",
+     "title": "Type",
+     "type": "string"
+    },
+    "clip": {
+     "$ref": "#/$defs/ClipRange"
+    },
+    "sound": {
+     "default": "keep",
+     "enum": [
+      "keep",
+      "mute"
+     ],
+     "title": "Sound",
+     "type": "string"
+    },
+    "gain_db": {
+     "default": 0.0,
+     "maximum": 12.0,
+     "minimum": -30.0,
+     "title": "Gain Db",
+     "type": "number"
+    },
+    "fit": {
+     "default": "contain_blur",
+     "enum": [
+      "contain_blur",
+      "contain",
+      "cover"
+     ],
+     "title": "Fit",
+     "type": "string"
+    },
+    "focus": {
+     "additionalProperties": {
+      "maxItems": 2,
+      "minItems": 2,
+      "prefixItems": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "number"
+       }
+      ],
+      "type": "array"
+     },
+     "propertyNames": {
+      "enum": [
+       "landscape",
+       "portrait"
+      ]
+     },
+     "title": "Focus",
+     "type": "object"
+    },
+    "end_behavior": {
+     "default": "freeze",
+     "enum": [
+      "freeze",
+      "loop"
+     ],
+     "title": "End Behavior",
+     "type": "string"
+    },
+    "captions": {
+     "items": {
+      "$ref": "#/$defs/ClipCaption"
+     },
+     "maxItems": 500,
+     "title": "Captions",
+     "type": "array"
+    },
+    "credit": {
+     "default": "",
+     "maxLength": 200,
+     "title": "Credit",
+     "type": "string"
+    }
+   },
+   "required": [
+    "id",
+    "type",
+    "clip"
+   ],
+   "title": "ClipScene",
    "type": "object"
   },
   "CompanionSheet": {
@@ -1084,6 +1607,42 @@
     "definition"
    ],
    "title": "DefinitionEntry",
+   "type": "object"
+  },
+  "FigurePin": {
+   "description": "A point on a source figure placed by the teacher in Visual Review (never LLM-facing: the model never sees\nthe picture). The camera can push toward it (``cue.lookHere``).",
+   "properties": {
+    "id": {
+     "maxLength": 64,
+     "minLength": 1,
+     "title": "Id",
+     "type": "string"
+    },
+    "x": {
+     "maximum": 1.0,
+     "minimum": 0.0,
+     "title": "X",
+     "type": "number"
+    },
+    "y": {
+     "maximum": 1.0,
+     "minimum": 0.0,
+     "title": "Y",
+     "type": "number"
+    },
+    "label": {
+     "default": "",
+     "maxLength": 80,
+     "title": "Label",
+     "type": "string"
+    }
+   },
+   "required": [
+    "id",
+    "x",
+    "y"
+   ],
+   "title": "FigurePin",
    "type": "object"
   },
   "FormulaEntry": {
@@ -1328,6 +1887,51 @@
    "title": "GraphSpec",
    "type": "object"
   },
+  "HookRef": {
+   "properties": {
+    "question_item": {
+     "maxLength": 129,
+     "minLength": 3,
+     "pattern": "^[a-z0-9][a-z0-9_\\-]{0,63}/[a-z0-9][a-z0-9_\\-]{0,63}$",
+     "title": "Question Item",
+     "type": "string"
+    },
+    "kind": {
+     "enum": [
+      "question",
+      "true_false",
+      "stakes",
+      "mystery",
+      "challenge",
+      "story",
+      "stat"
+     ],
+     "title": "Kind",
+     "type": "string"
+    },
+    "answer_beat": {
+     "anyOf": [
+      {
+       "maxLength": 129,
+       "minLength": 3,
+       "pattern": "^[a-z0-9][a-z0-9_\\-]{0,63}/[a-z0-9][a-z0-9_\\-]{0,63}$",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Answer Beat"
+    }
+   },
+   "required": [
+    "question_item",
+    "kind"
+   ],
+   "title": "HookRef",
+   "type": "object"
+  },
   "InteractiveScene": {
    "description": "p5.js sketch executed ONLY inside the sandboxed iframe (web/sandbox/p5.html).",
    "properties": {
@@ -1462,6 +2066,22 @@
      ],
      "default": null,
      "title": "Min Seconds"
+    },
+    "look": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/SceneLook"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "colour_is_content": {
+     "default": false,
+     "title": "Colour Is Content",
+     "type": "boolean"
     },
     "type": {
      "const": "interactive",
@@ -1707,6 +2327,153 @@
    "title": "Model3DSpec",
    "type": "object"
   },
+  "MusicChoice": {
+   "properties": {
+    "source": {
+     "enum": [
+      "generated",
+      "library",
+      "upload",
+      "procedural",
+      "off"
+     ],
+     "title": "Source",
+     "type": "string"
+    },
+    "provider": {
+     "anyOf": [
+      {
+       "maxLength": 40,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Provider"
+    },
+    "mood": {
+     "anyOf": [
+      {
+       "maxLength": 60,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Mood"
+    },
+    "asset_key": {
+     "anyOf": [
+      {
+       "maxLength": 128,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Asset Key"
+    },
+    "mode": {
+     "default": "bed",
+     "enum": [
+      "bed",
+      "gaps_bookends",
+      "off"
+     ],
+     "title": "Mode",
+     "type": "string"
+    },
+    "level": {
+     "default": "normal",
+     "enum": [
+      "normal",
+      "low"
+     ],
+     "title": "Level",
+     "type": "string"
+    }
+   },
+   "required": [
+    "source"
+   ],
+   "title": "MusicChoice",
+   "type": "object"
+  },
+  "Overlay": {
+   "description": "B-roll shown over the narration from an anchor word of its beat (design \u00a78.3).",
+   "properties": {
+    "id": {
+     "maxLength": 64,
+     "minLength": 1,
+     "title": "Id",
+     "type": "string"
+    },
+    "at_word": {
+     "minimum": 0,
+     "title": "At Word",
+     "type": "integer"
+    },
+    "at_text": {
+     "maxLength": 120,
+     "title": "At Text",
+     "type": "string"
+    },
+    "clip": {
+     "$ref": "#/$defs/ClipRange"
+    },
+    "region": {
+     "default": "full",
+     "enum": [
+      "full",
+      "panel"
+     ],
+     "title": "Region",
+     "type": "string"
+    },
+    "sound": {
+     "default": "mute",
+     "enum": [
+      "mute",
+      "quiet"
+     ],
+     "title": "Sound",
+     "type": "string"
+    },
+    "concept_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Concept Id"
+    },
+    "keep_full_length": {
+     "default": false,
+     "title": "Keep Full Length",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "id",
+    "at_word",
+    "at_text",
+    "clip"
+   ],
+   "title": "Overlay",
+   "type": "object"
+  },
   "PracticeProblem": {
    "properties": {
     "id": {
@@ -1776,6 +2543,285 @@
     "final_answer"
    ],
    "title": "PracticeProblem",
+   "type": "object"
+  },
+  "Presentation": {
+   "description": "How a Dynamic lecture looks and sounds (absent = the classic Aadhi presenter mode). Every resolved choice\nand seed is stored, so a rebuild never re-rolls (design \u00a76.8).",
+   "properties": {
+    "style": {
+     "const": "dynamic",
+     "default": "dynamic",
+     "title": "Style",
+     "type": "string"
+    },
+    "format": {
+     "default": "landscape",
+     "enum": [
+      "landscape",
+      "portrait"
+     ],
+     "title": "Format",
+     "type": "string"
+    },
+    "length_profile": {
+     "default": "standard",
+     "enum": [
+      "standard",
+      "platform_safe"
+     ],
+     "title": "Length Profile",
+     "type": "string"
+    },
+    "reel_profile": {
+     "default": "learning",
+     "enum": [
+      "learning",
+      "social"
+     ],
+     "title": "Reel Profile",
+     "type": "string"
+    },
+    "destination": {
+     "default": "messaging",
+     "enum": [
+      "messaging",
+      "lms",
+      "youtube",
+      "lesson_page"
+     ],
+     "title": "Destination",
+     "type": "string"
+    },
+    "look_seed": {
+     "maximum": 2147483647,
+     "minimum": 0,
+     "title": "Look Seed",
+     "type": "integer"
+    },
+    "look_epoch": {
+     "default": 0,
+     "minimum": 0,
+     "title": "Look Epoch",
+     "type": "integer"
+    },
+    "layout_epoch": {
+     "default": 0,
+     "minimum": 0,
+     "title": "Layout Epoch",
+     "type": "integer"
+    },
+    "theme_family": {
+     "pattern": "^[a-z0-9_-]{1,40}$",
+     "title": "Theme Family",
+     "type": "string"
+    },
+    "personality": {
+     "pattern": "^[a-z0-9_-]{1,40}$",
+     "title": "Personality",
+     "type": "string"
+    },
+    "display_font": {
+     "pattern": "^[a-z0-9_-]{1,40}$",
+     "title": "Display Font",
+     "type": "string"
+    },
+    "caption_style": {
+     "pattern": "^[a-z0-9_-]{1,40}$",
+     "title": "Caption Style",
+     "type": "string"
+    },
+    "cue_term_style": {
+     "enum": [
+      "marker",
+      "underline"
+     ],
+     "title": "Cue Term Style",
+     "type": "string"
+    },
+    "intro_layout": {
+     "anyOf": [
+      {
+       "enum": [
+        "fullframe",
+        "card_left",
+        "pip",
+        "split"
+       ],
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Intro Layout"
+    },
+    "reel_card_x": {
+     "anyOf": [
+      {
+       "maximum": 1080,
+       "minimum": 0,
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Reel Card X"
+    },
+    "hook_kind": {
+     "pattern": "^[a-z0-9_-]{1,40}$",
+     "title": "Hook Kind",
+     "type": "string"
+    },
+    "check_order": {
+     "items": {
+      "pattern": "^[a-z0-9_-]{1,40}$",
+      "type": "string"
+     },
+     "maxItems": 12,
+     "title": "Check Order",
+     "type": "array"
+    },
+    "greeting_id": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Greeting Id"
+    },
+    "asset_style": {
+     "$ref": "#/$defs/AssetStyle"
+    },
+    "voices": {
+     "$ref": "#/$defs/VoiceCast"
+    },
+    "music": {
+     "$ref": "#/$defs/MusicChoice"
+    },
+    "entity_colors": {
+     "additionalProperties": {
+      "maximum": 2,
+      "minimum": 0,
+      "type": "integer"
+     },
+     "propertyNames": {
+      "maxLength": 80,
+      "minLength": 1
+     },
+     "title": "Entity Colors",
+     "type": "object"
+    },
+    "hook": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/HookRef"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "aadhi_recap": {
+     "default": true,
+     "title": "Aadhi Recap",
+     "type": "boolean"
+    },
+    "captions_burn": {
+     "default": true,
+     "title": "Captions Burn",
+     "type": "boolean"
+    },
+    "sfx": {
+     "default": true,
+     "title": "Sfx",
+     "type": "boolean"
+    },
+    "motion": {
+     "default": "standard",
+     "enum": [
+      "standard",
+      "calm"
+     ],
+     "title": "Motion",
+     "type": "string"
+    },
+    "pins": {
+     "items": {
+      "enum": [
+       "theme",
+       "personality",
+       "display_font",
+       "voice",
+       "music",
+       "caption_style"
+      ],
+      "type": "string"
+     },
+     "maxItems": 6,
+     "title": "Pins",
+     "type": "array"
+    }
+   },
+   "required": [
+    "look_seed",
+    "theme_family",
+    "personality",
+    "display_font",
+    "caption_style",
+    "cue_term_style",
+    "hook_kind",
+    "asset_style",
+    "voices",
+    "music"
+   ],
+   "title": "Presentation",
+   "type": "object"
+  },
+  "PresenterSpec": {
+   "description": "Aadhi in a Dynamic scene (intro and recap only, R-12).",
+   "properties": {
+    "clip": {
+     "enum": [
+      "left",
+      "center"
+     ],
+     "title": "Clip",
+     "type": "string"
+    },
+    "seconds": {
+     "maximum": 8.0,
+     "minimum": 2.0,
+     "title": "Seconds",
+     "type": "number"
+    },
+    "layout": {
+     "enum": [
+      "fullframe",
+      "card_left",
+      "pip",
+      "split",
+      "card"
+     ],
+     "title": "Layout",
+     "type": "string"
+    }
+   },
+   "required": [
+    "clip",
+    "seconds",
+    "layout"
+   ],
+   "title": "PresenterSpec",
    "type": "object"
   },
   "Primitive3D": {
@@ -1984,6 +3030,22 @@
      "default": null,
      "title": "Min Seconds"
     },
+    "look": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/SceneLook"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "colour_is_content": {
+     "default": false,
+     "title": "Colour Is Content",
+     "type": "boolean"
+    },
     "type": {
      "const": "quiz_checkpoint",
      "title": "Type",
@@ -2158,7 +3220,10 @@
         "check",
         "application",
         "synthesis",
-        "transition"
+        "transition",
+        "pretraining",
+        "predict",
+        "recap"
        ],
        "type": "string"
       },
@@ -2174,9 +3239,172 @@
      "maxLength": 300,
      "title": "Bridge In",
      "type": "string"
+    },
+    "visual_intent": {
+     "anyOf": [
+      {
+       "enum": [
+        "hook",
+        "context",
+        "pretraining",
+        "define",
+        "explain",
+        "compare",
+        "sequence",
+        "cycle",
+        "timeline",
+        "cause",
+        "quantity",
+        "formula",
+        "example",
+        "code",
+        "data",
+        "spatial",
+        "analogy",
+        "misconception",
+        "predict",
+        "check",
+        "apply",
+        "summarize",
+        "recap"
+       ],
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Visual Intent"
     }
    },
    "title": "SceneIntent",
+   "type": "object"
+  },
+  "SceneLook": {
+   "description": "A scene's look: set by direct.py or the teacher, never LLM-facing. ``lock``: ``auto`` may be re-directed on\nsave, ``settled`` keeps its template across edits, ``pinned`` is the teacher's choice.",
+   "properties": {
+    "template": {
+     "anyOf": [
+      {
+       "pattern": "^[a-z0-9_-]{1,40}$",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Template"
+    },
+    "variant": {
+     "anyOf": [
+      {
+       "pattern": "^[a-z0-9_-]{1,40}$",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Variant"
+    },
+    "background": {
+     "anyOf": [
+      {
+       "pattern": "^[a-z0-9_-]{1,40}$",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Background"
+    },
+    "palette_slot": {
+     "anyOf": [
+      {
+       "maximum": 40,
+       "minimum": 0,
+       "type": "integer"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Palette Slot"
+    },
+    "transition_in": {
+     "anyOf": [
+      {
+       "pattern": "^[a-z0-9_-]{1,40}$",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Transition In"
+    },
+    "hold_reason": {
+     "anyOf": [
+      {
+       "enum": [
+        "formula",
+        "code",
+        "diagram",
+        "think"
+       ],
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Hold Reason"
+    },
+    "presenter": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/PresenterSpec"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "continues_from": {
+     "anyOf": [
+      {
+       "maxLength": 64,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Continues From"
+    },
+    "lock": {
+     "default": "auto",
+     "enum": [
+      "auto",
+      "settled",
+      "pinned"
+     ],
+     "title": "Lock",
+     "type": "string"
+    }
+   },
+   "title": "SceneLook",
    "type": "object"
   },
   "SidePanel": {
@@ -2355,6 +3583,11 @@
      "minimum": 0,
      "title": "Variant",
      "type": "integer"
+    },
+    "colour_is_content": {
+     "default": false,
+     "title": "Colour Is Content",
+     "type": "boolean"
     }
    },
    "required": [
@@ -2497,6 +3730,22 @@
      ],
      "default": null,
      "title": "Min Seconds"
+    },
+    "look": {
+     "anyOf": [
+      {
+       "$ref": "#/$defs/SceneLook"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null
+    },
+    "colour_is_content": {
+     "default": false,
+     "title": "Colour Is Content",
+     "type": "boolean"
     },
     "type": {
      "const": "simulation",
@@ -2660,6 +3909,116 @@
    ],
    "title": "TerminalSpec",
    "type": "object"
+  },
+  "VoiceCalibration": {
+   "properties": {
+    "natural_wpm": {
+     "maximum": 300,
+     "minimum": 60,
+     "title": "Natural Wpm",
+     "type": "number"
+    },
+    "control": {
+     "maxLength": 200,
+     "title": "Control",
+     "type": "string"
+    }
+   },
+   "required": [
+    "natural_wpm",
+    "control"
+   ],
+   "title": "VoiceCalibration",
+   "type": "object"
+  },
+  "VoiceCast": {
+   "properties": {
+    "narrator": {
+     "maxLength": 80,
+     "minLength": 1,
+     "title": "Narrator",
+     "type": "string"
+    },
+    "aadhi": {
+     "anyOf": [
+      {
+       "maxLength": 80,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Aadhi"
+    },
+    "student": {
+     "anyOf": [
+      {
+       "maxLength": 80,
+       "minLength": 1,
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Student"
+    },
+    "calibration": {
+     "additionalProperties": {
+      "$ref": "#/$defs/VoiceCalibration"
+     },
+     "propertyNames": {
+      "maxLength": 80,
+      "minLength": 1
+     },
+     "title": "Calibration",
+     "type": "object"
+    }
+   },
+   "required": [
+    "narrator"
+   ],
+   "title": "VoiceCast",
+   "type": "object"
+  },
+  "WordRange": {
+   "description": "A narration cut: caption tokens ``[start, end)`` of the beat's ``narration`` (the tokens the captions show).",
+   "properties": {
+    "start": {
+     "minimum": 0,
+     "title": "Start",
+     "type": "integer"
+    },
+    "end": {
+     "title": "End",
+     "type": "integer"
+    },
+    "text": {
+     "maxLength": 600,
+     "title": "Text",
+     "type": "string"
+    },
+    "mode": {
+     "default": "splice",
+     "enum": [
+      "splice",
+      "revoice"
+     ],
+     "title": "Mode",
+     "type": "string"
+    }
+   },
+   "required": [
+    "start",
+    "end",
+    "text"
+   ],
+   "title": "WordRange",
+   "type": "object"
   }
  },
  "properties": {
@@ -2757,6 +4116,7 @@
      "mapping": {
       "ai_video": "#/$defs/AIVideoScene",
       "chapter_card": "#/$defs/ChapterCardScene",
+      "clip": "#/$defs/ClipScene",
       "content": "#/$defs/BoardScene",
       "example": "#/$defs/BoardScene",
       "interactive": "#/$defs/InteractiveScene",
@@ -2787,6 +4147,9 @@
      },
      {
       "$ref": "#/$defs/QuizScene"
+     },
+     {
+      "$ref": "#/$defs/ClipScene"
      }
     ]
    },
@@ -2807,6 +4170,17 @@
   },
   "source": {
    "$ref": "#/$defs/SourceInfo"
+  },
+  "presentation": {
+   "anyOf": [
+    {
+     "$ref": "#/$defs/Presentation"
+    },
+    {
+     "type": "null"
+    }
+   ],
+   "default": null
   }
  },
  "title": "Screenplay",

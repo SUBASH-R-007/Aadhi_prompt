@@ -47,13 +47,14 @@ from typing import Any
 from sqlalchemy import select, update
 from sqlalchemy.orm import undefer
 
+from ..assets_auth import record_asset_refs
 from ..config import Settings
 from ..jobs.base import BudgetExceeded, FatalJobError, JobCancelled, JobContext, RetryableJobError, job_handler
-from ..models import AssetRef, Project, ProjectVersion, Render
+from ..models import Project, ProjectVersion, Render
 from ..schemas.timeline import MediaRef, TimedScene, Timeline
 from ..storage.assets import Produced, compute_key
 from .aio import gather_or_cancel
-from .base import STAGE_HEIGHT, STAGE_WIDTH
+from .base import STAGE_HEIGHT, STAGE_WIDTH, output_size, timeline_stage
 from .capabilities import render_capabilities
 from .captions import to_srt, to_vtt
 from .chapters import to_ffmetadata, youtube_chapters
@@ -202,14 +203,15 @@ def font_for_language(language: str) -> str:
     return _FONT_BY_LANG.get((language or "").split("-")[0].lower(), "Inter")
 
 
-def _first_rect(shots: list[StateShot], attr: str, out_size: tuple[int, int]) -> tuple[Rect | None, str | None]:
-    """First reported rect for ``attr`` and the page's fit for it.
+def _first_rect(shots: list[StateShot], attr: str, out_size: tuple[int, int],
+                stage: tuple[int, int] = (STAGE_WIDTH, STAGE_HEIGHT)) -> tuple[Rect | None, str | None]:
+    """First reported rect for ``attr`` (in ``stage`` px, the timeline's stage) and the page's fit for it.
 
     The render page reports ``media_fit`` for the MAIN media element only, so the side-panel rect
     never takes it (the panel uses its own ``MediaRef.fit``, as the live player does).
     """
     for shot in shots:
-        rect = Rect.from_stage(getattr(shot, attr), stage=(STAGE_WIDTH, STAGE_HEIGHT), out=out_size)
+        rect = Rect.from_stage(getattr(shot, attr), stage=stage, out=out_size)
         if rect is not None:
             return rect, shot.media_fit if attr == "media_rect" else None
     return None, None
@@ -266,7 +268,8 @@ def scene_segment_spec(
     from black and the clip restarts at every scene.
     """
     fps = settings.render_fps
-    size = (settings.render_width, settings.render_height)
+    size = output_size(timeline, settings)
+    stage = timeline_stage(timeline)
     n_frames = frames[1] - frames[0]
     duration = n_frames / fps
     shift = scene.start - frames[0] / fps  # scene-relative t -> segment-relative t + shift
@@ -274,7 +277,7 @@ def scene_segment_spec(
     transition = timeline.transition_seconds
     spec = SegmentSpec(width=size[0], height=size[1], fps=fps, frames=n_frames,
                        fade_in=0.0 if continuity else transition, layer_fade_in=transition if continuity else 0.0,
-                       crf=settings.render_crf, preset=settings.render_preset, state_size=(STAGE_WIDTH, STAGE_HEIGHT),
+                       crf=settings.render_crf, preset=settings.render_preset, state_size=stage,
                        background_color=settings.manim_background, blank_state=blank_state,
                        bt709=bool(settings.render_color_bt709))
     if blank_state is None:
@@ -292,7 +295,7 @@ def scene_segment_spec(
     def add_media(ref: MediaRef | None, attr: str, visible_from: float, *, ken_burns: bool) -> None:
         if ref is None or not ref.render_in_mp4 or not ref.asset_key or ref.asset_key not in inputs.media:
             return
-        rect, fit = _first_rect(shots, attr, size)
+        rect, fit = _first_rect(shots, attr, size, stage)
         if rect is None:
             return
         path = inputs.media[ref.asset_key]
@@ -347,10 +350,10 @@ def intro_segment_spec(
     intro = timeline.intro
     assert intro is not None
     fps = settings.render_fps
-    size = (settings.render_width, settings.render_height)
+    size = output_size(timeline, settings)
     duration = frames / fps
     spec = SegmentSpec(width=size[0], height=size[1], fps=fps, frames=frames, crf=settings.render_crf,
-                       preset=settings.render_preset, state_size=(STAGE_WIDTH, STAGE_HEIGHT),
+                       preset=settings.render_preset, state_size=timeline_stage(timeline),
                        background_color=settings.manim_background, fade_in=timeline.transition_seconds,
                        blank_state=blank_state, bt709=bool(settings.render_color_bt709))
     if background is not None:
@@ -452,24 +455,9 @@ def _finish_render(ctx: JobContext, job: _Job, values: dict[str, Any], keys: lis
 
 
 def _add_asset_refs(db: Any, project_id: int, keys: list[str]) -> None:
-    """Insert missing ``AssetRef`` rows atomically (ON CONFLICT DO NOTHING)."""
-    keys = sorted({k for k in keys if k})
-    if not keys:
-        return
-    rows = [{"project_id": project_id, "asset_key": k} for k in keys]
-    dialect = db.get_bind().dialect.name
-    if dialect == "postgresql":
-        from sqlalchemy.dialects.postgresql import insert as pg_insert
-
-        db.execute(pg_insert(AssetRef).values(rows).on_conflict_do_nothing())
-    elif dialect == "sqlite":
-        from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-
-        db.execute(sqlite_insert(AssetRef).values(rows).on_conflict_do_nothing())
-    else:  # pragma: no cover - other dialects
-        existing = set(db.execute(select(AssetRef.asset_key).where(AssetRef.project_id == project_id,
-                                                                   AssetRef.asset_key.in_(keys))).scalars())
-        db.add_all(AssetRef(project_id=project_id, asset_key=k) for k in keys if k not in existing)
+    """Insert the missing ``AssetRef`` rows of the render's files (``aadhi.assets_auth.record_asset_refs``: atomic,
+    ON CONFLICT DO NOTHING; the caller's transaction commits)."""
+    record_asset_refs(db, project_id, keys)
 
 
 def _mark_render(ctx: JobContext, render_id: int, status: str) -> None:
@@ -576,11 +564,11 @@ def _copy_fonts(settings: Settings, dest: Path) -> Path | None:
     return dest
 
 
-def _prepare_frames(capture: CaptureResult, work: Path) -> int:
-    """Transparent gap frame + RGBA/size normalisation of every screenshot (blocking)."""
-    transparent_png(work / BLANK_STATE, (STAGE_WIDTH, STAGE_HEIGHT))
+def _prepare_frames(capture: CaptureResult, work: Path, stage: tuple[int, int] = (STAGE_WIDTH, STAGE_HEIGHT)) -> int:
+    """Transparent gap frame + RGBA/size normalisation of every screenshot to the ``stage`` size (blocking)."""
+    transparent_png(work / BLANK_STATE, stage)
     paths = [s.png_path for shots in capture.scenes.values() for s in shots] + [s.png_path for s in capture.intro]
-    return normalize_pngs(paths, (STAGE_WIDTH, STAGE_HEIGHT))
+    return normalize_pngs(paths, stage)
 
 
 async def _write_files(work: Path, files: dict[str, str]) -> None:
@@ -662,8 +650,11 @@ def _log_warnings(ctx: JobContext, items: list[dict[str, Any]]) -> None:
         if not isinstance(number, int):
             number = int(it["scene_index"]) + 1 if isinstance(it.get("scene_index"), int) else None
         where = f"Scene {number}" if number is not None else "A scene"
-        ctx.log(f"{where} ({it.get('title') or it.get('scene_id')}): {it.get('message')}",
-                level="warning" if it.get("blocking") else "info", reason=it.get("reason"))
+        name = it.get("title") or it.get("scene_id")
+        if name:
+            where = f"{where} ({name})"
+        ctx.log(f"{where}: {it.get('message')}", level="warning" if it.get("blocking") else "info",
+                reason=it.get("reason"))
 
 
 # --- workspace helpers (blocking) -----------------------------------------------------------------
@@ -782,8 +773,9 @@ async def _render(ctx: JobContext, job: _Job, payload: RenderPayload, ws: Render
     version = await ffmpeg_version(settings)
     script_flag = filter_script_flag(version)
     tl_hash = hashlib.sha256(tl.model_dump_json().encode("utf-8")).hexdigest()
+    out_w, out_h = output_size(tl, settings)
     resumable = await asyncio.to_thread(ws.prepare, {
-        "timeline": tl_hash, "ffmpeg": version, "w": settings.render_width, "h": settings.render_height,
+        "timeline": tl_hash, "ffmpeg": version, "w": out_w, "h": out_h,
         "fps": fps, "crf": settings.render_crf, "preset": settings.render_preset})
     preflight = render_warnings(tl, numbers=job.numbers)
     _log_warnings(ctx, preflight)
@@ -791,7 +783,7 @@ async def _render(ctx: JobContext, job: _Job, payload: RenderPayload, ws: Render
     sounds = await ensure_sounds_async(ctx.assets)
     ctx.check_cancelled()
     capture = await _capture(ctx, job, payload, frames_dir)
-    await asyncio.to_thread(_prepare_frames, capture, work)
+    await asyncio.to_thread(_prepare_frames, capture, work, timeline_stage(tl))
     warnings = render_warnings(tl, capture, numbers=job.numbers)
     _log_warnings(ctx, warnings[len(preflight):])
 
@@ -915,7 +907,7 @@ async def _render(ctx: JobContext, job: _Job, payload: RenderPayload, ws: Render
         total_seconds=total_seconds, output="output.mp4", bgm=str(bgm) if bgm else None,
         bgm_volume=tl.branding.bgm_volume, bgm_delay=tl.intro.logo_duration if tl.intro else 0.0,
         burn_subtitles="captions.burn.srt" if burn else None, fonts_dir=fonts_rel,
-        font_name=font_for_language(tl.language), width=settings.render_width, height=settings.render_height,
+        font_name=font_for_language(tl.language), width=out_w, height=out_h,
         fps=fps, crf=settings.render_crf, preset=settings.render_preset,
         soft_subtitles="captions.soft.srt" if soft else None, subtitle_language=subtitle_language_code(tl.language),
         bt709=bt709)
@@ -935,7 +927,7 @@ async def _render(ctx: JobContext, job: _Job, payload: RenderPayload, ws: Render
         expect_audio = any(s.audio_asset_key and s.audio_asset_key in local for s in tl.scenes)
         qa = await inspect_render(output, settings=settings, fps=fps, expected_frames=total_frames,
                                   expect_audio=expect_audio, expect_bt709=bt709, expect_subtitles=soft,
-                                  check_cancelled=ctx.check_cancelled)
+                                  check_cancelled=ctx.check_cancelled, size=(out_w, out_h))
         options["qa"] = qa.summary()
         for text in qa.warnings:
             ctx.log(f"Video check: {text}", level="warning")
@@ -950,7 +942,7 @@ async def _render(ctx: JobContext, job: _Job, payload: RenderPayload, ws: Render
     ctx.progress("store", 0.95, "Saving the video")
     base_inputs = {"render_id": job.render_id, "version_id": job.version_id, "revision": job.revision,
                    "timeline": tl_hash, "burn": payload.burn_captions, "intro": payload.include_intro,
-                   "w": settings.render_width, "h": settings.render_height, "fps": fps, "crf": settings.render_crf,
+                   "w": out_w, "h": out_h, "fps": fps, "crf": settings.render_crf,
                    "preset": settings.render_preset, "bgm": bool(bgm)}
     for flag, on in (("soft", soft), ("bt709", bt709), ("continuity", bool(settings.render_mascot_continuity))):
         if on:
@@ -962,8 +954,8 @@ async def _render(ctx: JobContext, job: _Job, payload: RenderPayload, ws: Render
     vtt_key = compute_key("captions", {"render_id": job.render_id, "fmt": "vtt",
                                        "sha": hashlib.sha256(vtt_bytes).hexdigest()})
     await asyncio.to_thread(ctx.assets.put, video_key, "render", Produced(
-        path=output, mime="video/mp4", duration_s=duration, width=settings.render_width,
-        height=settings.render_height, meta={"render_id": job.render_id, "version_id": job.version_id}))
+        path=output, mime="video/mp4", duration_s=duration, width=out_w,
+        height=out_h, meta={"render_id": job.render_id, "version_id": job.version_id}))
     await asyncio.to_thread(ctx.assets.put, srt_key, "captions",
                             Produced(data=srt_bytes, mime="application/x-subrip", meta={"render_id": job.render_id}))
     await asyncio.to_thread(ctx.assets.put, vtt_key, "captions",
@@ -1004,7 +996,13 @@ async def render_video(ctx: JobContext) -> dict[str, Any]:
     keep = True
     try:
         job = await asyncio.to_thread(_load_job, ctx, payload, version_id)
-        result = await _render(ctx, job, payload, ws)
+        presentation = job.timeline.presentation
+        if presentation is not None and presentation.style == "dynamic":  # the motion engine (design §7.1)
+            from .motion.job import render_dynamic
+
+            result = await render_dynamic(ctx, job, payload, ws)
+        else:
+            result = await _render(ctx, job, payload, ws)
         keep = False
         return result
     except JobCancelled as exc:

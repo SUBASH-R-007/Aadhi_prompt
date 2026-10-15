@@ -32,6 +32,8 @@ export function stageChip(stage, opts = {}) {
  * @property {(next: import('../types.js').NextStep, el: HTMLButtonElement) => void} onAction
  * @property {import('../../shared/dom.js').Child} [note]  e.g. unsaved editor changes
  * @property {import('../../shared/dom.js').Child} [extra] secondary links next to the primary action
+ * @property {string} [stageAction] the stage's own next action when the page replaced `next` (unsaved editor
+ *   changes): it places a failed lesson on the workflow strip (default: `next.action`)
  */
 
 /**
@@ -52,7 +54,8 @@ export function nextStepCard(opts) {
     b.addEventListener('click', () => opts.onAction(next, b));
     primary = b;
   }
-  const steps = workflowSteps(opts.stage, next.action);
+  // where the lesson is follows its stage, not a step the page put first ("Open the editor to save your changes")
+  const steps = workflowSteps(opts.stage, opts.stageAction ?? next.action);
   return h(
     'section',
     { class: ['panel', 'glass', 'next-step', `next-step-${info.tone}`], 'aria-label': 'Next step', dataset: { stage: String(opts.stage), action: next.action || '' } },

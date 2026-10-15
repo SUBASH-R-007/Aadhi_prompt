@@ -88,7 +88,8 @@ async verify_key(provider: str, api_key: str, settings: Settings) -> tuple[bool,
 #   one authenticated list-models call with the official SDK (AsyncAnthropic / AsyncOpenAI models.list; google-genai
 #   client.aio.models.list), short timeout, no retries, redacted message; tests always monkeypatch it
 billed_to(sources: Mapping[str, str | None], usage_provider: str) -> str
-#   "user" when the provider whose key pays for usage_provider ("veo" -> "gemini") is "personal" in sources, else "server"
+#   "user" when the provider whose key pays for usage_provider (USAGE_KEY_PROVIDER: "veo", "omni", "lyria" -> "gemini")
+#   is "personal" in sources, else "server"
 personal_key_rejection(exc: BaseException, sources: Mapping[str, str | None]) -> str | None
 #   job error message when exc (or an exception it wraps) is a ProviderError 401/403 (or Gemini's 400 API_KEY_INVALID /
 #   "API key expired") on a provider whose key is "personal" (the worker then fails the job with error_code
@@ -102,6 +103,10 @@ key_hint(api_key: str) -> str                       # "<vendor prefix>…<last 4
 ```python
 # pricing.py
 estimate_cost(usage: Usage, settings: Settings | None = None) -> float
+#   operations llm | vision | tts | image | video | gif | music; "music" = {"unit": USD per song, "second": USD per s}
+#   per provider and model family; video provider "omni" per second (OMNI_VIDEO_USD_PER_MILLION_TOKENS x
+#   OMNI_VIDEO_TOKENS_PER_SECOND); any OTHER operation fails closed: every reported quantity at the global default
+#   rate of its kind (at least one unit), one warning per operation and process ("fake" stays free)
 # service.py
 record_usage(db: Session, usage: Usage, *, user_id, project_id, job_id, cost_usd: float, billed_to: str = "server") -> UsageEvent
 spent_today(db: Session, user_id: int) -> float                      # only billed_to == "server" (what the daily budget counts)
@@ -164,6 +169,81 @@ class DBJobContext  # implements aadhi.jobs.base.JobContext
 #   start (render_video workers) and runs sweep_host_once() at start and hourly; handlers run under
 #   storage.assets.claim_owner(ctx.claim_owner()) so their generation claims name the job's lease
 # queue.py — settle_render(db, job) marks a Render row whose render_video job ended outside the handler
+# reader_version.py — NEWER_DOCUMENT = "newer_document" (job error_code)
+newer_documents(db: Session, version_ids: list[int]) -> list[NewerDocumentError]   # one query on the schema_version markers
+newer_document_refusal(db: Session, version_id: int | None, payload: dict | None) -> str | None
+#   the worker calls it before a handler (the job's version and payload["source_version_id"]): a document above
+#   READER_SCHEMA_VERSION fails the job with error_code "newer_document" without running it; a NewerDocumentError a
+#   loader raises mid-job fails it the same way (fatal, never retried)
+```
+
+## aadhi.schemas (owner: lead; contract files) — schema v3, Dynamic video B0
+```python
+# features.py (pure): feature names, the reader-version marker, the usage walk
+CLASSIC_SCHEMA_VERSION = 2 ; V3_SCHEMA_VERSION = 3 ; READER_SCHEMA_VERSION = 3   # newer documents are refused
+DYNAMIC_FEATURES = ("presentation", "items_v3", "cuts", "overlays", "clip", "voice_override")   # frozen names
+FEATURE_LABELS: dict[str, str]                                # plain words for the 422 message
+class NewerDocumentError(Exception): code = "newer_document"; document: str; version: int; reader: int
+#   NOT a ValueError: pydantic never wraps it, so no `except ValidationError` turns it into a 422 or "unreadable"
+check_reader_version(data: Any, document: str) -> None        # raises NewerDocumentError; every model calls it first
+features_used(model) -> {feature: [location]} ; disabled_features(model, enabled) -> same ; uses_v3(model) -> bool
+marked_version(model, current: int) -> int                    # 3 when a v3 field is used, a 3 without one -> 2
+#   models declare V3_FIELDS (field -> feature), V3_VALUES (field -> value -> feature) and V3_MODEL; a field counts as
+#   used when it would be serialised (exclude_if); Screenplay / Timeline / AssetManifest set schema_version on
+#   validation and on every dump, so a model_copy can never write a v3 document as 2
+# generate.py — python -m aadhi.schemas.generate [--check]: web/schemas/screenplay.schema.json + timeline.schema.json
+#   (byte-for-byte; CI and tests/schemas/test_v3_schema.py); the JSDoc mirrors in web/js/shared/types.js are by hand
+# config: Settings.dynamic_features (DYNAMIC_FEATURES env, comma list; unknown names fail at start-up)
+# --- timeline.py, Dynamic video B2a (additive; every field left out of the JSON at its default, so a B1 timeline
+#     reads and writes back byte for byte; DYNAMIC_VIDEO_DESIGN §6.7 "As built in B2a")
+# TimelinePresentation:
+#   engine_version: int = 1 (>= 1)   # the LOOK-ENGINE GENERATION (1 = B1's resolver, 2 = B2's; the stage contract
+#                                    # stays aadhiStage v3); compose.presentation.ENGINE_VERSION = 2
+#   content_alt: dict[str, str] = {} # the other mode's content tokens, the keys of `content`
+#   family: CatalogueId | None ; mode: "dark" | "light" | None
+#   motion_scale: float = 1.0        # 0 < x <= 4; the personality's duration scale
+#   entity_colors: dict[str (1..80 chars), int 0..2] = {}   # lesson-wide, <= 60 (MAX_ENTITY_COLORS), as Presentation's
+# ResolvedLook:
+#   tokens: dict[str, str]           # engine 2: struct.accent, bg, bg-alt, bg-tint, surface, block.base,
+#                                    # block.highlight, block.ink, block.ink2 (#RRGGBB upper case), scrim (#RRGGBBC7);
+#                                    # engine 1: the first five
+#   fixes: LookFixes | None          # {safe: bool = False, slots: {slot (1..60 chars): SlotFix}} (both keys written);
+#                                    # SlotFix {size?: 0 < x <= 1000, scrim?: bool}: preflight's remedy channel
+#   icons: dict[Slug, LookIcon] = {} # <= 32; LookIcon {name, set, version, viewBox [x, y, w > 0, h > 0],
+#                                    # stroke_width 0..8 = 2.0, filled = False, paths: 1..32 x <= 4096 chars, ICON_PATH_RE}
+#   refs: LookRefs | None            # {roadmap?: [{title, state: done|current|upcoming}] (<= 12), anchor?: {kind:
+#                                    # formula|figure|takeaway, text | tex (exactly one), icon?}, prediction?: {text,
+#                                    # resolve_t? >= 0}, next?: {title}, accent_next?: "#RRGGBB"}
+#   accent_fade: float | None (0.6..1.0) ; continues_from: Slug | None
+#   variant: B1's "safe" is a legacy value read for engine-1 timelines only; a B2-resolved look never carries it
+# new models (v3-only): SlotFix, LookFixes, LookIcon, RoadmapEntry, RefAnchor, RefPrediction, RefNext, LookRefs;
+#   JSDoc mirrors in web/js/shared/types.js; web/schemas/timeline.schema.json regenerated
+# --- timeline.py, Dynamic video B2b (DYNAMIC_VIDEO_DESIGN §6.7 "As built in B2b")
+# TimelinePresentation.fonts: TimelineFonts   # was dict[str, str]
+#   TimelineFonts(StrictModel) {display?, body?, mono?, indic?}: each CatalogueId | None, left out when None, so a
+#   stored B1 {display, body, mono} reads and writes back byte for byte; unknown keys are ignored (as every schema
+#   model); values are family / group ids of compose/dynamic/faces.py, never CSS text
+#   indic ("noto_sans" | "anek") marks the B2 form (the stage feature-detects it; web/js/dynamic/fonts.js)
+#   v3-only model (tests/schemas/test_v3_schema.py); JSDoc TimelineFonts in web/js/shared/types.js; schema regenerated
+# compose.presentation.timeline_presentation stores fonts = faces.resolver_fonts(presentation.display_font) (B1's
+#   faces in the B2 form; ENGINE_VERSION stays 2)
+```
+
+## aadhi.assets_auth (owner: api + pipeline)
+```python
+FIELD_RULES: dict[str, FieldRule]   # frozen table of design §6.7: field -> allowed asset kinds + MIME family
+#   SourceFigure.asset_key, SidePanel / SimulationScene / AIVideoScene.override_asset_key,
+#   InteractiveScene.poster_override_asset_key (classic, unchanged); ClipScene.clip.asset_key and
+#   Overlay.clip.asset_key {clip, upload, video} motion; Presentation.music.asset_key {music, upload} audio;
+#   Beat.voice_override_asset_key {narration_upload} audio. A new key field must be added here and to
+#   api.screenplay_service.asset_uses (tests/core/test_assets_auth.py enforces it)
+FieldRule.fits(kind: str, mime: str) -> bool ; FAMILY_MIMES = {visual, motion, visual_or_motion, audio}
+record_asset_refs(db: Session, project_id: int, keys: Iterable[str]) -> int   # THE way to add AssetRef rows: idempotent,
+#   INSERT ... ON CONFLICT DO NOTHING per 500 keys, never commits (uploads, imports, generated media, renders;
+#   pipeline name dbops.ensure_asset_refs)
+# models.PUBLIC_ASSET_KINDS += music, clip, clip_proxy, clip_sprite, waveform, voice_sample, thumbnail,
+#   narration_upload (served from /media); calibration stays private; each joins jobs.cleanup.GC_ASSET_KINDS in the
+#   batch that starts producing it
 ```
 
 ## aadhi.storage.assets (owner: storage)
@@ -218,6 +298,9 @@ plan.generate_plan(ctx, ingest, options, meta=None, *, brief: ConceptBrief | Non
 preview  # python -m aadhi.pipeline.preview SOURCE [--options] [--out] [--stages] [--scene] [--engine]: exact prompts, no model call
 critic.critic_model(settings, options=None) -> str             # critic tier of the lecture's engine
 translate.translate_model(options, settings) -> str            # script tier of the lecture's engine (admin llm_model_script override wins)
+translate.scene_fields(scene: dict, translate_board: bool, keep: list[str]) -> list[FieldItem]   # with translate_board also
+#   the v3 on-screen fields board[].unit, board[].date and a clip scene's captions[].text (TRANSLATABLE_FIELDS);
+#   icon_hint, value, credit and attributions are protected
 companion.render_markdown(screenplay: Screenplay) -> str
 companion.render_html(screenplay: Screenplay) -> str          # self-contained, escaped, uses /web/vendor/mathjax via renderTex-free static TeX (KaTeX-less: TeX shown in <code>) or MathJax script from /web/vendor
 assets.scene_hash(scene) -> str                                # content hash used for staleness
@@ -231,8 +314,22 @@ assets.build_assets(ctx, screenplay, options, *, previous: AssetManifest | None 
 #   made keeps the latest stored earlier one (warning NEW_VERSION_UNAVAILABLE when generation is off on the server).
 #   Libraries (prefer_library_visuals, LIBRARY_AUTO_SAVE_GENERATED) only when the job's user owns the lecture.
 assets.carry_visual_variant(old_scene, new_scene) -> Scene   # keeps variant when the request is unchanged (repair.carry_over)
+assets.voice_config(settings, options, language, tts) -> VoiceConfig(provider, voice, rate, model, language)
+assets.FALLBACK_TTS_PROVIDER = "edge" ; assets.fallback_voice_config(settings, language, tts, rate) -> VoiceConfig
+#   the voice narrating once the lecture's voice model is no longer served (ModelUnavailable): TTS_VOICE when Edge is
+#   the server's provider and language == DEFAULT_LANGUAGE, else Edge's default voice for the language; same rate.
+#   The build switches once (lecture-level warning assets.tts_fallback + a job-log warning); the scene that met the
+#   error is narrated again wholly in it. Without Edge on the server: assets.tts_failed as before
+#   _Builder.clip_key(text, voice=None) -> key   # content key of one beat's clip in voice (default: the build's), so
+#   fallback clips are keyed exactly like an Edge lecture's
 #   build_assets never builds a hidden scene (not even when scene_ids names it) and never lists it stale; scene_hash
-#   ignores hidden and min_seconds (both kept by repair on regeneration). orchestrator: generate_lecture / translate
+#   ignores hidden and min_seconds (both kept by repair on regeneration), and the Dynamic look and the beats' overlays
+#   (cuts, speaker and voice_override_asset_key stay in: they change the audio); repair.carry_over keeps look and the
+#   scene's v3 intent (narrative_role pretraining/predict/recap, visual_intent). screenplay_ops.plan_from_screenplay
+#   leaves clip scenes out and canonicalize.planned_from_scene maps v3 roles to classic ones (until B4).
+#   Clip keys carry OMNI_MODEL for provider "omni", VEO_MODEL for every other provider (keys unchanged); provenance,
+#   checkpoint and budget estimate use the adapter's .model (else VEO_MODEL).
+#   dbops.ensure_asset_refs(db, project_id, keys) -> int   # = assets_auth.record_asset_refs (generated media) orchestrator: generate_lecture / translate
 #   store changes.store_snapshot(...) with the generated screenplay (same compare-and-set) ->
 #   generation_meta["generated_snapshot_key"]
 base.GenerationOptions.image_provider: Literal["gemini", "pollinations"] | None = None   # None = the server's chain
@@ -248,6 +345,10 @@ checkpoint.SceneCheckpoints(stages, stage_inputs) -> load(scene_id, attached) / 
 plan_state.load_plan(version: ProjectVersion) -> LecturePlan | None ; plan_state.save_plan(version, plan) -> None
 gen_models  # LLM response models; canonicalize.canonicalize_scene(planned, out, ...) -> Scene
 orchestrator  # registers generate_lecture, regenerate_scene, build_assets, translate
+#   translate copies the source version's ingest_key and source_overrides into the translation's generation_meta;
+#   regenerate_scene reads the extract its scenes cite (orchestrator._version_extract: the version's own, else, for
+#   an older translation, its source version's under _version_brief's rules); a RateLimited concept brief propagates
+#   (the job is retried) instead of planning without it
 fake_content.register_fake_responders() -> None               # realistic FakeLLM responses for dev/e2e
 ```
 
@@ -278,9 +379,23 @@ timeline.resolve_urls(timeline: Timeline, store: AssetStore, *, signed: bool = F
 #   also maps retired mascot clips (base.RETIRED_MASCOT_CLIPS) to their replacement (timeline.current_clip_url)
 #   and the retired intro logo (base.RETIRED_BRANDING_FILES, timeline.current_branding_url)
 timeline.default_branding(settings: Settings) -> Branding
-sync.SyncOptions.from_settings(settings) -> SyncOptions | None   # None with SYNC_WORD_ANCHORS=false
+sync.SyncOptions.from_settings(settings, *, fps=None) -> SyncOptions | None   # None with SYNC_WORD_ANCHORS=false;
+#   fps: the frame grid cues snap to (None = RENDER_FPS, every classic timeline; build_timeline passes DYNAMIC_FPS 30
+#   for a Dynamic timeline)
 sync.scene_sync_cues(beats, board, side_panel, duration, options) -> list[SyncCue]   # pure, sorted by start
-captions.to_srt(cues) -> str ; captions.to_vtt(cues) -> str ; captions.split_caption(text, words) -> list[CaptionCue]
+captions.to_srt(cues) -> str ; captions.to_vtt(cues) -> str
+captions.split_caption(text, words, *, start=None, end=None, width=MAX_LINE_CHARS) -> list[CaptionCue]   # <= 2 lines x width (42)
+base.STAGE_SIZES = {"landscape": (1920, 1080), "portrait": (1080, 1920)}   # frozen in B0
+base.stage_size(format: str | None = None) -> tuple[int, int]      # None = landscape (classic); ValueError for others
+base.timeline_stage(tl) -> (tl.width, tl.height)                    # the render page's viewport and screenshot size
+base.output_size(tl, settings) -> tuple[int, int]                   # the classic stage: exactly RENDER_WIDTH x
+#   RENDER_HEIGHT; other stages scaled by the configured short side / 1080, even sides (1920x1080 -> a 1080x1920 reel)
+#   build_timeline: Timeline.width x height = stage_size(screenplay.presentation.format) (1920x1080 without presentation)
+loudness.ebur128(path, settings, *, true_peak=True, timeout=600, check_cancelled=None) -> R128Summary   # LUFS, LRA, peaks
+loudness.loudnorm_measure(path, settings, target=None, *, ...) -> LoudnormStats   # first loudnorm pass (print_format=json)
+loudness.loudnorm_normalize(src, dest, settings, target=None, *, measured=None, linear=True, ...) -> (first, second)
+#   two passes; refuses silent input (LoudnessError); parse_ebur128 / parse_loudnorm, loudnorm_filter, ebur128_filter,
+#   static_gain_db, limiter_filter; LoudnessTarget(integrated=-16.0, true_peak=-1.5, lra=9.0); as_dict(): -inf -> None
 chapters.youtube_chapters(timeline: Timeline) -> str ; chapters.opening_title(taken) -> str   # never a duplicate "Introduction"
 video  # registers "render_video"; video.sweep_render_workspaces(settings, session) -> int
 preflight.render_preflight(timeline, issues=None, hidden=frozenset()) -> list[{scene_index, scene_id, title, reason, blocking, message}]
@@ -289,7 +404,310 @@ preflight.quality_items(issues, timeline=None, hidden=frozenset()) -> list[{...,
 #   screenplay place, api/routers/renders.numbered); video.render_warnings(timeline, capture=None, numbers=None) too
 #   within a severity, lecture-wide and scene findings alternate (scene findings are not pushed into "N more")
 capabilities.render_capabilities(settings, *, browser=True, force=False) -> RenderCapabilities   # cached, blocking
-qa.inspect_render(path, *, settings, fps, expected_frames, ...) -> RenderQA (Render.options["qa"]) ; workspace.RenderWorkspace, sweep_stale(settings, statuses)
+qa.inspect_render(path, *, settings, fps, expected_frames, ..., size=None) -> RenderQA (Render.options["qa"]) ; workspace.RenderWorkspace, sweep_stale(settings, statuses)
+qa.edge_sample_size(width, height) -> (320, 180) | (180, 320)   # black-edge sampling, transposed for portrait (also evals/video_qa.py)
+# --- Dynamic video, B1 (DYNAMIC_VIDEO_DESIGN §7; only while DYNAMIC_ENABLED is on; classic timelines never get here)
+presentation.resolve_looks(screenplay, timed_scenes, chapters=None) -> list[ResolvedLook]   # pure; B2a: chapters
+#   default to timeline.build_chapters(...) (_assemble passes the list it stores in Timeline.chapters); palette slot =
+#   SceneLook.palette_slot, else chapter_indices; look.tokens = themes.scene_tokens(family, slot) (the ten keys); the
+#   tone step resets at each chapter; transition_in: cut into scene 0, crossfade into/out of colour_block, else the
+#   requested cut/crossfade, else crossfade at a new chapter or a changed struct.accent, else cut; a crossfade lasts
+#   crossfade_seconds(d) (None -> cut); continues_from kept only when it names the previous scene
+presentation.timeline_presentation(presentation, timed_scenes, total) -> TimelinePresentation   # engine_version 2;
+#   also content_alt (themes.content_alt_tokens(mode)), family, mode, motion_scale, entity_colors
+presentation.ENGINE_VERSION = 2 ; CROSSFADE_SECONDS 0.45, CROSSFADE_MIN_SECONDS 0.3, CROSSFADE_MAX_SECONDS 0.5 (=
+#   transitions.js) ; CHAPTER_START_EPS = 1e-3
+presentation.chapter_indices(scenes, chapters) -> [int]   # B2a signature (B1: (screenplay, scenes)); index in
+#   Timeline.chapters of the last chapter starting <= scene.start + 1e-3 (board_generic's kicker rule), 0 when none
+presentation.crossfade_seconds(duration) -> float | None   # round(min(0.45, max(0.3, d / 2)), 3); None when d < 0.3
+presentation.stage_personality(personality, family) -> str   # the personality when released in R1, else the family's
+presentation.motion_scale(personality, family) -> float      # PERSONALITIES[stage_personality(...)].duration_scale
+presentation.dynamic_enabled(settings) -> bool ; presentation.seed_for(presentation, scene_id, purpose) -> int (31 bit)
+#   build_timeline: a screenplay with a presentation + the flag on -> Timeline.presentation, TimedScene.look, no intro,
+#   fps 30 (timeline.DYNAMIC_FPS; sync cues on that grid), 9:16 phrase captions at PORTRAIT_CAPTION_LINE_CHARS (16);
+#   flag off -> the classic timeline, except that Timeline.width x height still follow presentation.format
+#   (stage_size: a portrait presentation gives a classic timeline on a 1080x1920 stage)
+presentation.portrait_caption_cues(text, words, *, start, speech_end, hold_end, width=16) -> [CaptionCue]
+#   9:16 only: minimum-cost grouping (no chunk under PORTRAIT_CAPTION_MIN_SECONDS 1.0 s where the beat allows it),
+#   long words split between grapheme clusters keeping their word's timing (captions.tokens_with_owner(text, width,
+#   clusters=True); split_caption(..., clusters=False) is the classic splitter, unchanged)
+api.timelines.current_timeline(version, settings) -> stored | rebuilt   # DYNAMIC_ENABLED applies when served
+#   (versions, shares, /api/render/timeline): a build of the current revision whose engine differs from what the flag
+#   and the screenplay ask for now is served as build_timeline builds it now; a stale build is served as built,
+#   except a Dynamic build while the flag is off (rebuilt classic from the current screenplay); timeline_etag carries
+#   the flag. B2a: a Dynamic build of the current revision, still wanted Dynamic, whose built_engine(stored) is below
+#   presentation.ENGINE_VERSION is also served rebuilt (a newer generation is served as stored: the stage refuses
+#   it); timeline_etag's identity also carries f"engine={ENGINE_VERSION}"; a 304 is answered before any rebuild
+api.timelines.built_engine(stored) -> int   # presentation.engine_version when an int >= 1 (bools excluded), else 1
+video.render_video: timeline.presentation.style == "dynamic" -> motion.job.render_dynamic(ctx, job, payload, ws)
+motion.job.caption_modes(payload, timeline) -> (burn, soft)   # burn: payload["burn_captions"] when present, else
+#   presentation.captions_burn (POST /render leaves an unset burn_captions out of a Dynamic lecture's payload:
+#   api.routers.renders.RenderBody.job_options(dynamic=True)); soft: a clean file's default-on track unless the
+#   payload's soft_subtitles is false
+motion.job.dynamic_warnings(items, timeline=None, numbers=None) -> items   # video.render_warnings items worded for
+#   the motion engine; with timeline also undrawn_panel_warnings(timeline, numbers), every item in scene order
+motion.job.undrawn_panel_warnings(timeline, numbers=None) -> [{scene_index, scene_id, title, reason: "panel_not_drawn",
+#   blocking: False, message, scene_number?}]   # one per shown side panel of a kind in UNDRAWN_PANEL_KINDS (chart,
+#   graph, model_3d, skill_tree, quiz: the stage does not draw them yet); a template that draws a kind removes it
+motion.engine.render_motion(ctx, timeline, out_path, settings, *, burn_captions=False, soft_subtitles=False,
+                            token=None, served=None, work_dir=None, cache=None, local_files=None, title=None,
+                            config: MotionConfig | None = None, refresh_served=None) -> MotionResult
+#   served: the timeline the page receives (preflight's PreflightResult.timeline); refresh_served(): served with its
+#   presigned URLs signed again, called before every page load (motion.job.refresher: S3 without a CDN only, the
+#   preflight remedies kept); cache: ChunkCache.in_workspace(root);
+#   local_files: asset key -> file already on disk; raises MotionError(code, retryable), StageError, FFmpegError,
+#   ContainerCheckFailed. MotionConfig(workers, chunk_min=240, chunk_max=600, recycle_frames=1800,
+#   recycle_slowdown=0.5, stage=StageOptions(), use_slots=True, sample_memory_seconds=2.0, encoder_timeout=600,
+#   shared_driver=True). MotionResult.summary() -> Render.options["qa"]["motion"] (docs/API.md)
+#   every worker's page (and the remedy's) must match the timeline before it captures: StageInfo.check(size, fps,
+#   frames) and motion.stage.scene_mismatch(info, bounds) (an empty scene list for a timeline with scenes mismatches:
+#   stage_contract); the rerender_chunks remedy acquires 1 CPU slot of its own (cancel-aware) and holds it until its
+#   browser is closed
+motion.engine.video_media_keys(timeline, *, overlays=OVERLAYS_DRAWN) -> [asset key]   # video media fetched before the
+#   capture (scene and panel media; overlay media only with overlays); OVERLAYS_DRAWN = False until B6's overlay layer
+motion.resources.motion_workers(settings, budget=None) -> int ; CpuBudget.detect() ; CpuSlots.from_settings(settings,
+#   budget).acquire(want, check_cancelled=, on_wait=) -> SlotLease(count).release()   # RENDER_SLOT_DIR/slot-NNN.lock
+motion.chunks.scene_frame_bounds(timeline, fps=None) -> [(f0, f1)] ; plan_chunks(bounds, min_frames, max_frames)
+#   -> [Chunk(index, f0, f1)] ; chunk_key(timeline, chunk, *, bundle, encoder, capture, chromium, media, data) -> 64 hex
+#   = sha256 of {v: CHUNK_CACHE_VERSION (3 from B2a), engine_version, frames, timeline slices (scenes, outgoing scene,
+#   the chapter title each shows as its kicker, background_clock, global fields, captions in range), media identities,
+#   stage bundle digest, encoder and capture parameters, Chromium version}; STAGE_TIMELINE_FIELDS lists every top-level
+#   field the stage reads (all hashed)
+motion.chunks.background_clock(data, t) -> float   # B2a: state.js backgroundTime / frozenIntervals mirrored: t minus
+#   every frozen stretch [start + max(0, frozen_at), start + duration) before t; the slices hold
+#   round(background_clock(data, f0 / fps), 6) (an earlier scene's hold moves later chunks' backgrounds)
+motion.media.native_frames(frames, *, src_fps, rate) -> {page index: file frame}  # floor(n * rate / srcFps): a clip
+#   at another rate than the page grid (24 fps Veo) is extracted at its own rate, frame-exact in any chunk plan
+motion.encode.EncoderSpec.from_settings(settings, fps, out_size).chunk_args(frames=, output=, capture=)   # §7.5 + -threads 4
+motion.encode.master_audio_command(MasterAudioSpec(audio_list, total_seconds, output="master.m4a", bgm=None, ...),
+#   script_flag=) -> Command        # AAC-LC 48 kHz stereo 384k, encoded while the frames are captured
+motion.encode.final_mux_command(MotionFinalSpec(video_list, audio, metadata, total_seconds, output,
+#   soft_subtitles=None, subtitle_language="und")) -> Command   # -c copy both, +faststart+negative_cts_offsets
+motion.stage.StageSession(settings=, size=, token=, served=, base_url=, media_origins=, options=StageOptions(
+#   webgl, jpeg_quality=92, ready_timeout, call_timeout, layers, extra_args=()), playwright=None, refresh_served=None)
+#   StageOptions.chromium_args() = [*CHROMIUM_ARGS, *DETERMINISM_ARGS, *(WEBGL_ARGS if webgl), *extra_args], part of
+#   capture_fingerprint() and so of the chunk key; stage_page.stage_browser launches with the same list
+#   a CDP capture on a dead renderer raises StageError("stage_crashed", retryable) (the chunk is captured again)
+#   /__frames/[<chunk>/]<media key>/<source frame>.jpg answered from FrameRegistry (route.fulfill); else 404
+dynamic.stage_page.stage_browser(settings, *, size, base_url=None, media_origins=(), webgl=False, call_timeout_s=60,
+#   check_cancelled=None, extra_args=(), playwright=None) ; open_stage(..., token, served_timeline, frames) -> StagePage
+#   StagePage: load(), info() -> StageInfo, seek(frame) -> key, text_boxes(), media_plan(f0, f1), set_layers(captions=,
+#   stage=), capture_jpeg(q=92), capture_png(transparent=); errors / guard_trips collected; StageError codes:
+#   render_page_* (boot), stage_contract (never retried), stage_call_failed (the page's code), stage_crashed (retryable)
+#   stage_page.DETERMINISM_ARGS = ("--disable-partial-raster",)   # Dynamic stage only, on top of
+#   screenshot.CHROMIUM_ARGS (order-independent frames, DYNAMIC_VIDEO_DESIGN §7.4); the classic capture never gets it.
+#   StageBrowser.open(...) closes a page that fails to come up before raising; only a loaded page joins .pages
+dynamic.preflight.run_preflight(settings, timeline, *, token, served_timeline=None, base_url=None, media_origins=(),
+#   check_cancelled=None, ..., captions=None) -> PreflightResult(ok, timeline (served, with remedies), sampled,
+#   remedies, summary(), as_qa()); captions: whether the render burns captions (None = presentation.captions_burn);
+#   the page's caption layer is set to it after every load (the remedy round's reload too), so caption boxes are
+#   checked only when burned; expected frames = motion.chunks.total_frames(scene_frame_bounds(timeline, fps)); one
+#   item per (check, scene, slot) across both rounds; raise_if_blocked(result) -> PreflightBlocked (code
+#   preflight_blocked); sample_frames(info, timeline)
+dynamic.container.inspect_container(path, *, settings, fps, expected_frames, expect_audio, expect_subtitles=False,
+#   chunks=(), loudness=None, size=None) -> ContainerQA ; verify_container(inspect, remedies) -> ContainerQA |
+#   ContainerCheckFailed (render_invalid) ; motion_qa(container, preflight) -> dict ; record_qa(ctx, render_id, qa)
+dynamic.determinism.run_plans(open_page, standard_plans(0, 300, 3)) -> DeterminismReport (1x300, 3x100, reverse)
+dynamic.preflight (B2a): remedies go to the fixes channel only
+#   apply_remedies(timeline_dict, remedies) -> new dict: safe_variant -> look.fixes.safe = True; shrink ->
+#   look.fixes.slots[slot].size; scrim -> look.fixes.slots[slot].scrim = True; look.variant / look.text_fit are never
+#   written; fixes is created as {safe, slots} when absent (a malformed safe or slots replaced, other keys kept);
+#   idempotent; the input is not changed; missing looks, out-of-range scenes, unknown kinds and a sizeless shrink skipped
+#   look_is_safe(look) -> bool (fixes.safe is True or B1's variant == "safe") ; safe_scenes(timeline_dict) -> frozenset
+#   evaluate_box(..., safe: bool = False, ...) / evaluate_boxes(..., safe_scenes=frozenset(), ...) replace variant(s)=;
+#   plan_remedies: a slot minimum that is not positive uses the format's floor; SAFE_VARIANT ("safe") is read only;
+#   MIN_TEXT_PX, MIN_LABEL_PX, CRITICAL_BANDS, CAPTION_BANDS, PORTRAIT_* keep their names and values, from zones.py
+# --- Dynamic video, B2a: the catalogue modules (pure data and functions; imported only inside the Dynamic gate) ---
+dynamic.colour_math   # the one colour module: srgb/linear, OKLab/OKLCH (Ottosson), gamut_map_oklch (CSS Color 4, as
+#   color.js), palette_hex, js_round, parse_hex / to_hex, mix_oklch / mix_oklch_values, desaturate, composite /
+#   source_over, relative_luminance, contrast_ratio, worst_contrast, simulate_cvd (Machado 2009), oklab_distance,
+#   red_ratio; parity: tests/fixtures/colour_vectors.json (node scripts/gen_colour_vectors.mjs [--check])
+dynamic.themes        # §4.7 catalogue + validator: content_tokens(mode), content_alt_tokens(mode), FAMILIES (12; 4 R1),
+#   accent_hue(family, slot), structure_tokens, scene_colours / scene_tokens(family, slot) -> the ten look.tokens keys
+#   (DERIVED_KEYS: block.base, block.highlight, block.ink, block.ink2, scrim), block_colours, ink_on, block_ink2,
+#   scrim_colour, scrimmed_bg, code_surface(family), PERSONALITIES (6; crisp, soft R1), caption styles, cue colours,
+#   validate(...) -> Report(findings, advisories, measures, scrims, scrim_roles, nudges, red_lowered,
+#   chroma_restricted; released_findings(), worst(code, scope)), forced_scrims()
+dynamic.zones         # ZONES_VERSION 1; Box(x0, y0, x1, y1); ZONES[fmt].as_stage_dict() == core.js ZONES[fmt];
+#   zones_for(fmt); GRID (16:9, 12 x 122 px, 24 px gutters); REGIONS[fmt][name]; END_SCREEN (x 960-1920, 15 s);
+#   YT_SHORTS, META_REELS, TIKTOK, UNIVERSAL = intersect_zones(...), PlatformZone.safe_boxes(); TYPE_FLOORS[fmt],
+#   min_text_px(fmt), min_label_px(fmt); TYPE_SCALE; LAYOUT (spacing, radius, border, outline, shadow, icon)
+dynamic.templates     # TEMPLATES (41 TemplateSpec), IMPLEMENTED ('board_generic',), template(id), registry_problems();
+#   TemplateSpec(id, semantic_class, representational, release, duration {fmt: Duration(min, max, per_item=False,
+#   end_screen=None)}, consumes Consumes(kinds, targets), data_fit, implemented, formats, variants {fmt: (...)},
+#   forced_for, holds, dense, push_ok, slots {slot: {fmt: {variant: SlotSpec}}}); .fit(scene, fmt, *, last=False,
+#   chapter_end=False) -> 0 | 0.2 | 0.5 | 0.8 | 1.0; .events(scene, timed, fmt) -> [] until B2d;
+#   SEMANTIC_CLASSES (19, frozen); signals(scene, *, last, chapter_end) -> (Signal(id, semantic_class, preferred,
+#   alternatives, forced), ...); CROSS_CLASS_ALTERNATIVES; ROLES (14), BLOCK_ROLES; BACKGROUNDS (15), TRANSITIONS (8)
+#   SlotSpec(w, max_lines, size (min, max), role, face, weight, line_height, tracking_em=0.0, max_words=None,
+#   max_chars=None, prefer_lines=None, critical=True, tabular_nums=False) (frozen; tabular_nums, B2b-H: the stage draws
+#   the slot with font-variant-numeric: tabular-nums, so textfit shapes it with tnum; set for board_generic's ring;
+#   Python only, not in the catalogue)
+#   target grammar: parse_target(text) -> Target(form, item, index, series, symbol) (ValueError outside the grammar),
+#   format_target(target), target_form(text), TARGET_FORMS (12), RESERVED_TARGET_WORDS {'panel', 'option'}
+dynamic.catalogue     # python -m aadhi.compose.dynamic.catalogue [--check] -> web/js/dynamic/catalogue.gen.js
+#   catalogue() -> plain data; render() -> the file text (sorted keys, LF, <= 120 columns, byte-deterministic);
+#   first_difference(current, expected) -> line | None; CATALOGUE_VERSION = 1; --check exits 1 naming the first
+#   differing line (CI "Generated files are current"). Top-level keys: version, zones_version, zones, regions, grid,
+#   end_screen, platforms, type, layout, captions {style: {release, look, metrics (geometry) | null, colours | null}},
+#   cues, templates {id: {class, ..., duration {fmt: {min, max, per_item, end_screen}}, slots, consumes}},
+#   semantic_classes, targets, roles {colour, block}, backgrounds, transitions, personalities, scrims, studio_surface
+#   (null), families, content. Runtime use is geometry only (web/tests/dynamic/sourceScan.test.js CATALOGUE_RUNTIME)
+# --- Dynamic video, B2b: assets (imported only inside the Dynamic gate; DYNAMIC_VIDEO_DESIGN §4.6, §4.12) ---------
+dynamic.faces         # the one face table; pure data and functions, no Pillow
+#   python -m aadhi.compose.dynamic.faces [--check] -> web/css/dynamic-fonts.css (one @font-face per B2b face,
+#   font-display: block, url('../vendor/<file>')) + web/js/dynamic/faces.gen.js (export const FACES, frozen; keys
+#   JS_TOP_LEVEL_KEYS: version, b1_display, defaults, generic, scripts, languages, indic, families, faces); --check
+#   exits 1 naming the first differing line; render_css(), render_js(), table()
+#   FACES_VERSION 1; ROLES (display, body, mono, indic); INDIC_SCRIPTS (tamil, devanagari, telugu, kannada, malayalam);
+#   LANGUAGE_SCRIPTS; OFL, OFL_TEXT_MARK; FONTSOURCE_VERSION '5.3.0'; DEFAULT_FONTS {display: outfit, body: inter,
+#   mono: jetbrains_mono, indic: noto_sans}; B1_DISPLAY (outfit, inter); DISPLAY_FACES_R1 (outfit, poppins, lexend;
+#   themes.FACES / DISPLAY_FACES_R1 re-export it); GENERIC {display, body: 'sans-serif', mono: 'ui-monospace, monospace'}
+#   Family(id, name, role, release, licence, note, package, version, css 'classic' | 'dynamic' | None (W2, not
+#   vendored), file_stem, weights, axes (Axis(tag, minimum, maximum, default) as the FILE defines it: Anek wght
+#   100-800, default 500), subsets, script, requests); .vendored, .variable, .directory ('fonts' |
+#   'fonts/dynamic/<id>'). FAMILIES (by id); INDIC_GROUPS {noto_sans | anek: {script: family id}}
+#   Face(family, subset, weight (lo, hi), file (under web/vendor), source (under node_modules), unicode_range);
+#   .ranges, .covers(cp); FACES (declaration order); faces_of(id); parse_unicode_range(text)
+#   Fonts = Mapping | pydantic BaseModel | None; fonts_mapping(fonts) -> dict (a model dumped with exclude_none, None ->
+#   {}, anything else TypeError); is_b2_fonts(fonts) (a str `indic`); stage_roles(fonts) -> {role: family id} (B1 form
+#   vs B2 form, = fonts.js stageRoles); resolver_fonts(display_font) -> {display, body, mono, indic} (B1's faces);
+#   script_for_language(lang); indic_families(group, language) (own script first); stack(fonts, role, language) ->
+#   family ids; css_stack(fonts, role, language) -> str (= fonts.js fontStacks)
+#   for text fit: match_weight(available ranges, desired) (CSS Fonts 4 §5.2); face_for(family_id, weight, codepoint)
+#   -> Face | None (matched weight, then the LAST-declared face whose range covers it); web_path(face, web_dir=None)
+dynamic.icons         # python -m aadhi.compose.dynamic.icons [--check] -> aadhi/compose/dynamic/icon_index.json
+#   (committed; needs node_modules to generate; --check exits 1 when stale, 2 when it cannot generate)
+#   INDEX_VERSION 1; SETS (IconSet(id, package, version, licence, licence_marks, svg_dir, metadata)): lucide
+#   (lucide-static 1.48.0, ISC, icons/, tags.json), tabler (@tabler/icons 3.48.0, MIT, icons/outline/, icons.json);
+#   SET_ORDER (lucide, tabler); TIERS ((lucide, name), (tabler, name), (lucide, tag), (tabler, tag)) (owner decision);
+#   STYLE {viewBox (0, 0, 24, 24), stroke_width 2.0, filled False, round caps and joins}; HINT_MAX_CHARS 24,
+#   HINT_MIN_KEY 2, NAME_MAX_CHARS 64, SVG_MAX_BYTES 64 KiB, COORD_MAX 1e5, DECIMALS_MAX 6, DIGITS_MAX 15;
+#   NEGATIONS {off, slash}, NEGATION_LAST {x}; EXCLUDED_CATEGORIES {tabler: {Brand}}; PREFERRED, IGNORED_TAGS (per
+#   set; B2b proposals for the owner's review)
+#   errors: IconError(ValueError) (one icon cannot be normalised), IconIndexError(RuntimeError) (the committed index is
+#   missing, damaged or stale), IndexBuildError(RuntimeError) (cannot generate from what is installed)
+#   parse_path(d) -> [(command, [Decimal])] (strict SVG 2 grammar); canonical_path(d) -> str (exact, no exponent,
+#   <= 4096 chars, matches timeline.ICON_PATH_RE); fmt(Decimal); shape_path(tag, attrs) (SVG 2 basic-shape
+#   equivalents); parse_svg(text) (refuses DTDs, entities, PIs other than a leading XML declaration, CDATA, foreign
+#   namespaces, namespaced attributes, nesting, text); normalise_svg(text, *, set_id, name, version) -> LookIcon;
+#   sanitise_icon(value) -> LookIcon | None (schema validation, then every path re-spelt canonically)
+#   normalise_key(text) -> str | None; hint_forms(key) (as written, without hyphens, English singulars of the last
+#   word); negates(name, key); match(hint, *, path=INDEX_PATH) -> IconMatch(set, name, via 'name' | 'tag', form) |
+#   None (None for a non-str hint, a hint holding a character other than letters, digits and word separators, or a
+#   one-character key); icon_for(hint, *, path) -> LookIcon | None (a fresh model each call; IconIndexError when a tag
+#   or alias names a missing icon or a stored path fails sanitising); scene_icons(items, *, path) -> {item_id:
+#   LookIcon} (items: objects with id / icon_hint, e.g. BoardItem, or mappings with those keys, else TypeError; item
+#   order; <= ICONS_PER_SCENE_MAX 32; the first icon kept for a repeated id); load_index(path) (lru_cache; checks
+#   version, set order, style, packages, versions and value types) -> {set: _SetIndex(version, icons, aliases, tags)}
+#   build_index(node_modules, *, prune=True), render_index(node_modules, *, data=None), main(['--check' | ...])
+#   index (version 1): {version, generator, order, style, sets: {lucide | tabler: {package, version, licence,
+#   licence_text, icons {name: [d]}, aliases {deprecated name: icon}, tags {key: icon}, excluded {name: reason}}}};
+#   keys sorted, one entry per line, LF, UTF-8. Run-time use reads the JSON only (no XML parser imported; tested)
+dynamic.shaping       # (B2b-H) HarfBuzz shaping of the vendored faces as the stage's Chromium shapes them; loads
+#   uharfbuzz + fontTools (brotli for WOFF2), which a classic build never imports; imported only by textfit
+#   errors: TextFitError(RuntimeError); FaceError(TextFitError): a file fontTools cannot decode (a missing brotli
+#   included, named in the message), a font HarfBuzz finds no glyphs or no cmap in, axes other than the face table's,
+#   a variable face given no weight, a font the 'ot' shaper refuses. A missing uharfbuzz / fontTools is an ImportError
+#   at import. Never a fallback to another face or shaper
+#   UNITS_PER_EM 65536 (1 em; an advance rounds to 1/65536 em); DEFAULT_LANGUAGE 'en'; COMMON 'Zyyy'; INHERITED
+#   'Zinh'; SPACED_OFF ('liga', 'clig', 'calt', 'dlig', 'hlig'); SHAPERS ('ot',) (never HB_SHAPER_LIST's choice);
+#   CURSIVE_SCRIPTS {Arab, Rohg, Mand, Mong, Nkoo, Phag, Syrc}; NEWER_UCD {cp: (category, ccc, bidi)} (U+0CF3,
+#   U+11B00..11B09: characters the faces draw that Python 3.11's Unicode 14.0 lacks)
+#   one Unicode database: category(ch), combining(ch), bidirectional(ch) (unicodedata + NEWER_UCD); ignorable(ch)
+#   (the default-ignorables HarfBuzz hides); zero_width(ch) (ICU's: no letter-spacing); takes_letter_spacing(ch, script)
+#   (False for a zero-width character, and inside a cursive script's run for anything but a space)
+#   faces: FaceKey(path, wght, axes=(), ranges=()) (frozen; .in_range(cp); empty ranges: the whole cmap);
+#   sfnt(path) -> bytes (cached; woff2.decompress's steps); hb_face(path); file_axes(path); cmap(path) -> frozenset;
+#   has_glyph(key, ch) (cmap maps it AND the unicode-range holds it); load_font(key) -> hb.Font (cached sub-font at
+#   UNITS_PER_EM, nominal-glyph lookup restricted to the range, axes checked, wght always set); web_file(face, web_dir)
+#   features(tracking_em, tabular=False) -> {kern, liga, clig: True} (SPACED_OFF False when tracking != 0; tnum when
+#   tabular); script_of(ch); script_set(ch) (Script_Extensions in Chromium's preference order); script_runs(text) ->
+#   ((start, end, ISO 15924), ...) (a port of Chromium's ScriptRunIterator: scx, paired brackets, Common/Inherited;
+#   cached); scripts(text); language_tag(language) -> BCP 47 (board language, else 'en')
+#   shape(key, text, script, language, spaced=False, tabular=False) -> hb.Buffer (LTR, SHAPERS only, features());
+#   advance(key, text, script, language, spaced=False, tabular=False) -> int units (cached); clear_caches()
+#   thread safety: decoded faces and fonts built under one RLock, never changed after; each call its own buffer
+dynamic.textfit       # measured text fit on HarfBuzz-shaped widths (B2b-H; no Pillow); loads shaping (uharfbuzz,
+#   fontTools), which a classic build never imports; not wired into direct.py / preflight / the chunker yet (B2d/B2e)
+#   re-exports FaceError, FaceKey, TextFitError, has_glyph, load_font from shaping
+#   SLACK 0.005 (relative, on a shaped advance); BOX_PX 1/64 (Chromium's layout unit); SIZE_STEP 4.0; UNCOVERED_EM 1.0
+#   (estimate for a system-font cluster, never certified); JOIN_WORDS 24; JOINERS {ZWNJ, ZWJ}; ZWJ; ZWSP; SEPARATORS
+#   (JS \s plus U+200B, minus the no-break spaces U+00A0, U+2007, U+202F, which glue a word)
+#   text model: ignorable(ch); is_mark(ch); splits_bidi(ch) (bidi class R, AL, LRE, RLE, LRO, RLO, LRI, RLI, FSI,
+#   PDF, PDI); graphemes(text) (Indic conjuncts kept whole; coarser than ICU for Tamil and Kannada); words(text) ->
+#   ((word, separator), ...) (= motion/text.js splitWords); collapse(sep) -> ((offset, char), ...) (one space per
+#   maximal collapsible run; nothing for a run holding LF next to a ZWSP; \f and \v drawn); plain_separator(sep,
+#   leading=False) (the page breaks there as the line model does: ZWSPs then at most one space; leading: a space then
+#   ZWSPs); joins(sep) (only ZWSPs: the words are shaped across it in flow text)
+#   faces: face_key(face, weight, web_dir=None) -> FaceKey (wght clamped to the face's range, the face's ranges);
+#   fallback_faces(stack, weight, web_dir=None) -> (FaceKey, ...) (cached; CSS weight matching, last-declared face
+#   first); stack_for(fonts, role, language)
+#   shaping: Segment(start, end, key | None, units, spaced, uncovered=False); runs_of(text, runs=None); slice_runs(runs,
+#   start, end); shape_text(text, stack, weight, language, spaced=False, web_dir=None, runs=None, tabular=False) ->
+#   (Segment, ...) (cached; Chromium's font fallback per script run: a face keeps the clusters it draws with no
+#   missing glyph, as shaped, kerning against a glyph it lacks included; the rest goes to the next face; a system font
+#   last, uncovered)
+#   measure(text, *, fonts: faces.Fonts, role 'display' | 'body' | 'mono', weight, language='', tracking_em=0,
+#   web_dir=None, tabular=False) -> Measured(text, words, stack, weight, tracking_em, language, web_dir, tabular,
+#   flow_runs, lead_plain, joins_bounded; .reliable, .uncovered, .shaped(text, runs=None) -> (em, spacings),
+#   .width(word, size, bias='conservative' | 'raw' | 'optimistic', clusters=None), .sep(word, size, bias))
+#   Word(text, clusters, em, sep_em, sep_units=0, spacings=0, flow_em=None, flow_spacings=None, sep_flow_units=None,
+#   sep_uncovered=(), at=0, sep_plain=True, flow_uncovered=(), join_em=0.0, join_spacings=0; .reliable, .indic,
+#   .readings() -> ((em, spacings) alone, then inside the whole text when different))
+#   Cluster(text, key, em=0.0, indic=False, uncovered=False, at=0; .reliable = not uncovered)
+#   widths (em: the shaped advance; n: letter-spacings, one per HarfBuzz cluster that draws, none inside a cursive
+#   run but after a space): raw = size x (em + tracking x n), the word alone; conservative = the wider reading of
+#   size x (em x (1 + SLACK) + tracking x n) + BOX_PX; optimistic = max(0, the narrower reading of size x (em x
+#   (1 - SLACK) + tracking x n)); a piece of a broken word (clusters=) is shaped on its own with its word's script runs.
+#   sep: raw exact; conservative + SLACK and BOX_PX, a negative letter-spacing left out, plus the positive join_em
+#   (with slack and BOX_PX) when the next word shares the line; optimistic - SLACK
+#   fitting: word_kinds(m, width, min_size, bias) -> ('break' | 'whole' | 'either', ...); layout(m, size, width,
+#   max_lines, min_size, bias) -> Layout(size, lines, widths, whole, fits); sizes(lo, hi, step=4) (hi down, lo last);
+#   fit(m, *, width, size, max_lines, prefer_lines=None, step=4, bias='conservative') -> FitResult; fit_text(text, *,
+#   width, size, max_lines, role, weight, fonts, language='', tracking_em=0, prefer_lines=None, step=4,
+#   web_dir=None, tabular=False); fit_slot(text, spec: templates.SlotSpec, *, fonts, language='', width=None
+#   (overrides spec.w where the template's text box is narrower: board_generic's kicker is w - 30), step=4,
+#   web_dir=None) (passes spec.tabular_nums: the countdown ring); clear_caches() (also shaping's)
+#   FitResult(size, lines, widths, estimate, fits, reliable, uncovered, width): fits True | False when reliable
+#   (Latin, Indic and mixed text a vendored face draws), None otherwise (an estimate, never blocking): a cluster or
+#   part of one no vendored face draws, whitespace no face draws or that is not plain_separator, a word starting with a
+#   non-ignorable combining mark, a word holding a splits_bidi character, a ZWSP chain not bounded or longer than
+#   JOIN_WORDS; .stored() -> {"size", "lines": line count} (the proposed §6.7 text_fit entry, for certified results
+#   only, any script; the stage reads text_fit[slot].size as a size cap)
+#   measurement contract: every width is HarfBuzz's shaped advance on the vendored face file the page loads, with the
+#   page's unicode-range, axes, features, script runs, lang and letter-spacing; the parity probe
+#   (tests/determinism/test_textfit_parity.py) holds it to the real page within 1/16 px + 0.05% of the width.
+#   Known gaps (B2b-H audit, open): a line ending before a ZWSP-joined word in flow text, and an over-wide word that
+#   starts with a hyphen, can be certified with fewer lines than the page draws (DYNAMIC_VIDEO_DESIGN §4.6)
+#   removed in B2b-H: REF_PX, PROBE_PX, SLACK_LATIN, SLACK_INDIC, KERN_FLOOR_EM, NOTDEF_PROBE, tracking_count,
+#   load_face, advance_em, kern_bounds, Word.kern_pos / kern_neg / kern_bounded / slack, Cluster.drawn; the module
+#   dynamic.kerning and kerning.json
+```
+
+## Repository scripts (B2b)
+```python
+# scripts/gen_third_party_notices.py — python scripts/gen_third_party_notices.py [--check]   (CI after npm ci)
+#   render(lock_path=LOCK, node_modules=NODE_MODULES) -> str; runtime_packages(lock, direct) -> [Package(name,
+#   version, licence, required_by, direct)] (every non-dev package-lock entry except EXCLUDED_SCOPES @types/*);
+#   licence_texts(pkg, node_modules) -> [(file, text)] (top-level LICENSE* / LICENCE* / COPYING* / NOTICE* /
+#   COPYRIGHT*, else FALLBACK_SOURCES: seedrandom's README section, javascript-natural-sort's source header)
+#   VENDORED: (Vendored(package, version (reviewed at), source, served, components, notices, credits, licence_file,
+#   module_table), ...): every file vendor.mjs serves (SERVED_ELSEWHERE: the fonts, fonts.css, manifest.json);
+#   Component(name, version (the one the bundle holds), licence, contained, texts (scripts/third_party_licences/*.txt
+#   or a pointer to a package section), markers, modules, notices); check_vendored(entry, text, path) fails on a
+#   version drift, a missing marker, a p5 module (browserify_packages(text)) no component lists, or an unacknowledged
+#   copyright statement (COPYRIGHT_STATEMENT)
+#   NoticeError(RuntimeError); main(['--check']): exit 1 when stale, 2 when it cannot generate (a package missing, at
+#   another version than the lock, or without licence text; a VENDORED check failing); output byte-deterministic,
+#   packages sorted, LF (.gitattributes)
+```
+```js
+// scripts/vendor_faces.mjs — vendorFaces(faces /* faces.gen.js FACES */, nodeModules, out) -> written[]: copies each
+//   B2b face and its family's LICENSE into web/vendor/fonts/dynamic/<id>/; throws on a version other than the pin, a
+//   LICENSE without OFL_TEXT ('SIL OPEN FONT LICENSE Version 1.1'), a unicode-range differing from the package's
+//   unicode.json, or a path outside the family folder. scripts/vendor.mjs imports FACES and calls it after the
+//   classic fonts, and copies mathjs/lib/browser/math.js.LICENSE.txt beside math.js
 ```
 
 ## aadhi.providers (owner: providers)
@@ -304,6 +722,18 @@ factory.get_llm(settings=None, engine: str | None = None) -> LLMProvider   # Non
 factory.available_llm_engines(settings) -> list[dict]          # [{id,label,configured,models}] for LLM_ENGINES; "fake" first only where allowed
 factory.get_tts(name=None, settings=None) -> TTSProvider
 factory.get_image(settings=None) ; factory.get_video(settings=None) ; factory.get_gif(settings=None)
+factory.VIDEO_PROVIDERS = ("veo", "omni", "fake")   # MEDIA_LABELS["omni"] = "Google Gemini Omni"; both need a Gemini key
+#   Settings.video_providers (VIDEO_PROVIDERS) replaces video_provider + video_fallback_providers when set; else a chain
+#   that names veo gets "omni" appended (Settings._video_order; Settings.auto_video_backup == "omni"), so media_chain
+#   already holds the effective order. The appended successor is tried only while Veo is unavailable (assets
+#   _generate_video: Veo's 404/410/account refusal now or in its "unavailable" cooldown); a named omni backup always.
+video.omni.OmniVideo(settings, *, client_factory=None, sleep=None, poll_interval_s=10.0, max_attempts=None)   # "omni", paid,
+#   resumable, reports_sending; Interactions API (client.aio.interactions create/get/cancel, SDK retries off);
+#   .model (OMNI_MODEL), billed_seconds() = ESTIMATED_SECONDS (10.0); Usage(provider="omni", operation="video",
+#   seconds = video output tokens / VIDEO_TOKENS_PER_SECOND (5792)); 404/410 on create -> ProviderUnavailable;
+#   one genai client per key and event loop (gemini_common.GeminiCaller(per_loop=True)); generate/resume hold
+#   GeminiCaller.loop_lease(), whose last holder in a loop closes that loop's clients in it
+#   VeoVideo.model (VEO_MODEL); Veo's 404/410 on create (model no longer served) -> ProviderUnavailable, nothing billed
 factory.media_chain(kind, settings) -> list[str]                # IMAGE_/VIDEO_PROVIDER then *_FALLBACK_PROVIDERS ([] for none)
 factory.media_configured(kind, settings) -> bool ; factory.media_unavailable_reason(kind, name, settings) -> str | None
 factory.available_image_providers(settings) -> list[dict]      # [{id,label,configured,paid}] a lecture may choose; [] when none
@@ -314,6 +744,11 @@ health.provider_health() -> cooldowns per (provider, key scope) ; operations.PAY
 #   | completed | failed | abandoned | lost | ambiguous; JobCheckpoint.submitted / usage_recorded / sending / not_sent
 #   VeoVideo.reports_sending = True; ResumableVideoProvider.resume(..., checkpoint=None) notes its charge
 factory.available_tts_providers(settings) -> list[dict]       # [{id,label,configured,word_timings,voices}]
+base.ModelUnavailable(ProviderUnavailable)   # the provider no longer serves the configured model: HTTP 404 / 410 on a
+#   request naming it (retired, renamed, misspelt; for OpenAI also a model the key may not use: 404 model_not_found);
+#   nothing billed, never retried. Raised by tts.gemini.GeminiTTS.synthesize (GEMINI_TTS_MODEL) and
+#   tts.openai.OpenAITTS.synthesize (OPENAI_TTS_MODEL) after that one request (MODEL_GONE_STATUSES = (404, 410));
+#   the asset build then narrates with Edge (pipeline assets.fallback_voice_config)
 llm.anthropic.AnthropicLLM(settings, *, client_factory=None, sleep=None, max_attempts=4)   # name "anthropic"; LLMProvider; ProviderNotConfigured without ANTHROPIC_API_KEY (unless client_factory)
 #   Usage(provider="anthropic", model=<served model>, operation "llm" | "vision", input_tokens = input + cache writes + cache reads,
 #         output_tokens, meta={"cache_read_tokens", "cache_write_tokens", ...})
@@ -403,6 +838,14 @@ stage.matches_current(built_revision, revision, version_built_revision) -> bool
 ## aadhi.api (owner: api)
 ```python
 errors.ApiException(status: int, code: str, detail: Any, **extra)   # + exception handlers (incl. RequestValidationError -> code "validation")
+#   schemas.features.NewerDocumentError -> 409 "newer_document" (+ document, schema_version, reader_version)
+screenplay_service.require_features(sp, settings, *, prefix=("body", "screenplay"), already=None) -> None
+#   422 "feature_unavailable" (+ features) when sp uses a feature settings.dynamic_features does not enable;
+#   already() returns the stored screenplay, whose features stay writable (PUT, lint, preview: the stored version;
+#   import: prefix ("file",), no already). unavailable_features(sp, enabled, *, already=None) -> {feature: [loc]}
+screenplay_service.asset_uses(sp) -> list[AssetUse]   # every key with its FIELD_RULES rule (classic + the Dynamic
+#   clip / overlay / music / narration fields) -> asset_key_errors / authorize_asset_keys (422) and
+#   strip_unauthorized_asset_keys (import: optional keys cleared, an overlay or clip scene without its clip removed)
 deps.load_version(db, user, vid, *, for_update: bool = False) -> ProjectVersion
 deps.load_project(db, user, project_id) -> Project
 generation.parse_options(raw: str | dict | None, *, defaults: dict | None = None) -> GenerationOptions   # 422 validation
@@ -419,6 +862,9 @@ generation.ensure_budget(db, user, settings, *, engine=None, keys=None, options=
 #   only when the effective engine AND every paid voice / image / video provider of options (gemini/openai/elevenlabs
 #   voices, Gemini images, Veo) run on "personal" keys; a Gemini image or Veo backup in the chain, or the lecture's
 #   image_provider choice, counts as a payer
+#   (+ Veo or Gemini Omni in the video chain; Dynamic options when present, read with getattr: options.voice
+#   {premium_allowed, any_provider, narrator "provider:voice"} and options.music {source, ai_opt_in} add the paid
+#   voice and music payers, incl. the voices' calibration)
 generation.ensure_image_provider_configured(options, settings, keys=None) -> None   # 422 at ["options", "image_provider"]
 #   (type "provider_not_configured") when generated images are off or the chosen provider has no key for the requester
 storable.StorableBody / storable.ensure_storable(document, loc)   # 422 for NaN/Infinity/lone surrogates in stored bodies
@@ -441,6 +887,11 @@ serializers.render_summary(render, job, version=None)   # + matches_current when
 timelines.media_url(store, settings, storage_key) -> str | None   # streamable URL of a public file (capability URL,
 #   or presigned on S3 without a CDN); GET /api/videos and GET /api/versions/{vid}/renders preview_url
 routers.renders.every_scene_hidden(version) -> bool   # POST .../render: 409 all_scenes_hidden
+routers.renders.render_presentation(version, settings) -> {"style": "dynamic", "format", "captions_burn"} | None
+#   the Dynamic presentation a render would use (stored screenplay has a presentation and DYNAMIC_ENABLED is on in
+#   THIS process; schema defaults "landscape" / true), None = classic; GET .../render/preflight "presentation"
+routers.renders.RenderBody.job_options(*, dynamic=False) -> dict   # burn_captions: None (unset) is left out when
+#   dynamic (the presentation decides, motion.job.caption_modes), else stored as false; an explicit value always kept
 main.create_app(settings: Settings | None = None) -> FastAPI ; main.app
 ```
 
@@ -448,8 +899,20 @@ main.create_app(settings: Settings | None = None) -> FastAPI ; main.app
 ```js
 // web/js/player/player.js (owner: player)
 export class Player { constructor(root, opts); load(timeline); play(); pause(); seek(s); seekScene(i);
-  on(evt, fn); destroy(); states(sceneIndex) /* [{t,key}] */; renderState({sceneIndex, t}) /* -> {state_key, media_rect, panel_media_rect, media_fit} */; renderIntro({t}) }
+  on(evt, fn); destroy(); states(sceneIndex) /* [{t,key}] */; renderState({sceneIndex, t}) /* -> {state_key, media_rect, panel_media_rect, media_fit} */; renderIntro({t});
+  get captionSize /* 's'|'m'|'l': the classic captions' size, else the viewer's kept preference */;
+  get captionSizeAdjustable /* false with a Dynamic stage: its captions keep their format's size */;
+  captionBottom /* stage px below a Dynamic stage's caption band (48 in 16:9, 680 in 9:16), null for classic */;
+  setCaptionSize(size) /* with a Dynamic stage only the preference is kept */ }
   // events include 'blocked' (narration play() refused without a user gesture; the player pauses with reason 'blocked')
+  // a stage that is not 1920x1080 (a Dynamic reel) marks the root: data-stage-shape ('portrait' | 'landscape' |
+  //   'square') and --ap-stage-w / --ap-stage-h (stage px), read by player.css .watch-player and studio.css .preview-box
+  //   (the `ap-shaped-box` size container); removed when the player goes back to 1920x1080
+export const MAX_STAGE_FAILURES = 20   // distinct Dynamic stage failures ('scene|message') reported per timeline
+// web/js/player/controls.js — captionLift(stageBottom, barTop, scale, captionBottom = CAPTION_BOTTOM) -> px (the lift
+//   that keeps captions above the shown bar, from where they end); CAPTION_SIZE_FIXED_LABEL = 'Caption size: set by
+//   this video' (the disabled size button while captionSizeAdjustable is false)
+// web/js/player/audio.js — BackgroundMusic.hasTrack (getter: a usable music URL; without it nothing plays)
 // web/js/player/mascot.js (owner: player)
 export class MascotController { setPosition(); setPlaying(); setLevel(); setVisible(); clipUrl(); loadRig(); tick(); getStatus();
   mountCue(root, position); setState(state, cue); destroy() }   // the cue bubble lives in the scene root (in render screenshots)
@@ -492,17 +955,179 @@ export function validateLibraryFile(file, maxMb, kind) -> string | null ; export
 // web/js/studio/lib/lessonStage.js — STAGES, STAGE_INFO, WORKFLOW_STEPS, stageInfo(stage), workflowSteps(stage),
 //   deriveStage(version, job) (servers without stage), nextStepFor(stage, ids), safeStepHref(href) ("#/…" or same-site
 //   "/…" only), projectStage(project) -> {stage, next, derived} | null
-// web/js/studio/components/stage.js — stageChip(stage, opts), nextStepCard({stage, next, canDo, onAction, note, extra})
+// web/js/studio/components/stage.js — stageChip(stage, opts), nextStepCard({stage, next, canDo, onAction, note, extra,
+//   stageAction}) (stageAction: the stage's own next action when the page replaced `next`, for the workflow strip)
 // web/js/studio/components/videoPreview.js — openVideoPreview(opts) (HTML5 <video>, source released on close)
 // web/js/studio/lib/debug.js — showTechnical(loc?) (?debug in the page or hash query)
 // web/js/studio/lib/visibility.js — pageHidden(doc?), onceVisible(fn, doc?) -> cancel
 // web/js/studio/lib/names.js — nameKey, uniqueJoin(parts, sep), distinctTitles(items, opts), withSuffix(title, suffix)
 // web/js/studio/views/editor/splitScene.js — splitProblem(sp, sceneId, beatIndex), canSplitType(scene),
-//   splitScene(sp, sceneId, beatIndex) -> {screenplay, scene}   (pure; scene = the new second part)
+//   splitScene(sp, sceneId, beatIndex) -> {screenplay, scene}   (pure; scene = the new second part; references to
+//   moved items and beats follow them: companion entries, Beat.answers, presentation.hook; part B keeps the board's
+//   sequence, never A's look)
+// web/js/studio/lib/screenplayEdit.js — COMMON_SCENE_KEYS (every SceneBase field: a type change keeps them all, incl.
+//   hidden, min_seconds, look, colour_is_content), BOARD_SCENE_KEYS (['board', 'sequence']: kept between board
+//   types), BLANKABLE_KINDS (Set ['example_step', 'question']: kinds a beat may fill)
+// web/js/render/render.js — stageSize(timeline) -> {width, height} (timeline.width x height, else 1920x1080);
+//   applyStageSize(doc, size) sets --render-stage-width / --render-stage-height and the viewport at boot
+// web/js/studio/errors.js — errorMessage(err, fallback?): plain words per API code (incl. newer_document,
+//   feature_unavailable with the features' labels from detail)
 // web/js/studio/views/editor/sceneMerge.js — mergeDrafts(base, mine, theirs), mergeScene(b, m, t) (field by field;
 //   beats and board items by id)
 // web/js/studio/views/editor/changes.js — HISTORY_LIMIT (200), editLabel(key), changesBySceneId(res),
 //   fieldWords(fields), changeBadge(change), restorePosition(all, removed)
 // web/js/studio/views/editor/timelineStrip.js — stripModel(timeline, sp), fallbackModel(sp), createTimelineStrip(opts)
+// web/js/studio/lib/jobStages.js — RENDER_STAGES {classic: [screenshots, segments, mux, check, store], motion:
+//   [preflight, capture, mux, check, store]}; renderEngine(job, seenStages) -> 'classic' | 'motion' (motion once
+//   'preflight' or 'capture' is seen); stagesFor(job, seenStages); stageStates(job, seenStages) ('done' marks every step
+//   done; an unknown stage never resets the steps already seen)
+// web/js/studio/lib/renderOptions.js — dynamicRender(preflight) -> {format, captionsBurn} | null: the Dynamic
+//   render of GET .../render/preflight "presentation" (null: classic, or no answer); the editor's and the project
+//   page's render dialogs take their Dynamic defaults from it
 // web/js/studio/components/shortcutsDialog.js — openShortcutsDialog(groups)
+// --- Dynamic video, B1 -------------------------------------------------------------------------------------------
+// web/js/motion/ (owner: motion) — pure ESM, no DOM at import time, no clock; index.js re-exports everything
+//   easing.js  ease(name, x) (§4.8 tokens 'ease.enter' | 'ease.exit' | 'ease.move' | 'ease.hero' | 'linear' | 'pop',
+//              CSS keywords, step-start/end, 'cubic-bezier(...)' strings or functions; unknown names throw);
+//              cubicBezier(x1, y1, x2, y2) -> fn (CSS-exact, linear outside 0..1); EASINGS; POP_OVERSHOOT 1.08
+//   track.js   track([{t, v, ease?}]) -> (t) => value (numbers, arrays, objects, colours mixed in OKLCH -> hex); a
+//              keyframe's ease shapes the segment ARRIVING at it; equal t = a jump; held before/after; progress(t,
+//              start, duration), interpolate, stagger(index, count, each, {from})
+//   color.js   parseColor (hex, rgb(), hsl(), oklch(), oklab()), toOklch, fromOklch, toHex, mixOklch(a, b, p) -> css
+//              (shorter hue arc, gamut-mapped as CSS Color 4), contrastRatio(a, b) (WCAG 2), composite(top, bottom)
+//              (source-over in gamma-encoded sRGB, the maths of aadhi/compose/dynamic/colour.py composite)
+//   text.js    segmentGraphemes(str, locale) (Intl.Segmenter; Indic conjuncts re-joined), splitWords(str, locale) ->
+//              [{text, ws, index, wordLike}] (punctuation attached, NBSP keeps "10 V" together),
+//              splitLines(str, maxWidth, measure, {locale, balance})
+//   draw.js    strokeDash(pathLength, p, {reverse}) -> {dasharray, dashoffset, visible} (visible false at p = 0)
+//   random.js  mulberry32(seed), hashSeed(...parts) -> uint32 (FNV-1a + murmur3 finaliser, documented in the file for
+//              a Python port; integers and strings only)
+//   count.js   countUp(from, to, p, {decimals, locale = 'en-IN', numberingSystem}) (never "-0", exact end at p = 1)
+// web/js/dynamic/stage.js (owner: stage) — the one compositor of the live player and the render page
+export function createDynamicStage(root, timeline, { mode /* 'live' | 'render' */, captions, reducedMotion, texIdle,
+  frame, onInvalidate, renderTex }) -> { el, update(t, frameInfo?) /* live */, seek(frame) -> Promise<{key}> /* render */,
+  info(), mediaPlan(f0, f1), textBoxes(), setLayers({captions, stage}), layers(), destroy() }
+//   refuses a timeline without presentation.style 'dynamic'; templates TEMPLATES {board_generic}, backgrounds
+//   BACKGROUNDS {mesh_drift, colour_block}; templates/board_generic.js mediaOf(scene, mode), variantOf(scene, mode),
+//   mediaBoxMax(scene, zones, mode = 'render'), cardSpecs(scene, format); media.js shownIn(ref, mode)
+//   stage.js syncClip(v, t, playing, frameInfo) (a live presenter clip: re-sought past LIVE_DRIFT, at the player's rate)
+//   the stage and every scene set --dyn-ink / --dyn-page (the roles' ink and page colour) for dynamic.css
+//   templates/types.js TemplateContext.onBackground {ink, ink2, bg (worst case against ink), bgs (every colour the
+//   background shows), block}; a template is a TemplateModule (B2a, below; no ctx.cues: cues are stage-driven)
+//   board_generic.js TITLE_BLOCK_SLOTS ['kicker', 'title'] (a chapter card's subtitle reports in 'title'; a scrim
+//   planned for either covers the whole title block), SCRIM_ALPHA_HEX 'c7', scrimmedBg(scrim, onBackground, ink) (the
+//   scrim composited over the background, worst case against ink), RING_SIZE 96, RING_GAP 24 (16:9: the title block
+//   ends that far left of the ring), RING_TRACK_ALPHA {lightInk: 0.18, darkInk: 0.25}; a quiz question keeps its
+//   rich-lite markup word by word (bold at weight 900, dynamic.css .dyn-title .rt-b)
+//   media.js mediaFit(ref) -> 'cover' | 'contain' | 'contain_blur'; contain_blur: the medium over a blurred, darkened
+//   copy of its own frame in a canvas BACKDROP_WIDTH 64 px wide (BACKDROP_BLUR 2, BACKDROP_BRIGHTNESS 0.6), stretched
+//   over the box; backdropShown(sw, sh, bw, bh) (false when the medium covers its box to within 1 px a side: no
+//   backdrop, canvas hidden); coverCrop(w, h, cw, ch); no other frame is planned for it. MediaView (live) seeks a
+//   paused clip to the last requested time once it can ('loadedmetadata', 'seeked'), never twice for one time
+//   transitions.js CROSSFADE_MIN 0.3, CROSSFADE_MAX 0.5, CROSSFADE_DEFAULT 0.45 (seconds; never longer than the scene)
+// web/js/dynamic/render.js (owner: stage) — the render page web/render-dynamic.html, served at GET /render-dynamic:
+//   window.aadhiStage = { version: 3,
+//     ready,              Promise<{webgl}>: timeline fetched with the fragment token (as /render-frame), every font in
+//                         use loaded, every TeX string converted, MathJax idle, frame 0 painted (without the per-chunk
+//                         media frames); rejects with {code, message}; methods throw 'not_ready' before it
+//     info()              {width, height, fps, frames, scenes: [{index, f0, f1}]} (f0/f1 = the engine's scene bounds)
+//     mediaPlan(f0, f1)   [{key, asset_key, kind: 'video' | 'aadhi', srcFps, frames: [n...], size: [w, h], url,
+//                         duration, end_behavior, trim_in}] for frames [f0, f1); a clip not started yet (a panel
+//                         before its show_at) lists its first frame: the page paints it into the hidden panel
+//     seek(frame)         Promise<{key}>: t = frame / fps; paints, waits for TeX, pictures and the media frames
+//                         (/__frames/<key>/<n>.jpg, 10 prefetched; frame n = the picture at source time n / srcFps),
+//                         then one animation frame; a font face the frame pulled in (document.fonts loading) is
+//                         awaited and the frame measured and painted again; calls are serialised; any order; key =
+//                         hash of every painted value
+//     textBoxes()         [{x, y, w, h, role, critical, ink, bg, overflow /* px: too tall, past the column with
+//                         the cards on screen with it, or clipped at the sides */, alpha, scene, slot?, size?, min?,
+//                         weight?, text?}] of the frame on screen (roles: title, subtitle, label, body, chip, caption;
+//                         during a quiz countdown also a non-critical label in slot 'ring', the countdown number);
+//                         bg is opaque: for text over the title block's scrim, the scrim composited over the
+//                         background; the scrim remedy (fixes.slots[slot].scrim, or B1's text_fit[slot].scrim)
+//                         for 'kicker' or 'title' scrims the whole title block (the subtitle reports in slot 'title')
+//     setLayers(spec)     {captions, stage} -> the layers; {stage: false, captions: true} = the caption-only layer on a
+//                         transparent page; render mode starts with captions = presentation.captions_burn, and the
+//                         engine and preflight set the render's own caption layer after every load
+//     texConversions()    B2a, additive: the TeX conversions started after the strings the templates declare
+//                         (their static tex()) were converted, the first frame's included, plus a declared string
+//                         whose conversion failed and is retried; 0 = the declarations are complete; throws
+//                         'not_ready' before ready }
+//   after ready: setTimeout / setInterval throw (guard.js), each trip recorded in window.aadhiStageGuard.trips and
+//   logged as "aadhi timer guard: ..."
+//   B2a: ready rejects with code 'timeline_invalid' before any font loads when presentation.engine_version is above
+//   engine.js ENGINE_VERSION; the page converts TeX through pageTexRenderer (one conversion per string, clones handed
+//   out, never evicted, a failed conversion dropped so the next mount retries) and gives the stage the same converter
+// --- Dynamic video, B2a (additive; DYNAMIC_VIDEO_DESIGN §4.2, §6.7, §7.3) --------------------------------------------
+// web/js/dynamic/engine.js — no imports, no DOM: ENGINE_VERSION = 2 (= aadhi/compose/presentation.py);
+//   engineVersion(timeline) -> presentation.engine_version when an integer >= 1, else 1 (as api.timelines.built_engine);
+//   engineProblem(timeline) -> null | "the timeline was built by look engine N; this page draws up to 2 (reload ...)"
+// web/js/dynamic/catalogue.gen.js — GENERATED (python -m aadhi.compose.dynamic.catalogue): export const CATALOGUE,
+//   frozen all the way down; imported by core.js only; runtime reads geometry only (sourceScan CATALOGUE_RUNTIME)
+// web/js/dynamic/core.js — ROLES = CATALOGUE.roles.colour (B1's 14, same order); BLOCK_ROLES = CATALOGUE.roles.block
+//   ['block.base', 'block.highlight', 'block.ink', 'block.ink2', 'scrim']; ZONES from CATALOGUE.zones in B1's key
+//   order, JSON-identical to B1, frozen deep; TYPE_FLOORS = CATALOGUE.type.floors; templateSlots(id) -> slot -> format
+//   -> variant -> SlotSpec | null (own keys only); BLOCK_INK2_CONTRAST = 3, blockInk2(ink, bgs), SCRIM_ALPHA_HEX 'c7'
+//   (moved here; stage.js and board_generic.js re-export them)
+//   makeRoles(presentation, look) -> {mode, tokens, color(role), inkOn(bg | bgs), on(mode)}: color() takes ROLES and
+//   BLOCK_ROLES (RangeError 'unknown colour role' otherwise); each block role is look.tokens' value when valid
+//   (#RRGGBB; scrim #RRGGBBAA), per field and never by engine_version, else B1's derivation (base: dark families mix
+//   the accent 38% toward bg, light keep it; highlight: base 35% back to the accent (dark) or 10% toward white (light);
+//   ink: inkOn([base, highlight]); ink2: blockInk2(ink, [base, highlight]); scrim: `${bg}c7`); on(mode): the scene's
+//   own roles for its mode, else presentation.content_alt's content roles with the scene's structure and block roles
+//   (RangeError when content_alt is missing, incomplete or of the wrong mode, or the mode is unknown)
+//   fixesOf(look) -> {safe, slots: {slot: {size: number | null, scrim: boolean}}}: fixes first, B1's text_fit /
+//   variant second (size: the fixes value when a positive number, else the legacy one; scrim and safe: either channel)
+// web/js/dynamic/state.js — chapterTitleAt(timeline, start) -> the last of Timeline.chapters (array order) starting
+//   <= start + 1e-3, '' when none (the kicker rule, moved from board_generic)
+// web/js/dynamic/stage.js — TEMPLATES: Record<string, TemplateModule>; templateFor(scene) (own keys only);
+//   mediaBoxOf(scene, zones, mode, slot) -> {w, h}: the template's static mediaBox(scene, zones, mode, slot,
+//   fixesOf(look)), the full stage when it is missing or invalid; mediaPlan uses it with each entry's slot;
+//   ctx.media(ref, {slot?, start?, alt?, box?}): a clip's box always from mediaBoxOf, a picture may pass its own;
+//   createDynamicStage throws TypeError with code 'timeline_invalid' for a classic timeline or a newer engine
+// web/js/dynamic/templates/types.js — TemplateModule {id, build(ctx), layout?(ctx), update(ctx, t, state),
+//   texts?(ctx), focusRect?(ctx, target) -> {rect: {x, y, w, h}, shape: 'rect' | 'ring' | 'bar', radius} | null (whole
+//   px), itemEl?(ctx, itemId) -> Element | null, dimGroups?(ctx) -> Element[], anchor?(ctx) -> {el, rect} | null};
+//   static mediaBox?(scene, zones, mode, slot, fixes) -> {w, h} | null, static tex?(scene, look, fmt) -> [{tex,
+//   display}]; TemplateContext has no `timeline`, gains `chapter` (chapterTitleAt) and media: MediaOptions;
+//   renderTex is the render page's pageTexRenderer in render mode (counted, never evicted), richtext's cached
+//   MathJax (400 strings) in live mode and tests, and is passed to every mountTex / renderRich / texNode call
+// web/js/dynamic/templates/board_generic.js — kickerOf(scene, chapter); texOf(scene) (B1's TeX field list);
+//   MIN_TEXT / MIN_LABEL from TYPE_FLOORS, BODY_WEIGHT from templateSlots('board_generic'); CARD_RADIUS 24,
+//   FRAME_RADIUS 28, FIGURE_BOX_WIDTH 1200, FIGURE_SLOT 'figure'; default export adds focusRect (targets <item>,
+//   <item>:<part>, option:<i>, panel...; radius 24, 28 for panel), itemEl (the card body; in 9:16 a split
+//   misconception's every target names its myth card, B2c), dimGroups ([title block, frame?, ...cards]), anchor
+//   (null), mediaBox (slot 'figure': 1200 x figureMax, else mediaBoxMax), tex (texOf); slotTuning reads fixesOf;
+//   the title-block scrim is roles.color('scrim')
+// web/js/dynamic/backgrounds/colour_block.js — blockColor(roles) / blockColors(roles) read roles 'block.base' /
+//   'block.highlight'
+// web/js/dynamic/render.js — timelineTex(timeline): the union over scenes of templateFor(scene).tex(scene, look, fmt),
+//   first occurrence kept; pageTexRenderer(convert) -> {renderTex, markDeclared(), conversionsAfterDeclared()}
+//   (boot calls markDeclared() once the declared strings are converted, before the stage builds frame 0);
+//   STAGE_VERSION stays 3
+// web/js/player/player.js — load() rejects a live or preview Dynamic timeline of a newer engine with TypeError code
+//   'timeline_invalid' before building or resizing anything (imports ../dynamic/engine.js statically)
+// --- Dynamic video, B2b (additive; DYNAMIC_VIDEO_DESIGN §4.6, §7.3, §7.4) -----------------------------------------
+// web/js/dynamic/faces.gen.js — GENERATED (python -m aadhi.compose.dynamic.faces): export const FACES, frozen; data
+//   only (sourceScan rule 'faces-data'), read in the stage by fonts.js only (and by scripts/vendor.mjs at install)
+// web/css/dynamic-fonts.css — GENERATED: the B2b @font-face rules (Poppins, Lexend, Atkinson Hyperlegible Next,
+//   Anek <Script>; new family names only); linked after dynamic.css by render-dynamic.html, index.html, watch.html
+//   (not by the classic render.html); scanned like dynamic.css
+// web/js/dynamic/fonts.js — the stage's type, mirroring faces.py:
+//   B1_DISPLAY_FACES {outfit: 'Outfit', inter: 'Inter'}; isB2Fonts(fonts) (a string `indic`); stageRoles(presentation)
+//   -> {display, body, mono, indic} (= faces.stage_roles; own-property lookups); indicFamilies(group, language)
+//   fontStacks(presentation, language) -> {display, body, mono} CSS stacks (moved from stage.js, which re-exports it):
+//   B1 form = B1's code except the own-property lookup of the display id (an Object.prototype name now gives Outfit);
+//   B2 form = built from the table (display: display face, body face, Indic families; body: body face, Indic
+//   families; mono: mono face; the lecture's script first)
+//   stageFontRequests(timeline) -> FontRequest[] {family, weight, sample}: B1 form -> render/fonts.js
+//   fontRequests(timeline), unchanged; B2 form -> the body, display and mono families' `requests` weights (each family
+//   once, in that order) with LATIN_SAMPLE, then the Indic group's family for each detected script (sorted by script)
+//   with that script's sample + LATIN_SAMPLE. For the resolver's fonts: display outfit = fontRequests exactly;
+//   display inter = fontRequests without the Outfit faces (no stack holds Outfit)
+// web/js/dynamic/render.js — boot preloads stageFontRequests(timeline) (was fontRequests) before ready
+// web/js/render/fonts.js — exports LATIN_SAMPLE (no behaviour change)
+// web/js/shared/types.js — TimelineFonts typedef {display?, body?, mono?, indic?}
+// web/js/player/fonts.js ensureFonts (live and Studio) is unchanged: it preloads B1's faces only (B2e: preload
+//   stageFontRequests for Dynamic timelines once direct.py names other faces)
 ```

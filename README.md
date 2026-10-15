@@ -75,7 +75,7 @@ options, when you upload a document or regenerate a lecture.
 
 | Engine | Key in `.env` | Models: plan / script, critic, fast |
 |---|---|---|
-| Google Gemini | `GEMINI_API_KEY` | `LLM_MODEL_*` (`gemini-2.5-pro` / `gemini-2.5-flash`) |
+| Google Gemini | `GEMINI_API_KEY` | `LLM_MODEL_*` (`gemini-3.8-flash` for every tier) |
 | OpenAI | `OPENAI_API_KEY` | `OPENAI_MODEL_*` (`gpt-4.1` / `gpt-4.1-mini`) |
 | Anthropic Claude | `ANTHROPIC_API_KEY` | `ANTHROPIC_MODEL_*` (`claude-opus-5-5` for every tier) |
 
@@ -92,12 +92,18 @@ options, when you upload a document or regenerate a lecture.
   (`ANTHROPIC_MODEL_SCRIPT/CRITIC/FAST=claude-sonnet-5-5` is the cheaper setup). Prompt caching
   bills a prompt prefix that repeats across calls at a reduced rate. `ANTHROPIC_EFFORT` (default
   `high`) trades thinking depth for tokens.
+* Gemini 3.8 Flash costs $0.75 input / $3.75 output per 1M tokens until the end of 2026 and twice that
+  from 2027-01-01. `LLM_MODEL_PLAN=gemini-3.1-pro-preview` plans with Gemini's Pro preview instead.
+  Every default model, its alternatives and its lifetime: [docs/OPERATIONS.md](docs/OPERATIONS.md#33-ai-models).
 * The offline demo (`scripts/dev_demo.py`) and the tests never call a paid engine.
 
 **Pictures and clips.** Generated illustrations come from `IMAGE_PROVIDER` (Pollinations by
-default, Gemini with a key) and AI clips from `VIDEO_PROVIDER` (Veo). Backups can be configured
-(`IMAGE_FALLBACK_PROVIDERS`, `VIDEO_FALLBACK_PROVIDERS`); a lecture can pick its image provider in
-the options, and the Admin page shows the state of each provider. Details in
+default, Gemini Nano Banana 2.1 with a key) and AI clips from `VIDEO_PROVIDER` (Veo 3.1 Fast, with
+Gemini Omni added automatically as its successor, used once Veo is no longer served: Google lists the Veo 3.1
+previews for shutdown from 2026-10-22).
+Backups can be configured (`IMAGE_FALLBACK_PROVIDERS`, `VIDEO_FALLBACK_PROVIDERS`, or `VIDEO_PROVIDERS` for the
+exact video order); a lecture can
+pick its image provider in the options, and the Admin page shows the state of each provider. Details in
 [docs/OPERATIONS.md](docs/OPERATIONS.md#32-generated-images-and-ai-video-provider-chain).
 
 ## Your own API keys
@@ -227,12 +233,17 @@ newest save of each lesson:
 
 ```
 aadhi/      backend (FastAPI app, jobs, pipeline, providers, manim, compose, auth, storage)
-web/        frontend (Studio, Player, render page, p5 sandbox) — native ES modules
+web/        frontend (Studio, Player, render pages, the Dynamic video stage, p5 sandbox) — native ES modules
 alembic/    database migrations
 evals/      evaluation fixtures and results (python -m aadhi.evals); video_qa.py (MP4 checks),
             render_parity.py (preview vs MP4 comparison: python evals/render_parity.py)
-tests/      pytest suites;  web/tests/: node --test suites
-docs/       ARCHITECTURE, API, INTERFACES, SECURITY, OPERATIONS, EVALS, INTEGRATION_ANDRYAN
+scripts/    vendoring, generated files (.env.example, seccomp profile, lock), the offline demo server, the mascot
+            clip cleaner and the motion render benchmark
+tests/      pytest suites (tests/invariance: the classic invariance harness; tests/determinism: the Dynamic video
+            engine's determinism and parity suites; tests/web: page checks in real Chromium);
+            web/tests/: node --test suites
+docs/       ARCHITECTURE, API, INTERFACES, SECURITY, OPERATIONS, PROMPTS, EVALS, INTEGRATION_ANDRYAN,
+            DYNAMIC_VIDEO_DESIGN (the Dynamic video mode, built in batches) and research/ (the reports behind it)
 ```
 
 ## Tests

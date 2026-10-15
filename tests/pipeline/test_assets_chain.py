@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 
+from aadhi.config import Settings
 from aadhi.pipeline import assets as assets_mod
 from aadhi.pipeline import integrations
 from aadhi.pipeline.assets import build_assets_detailed
@@ -407,6 +408,80 @@ def test_clips_made_earlier_are_used_when_ai_video_is_off_on_the_server(chain):
     assert off.manifest.media["lab"].main is None or off.manifest.media["lab"].main_is_fallback
 
 
+# --- media made under the default models before the 2026-10 model refresh -----------------------------
+
+NEW_IMAGE_MODEL = Settings.model_fields["image_model"].default
+NEW_VEO_MODEL = Settings.model_fields["veo_model"].default
+
+
+def test_images_made_under_the_previous_default_model_are_reused_after_the_refresh(chain):
+    from aadhi.storage.assets import media_key
+
+    chain.primary_image = ScriptedImage("gemini", paid=True)
+    configure(chain.ctx, image_provider="gemini", image_model="gemini-2.5-flash-image")  # the earlier default
+    sp = screenplay(panel_scene("a", "a transistor"))
+    first = build(chain.ctx, sp).manifest.media["a"].side_panel
+    assert first is not None and len(chain.primary_image.calls) == 1
+    configure(chain.ctx, image_model=NEW_IMAGE_MODEL)  # upgraded with IMAGE_MODEL unset
+    again = build(chain.ctx, sp, scene_ids=["a"])  # an explicit rebuild of the unchanged scene
+    assert again.manifest.media["a"].side_panel.asset_key == first.asset_key
+    assert len(chain.primary_image.calls) == 1  # not paid again
+    assert not [i for i in again.issues if i.code.endswith("_fallback")]
+    # a new image is made (and stored) under the configured model
+    new = build(chain.ctx, screenplay(panel_scene("b", "a diode")))
+    full = f"a diode. {chain.ctx.settings.image_style_suffix}"
+    assert new.manifest.media["b"].side_panel.asset_key == media_key(
+        "image", full, provider="gemini", model=NEW_IMAGE_MODEL, aspect=assets_mod.PANEL_IMAGE_ASPECT)
+    assert len(chain.primary_image.calls) == 2
+    # generation turned off on the server: the earlier image is still found
+    chain.primary_image = None
+    configure(chain.ctx, image_provider="none")
+    off = build(chain.ctx, sp)
+    assert off.manifest.media["a"].side_panel.asset_key == first.asset_key
+    assert ("assets.cached_media_used", "a") in codes(off)
+
+
+def test_an_explicitly_configured_image_model_makes_new_images(chain):
+    chain.primary_image = ScriptedImage("gemini", paid=True)
+    configure(chain.ctx, image_provider="gemini", image_model="gemini-2.5-flash-image")
+    sp = screenplay(panel_scene("a", "a transistor"))
+    first = build(chain.ctx, sp).manifest.media["a"].side_panel
+    configure(chain.ctx, image_model="gemini-3.1-flash-image")  # the operator's own choice: new pictures
+    again = build(chain.ctx, sp, scene_ids=["a"])
+    assert again.manifest.media["a"].side_panel.asset_key != first.asset_key
+    assert len(chain.primary_image.calls) == 2
+
+
+def test_clips_made_under_the_previous_default_model_are_reused_after_the_refresh(chain):
+    configure(chain.ctx, video_provider="veo", veo_model="veo-2.0-generate-001")  # the earlier default
+    sp = screenplay(video_scene())
+    first = build(chain.ctx, sp).manifest.media["lab"].main
+    assert first is not None and first.source == "veo"
+    made_by = chain.primary_video
+    configure(chain.ctx, veo_model=NEW_VEO_MODEL)  # upgraded with VEO_MODEL unset
+    again = build(chain.ctx, sp, scene_ids=["lab"])
+    media = again.manifest.media["lab"]
+    assert media.main.asset_key == first.asset_key and not media.main_is_fallback
+    assert len(made_by.calls) == 1  # not paid again
+    # AI video turned off on the server (Veo 2 is shut down): the earlier clip is still shown
+    chain.primary_video = None
+    configure(chain.ctx, video_provider="none")
+    off = build(chain.ctx, sp, scene_ids=["lab"])
+    media = off.manifest.media["lab"]
+    assert media.main is not None and media.main.asset_key == first.asset_key and not media.main_is_fallback
+    assert ("assets.cached_media_used", "lab") in codes(off)
+
+
+def test_an_explicitly_configured_veo_model_makes_new_clips(chain):
+    configure(chain.ctx, video_provider="veo", veo_model="veo-2.0-generate-001")
+    sp = screenplay(video_scene())
+    first = build(chain.ctx, sp).manifest.media["lab"].main
+    configure(chain.ctx, veo_model="veo-3.1-generate-preview")  # the operator's own choice: a new clip
+    again = build(chain.ctx, sp, scene_ids=["lab"])
+    assert again.manifest.media["lab"].main.asset_key != first.asset_key
+    assert len(chain.primary_video.calls) == 2
+
+
 def test_collecting_an_already_submitted_clip_skips_the_still_wanted_guard(chain, veo):
     from aadhi.jobs.base import JobCancelled
     from aadhi.storage.assets import generation_guard
@@ -446,6 +521,7 @@ def test_collecting_an_already_submitted_clip_skips_the_still_wanted_guard(chain
 def test_a_clip_submitted_before_a_graceful_release_is_collected_despite_the_budget(chain, veo):
     """Veo accepted the clip, then a deploy released the worker while it polled: the abandoned estimate (4 USD)
     was recorded. Collecting the clip costs nothing new, so the budget pre-check (4 + 4 > 5) must not refuse it."""
+    configure(chain.ctx, veo_model="veo-x")  # the pre-check prices the model the fake bills (4 USD per clip)
     chain.primary_video.mode = "release"
     chain.ctx.budget_usd = 5.0
     with pytest.raises(Crash):
@@ -616,12 +692,22 @@ def test_a_kill_while_the_request_is_outstanding_stays_ambiguous(chain, monkeypa
     assert client.models.calls == [] and ("video.ambiguous_submission", "lab") in codes(res)
 
 
-def test_an_unanswered_attempt_keeps_the_record_ambiguous_through_later_error_answers(chain, monkeypatch):
+def test_an_unanswered_attempt_is_never_sent_again_and_needs_a_person(chain, monkeypatch):
     from tests.providers.fakes import gemini_error
 
     chain.ctx.job_id = _job_row()
-    _veo(chain, monkeypatch, [TimeoutError("no answer"), gemini_error(429, "quota", "RESOURCE_EXHAUSTED")],
-         sleep=_killing_sleep(2))
-    with pytest.raises(Crash):
-        build(chain.ctx, screenplay(video_scene()))
-    assert next(iter(_payload(chain.ctx.job_id)[PAYLOAD_KEY].values()))["status"] == "submitting"
+    client = _veo(chain, monkeypatch, [TimeoutError("no answer"), gemini_error(429, "quota", "RESOURCE_EXHAUSTED"),
+                                       _done_op()])
+    res = build(chain.ctx, screenplay(video_scene()))
+    # Veo may have accepted (and billed) the unanswered request: no second request, a still image and an issue
+    assert len(client.models.calls) == 1, "a request that may already be billed is never sent again"
+    assert res.manifest.media["lab"].main_is_fallback
+    assert ("video.ambiguous_submission", "lab") in codes(res)
+    assert next(iter(_payload(chain.ctx.job_id)[PAYLOAD_KEY].values()))["status"] == "ambiguous"
+    assert not [u for u in chain.ctx.usages if u.operation == "video" and u.meta.get("status") == "generated"]
+
+    # a restart of the same job keeps it waiting for a person instead of paying again
+    ctx2 = _restart(chain.ctx, chain.ctx.job_id)
+    client = _veo(chain, monkeypatch, [_done_op()])
+    res = build(ctx2, screenplay(video_scene()))
+    assert client.models.calls == [] and ("video.ambiguous_submission", "lab") in codes(res)

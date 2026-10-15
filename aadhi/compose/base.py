@@ -10,6 +10,8 @@
     captions.to_srt(cues) / captions.to_vtt(cues) -> str
     chapters.youtube_chapters(timeline) -> str
     video.render_video  (job handler "render_video")         (timeline -> MP4 + SRT/VTT + chapters)
+    base.stage_size(format) -> (w, h)                         (logical stage per format; None = landscape)
+    base.output_size(timeline, settings) -> (w, h)            (MP4 size; classic = RENDER_WIDTH x RENDER_HEIGHT)
 
 (Narration audio concatenation lives in ``aadhi.pipeline.audio`` because it is part of the
 asset stage; compose only consumes finished per-scene audio files.)
@@ -26,6 +28,7 @@ Hotlinked GIFs (``render_in_mp4=False``) are skipped in MP4s; 3D panels are a fi
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Protocol
 
 ResolveUrl = Callable[[str], str]
 
@@ -80,3 +83,54 @@ QUIZ_REVEAL_HOLD_SECONDS = 1.0  # extra hold after the reveal before the next sc
 # Stage geometry: the player renders a fixed 1920x1080 logical stage scaled with a CSS transform.
 STAGE_WIDTH = 1920
 STAGE_HEIGHT = 1080
+
+# Logical stage per video format (DYNAMIC_VIDEO_DESIGN §2.1): the canvas the page lays out at DPR 1. The classic
+# Aadhi presenter is always landscape; a Dynamic reel is portrait. The constants above stay the landscape stage.
+STAGE_SIZES: dict[str, tuple[int, int]] = {
+    "landscape": (STAGE_WIDTH, STAGE_HEIGHT),
+    "portrait": (STAGE_HEIGHT, STAGE_WIDTH),
+}
+
+
+class _Sized(Protocol):
+    width: int
+    height: int
+
+
+class _RenderSize(Protocol):
+    render_width: int
+    render_height: int
+
+
+def stage_size(format: str | None = None) -> tuple[int, int]:
+    """Logical stage ``(width, height)`` of a video format (``"landscape"`` / ``"portrait"``); None = landscape
+    (the classic presenter). Raises ValueError for an unknown format."""
+    try:
+        return STAGE_SIZES[format or "landscape"]
+    except KeyError:
+        raise ValueError(f"unknown video format {format!r}") from None
+
+
+def timeline_stage(tl: _Sized) -> tuple[int, int]:
+    """The stage a timeline was laid out on (``Timeline.width`` x ``Timeline.height``): the render page's
+    viewport and the size of its screenshots. 1920x1080 for every classic timeline."""
+    return int(tl.width), int(tl.height)
+
+
+def _even(value: float) -> int:
+    return max(2, 2 * round(value / 2))
+
+
+def output_size(tl: _Sized, settings: _RenderSize) -> tuple[int, int]:
+    """Encoded MP4 size of a timeline.
+
+    The classic landscape stage keeps ``RENDER_WIDTH`` x ``RENDER_HEIGHT`` exactly, as before. Any other stage
+    keeps the configured quality: it is scaled by the configured short side over the landscape stage's short side
+    (1080), rounded to even pixels for 4:2:0 video, so 1920x1080 settings give a 1080x1920 reel and 1280x720
+    settings a 720x1280 one.
+    """
+    stage = timeline_stage(tl)
+    if stage == (STAGE_WIDTH, STAGE_HEIGHT):
+        return int(settings.render_width), int(settings.render_height)
+    scale = min(int(settings.render_width), int(settings.render_height)) / min(STAGE_WIDTH, STAGE_HEIGHT)
+    return _even(stage[0] * scale), _even(stage[1] * scale)

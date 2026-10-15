@@ -1,0 +1,936 @@
+/* Dynamic video stage (web/js/dynamic, DYNAMIC_VIDEO_DESIGN §4, §7). Everything inside .dyn-stage is in stage pixels
+   (1920x1080 or 1080x1920), identical in the live player and the render page. Every moving value is written per
+   frame by the stage's painter as a pure function of time, so this file declares no time-based effects at all
+   (the determinism scan of §7.4 checks it). Colours arrive as custom properties from the colour roles (§4.7): the
+   stage and each scene set --dyn-ink and --dyn-page (stage.js), a card its --surface/--ink/--border (board_generic);
+   the only literal colours here are neutral shadows and the captions (white on a dark pill or outline, and the
+   key-term yellow until B2's `mark` role; §4.11, R-53), which must not change with the family.
+   No `will-change`: a promoted layer keeps the raster of its first scale and state, so a frame would depend on the
+   frames painted before it (measured: renders in reverse order differed); every frame must depend on its time only.
+   The one exception is a contain_blur clip's box, which has no transform or scale of its own (see there). */
+
+/* The stage resets everything it inherits, so the live pages (base.css, player.css) and the bare render page lay it
+   out identically (live/MP4 parity, §7.4.7b). */
+.dyn-stage,
+.dyn-stage *,
+.dyn-stage *::before,
+.dyn-stage *::after {
+  box-sizing: border-box;
+}
+
+/* zero specificity: the UA's margins go, the stage's own classes still win */
+:where(.dyn-stage) :where(h2, p, figure, pre, table) {
+  margin: 0;
+}
+
+.dyn-stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: hidden;
+  contain: layout paint style;
+  font-size: 16px;
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1.3;
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-align: left;
+  text-transform: none;
+  white-space: normal;
+  font-family: var(--dyn-font-body);
+  font-kerning: normal;
+  font-variant-ligatures: common-ligatures;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  color: var(--dyn-ink);
+  background: var(--dyn-page);
+  user-select: none;
+}
+
+.dyn-stage.is-captions-only {
+  background: transparent;
+}
+
+.dyn-scenes,
+.dyn-scene,
+.dyn-bg-fill,
+.dyn-content,
+.dyn-camera,
+.dyn-cues,
+.dyn-captionlayer {
+  position: absolute;
+  inset: 0;
+}
+
+/* --- cues (web/js/dynamic/cues.js; §4.8, B2 plan §1.5) ----------------------------------------------------------
+   .dyn-camera: the Slot's push wrapper around a push_ok template's layer (cues.js writes its transform and origin per
+   frame; templates never transform their own root). .dyn-cues: the look_here outline layer above the content and
+   below the captions; it never takes pointer events. A term cue styles its own span (background layers). */
+.dyn-cues {
+  pointer-events: none;
+}
+
+.dyn-cues-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  overflow: visible;
+}
+
+/* --- shared template parts (web/js/dynamic/templates/_shared.js) ---------------------------------------------------
+   A stored icon (ResolvedLook.icons, drawn by _shared.js storedIcon): explicit display and vertical alignment, so an
+   inline icon sits on the text's middle and a block icon has no baseline gap below it (B2b review). Its stroke, caps,
+   joins and fill are attributes the helper sets from the stored geometry. */
+.dyn-sicon {
+  display: inline-block;
+  vertical-align: middle;
+  flex: none;
+  overflow: visible;
+}
+
+.dyn-sicon--block {
+  display: block;
+}
+
+/* An item state (state.js ITEM_STATES, _shared.js paintItemState): a 2 px inset border in the state's colour (never an
+   outline: that is the look_here cue's), the "done" check and the "struck" line over the item's box; none takes
+   layout room, so a state change never moves text. */
+.dyn-stateful {
+  box-shadow: inset 0 0 0 2px var(--dyn-state-border, transparent);
+}
+
+.dyn-state-mark {
+  position: absolute;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.dyn-state-check {
+  right: 16px;
+  top: 50%;
+  width: 1em;
+  height: 1em;
+  margin-top: -0.5em;
+}
+
+.dyn-state-strike {
+  left: 0;
+  top: 0;
+}
+
+/* A text-entrance mask (_shared.js revealMask): the Crisp "revealed from the baseline" entrance slides the text up
+   inside it. */
+.dyn-reveal-mask {
+  display: block;
+  overflow: hidden;
+}
+
+.dyn-scenes {
+  z-index: 0; /* its own stacking context: the scenes' z-index never lifts them above the captions */
+}
+
+.dyn-scene {
+  overflow: hidden;
+  color: var(--dyn-ink); /* the ink on this scene's background (stage.js), for text without a colour of its own */
+}
+
+/* --- backgrounds (§4.5) --------------------------------------------------------------------------------------- */
+
+.dyn-bg--mesh {
+  overflow: hidden;
+}
+
+.dyn-bg-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.dyn-blob {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 50%;
+}
+
+.dyn-bg--block {
+  overflow: hidden;
+}
+
+.dyn-bg-grain {
+  background-repeat: repeat;
+  background-size: 384px 384px; /* the 48 px tile x GRAIN_SCALE (colour_block.js), smoothly scaled */
+  image-rendering: auto;
+}
+
+.dyn-presenter {
+  position: absolute;
+  overflow: hidden;
+  border-radius: 28px;
+}
+
+/* --- board_generic: title block --------------------------------------------------------------------------------- */
+
+.dyn-board {
+  position: absolute;
+  inset: 0;
+}
+
+.dyn-titleblock {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.dyn-titleblock--center {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.dyn-header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: calc(var(--kicker) * 1.2);
+  font-family: var(--dyn-font-body);
+  font-size: var(--kicker);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.dyn-titleblock--top .dyn-header {
+  max-width: calc(100% - 350px); /* room for the "earlier" chip at the right ("+9 earlier" at 40 px) */
+}
+
+.dyn-board--portrait .dyn-titleblock--top .dyn-header {
+  max-width: calc(100% - 290px); /* "+9 earlier" at 44 px */
+}
+
+.dyn-board .dyn-titleblock--top .dyn-header.is-chipless {
+  max-width: 100%; /* no card of the scene ever collapses: no chip, the kicker takes the whole line */
+}
+
+.dyn-titleblock.has-scrim {
+  padding: 10px 24px 14px;
+  margin-left: -24px; /* a top block's text stays on the zone edge, the scrim reaches 24 px past it */
+  border-radius: 24px;
+  background: var(--scrim);
+}
+
+.dyn-titleblock--center.has-scrim {
+  margin-left: 0; /* a centred block keeps its centre: the padding comes out of both sides */
+}
+
+.dyn-header.is-empty .dyn-kicker-text {
+  display: none;
+}
+
+.dyn-kicker-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dyn-pip {
+  flex: none;
+  width: 12px;
+  height: calc(var(--kicker) * 0.95);
+  border-radius: 6px;
+}
+
+.dyn-titleblock--center .dyn-header {
+  margin-bottom: 18px;
+}
+
+.dyn-title {
+  margin: 10px 0 0;
+  max-width: 100%;
+  font-family: var(--dyn-font-display);
+  font-weight: 700;
+  line-height: var(--lh, 1.06);
+  letter-spacing: -0.015em;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.dyn-board--portrait .dyn-title {
+  margin-top: 8px;
+}
+
+.dyn-word {
+  display: inline-block;
+}
+
+.dyn-subtitle {
+  margin: 28px 0 0;
+  font-size: 52px;
+  font-weight: 400;
+  line-height: 1.3;
+  max-width: 1400px;
+}
+
+.dyn-board--portrait .dyn-subtitle {
+  font-size: 48px;
+}
+
+.dyn-chipwrap {
+  position: absolute;
+  right: 96px;
+  top: 54px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+}
+
+.dyn-board--portrait .dyn-chipwrap {
+  right: 192px;
+  top: 292px;
+}
+
+.dyn-chip {
+  display: inline-block;
+  padding: 6px 22px 7px;
+  border-radius: 999px;
+  font-size: 40px; /* R-29: labels >= 40 px in 16:9 */
+  font-weight: 600;
+  line-height: 1.1;
+  white-space: nowrap;
+  color: var(--ink2);
+  background: var(--surface);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+.dyn-board--portrait .dyn-chip {
+  font-size: 44px; /* R-29: labels >= 44 px in 9:16 */
+}
+
+/* --- board_generic: cards --------------------------------------------------------------------------------------- */
+
+.dyn-board--portrait {
+  --min-text: 40px; /* R-29: never below 40 px in 9:16 */
+  --min-label: 44px; /* R-29: labels >= 44 px in 9:16 (40 px in 16:9, the default below) */
+}
+
+/* R-29 (9:16): text at <= 64 px is at least weight 600 on a phone-sized reel; parts with their own weight keep it */
+.dyn-board--portrait .dyn-cards,
+.dyn-board--portrait .dyn-subtitle {
+  font-weight: 600;
+}
+
+.dyn-board--portrait .dyn-code {
+  font-weight: 400; /* code stays regular (JetBrains Mono has 400 and 700 only): an exception to the rule above */
+}
+
+.dyn-cards {
+  position: absolute;
+  font-size: max(var(--min-text, 36px), calc(var(--body) * var(--fit, 1)));
+}
+
+.dyn-card {
+  position: absolute;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+  padding: 0.5em 0.72em 0.56em 0.8em;
+  border-radius: 24px;
+  border-left: 6px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  line-height: 1.3;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.26), 0 2px 6px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+
+/* a crowded quiz (a long question; board_generic COMPACT_GAP): tighter cards so every option stays in the column */
+.dyn-cards.is-compact .dyn-card {
+  padding-top: 0.3em;
+  padding-bottom: 0.34em;
+}
+
+.dyn-cards.is-compact .dyn-badge {
+  width: 1.25em; /* the letter keeps its R-29 label size; the ring around it is tighter */
+  height: 1.25em;
+}
+
+.dyn-i {
+  display: block;
+}
+
+.dyn-i-text,
+.dyn-i-term,
+.dyn-i-why,
+.dyn-i-caption {
+  overflow-wrap: anywhere;
+}
+
+.dyn-i-heading {
+  font-family: var(--dyn-font-display);
+  font-weight: 700;
+  font-size: 1.12em;
+  line-height: 1.15;
+}
+
+.dyn-i-bullet {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+}
+
+.dyn-dot {
+  flex: none;
+  width: 0.34em;
+  height: 0.34em;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.75;
+  transform: translateY(-0.12em);
+}
+
+.dyn-i-date {
+  font-weight: 700;
+}
+
+.dyn-i-definition .dyn-i-term,
+.dyn-i-pair .dyn-i-term {
+  font-family: var(--dyn-font-display);
+  font-weight: 700;
+  font-size: 1.08em;
+  line-height: 1.15;
+  margin-bottom: 0.18em;
+}
+
+.dyn-i-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 0.42fr) minmax(0, 0.58fr);
+  gap: 0.7em;
+  align-items: baseline;
+}
+
+.dyn-i-pair .dyn-i-term {
+  margin: 0;
+}
+
+.dyn-i-formula {
+  text-align: center;
+}
+
+.dyn-i-tex {
+  font-size: 1.25em;
+  overflow: hidden;
+}
+
+.dyn-i-tex mjx-container[display='true'] {
+  margin: 0.15em 0 !important; /* MathJax's display margin (1em) would leave a gap inside the card */
+}
+
+.dyn-i-tex svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.dyn-i-sub {
+  margin-top: 0.3em;
+  font-size: 0.86em;
+}
+
+.dyn-vars {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.2em 1.1em;
+  margin-top: 0.4em;
+  font-size: max(var(--min-text, 36px), 0.78em);
+}
+
+.dyn-var {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4em;
+}
+
+.dyn-var-unit {
+  opacity: 0.8;
+}
+
+.dyn-var-unit::before {
+  content: '(';
+}
+
+.dyn-var-unit::after {
+  content: ')';
+}
+
+.dyn-i-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  font-size: max(var(--min-label, 40px), 0.78em);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  margin-bottom: 0.15em;
+}
+
+.dyn-icon {
+  width: 1.05em;
+  height: 1.05em;
+  flex: none;
+}
+
+.dyn-tone--warning .dyn-i-label,
+.dyn-tone--warn .dyn-icon,
+.dyn-tone--warn .dyn-i-label {
+  color: var(--warn);
+}
+
+.dyn-tone--ok .dyn-icon,
+.dyn-tone--ok .dyn-i-label {
+  color: var(--ok);
+}
+
+.dyn-myth-row {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  gap: 0.35em;
+  align-items: baseline;
+}
+
+.dyn-myth-row + .dyn-myth-row {
+  margin-top: 0.35em;
+}
+
+.dyn-myth-row .dyn-i-label {
+  margin: 0;
+}
+
+.dyn-code {
+  margin: 0;
+  font-family: var(--dyn-font-mono);
+  font-size: max(var(--min-text, 36px), 0.76em);
+  line-height: 1.35;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.dyn-term-cmd {
+  font-weight: 700;
+}
+
+.dyn-i-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: max(var(--min-text, 36px), 0.78em);
+  line-height: 1.25;
+}
+
+.dyn-i-table th,
+.dyn-i-table td {
+  text-align: left;
+  padding: 0.18em 0.4em;
+  border-bottom: 2px solid color-mix(in srgb, var(--ink) 22%, transparent);
+}
+
+.dyn-i-table th {
+  font-weight: 700;
+}
+
+/* 9:16: a table wider than the column, one line per row under a legend of its headers (board_generic) */
+.dyn-i-table--stacked {
+  font-size: max(var(--min-text, 36px), 0.78em);
+  line-height: 1.25;
+}
+
+.dyn-tbl-legend {
+  padding-bottom: 0.2em;
+  margin-bottom: 0.2em;
+  color: var(--ink2);
+  border-bottom: 2px solid color-mix(in srgb, var(--ink) 22%, transparent);
+}
+
+.dyn-tbl-row + .dyn-tbl-row {
+  margin-top: 0.3em;
+}
+
+.dyn-tbl-key {
+  font-weight: 700;
+}
+
+.dyn-figure {
+  position: relative;
+  width: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.dyn-figure-missing {
+  padding: 0.6em 0;
+  opacity: 0.75;
+}
+
+.dyn-i-caption {
+  margin-top: 0.3em;
+  font-size: max(var(--min-text, 36px), 0.8em);
+  color: var(--ink2);
+}
+
+.dyn-i-step,
+.dyn-i-question {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.6em;
+  align-items: baseline;
+}
+
+.dyn-i-step .dyn-i-label,
+.dyn-i-question .dyn-i-label {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.dyn-fillable {
+  display: grid;
+}
+
+.dyn-fillable > * {
+  grid-area: 1 / 1;
+}
+
+.dyn-blank {
+  letter-spacing: 0.06em;
+  opacity: 0.8;
+}
+
+.dyn-i-why {
+  margin-top: 0.2em;
+  font-size: max(var(--min-text, 36px), 0.82em);
+  color: var(--ink2);
+}
+
+.dyn-i-takeaway {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+  font-weight: 600;
+}
+
+.dyn-i-takeaway .dyn-icon {
+  transform: translateY(0.12em);
+}
+
+.dyn-stat-value {
+  font-family: var(--dyn-font-display);
+  font-weight: 700;
+  font-size: 2.2em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.dyn-stat-unit {
+  font-size: 0.5em;
+  font-weight: 600;
+}
+
+.dyn-i-quote .dyn-i-text {
+  font-family: var(--dyn-font-display);
+  font-size: 1.08em;
+  line-height: 1.25;
+}
+
+.dyn-i-option {
+  display: flex;
+  align-items: center;
+  gap: 0.55em;
+}
+
+.dyn-i-option .dyn-i-text {
+  flex: 1 1 auto;
+}
+
+.dyn-badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: 50%;
+  border: 3px solid var(--border);
+  font-weight: 700;
+  font-size: max(var(--min-label, 40px), 0.8em);
+  line-height: 1;
+}
+
+.dyn-check {
+  width: 1.2em;
+  height: 1.2em;
+  color: var(--ok);
+}
+
+.dyn-i-explanation .dyn-i-label {
+  color: var(--ok);
+}
+
+/* rich-lite inline markup (web/js/player/richtext.js); a [[keyword]] gets weight only: emphasis is a cue (§4.8).
+   player.css styles .rt-* for the classic board (colour, glow, chip); the stage undoes every one of those so the
+   live player matches the bare render page (§7.4.7b). `.dyn-stage .x` (0,2,0) beats `.x` (0,1,0) in any order. */
+.dyn-stage .rt-b,
+.dyn-stage .rt-k {
+  font-weight: 700;
+  color: inherit;
+  text-shadow: none;
+}
+
+/* **bold** in a title (a rich-lite quiz question) is heavier than the 700 title around it, or it would not show
+   (emphasis by weight only, §4.8). The display face Outfit has a 900 face (web/vendor/fonts.css, preloaded by the
+   render page: render/fonts.js BASE_FONTS). A face whose heaviest is 700 (Inter, the Noto Indic faces) draws 900 with
+   that 700 face, so there the bold does not stand out, but it is never a synthesised (smeared) bold: Chromium
+   synthesises only for a family with no face of 600 or more (measured: Inter and Noto Sans Tamil / Devanagari glyphs
+   at 900 are pixel-identical to 700). A [[term]] keeps the title's weight: B2's cue.term draws it (cues.js). */
+.dyn-stage .dyn-title .rt-b {
+  font-weight: 900;
+}
+
+.dyn-stage .rt-i {
+  font-style: italic;
+}
+
+.dyn-stage .rt-code {
+  padding: 0;
+  font-family: var(--dyn-font-mono);
+  font-size: 0.9em;
+  color: inherit;
+  background: none;
+  border-radius: 0;
+}
+
+.dyn-stage .rt-math.is-pending {
+  visibility: hidden;
+}
+
+.dyn-stage .rt-math.is-error {
+  font-family: var(--dyn-font-mono);
+  font-size: 0.85em;
+  color: inherit;
+}
+
+.dyn-stage mjx-container {
+  color: inherit;
+}
+
+/* --- media frame (§7.7) ------------------------------------------------------------------------------------------ */
+
+.dyn-frame {
+  position: absolute;
+  overflow: hidden;
+  border-radius: 28px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.32);
+}
+
+/* the matte around contained media is the scene's own page colour (stage.js --dyn-page): a light family's page, not
+   a dark hole in it */
+.dyn-media {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--dyn-page);
+}
+
+.dyn-figure .dyn-media {
+  background: transparent;
+}
+
+.dyn-media-el {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.dyn-media--cover .dyn-media-el {
+  object-fit: cover;
+}
+
+/* contain_blur (media.js BACKDROP_WIDTH): the medium contained over a blurred, darkened copy of the same frame. The copy
+   is a small canvas stretched over the box (its smooth upscaling is part of the blur); the medium is positioned too,
+   so it paints above it (document order) */
+.dyn-media-backdrop {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.dyn-media--contain_blur .dyn-media-el {
+  position: relative;
+}
+
+/* The one promoted layer (see the header), a contain_blur clip's box: Chromium composites every 2D canvas, so the
+   clip painted above the backdrop gets a layer of its own, and without a layer for the box around both, what shares
+   that layer changes while the frame enters and as text comes and goes; a clip shows a new picture every frame, and
+   that picture was then drawn differently depending on the frames painted before it (measured: 93 of 120 16:9 frames
+   differed between a forward and a reverse render, by up to 62 levels; none with this, in either format). The box
+   has no transform of its own. Clips only: a picture (one picture, Ken Burns scaling it inside the box) is
+   order-independent without it and not with it (measured: 62 of 120 9:16 frames differed with the box promoted). */
+.dyn-media--contain_blur.dyn-media--clip {
+  will-change: transform;
+}
+
+.dyn-media-el.is-broken {
+  visibility: hidden;
+}
+
+/* media this render cannot show (a live-only GIF): the panel's title on the card surface (board_generic) */
+.dyn-frame.is-missing .dyn-media {
+  background: var(--surface);
+}
+
+.dyn-media-missing {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1em;
+  font-size: 52px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  color: var(--ink2);
+}
+
+.dyn-presenter .dyn-media-el {
+  object-fit: cover;
+}
+
+/* --- quiz countdown ring --------------------------------------------------------------------------------------- */
+
+.dyn-ring {
+  position: absolute;
+  width: 96px;
+  height: 96px;
+}
+
+.dyn-ring-svg {
+  display: block;
+  transform: rotate(-90deg);
+}
+
+/* stroke and stroke-opacity: the ink it sits on (board_generic RING_TRACK_ALPHA), for dark and light families */
+.dyn-ring-track {
+  fill: none;
+  stroke-width: 8;
+}
+
+.dyn-ring-arc {
+  fill: none;
+  stroke-width: 8;
+  stroke-linecap: round;
+}
+
+.dyn-ring-num {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--min-label, 40px); /* R-29: a label, >= 40 px in 16:9 and >= 44 px in 9:16 */
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- captions (§4.11): one fixed band per format (R-34, R-59) --------------------------------------------------- */
+
+.dyn-captionlayer {
+  z-index: 1;
+  pointer-events: none;
+}
+
+.dyn-captions {
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+}
+
+/* the live player lifts captions above its visible control bar (Player.setCaptionLift); 0 in render mode */
+.dyn-mode--live .dyn-captions {
+  translate: 0 calc(-1 * var(--caption-lift, 0px));
+}
+
+.dyn-captions--portrait {
+  align-items: center;
+}
+
+.dyn-caption {
+  max-width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.dyn-caption-text {
+  font-family: var(--dyn-font-body);
+  overflow-wrap: anywhere;
+}
+
+.dyn-captions--landscape .dyn-caption-text {
+  font-size: 48px;
+  font-weight: 600;
+  line-height: 1.08; /* two lines and the pill fit the 108 px band (y 924-1032, R-59) */
+}
+
+.dyn-captions--portrait .dyn-caption-text {
+  font-size: 56px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.dyn-captions--clean_pill .dyn-caption {
+  padding: 2px 24px;
+  border-radius: 18px;
+  background: rgba(11, 13, 20, 0.78);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.dyn-captions--clean_pill .dyn-caption-text {
+  color: #fff;
+}
+
+.dyn-captions--bold_outline .dyn-caption-text {
+  color: #fff;
+  font-weight: 700;
+  -webkit-text-stroke: 12px #0b0d14; /* centred on the outline; the fill covers the inner half: 6 px outside */
+  paint-order: stroke fill;
+  word-spacing: 0.16em; /* the outline eats into the spaces between words */
+}
+
+.dyn-caption-key {
+  color: #f2d935;
+}
+
+/* --- 9:16: labels above their text (the column is narrow) ------------------------------------------------------- */
+
+.dyn-board--portrait .dyn-i-step,
+.dyn-board--portrait .dyn-i-question {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.1em;
+}
+
+.dyn-board--portrait .dyn-myth-row {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.dyn-board--portrait .dyn-myth-row .dyn-i-text {
+  grid-column: 1 / -1;
+}
+
+.dyn-board--portrait .dyn-i-pair {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.15em;
+}

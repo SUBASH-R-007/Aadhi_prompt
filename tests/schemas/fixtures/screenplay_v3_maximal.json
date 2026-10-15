@@ -1,0 +1,745 @@
+{
+ "schema_version": 3,
+ "subject_name": "Physics",
+ "unit_name": "Electric circuits",
+ "session_number": "Session 2",
+ "session_title": "Ohm's law",
+ "language": "en-IN",
+ "board_language": null,
+ "learning_objectives": [],
+ "concept_map": [
+  {
+   "id": "ohm",
+   "title": "Ohm's law",
+   "summary": "",
+   "depends_on": [],
+   "kind": "core"
+  }
+ ],
+ "misconceptions": [],
+ "chapters": [
+  {
+   "id": "ch1",
+   "title": "Why the bulb glows",
+   "scene_ids": [
+    "s-hook",
+    "s-pre"
+   ]
+  },
+  {
+   "id": "ch2",
+   "title": "The law",
+   "scene_ids": [
+    "s-explain",
+    "c1",
+    "s-check"
+   ],
+   "builds_on": false
+  }
+ ],
+ "lexicon": [],
+ "scenes": [
+  {
+   "id": "s-hook",
+   "concept_id": null,
+   "chapter_id": "ch1",
+   "title": "Why does a thin wire glow?",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "b-hi",
+     "narration": "Vanakkam! Today we solve a mystery.",
+     "spoken": null,
+     "board_item_id": "q-hook",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": [],
+     "speaker": "aadhi"
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": {
+    "goal": "Hook",
+    "key_points": [],
+    "source_refs": [],
+    "narrative_role": "hook",
+    "bridge_in": "",
+    "visual_intent": "hook"
+   },
+   "notes": "",
+   "look": {
+    "template": "intro_card",
+    "variant": "a",
+    "background": "mesh_drift",
+    "palette_slot": 3,
+    "transition_in": "crossfade",
+    "hold_reason": "think",
+    "presenter": {
+     "clip": "center",
+     "seconds": 4.5,
+     "layout": "card_left"
+    },
+    "continues_from": null,
+    "lock": "settled"
+   },
+   "type": "title",
+   "board": [
+    {
+     "id": "q-hook",
+     "kind": "question",
+     "text": "Why does the thin wire glow?",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": "More resistance, more heat.",
+     "blank": true,
+     "misconception_id": null,
+     "source_refs": [],
+     "icon_hint": "bulb",
+     "level": "recall"
+    }
+   ]
+  },
+  {
+   "id": "s-pre",
+   "concept_id": "ohm",
+   "chapter_id": "ch1",
+   "title": "Three words first",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "b-st",
+     "narration": "A filament can be twelve hundred ohms.",
+     "spoken": null,
+     "board_item_id": "st1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": [],
+     "speaker": "student"
+    },
+    {
+     "id": "b-step1",
+     "narration": "First, Ohm measured the current.",
+     "spoken": null,
+     "board_item_id": "step1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": [],
+     "cuts": [
+      {
+       "start": 0,
+       "end": 1,
+       "text": "First,",
+       "mode": "splice"
+      }
+     ]
+    },
+    {
+     "id": "b-step2",
+     "narration": "Then the law got his name.",
+     "spoken": null,
+     "board_item_id": "step2",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": [],
+     "voice_override_asset_key": "narration-key-1"
+    },
+    {
+     "id": "b-quote",
+     "narration": "In his own words, current follows voltage.",
+     "spoken": null,
+     "board_item_id": "qt1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": [],
+     "overlays": [
+      {
+       "id": "o1",
+       "at_word": 3,
+       "at_text": "words",
+       "clip": {
+        "asset_key": "clip-key-1",
+        "in_frame": 30,
+        "out_frame": 90
+       },
+       "region": "panel",
+       "sound": "quiet",
+       "concept_id": "ohm",
+       "keep_full_length": true
+      }
+     ]
+    },
+    {
+     "id": "b-pair",
+     "narration": "Think of voltage as water pressure.",
+     "spoken": null,
+     "board_item_id": "pr1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "b-fig",
+     "narration": "Look at the resistor here.",
+     "spoken": null,
+     "board_item_id": "fig-item",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "b-predict",
+     "narration": "Predict: what will the bulb do?",
+     "spoken": null,
+     "board_item_id": "q-pre",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": [],
+     "speaker": "student",
+     "cuts": [
+      {
+       "start": 0,
+       "end": 1,
+       "text": "Predict:",
+       "mode": "revoice"
+      },
+      {
+       "start": 4,
+       "end": 6,
+       "text": "bulb do?",
+       "mode": "splice"
+      }
+     ]
+    },
+    {
+     "id": "b-fill",
+     "narration": "It glows dimmer.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": "q-pre",
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": {
+    "kind": "image",
+    "title": null,
+    "rationale": "",
+    "show_from_beat_id": null,
+    "figure_id": null,
+    "image_prompt": "resistor colour bands",
+    "chart": null,
+    "graph": null,
+    "model_3d": null,
+    "manim": null,
+    "terminal": null,
+    "quiz": null,
+    "gif_query": null,
+    "override_asset_key": null,
+    "colour_is_content": true
+   },
+   "objective_ids": [],
+   "intent": {
+    "goal": "Pre-training",
+    "key_points": [],
+    "source_refs": [],
+    "narrative_role": "pretraining",
+    "bridge_in": "",
+    "visual_intent": "pretraining"
+   },
+   "notes": "",
+   "look": {
+    "template": "step_flow",
+    "variant": null,
+    "background": null,
+    "palette_slot": null,
+    "transition_in": null,
+    "hold_reason": null,
+    "presenter": null,
+    "continues_from": "s-hook",
+    "lock": "pinned"
+   },
+   "colour_is_content": true,
+   "type": "content",
+   "board": [
+    {
+     "id": "st1",
+     "kind": "stat",
+     "text": "a bulb filament",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": [
+      "c1"
+     ],
+     "value": "1,200",
+     "unit": "ohm"
+    },
+    {
+     "id": "step1",
+     "kind": "step",
+     "text": "Ohm measures current",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": [],
+     "date": "1827"
+    },
+    {
+     "id": "step2",
+     "kind": "step",
+     "text": "The law is named",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": [],
+     "date": "1830s"
+    },
+    {
+     "id": "qt1",
+     "kind": "quote",
+     "text": "The current is proportional to the voltage.",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": "G. S. Ohm",
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "pr1",
+     "kind": "pair",
+     "text": "Voltage",
+     "term": "Water pressure",
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "fig-item",
+     "kind": "figure",
+     "text": "",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": "fig1",
+     "caption": "A circuit",
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": [],
+     "pins": [
+      {
+       "id": "pin-r",
+       "x": 0.25,
+       "y": 0.75,
+       "label": "Resistor"
+      }
+     ]
+    },
+    {
+     "id": "q-pre",
+     "kind": "question",
+     "text": "What will the bulb do?",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": "Glow dimmer.",
+     "blank": true,
+     "misconception_id": null,
+     "source_refs": [],
+     "level": "transfer"
+    }
+   ],
+   "sequence": "timeline"
+  },
+  {
+   "id": "s-explain",
+   "concept_id": null,
+   "chapter_id": "ch2",
+   "title": "The law",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "b-answer",
+     "narration": "The thin wire resists the current, so it heats and glows.",
+     "spoken": null,
+     "board_item_id": "f1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": [],
+     "answers": "s-hook/q-hook"
+    },
+    {
+     "id": "b-answer2",
+     "narration": "So the bulb glows dimmer.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": [],
+     "answers": "s-pre/q-pre"
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": {
+    "goal": "Explain",
+    "key_points": [],
+    "source_refs": [],
+    "narrative_role": "predict",
+    "bridge_in": "",
+    "visual_intent": "formula"
+   },
+   "notes": "",
+   "type": "content",
+   "board": [
+    {
+     "id": "f1",
+     "kind": "formula",
+     "text": "",
+     "term": null,
+     "latex": "V = IR",
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": [],
+     "icon_hint": "zap"
+    }
+   ]
+  },
+  {
+   "id": "c1",
+   "concept_id": null,
+   "chapter_id": "ch2",
+   "title": "Lab demo",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "b-vo",
+     "narration": "Watch the filament as the switch closes.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "look": {
+    "template": "clip_scene",
+    "variant": null,
+    "background": null,
+    "palette_slot": null,
+    "transition_in": null,
+    "hold_reason": null,
+    "presenter": null,
+    "continues_from": null,
+    "lock": "auto"
+   },
+   "type": "clip",
+   "clip": {
+    "asset_key": "clip-key-1",
+    "in_frame": 0,
+    "out_frame": 150
+   },
+   "sound": "mute",
+   "gain_db": -6.5,
+   "fit": "cover",
+   "focus": {
+    "landscape": [
+     0.5,
+     0.4
+    ],
+    "portrait": [
+     0.3,
+     0.6
+    ]
+   },
+   "end_behavior": "loop",
+   "captions": [
+    {
+     "start": 0.0,
+     "end": 1.5,
+     "text": "Switching on"
+    }
+   ],
+   "credit": "Video by A. Teacher (CC BY 4.0)"
+  },
+  {
+   "id": "s-check",
+   "concept_id": null,
+   "chapter_id": "ch2",
+   "title": "Check",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "b-q",
+     "narration": "Doubling the resistance does what?",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": [],
+     "speaker": "aadhi"
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": {
+    "goal": "Recap",
+    "key_points": [],
+    "source_refs": [],
+    "narrative_role": "recap",
+    "bridge_in": "",
+    "visual_intent": "check"
+   },
+   "notes": "",
+   "type": "quiz_checkpoint",
+   "question": "Doubling R at fixed V does what to I?",
+   "options": [
+    "Halves it",
+    "Doubles it",
+    "Nothing"
+   ],
+   "correct_index": 0,
+   "feedback_wrong": [
+    "",
+    "",
+    ""
+   ],
+   "option_misconception_ids": [
+    null,
+    null,
+    null
+   ],
+   "explanation": "",
+   "bloom": "understand",
+   "countdown_seconds": 8,
+   "reveal_beats": [
+    {
+     "id": "b-r",
+     "narration": "It halves the current.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": [],
+     "overlays": [
+      {
+       "id": "o2",
+       "at_word": 0,
+       "at_text": "It",
+       "clip": {
+        "asset_key": "clip-key-1",
+        "in_frame": 0,
+        "out_frame": 30
+       },
+       "region": "full",
+       "sound": "mute",
+       "concept_id": null,
+       "keep_full_length": false
+      }
+     ]
+    }
+   ],
+   "source_refs": []
+  }
+ ],
+ "companion_sheet": {
+  "key_formulas": [],
+  "definitions": [],
+  "misconceptions": [],
+  "practice_problems": [],
+  "legacy_markdown": null
+ },
+ "figures": [
+  {
+   "id": "fig1",
+   "caption": "A simple circuit",
+   "page": null,
+   "asset_key": "figure-key-1",
+   "width": null,
+   "height": null
+  }
+ ],
+ "source": {
+  "filename": "",
+  "mime": "",
+  "pages": null,
+  "sha256": null
+ },
+ "presentation": {
+  "style": "dynamic",
+  "format": "portrait",
+  "length_profile": "platform_safe",
+  "reel_profile": "social",
+  "destination": "youtube",
+  "look_seed": 123456,
+  "look_epoch": 2,
+  "layout_epoch": 1,
+  "theme_family": "teal_coral",
+  "personality": "crisp",
+  "display_font": "outfit",
+  "caption_style": "clean_pill",
+  "cue_term_style": "underline",
+  "intro_layout": "card_left",
+  "reel_card_x": 540,
+  "hook_kind": "mystery",
+  "check_order": [
+   "recall",
+   "apply",
+   "predict"
+  ],
+  "greeting_id": "vanakkam-2",
+  "asset_style": {
+   "family": "teal_coral",
+   "personality": "crisp"
+  },
+  "voices": {
+   "narrator": "en-in-neerja",
+   "aadhi": "en-in-aadhi",
+   "student": "en-in-prabhat",
+   "calibration": {
+    "en-in-neerja": {
+     "natural_wpm": 158.5,
+     "control": "+8%"
+    },
+    "en-in-prabhat": {
+     "natural_wpm": 171.0,
+     "control": "speed=1.05"
+    }
+   }
+  },
+  "music": {
+   "source": "library",
+   "provider": "procedural",
+   "mood": "curious",
+   "asset_key": "music-key-1",
+   "mode": "gaps_bookends",
+   "level": "low"
+  },
+  "entity_colors": {
+   "V": 0,
+   "I": 1,
+   "R": 2
+  },
+  "hook": {
+   "question_item": "s-hook/q-hook",
+   "kind": "mystery",
+   "answer_beat": "s-explain/b-answer"
+  },
+  "aadhi_recap": false,
+  "captions_burn": false,
+  "sfx": false,
+  "motion": "calm",
+  "pins": [
+   "theme",
+   "voice",
+   "music"
+  ]
+ }
+}

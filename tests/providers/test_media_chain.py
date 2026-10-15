@@ -21,6 +21,7 @@ from aadhi.providers.base import (
     ContentBlocked,
     InvalidMediaOutput,
     OperationLost,
+    PaidSubmissionUncertain,
     ProviderError,
     ProviderNotConfigured,
     ProviderUnavailable,
@@ -319,7 +320,8 @@ class Checkpoint:
 
 @pytest.mark.asyncio
 async def test_veo_duration_and_checkpoint_before_polling(make_settings, fake_probe) -> None:
-    s = make_settings(gemini_api_key=GEMINI_KEYS[0], veo_duration_seconds=5)
+    # Veo 2 took any length as given (Veo 3.x rounding: test_media_providers.test_veo31_clip_lengths)
+    s = make_settings(gemini_api_key=GEMINI_KEYS[0], veo_duration_seconds=5, veo_model="veo-2.0-generate-001")
     video = gtypes.Video(uri="https://files.example/v.mp4", mime_type="video/mp4")
     factory_, clients = gemini_factory({GEMINI_KEYS[0]: [_op(False)]}, ops={GEMINI_KEYS[0]: [_op(True, video)]})
     factory_(GEMINI_KEYS[0]).aio.files.download_bytes = MP4
@@ -565,13 +567,15 @@ async def test_veo_marks_only_unanswered_requests_as_outstanding(gemini_settings
     assert names[-3:] == ["sending", "submitted", "usage_recorded"]
     assert names[:-3] == ["sending", "not_sent"] * (len(names[:-3]) // 2) and names[:-3]  # each 429 was answered
 
-    # a request without an answer (a timeout) leaves the record outstanding, also through later error answers
+    # a request without an answer (a timeout) may have created (and billed) a job: it is never sent again,
+    # the record stays outstanding, and the call ends as uncertain for a person to decide
     factory_, _ = gemini_factory({GEMINI_KEYS[0]: [TimeoutError("no answer"), quota, _op(True, video)]})
     factory_(GEMINI_KEYS[0]).aio.files.download_bytes = MP4
     cp = SendingCheckpoint()
     single = gemini_settings.model_copy(update={"gemini_api_keys": []})
-    await VeoVideo(single, client_factory=factory_, sleep=no_sleep, max_attempts=4).generate("x", checkpoint=cp)
-    assert "not_sent" not in [e[0] for e in cp.events]
+    with pytest.raises(PaidSubmissionUncertain):
+        await VeoVideo(single, client_factory=factory_, sleep=no_sleep, max_attempts=4).generate("x", checkpoint=cp)
+    assert [e[0] for e in cp.events] == ["sending"]  # exactly one request was sent
 
 
 @pytest.mark.asyncio

@@ -5,8 +5,10 @@
  * use POST /timeline/preview (estimated timings where no audio exists yet). Seeks to the
  * selected scene. Every refresh destroys the previous player (WebGL contexts, audio, timers).
  * After each scene change the board the player laid out is measured (`onMeasure`: its fit scale and
- * whether it still overflows at the smallest size). The stage is the same fixed 1920x1080 layout the MP4
- * render uses, so the measurement is what the video will show; nothing is measured while hidden.
+ * whether it still overflows at the smallest size). The stage is the same layout the MP4 render uses (classic:
+ * the fixed 1920x1080 board), so the measurement is what the video will show; nothing is measured while hidden.
+ * A Dynamic 9:16 reel's stage is 1080x1920: the player marks the box (`data-stage-shape`) and studio.css gives it
+ * the reel's shape instead of a small pillar in a 16:9 box.
  * Below the player, "Timing of scene N" (read-only, folded) lists when each beat of the shown scene starts
  * and the moments placed on spoken words (web/js/player/syncSummary.js over TimedScene.sync_cues), marked
  * "estimated" while the timings come from an estimate instead of the narration audio.

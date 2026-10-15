@@ -16,13 +16,17 @@
         /* tokens.css sets a dark color-scheme on :root, which would paint an opaque dark canvas behind
            the page; the render worker needs a transparent background (screenshots with alpha). */
         color-scheme: normal;
+        /* The stage size: render.js sets both from the timeline (Timeline.width x height) at boot; the
+           render worker's viewport is the same size. Classic (Aadhi presenter) timelines are 1920x1080. */
+        --render-stage-width: 1920px;
+        --render-stage-height: 1080px;
       }
       html,
       body {
         margin: 0;
         padding: 0;
-        width: 1920px;
-        height: 1080px;
+        width: var(--render-stage-width);
+        height: var(--render-stage-height);
         overflow: hidden;
         background: transparent !important;
       }
@@ -30,8 +34,8 @@
         position: fixed;
         left: 0;
         top: 0;
-        width: 1920px;
-        height: 1080px;
+        width: var(--render-stage-width);
+        height: var(--render-stage-height);
         overflow: hidden;
         background: transparent;
       }

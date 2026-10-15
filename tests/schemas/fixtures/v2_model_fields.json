@@ -1,0 +1,556 @@
+{
+ "AIVideoScene": [
+  "beats",
+  "chapter_id",
+  "concept_id",
+  "fallback_figure_id",
+  "fallback_image_prompt",
+  "hidden",
+  "id",
+  "intent",
+  "mascot_position",
+  "min_seconds",
+  "notes",
+  "objective_ids",
+  "override_asset_key",
+  "rationale",
+  "side_panel",
+  "subtitle",
+  "title",
+  "type",
+  "variant",
+  "video_prompt"
+ ],
+ "AssetManifest": [
+  "audio",
+  "language",
+  "media",
+  "scene_hashes",
+  "schema_version",
+  "stale_scenes"
+ ],
+ "Beat": [
+  "board_item_id",
+  "fill_item_id",
+  "highlight_item_ids",
+  "id",
+  "narration",
+  "pause_after",
+  "source_refs",
+  "spoken",
+  "visual_cue"
+ ],
+ "BeatAudio": [
+  "beat_id",
+  "clip_asset_key",
+  "lead_silence",
+  "offset",
+  "pause_after",
+  "phase",
+  "speech_duration",
+  "spoken_text",
+  "trail_silence",
+  "words",
+  "words_estimated"
+ ],
+ "BoardItem": [
+  "blank",
+  "caption",
+  "code",
+  "figure_id",
+  "headers",
+  "id",
+  "justification",
+  "kind",
+  "language",
+  "latex",
+  "misconception_id",
+  "rows",
+  "source_refs",
+  "term",
+  "text",
+  "variables"
+ ],
+ "BoardScene": [
+  "beats",
+  "board",
+  "chapter_id",
+  "concept_id",
+  "hidden",
+  "id",
+  "intent",
+  "mascot_position",
+  "min_seconds",
+  "notes",
+  "objective_ids",
+  "side_panel",
+  "subtitle",
+  "title",
+  "type"
+ ],
+ "Branding": [
+  "bgm_url",
+  "bgm_volume",
+  "ding_url",
+  "mascot_clips",
+  "mascot_rig_url",
+  "static_background_url",
+  "tick_url"
+ ],
+ "CaptionCue": [
+  "end",
+  "start",
+  "text"
+ ],
+ "Chapter": [
+  "start",
+  "title"
+ ],
+ "ChapterCardScene": [
+  "beats",
+  "chapter_id",
+  "chapter_label",
+  "concept_id",
+  "hidden",
+  "id",
+  "intent",
+  "mascot_position",
+  "min_seconds",
+  "notes",
+  "objective_ids",
+  "side_panel",
+  "subtitle",
+  "title",
+  "type"
+ ],
+ "ChapterRef": [
+  "id",
+  "scene_ids",
+  "title"
+ ],
+ "ChartDataset": [
+  "data",
+  "label"
+ ],
+ "ChartSpec": [
+  "chart_type",
+  "datasets",
+  "labels",
+  "x_label",
+  "y_label"
+ ],
+ "CompanionSheet": [
+  "definitions",
+  "key_formulas",
+  "legacy_markdown",
+  "misconceptions",
+  "practice_problems"
+ ],
+ "ConceptNode": [
+  "depends_on",
+  "id",
+  "kind",
+  "summary",
+  "title"
+ ],
+ "DefinitionEntry": [
+  "definition",
+  "source_item_id",
+  "term"
+ ],
+ "FormulaEntry": [
+  "description",
+  "latex",
+  "name",
+  "source_item_id",
+  "variables"
+ ],
+ "FormulaVariable": [
+  "beat_id",
+  "meaning",
+  "symbol_latex",
+  "unit"
+ ],
+ "GraphFunction": [
+  "expr",
+  "label"
+ ],
+ "GraphPoint": [
+  "label",
+  "x",
+  "y"
+ ],
+ "GraphSpec": [
+  "functions",
+  "points",
+  "x_label",
+  "x_range",
+  "y_label",
+  "y_range"
+ ],
+ "InteractiveScene": [
+  "beats",
+  "chapter_id",
+  "concept_id",
+  "hidden",
+  "id",
+  "intent",
+  "mascot_position",
+  "min_seconds",
+  "notes",
+  "objective_ids",
+  "p5_code",
+  "poster_override_asset_key",
+  "side_panel",
+  "subtitle",
+  "title",
+  "type"
+ ],
+ "IntroSpec": [
+  "background_url",
+  "cards",
+  "duration",
+  "logo_duration",
+  "logo_video_url"
+ ],
+ "KenBurns": [
+  "end",
+  "start"
+ ],
+ "KenBurnsPoint": [
+  "cx",
+  "cy",
+  "scale"
+ ],
+ "Layout": [
+  "fullscreen_media",
+  "mascot_cues",
+  "mascot_position",
+  "show_side_panel"
+ ],
+ "LearningObjective": [
+  "bloom",
+  "concept_ids",
+  "id",
+  "text"
+ ],
+ "LexiconEntry": [
+  "keep_in_english",
+  "language",
+  "spoken",
+  "written"
+ ],
+ "ManimSpec": [
+  "code",
+  "params",
+  "template"
+ ],
+ "MediaInfo": [
+  "asset_key",
+  "attribution",
+  "duration",
+  "external_url",
+  "height",
+  "kind",
+  "mime",
+  "source",
+  "storage_key",
+  "width"
+ ],
+ "MediaRef": [
+  "asset_key",
+  "attribution",
+  "duration",
+  "end_behavior",
+  "fit",
+  "height",
+  "ken_burns",
+  "kind",
+  "link_url",
+  "mime",
+  "render_in_mp4",
+  "url",
+  "width"
+ ],
+ "Misconception": [
+  "concept_id",
+  "correction",
+  "id",
+  "statement"
+ ],
+ "MisconceptionEntry": [
+  "correction",
+  "misconception"
+ ],
+ "Model3DSpec": [
+  "auto_rotate",
+  "primitives"
+ ],
+ "PracticeProblem": [
+  "difficulty",
+  "final_answer",
+  "hints",
+  "id",
+  "objective_ids",
+  "question",
+  "source_refs",
+  "steps"
+ ],
+ "Primitive3D": [
+  "color",
+  "label",
+  "position",
+  "shape",
+  "size"
+ ],
+ "QuizScene": [
+  "beats",
+  "bloom",
+  "chapter_id",
+  "concept_id",
+  "correct_index",
+  "countdown_seconds",
+  "explanation",
+  "feedback_wrong",
+  "hidden",
+  "id",
+  "intent",
+  "mascot_position",
+  "min_seconds",
+  "notes",
+  "objective_ids",
+  "option_misconception_ids",
+  "options",
+  "question",
+  "reveal_beats",
+  "side_panel",
+  "source_refs",
+  "subtitle",
+  "title",
+  "type"
+ ],
+ "QuizTeaserSpec": [
+  "correct_index",
+  "options",
+  "question"
+ ],
+ "QuizTiming": [
+  "correct_index",
+  "countdown_seconds",
+  "countdown_start",
+  "explanation",
+  "feedback_wrong",
+  "options",
+  "question",
+  "reveal_start"
+ ],
+ "ResolvedSidePanel": [
+  "media",
+  "panel",
+  "show_at"
+ ],
+ "SceneAudio": [
+  "asset_key",
+  "beats",
+  "countdown_seconds",
+  "countdown_start",
+  "duration",
+  "envelope",
+  "envelope_fps",
+  "language",
+  "mime",
+  "provider",
+  "scene_id",
+  "storage_key",
+  "voice"
+ ],
+ "SceneBase": [
+  "beats",
+  "chapter_id",
+  "concept_id",
+  "hidden",
+  "id",
+  "intent",
+  "mascot_position",
+  "min_seconds",
+  "notes",
+  "objective_ids",
+  "side_panel",
+  "subtitle",
+  "title"
+ ],
+ "SceneIntent": [
+  "bridge_in",
+  "goal",
+  "key_points",
+  "narrative_role",
+  "source_refs"
+ ],
+ "SceneMedia": [
+  "figures",
+  "main",
+  "main_is_fallback",
+  "poster",
+  "scene_id",
+  "side_panel",
+  "warnings"
+ ],
+ "Screenplay": [
+  "board_language",
+  "chapters",
+  "companion_sheet",
+  "concept_map",
+  "figures",
+  "language",
+  "learning_objectives",
+  "lexicon",
+  "misconceptions",
+  "scenes",
+  "schema_version",
+  "session_number",
+  "session_title",
+  "source",
+  "subject_name",
+  "unit_name"
+ ],
+ "SidePanel": [
+  "chart",
+  "figure_id",
+  "gif_query",
+  "graph",
+  "image_prompt",
+  "kind",
+  "manim",
+  "model_3d",
+  "override_asset_key",
+  "quiz",
+  "rationale",
+  "show_from_beat_id",
+  "terminal",
+  "title",
+  "variant"
+ ],
+ "SimulationScene": [
+  "beats",
+  "chapter_id",
+  "concept_id",
+  "hidden",
+  "id",
+  "intent",
+  "manim",
+  "mascot_position",
+  "min_seconds",
+  "notes",
+  "objective_ids",
+  "override_asset_key",
+  "side_panel",
+  "subtitle",
+  "title",
+  "type"
+ ],
+ "SourceFigure": [
+  "asset_key",
+  "caption",
+  "height",
+  "id",
+  "page",
+  "width"
+ ],
+ "SourceInfo": [
+  "filename",
+  "mime",
+  "pages",
+  "sha256"
+ ],
+ "SyncCue": [
+  "beat_id",
+  "end",
+  "item_id",
+  "kind",
+  "part",
+  "start",
+  "words"
+ ],
+ "TerminalSpec": [
+  "command",
+  "output"
+ ],
+ "TimedBeat": [
+  "beat_id",
+  "board_item_id",
+  "captions",
+  "end",
+  "estimated",
+  "fill_item_id",
+  "highlight_item_ids",
+  "index",
+  "narration",
+  "phase",
+  "speech_end",
+  "start",
+  "visual_cue",
+  "words"
+ ],
+ "TimedScene": [
+  "audio_asset_key",
+  "audio_duration",
+  "audio_envelope",
+  "audio_envelope_fps",
+  "audio_offset",
+  "audio_url",
+  "beats",
+  "board",
+  "chapter_id",
+  "chapter_label",
+  "concept_id",
+  "duration",
+  "figures",
+  "hold_seconds",
+  "index",
+  "layout",
+  "media",
+  "objective_ids",
+  "p5_code",
+  "poster",
+  "quiz",
+  "scene_id",
+  "side_panel",
+  "start",
+  "subtitle",
+  "sync_cues",
+  "title",
+  "type"
+ ],
+ "TimedWord": [
+  "end",
+  "start",
+  "text"
+ ],
+ "Timeline": [
+  "board_language",
+  "branding",
+  "captions",
+  "chapters",
+  "concept_map",
+  "estimated",
+  "fps",
+  "height",
+  "intro",
+  "language",
+  "learning_objectives",
+  "meta",
+  "scenes",
+  "schema_version",
+  "screenplay_revision",
+  "total_duration",
+  "transition_seconds",
+  "version_id",
+  "width"
+ ],
+ "TitleCard": [
+  "duration",
+  "line1",
+  "line2",
+  "start"
+ ]
+}

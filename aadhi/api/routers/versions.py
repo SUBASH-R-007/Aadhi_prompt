@@ -11,6 +11,7 @@ from pydantic import ConfigDict, Field, ValidationError
 from sqlalchemy import exists, select, update
 
 from ...models import ACTIVE_JOB_STATUSES, VERSION_MUTATING_KINDS, Job, Project, ProjectVersion
+from ...schemas.features import check_reader_version
 from ...schemas.jsonsafe import json_safe, validate_stored
 from ...schemas.manifest import AssetManifest
 from ...schemas.screenplay import Screenplay
@@ -24,6 +25,7 @@ from ..screenplay_service import (
     lint_screenplay,
     merge_issues,
     options_for,
+    require_features,
     served_issues,
     source_chunk_ids,
     source_ingest,
@@ -31,7 +33,7 @@ from ..screenplay_service import (
 )
 from ..serializers import review_checkpoints, version_stage, version_summary
 from ..storable import StorableBody, ensure_storable
-from ..timelines import etag_matches, resolve_timeline, timeline_etag
+from ..timelines import current_timeline, etag_matches, resolve_timeline, timeline_etag
 from ..util import utcnow
 
 logger = logging.getLogger(__name__)
@@ -73,6 +75,14 @@ def safe_manifest(version: ProjectVersion) -> AssetManifest | None:
     except ValidationError:
         logger.warning("version %s has an asset manifest that no longer validates", version.id)
         return None
+
+
+def require_readable_manifest(version: ProjectVersion) -> None:
+    """409 ``newer_document`` when a newer build wrote the stored asset manifest.
+
+    Write paths that answer with the manifest (``stale_scenes``) call this before anything is written, so a version
+    is refused, never saved and then reported as refused; the worker pre-check refuses such a version as well."""
+    check_reader_version(version.asset_manifest, "asset manifest")
 
 
 def require_version_language(version: ProjectVersion, screenplay: Screenplay) -> None:
@@ -144,7 +154,7 @@ def get_timeline(
     # 304 without loading the deferred (large) timeline column; has_timeline is set with it.
     if version.has_timeline and etag_matches(request.headers.get("if-none-match"), etag):
         return Response(status_code=304, headers=headers)
-    stored = version.timeline
+    stored = current_timeline(version, settings)  # DYNAMIC_ENABLED applies when served (timelines.py)
     if stored is None:
         raise not_found("Timeline")
     return JSONResponse(resolve_timeline(stored, store, settings), headers=headers)
@@ -159,6 +169,7 @@ def preview_timeline(
 
     version = load_version(db, user, vid)
     require_version_language(version, body.screenplay)
+    require_features(body.screenplay, settings, already=lambda: safe_screenplay(version))
     authorize_asset_keys(db, version.project_id, body.screenplay)
     try:
         timeline = build_preview(body.screenplay, safe_manifest(version), settings=settings, version_id=version.id)
@@ -170,8 +181,14 @@ def preview_timeline(
 
 
 @router.put("/{vid}/screenplay")
-def put_screenplay(vid: int, body: ScreenplayPut, user: CurrentUser, db: DbSession, store: Store) -> dict[str, Any]:
-    """Save an edited screenplay (optimistic concurrency on ``revision``; refused while a job mutates it)."""
+def put_screenplay(
+    vid: int, body: ScreenplayPut, user: CurrentUser, db: DbSession, store: Store, settings: AppSettings
+) -> dict[str, Any]:
+    """Save an edited screenplay (optimistic concurrency on ``revision``; refused while a job mutates it).
+
+    A stored or sent screenplay, or a stored asset manifest, newer than this build reads is refused (409
+    ``newer_document``, before anything is written); one that uses a Dynamic-video feature ``DYNAMIC_FEATURES`` does not enable is refused with 422
+    ``feature_unavailable`` unless the stored screenplay already uses it."""
     version = load_version(db, user, vid)
     busy = active_mutating_job(db, version.id)
     if busy is not None:
@@ -180,12 +197,14 @@ def put_screenplay(vid: int, body: ScreenplayPut, user: CurrentUser, db: DbSessi
         raise ApiException(
             409, "revision_conflict", "The screenplay was changed elsewhere.", current_revision=version.revision
         )
+    old = safe_screenplay(version)  # a newer stored screenplay raises NewerDocumentError (409) here
+    require_readable_manifest(version)  # and so does a newer stored manifest (the response reads it after the commit)
     require_version_language(version, body.screenplay)
+    require_features(body.screenplay, settings, already=lambda: old)
     authorize_asset_keys(db, version.project_id, body.screenplay)
     document = body.screenplay.model_dump(mode="json")
     ensure_storable(document, ("body", "screenplay"))  # never write a row that later reads cannot serve
     project = db.get(Project, version.project_id)
-    old = safe_screenplay(version)
     lint_issues = lint_screenplay(
         body.screenplay,
         options_for(project) if project is not None else None,
@@ -235,17 +254,21 @@ def put_screenplay(vid: int, body: ScreenplayPut, user: CurrentUser, db: DbSessi
 
 
 @router.post("/{vid}/lint")
-def lint_version(vid: int, body: ScreenplayBody, user: CurrentUser, db: DbSession, store: Store) -> dict[str, Any]:
+def lint_version(
+    vid: int, body: ScreenplayBody, user: CurrentUser, db: DbSession, store: Store, settings: AppSettings
+) -> dict[str, Any]:
     """Lint a (possibly unsaved) screenplay with the project's generation options.
 
     ``quality`` (additive): safe repairs for some of the issues (exact field edits the editor applies as an
     undoable change) and the lesson's consistency registry (``aadhi.pipeline.quality.quality_report``). The quality
-    analysis runs once and serves both the issues and the report.
+    analysis runs once and serves both the issues and the report. A draft using a Dynamic-video feature this server
+    does not enable is refused like a save (422 ``feature_unavailable``).
     """
     from ...pipeline.quality import analysis_of, quality_report
     from ...pipeline.validate import lint
 
     version = load_version(db, user, vid)
+    require_features(body.screenplay, settings, already=lambda: safe_screenplay(version))
     project = db.get(Project, version.project_id)
     analysis = analysis_of(body.screenplay)
     issues = lint(

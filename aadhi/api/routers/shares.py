@@ -24,7 +24,7 @@ from ...security.ratelimit import check_rate_limit
 from ..deps import RATE_LIMITED, AppSettings, CurrentUser, DbSession, Store, load_project
 from ..errors import ApiException, not_found
 from ..serializers import share_dict, share_url
-from ..timelines import resolve_timeline
+from ..timelines import current_timeline, resolve_timeline
 from ..util import as_utc, iso, utcnow
 
 router = APIRouter(tags=["shares"])
@@ -139,7 +139,7 @@ def public_watch(token: str, request: Request, db: DbSession, settings: AppSetti
     version = db.get(ProjectVersion, resolved.version_id) if resolved.version_id else None
     if version is None or version.project_id != resolved.project.id or version.timeline is None:
         raise not_found("Lecture")
-    timeline = resolve_timeline(version.timeline, store, settings)
+    timeline = resolve_timeline(current_timeline(version, settings) or version.timeline, store, settings)
     atomic_add(db, ShareLink, resolved.share.id, "view_count", 1)
     db.commit()
     project = resolved.project

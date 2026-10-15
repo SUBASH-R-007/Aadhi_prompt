@@ -1,0 +1,1687 @@
+{
+ "schema_version": 2,
+ "version_id": 1,
+ "screenplay_revision": 1,
+ "language": "en-IN",
+ "board_language": "en-IN",
+ "fps": 30,
+ "width": 1920,
+ "height": 1080,
+ "meta": {
+  "subject_name": "Basic Electrical Engineering",
+  "unit_name": "Unit 2: DC Circuits",
+  "session_number": "Session 3",
+  "session_title": "Ohm's Law",
+  "asset_storage_keys": {
+   "figure-aaa": "assets/figure/figure-aaa/invariance.png",
+   "manim-23a56d0b92a2a0306accb1c9bdf7ea6c318a2e5e": "assets/manim/manim-23a56d0b92a2a0306accb1c9bdf7ea6c318a2e5e/invariance.mp4",
+   "scene_audio-123238ff1d9eb12c68bcf4dce4ae7849d1098e2c": "assets/scene_audio/scene_audio-123238ff1d9eb12c68bcf4dce4ae7849d1098e2c/invariance.mp3",
+   "scene_audio-44228f4dcd126151bc30dceb47c8f49adf97593c": "assets/scene_audio/scene_audio-44228f4dcd126151bc30dceb47c8f49adf97593c/invariance.mp3",
+   "scene_audio-647a5b70ebd95daa205ed89e37ddca4df4a8ab1f": "assets/scene_audio/scene_audio-647a5b70ebd95daa205ed89e37ddca4df4a8ab1f/invariance.mp3",
+   "scene_audio-68bd96bb05d23e4da403888b134f90ebff933a57": "assets/scene_audio/scene_audio-68bd96bb05d23e4da403888b134f90ebff933a57/invariance.mp3",
+   "scene_audio-6d02f4e50d654c8335bf673b0be661d619b5ff1a": "assets/scene_audio/scene_audio-6d02f4e50d654c8335bf673b0be661d619b5ff1a/invariance.mp3",
+   "scene_audio-e7bdcfe6460c4da84395f3d0940f8c14ca39034a": "assets/scene_audio/scene_audio-e7bdcfe6460c4da84395f3d0940f8c14ca39034a/invariance.mp3",
+   "scene_audio-f2abdd5d6e961cf4d4b336dacc0cf584e3757d00": "assets/scene_audio/scene_audio-f2abdd5d6e961cf4d4b336dacc0cf584e3757d00/invariance.mp3",
+   "scene_audio-fd6c3a6b5859d68a03ece3a8c1f88f67c40d8922": "assets/scene_audio/scene_audio-fd6c3a6b5859d68a03ece3a8c1f88f67c40d8922/invariance.mp3",
+   "video-b397b8fdc03651c4c5c26b350694fa0478d71325": "assets/video/video-b397b8fdc03651c4c5c26b350694fa0478d71325/invariance.mp4"
+  },
+  "fallbacks": [
+   {
+    "scene_id": "s-sim-fallback",
+    "reason": "simulation_without_media"
+   },
+   {
+    "scene_id": "s-video-none",
+    "reason": "ai_video_without_media"
+   },
+   {
+    "scene_id": "s-noaudio",
+    "reason": "no_audio"
+   }
+  ]
+ },
+ "concept_map": [
+  {
+   "id": "basics",
+   "title": "Charge and Current",
+   "summary": "",
+   "depends_on": [],
+   "kind": "core"
+  },
+  {
+   "id": "ohm",
+   "title": "Ohm's Law",
+   "summary": "",
+   "depends_on": [
+    "basics"
+   ],
+   "kind": "core"
+  }
+ ],
+ "learning_objectives": [
+  {
+   "id": "obj-1",
+   "text": "Apply Ohm's law",
+   "bloom": "understand",
+   "concept_ids": [
+    "ohm"
+   ]
+  }
+ ],
+ "intro": {
+  "logo_video_url": "/branding/logo_animation_clean.mp4",
+  "logo_duration": 5.5,
+  "background_url": "/branding/static_background.png",
+  "cards": [
+   {
+    "line1": "Basic Electrical Engineering",
+    "line2": "Unit 2: DC Circuits",
+    "start": 5.5,
+    "duration": 3.0
+   },
+   {
+    "line1": "Session 3",
+    "line2": "Ohm's Law",
+    "start": 8.5,
+    "duration": 3.0
+   }
+  ],
+  "duration": 11.5
+ },
+ "scenes": [
+  {
+   "scene_id": "s-title",
+   "index": 0,
+   "type": "title",
+   "concept_id": "basics",
+   "chapter_id": null,
+   "title": "Ohm's Law",
+   "subtitle": null,
+   "chapter_label": null,
+   "start": 11.5,
+   "duration": 3.6,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "left",
+    "show_side_panel": false,
+    "fullscreen_media": false
+   },
+   "audio_asset_key": "scene_audio-68bd96bb05d23e4da403888b134f90ebff933a57",
+   "audio_url": null,
+   "audio_duration": 2.3,
+   "board": [
+    {
+     "id": "i1",
+     "kind": "heading",
+     "text": "Ohm's Law",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "s-title-b1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 2.8,
+     "end": 2.8,
+     "narration": "Welcome to this session on Ohm's law.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Welcome",
+       "start": 0.5,
+       "end": 0.829
+      },
+      {
+       "text": "to",
+       "start": 0.829,
+       "end": 1.157
+      },
+      {
+       "text": "this",
+       "start": 1.157,
+       "end": 1.486
+      },
+      {
+       "text": "session",
+       "start": 1.486,
+       "end": 1.814
+      },
+      {
+       "text": "on",
+       "start": 1.814,
+       "end": 2.143
+      },
+      {
+       "text": "Ohm's",
+       "start": 2.143,
+       "end": 2.471
+      },
+      {
+       "text": "law.",
+       "start": 2.471,
+       "end": 2.8
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.5,
+       "end": 2.8,
+       "text": "Welcome to this session on Ohm's law."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": null,
+   "media": null,
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": []
+  },
+  {
+   "scene_id": "s-chapter",
+   "index": 1,
+   "type": "chapter_card",
+   "concept_id": "basics",
+   "chapter_id": null,
+   "title": "Current",
+   "subtitle": null,
+   "chapter_label": "Part 1",
+   "start": 15.1,
+   "duration": 6.0,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "left",
+    "show_side_panel": false,
+    "fullscreen_media": false
+   },
+   "audio_asset_key": null,
+   "audio_url": null,
+   "audio_duration": 0.0,
+   "board": [],
+   "figures": {},
+   "beats": [],
+   "side_panel": null,
+   "media": null,
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": [],
+   "hold_seconds": 2.0
+  },
+  {
+   "scene_id": "s-board",
+   "index": 2,
+   "type": "content",
+   "concept_id": "ohm",
+   "chapter_id": null,
+   "title": "The law",
+   "subtitle": null,
+   "chapter_label": null,
+   "start": 21.1,
+   "duration": 12.1,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "left",
+    "show_side_panel": true,
+    "fullscreen_media": false
+   },
+   "audio_asset_key": "scene_audio-44228f4dcd126151bc30dceb47c8f49adf97593c",
+   "audio_url": null,
+   "audio_duration": 10.8,
+   "board": [
+    {
+     "id": "h",
+     "kind": "heading",
+     "text": "V = IR",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "p1",
+     "kind": "bullet",
+     "text": "Voltage is proportional to current",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "f1",
+     "kind": "formula",
+     "text": "",
+     "term": null,
+     "latex": "V = I R",
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "fig",
+     "kind": "figure",
+     "text": "",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": "fig-1",
+     "caption": "A resistor",
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "e1",
+     "kind": "example_step",
+     "text": "I = 2 A",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": true,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ],
+   "figures": {
+    "fig": {
+     "kind": "image",
+     "asset_key": "figure-aaa",
+     "url": null,
+     "mime": "image/png",
+     "duration": null,
+     "width": 640,
+     "height": 480,
+     "fit": "contain",
+     "end_behavior": "loop",
+     "ken_burns": null,
+     "attribution": null,
+     "link_url": null,
+     "render_in_mp4": true
+    }
+   },
+   "beats": [
+    {
+     "beat_id": "s-board-b1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 2.2,
+     "end": 2.7,
+     "narration": "Voltage is proportional to current.",
+     "board_item_id": "p1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Voltage",
+       "start": 0.5,
+       "end": 0.84
+      },
+      {
+       "text": "is",
+       "start": 0.84,
+       "end": 1.18
+      },
+      {
+       "text": "proportional",
+       "start": 1.18,
+       "end": 1.52
+      },
+      {
+       "text": "to",
+       "start": 1.52,
+       "end": 1.86
+      },
+      {
+       "text": "current.",
+       "start": 1.86,
+       "end": 2.2
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.5,
+       "end": 2.6,
+       "text": "Voltage is proportional to current."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s-board-b2",
+     "index": 1,
+     "phase": "main",
+     "start": 2.85,
+     "speech_end": 5.45,
+     "end": 5.45,
+     "narration": "We write this as V equals I R.",
+     "board_item_id": "f1",
+     "fill_item_id": null,
+     "highlight_item_ids": [
+      "p1"
+     ],
+     "words": [
+      {
+       "text": "We",
+       "start": 2.85,
+       "end": 3.175
+      },
+      {
+       "text": "write",
+       "start": 3.175,
+       "end": 3.5
+      },
+      {
+       "text": "this",
+       "start": 3.5,
+       "end": 3.825
+      },
+      {
+       "text": "as",
+       "start": 3.825,
+       "end": 4.15
+      },
+      {
+       "text": "V",
+       "start": 4.15,
+       "end": 4.475
+      },
+      {
+       "text": "equals",
+       "start": 4.475,
+       "end": 4.8
+      },
+      {
+       "text": "I",
+       "start": 4.8,
+       "end": 5.125
+      },
+      {
+       "text": "R.",
+       "start": 5.125,
+       "end": 5.45
+      }
+     ],
+     "captions": [
+      {
+       "start": 2.85,
+       "end": 5.45,
+       "text": "We write this as V equals I R."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s-board-b3",
+     "index": 2,
+     "phase": "main",
+     "start": 5.6,
+     "speech_end": 7.0,
+     "end": 7.0,
+     "narration": "Here is a resistor.",
+     "board_item_id": "fig",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Here",
+       "start": 5.6,
+       "end": 5.95
+      },
+      {
+       "text": "is",
+       "start": 5.95,
+       "end": 6.3
+      },
+      {
+       "text": "a",
+       "start": 6.3,
+       "end": 6.65
+      },
+      {
+       "text": "resistor.",
+       "start": 6.65,
+       "end": 7.0
+      }
+     ],
+     "captions": [
+      {
+       "start": 5.6,
+       "end": 7.0,
+       "text": "Here is a resistor."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s-board-b4",
+     "index": 3,
+     "phase": "main",
+     "start": 7.15,
+     "speech_end": 9.15,
+     "end": 9.15,
+     "narration": "So the current is two amperes.",
+     "board_item_id": "e1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "So",
+       "start": 7.15,
+       "end": 7.483
+      },
+      {
+       "text": "the",
+       "start": 7.483,
+       "end": 7.817
+      },
+      {
+       "text": "current",
+       "start": 7.817,
+       "end": 8.15
+      },
+      {
+       "text": "is",
+       "start": 8.15,
+       "end": 8.483
+      },
+      {
+       "text": "two",
+       "start": 8.483,
+       "end": 8.817
+      },
+      {
+       "text": "amperes.",
+       "start": 8.817,
+       "end": 9.15
+      }
+     ],
+     "captions": [
+      {
+       "start": 7.15,
+       "end": 9.15,
+       "text": "So the current is two amperes."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s-board-b5",
+     "index": 4,
+     "phase": "main",
+     "start": 9.3,
+     "speech_end": 11.3,
+     "end": 11.3,
+     "narration": "Let us fill in the step.",
+     "board_item_id": null,
+     "fill_item_id": "e1",
+     "highlight_item_ids": [
+      "f1",
+      "p1"
+     ],
+     "words": [
+      {
+       "text": "Let",
+       "start": 9.3,
+       "end": 9.633
+      },
+      {
+       "text": "us",
+       "start": 9.633,
+       "end": 9.967
+      },
+      {
+       "text": "fill",
+       "start": 9.967,
+       "end": 10.3
+      },
+      {
+       "text": "in",
+       "start": 10.3,
+       "end": 10.633
+      },
+      {
+       "text": "the",
+       "start": 10.633,
+       "end": 10.967
+      },
+      {
+       "text": "step.",
+       "start": 10.967,
+       "end": 11.3
+      }
+     ],
+     "captions": [
+      {
+       "start": 9.3,
+       "end": 11.3,
+       "text": "Let us fill in the step."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": {
+    "panel": {
+     "kind": "figure",
+     "title": null,
+     "rationale": "shows the part",
+     "show_from_beat_id": "s-board-b3",
+     "figure_id": "fig-1",
+     "image_prompt": null,
+     "chart": null,
+     "graph": null,
+     "model_3d": null,
+     "manim": null,
+     "terminal": null,
+     "quiz": null,
+     "gif_query": null,
+     "override_asset_key": null
+    },
+    "media": {
+     "kind": "image",
+     "asset_key": "figure-aaa",
+     "url": null,
+     "mime": "image/png",
+     "duration": null,
+     "width": 640,
+     "height": 480,
+     "fit": "contain",
+     "end_behavior": "loop",
+     "ken_burns": null,
+     "attribution": null,
+     "link_url": null,
+     "render_in_mp4": true
+    },
+    "show_at": 5.6
+   },
+   "media": null,
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": [
+    "obj-1"
+   ]
+  },
+  {
+   "scene_id": "s-sim",
+   "index": 3,
+   "type": "simulation",
+   "concept_id": "ohm",
+   "chapter_id": null,
+   "title": "Animation",
+   "subtitle": null,
+   "chapter_label": null,
+   "start": 33.2,
+   "duration": 4.25,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "right",
+    "show_side_panel": false,
+    "fullscreen_media": true
+   },
+   "audio_asset_key": "scene_audio-e7bdcfe6460c4da84395f3d0940f8c14ca39034a",
+   "audio_url": null,
+   "audio_duration": 2.95,
+   "board": [],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "s-sim-b1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 1.9,
+     "end": 1.9,
+     "narration": "Watch the current rise.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Watch",
+       "start": 0.5,
+       "end": 0.85
+      },
+      {
+       "text": "the",
+       "start": 0.85,
+       "end": 1.2
+      },
+      {
+       "text": "current",
+       "start": 1.2,
+       "end": 1.55
+      },
+      {
+       "text": "rise.",
+       "start": 1.55,
+       "end": 1.9
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.5,
+       "end": 1.9,
+       "text": "Watch the current rise."
+      }
+     ],
+     "visual_cue": "Current arrow grows",
+     "estimated": false
+    },
+    {
+     "beat_id": "s-sim-b2",
+     "index": 1,
+     "phase": "main",
+     "start": 2.05,
+     "speech_end": 3.45,
+     "end": 3.45,
+     "narration": "And the voltage doubles.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "And",
+       "start": 2.05,
+       "end": 2.4
+      },
+      {
+       "text": "the",
+       "start": 2.4,
+       "end": 2.75
+      },
+      {
+       "text": "voltage",
+       "start": 2.75,
+       "end": 3.1
+      },
+      {
+       "text": "doubles.",
+       "start": 3.1,
+       "end": 3.45
+      }
+     ],
+     "captions": [
+      {
+       "start": 2.05,
+       "end": 3.45,
+       "text": "And the voltage doubles."
+      }
+     ],
+     "visual_cue": "Voltage bar doubles",
+     "estimated": false
+    }
+   ],
+   "side_panel": null,
+   "media": {
+    "kind": "video",
+    "asset_key": "manim-23a56d0b92a2a0306accb1c9bdf7ea6c318a2e5e",
+    "url": null,
+    "mime": "video/mp4",
+    "duration": 6.0,
+    "width": 1280,
+    "height": 720,
+    "fit": "contain",
+    "end_behavior": "freeze",
+    "ken_burns": null,
+    "attribution": null,
+    "link_url": null,
+    "render_in_mp4": true
+   },
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": []
+  },
+  {
+   "scene_id": "s-sim-fallback",
+   "index": 4,
+   "type": "simulation",
+   "concept_id": "ohm",
+   "chapter_id": null,
+   "title": "Fallback animation",
+   "subtitle": null,
+   "chapter_label": null,
+   "start": 37.45,
+   "duration": 4.9,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "left",
+    "show_side_panel": false,
+    "fullscreen_media": false
+   },
+   "audio_asset_key": "scene_audio-123238ff1d9eb12c68bcf4dce4ae7849d1098e2c",
+   "audio_url": null,
+   "audio_duration": 3.6,
+   "board": [
+    {
+     "id": "cue-1",
+     "kind": "bullet",
+     "text": "Battery appears with \\$5 label",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "cue-2",
+     "kind": "bullet",
+     "text": "Bulb \\*glows\\*",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "s-simf-b1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 1.6,
+     "end": 1.6,
+     "narration": "First the battery.",
+     "board_item_id": "cue-1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "First",
+       "start": 0.5,
+       "end": 0.867
+      },
+      {
+       "text": "the",
+       "start": 0.867,
+       "end": 1.233
+      },
+      {
+       "text": "battery.",
+       "start": 1.233,
+       "end": 1.6
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.5,
+       "end": 1.6,
+       "text": "First the battery."
+      }
+     ],
+     "visual_cue": "Battery appears with $5 label",
+     "estimated": false
+    },
+    {
+     "beat_id": "s-simf-b2",
+     "index": 1,
+     "phase": "main",
+     "start": 1.75,
+     "speech_end": 2.85,
+     "end": 2.85,
+     "narration": "Then nothing visual.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Then",
+       "start": 1.75,
+       "end": 2.117
+      },
+      {
+       "text": "nothing",
+       "start": 2.117,
+       "end": 2.483
+      },
+      {
+       "text": "visual.",
+       "start": 2.483,
+       "end": 2.85
+      }
+     ],
+     "captions": [
+      {
+       "start": 1.75,
+       "end": 2.85,
+       "text": "Then nothing visual."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s-simf-b3",
+     "index": 2,
+     "phase": "main",
+     "start": 3.0,
+     "speech_end": 4.1,
+     "end": 4.1,
+     "narration": "Finally the bulb.",
+     "board_item_id": "cue-2",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Finally",
+       "start": 3.0,
+       "end": 3.367
+      },
+      {
+       "text": "the",
+       "start": 3.367,
+       "end": 3.733
+      },
+      {
+       "text": "bulb.",
+       "start": 3.733,
+       "end": 4.1
+      }
+     ],
+     "captions": [
+      {
+       "start": 3.0,
+       "end": 4.1,
+       "text": "Finally the bulb."
+      }
+     ],
+     "visual_cue": "Bulb *glows*",
+     "estimated": false
+    }
+   ],
+   "side_panel": null,
+   "media": null,
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": []
+  },
+  {
+   "scene_id": "s-video",
+   "index": 5,
+   "type": "ai_video",
+   "concept_id": "ohm",
+   "chapter_id": null,
+   "title": "Power lines",
+   "subtitle": null,
+   "chapter_label": null,
+   "start": 42.35,
+   "duration": 3.6,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "left",
+    "show_side_panel": false,
+    "fullscreen_media": true
+   },
+   "audio_asset_key": "scene_audio-6d02f4e50d654c8335bf673b0be661d619b5ff1a",
+   "audio_url": null,
+   "audio_duration": 2.3,
+   "board": [],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "s-video-b1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 2.8,
+     "end": 2.8,
+     "narration": "Power lines carry current across the state.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Power",
+       "start": 0.5,
+       "end": 0.829
+      },
+      {
+       "text": "lines",
+       "start": 0.829,
+       "end": 1.157
+      },
+      {
+       "text": "carry",
+       "start": 1.157,
+       "end": 1.486
+      },
+      {
+       "text": "current",
+       "start": 1.486,
+       "end": 1.814
+      },
+      {
+       "text": "across",
+       "start": 1.814,
+       "end": 2.143
+      },
+      {
+       "text": "the",
+       "start": 2.143,
+       "end": 2.471
+      },
+      {
+       "text": "state.",
+       "start": 2.471,
+       "end": 2.8
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.5,
+       "end": 2.8,
+       "text": "Power lines carry\ncurrent across the state."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": null,
+   "media": {
+    "kind": "video",
+    "asset_key": "video-b397b8fdc03651c4c5c26b350694fa0478d71325",
+    "url": null,
+    "mime": "video/mp4",
+    "duration": 8.0,
+    "width": 1280,
+    "height": 720,
+    "fit": "cover",
+    "end_behavior": "loop",
+    "ken_burns": null,
+    "attribution": null,
+    "link_url": null,
+    "render_in_mp4": true
+   },
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": []
+  },
+  {
+   "scene_id": "s-video-none",
+   "index": 6,
+   "type": "ai_video",
+   "concept_id": "ohm",
+   "chapter_id": null,
+   "title": "Substation",
+   "subtitle": null,
+   "chapter_label": null,
+   "start": 45.95,
+   "duration": 3.3,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "left",
+    "show_side_panel": false,
+    "fullscreen_media": false
+   },
+   "audio_asset_key": "scene_audio-fd6c3a6b5859d68a03ece3a8c1f88f67c40d8922",
+   "audio_url": null,
+   "audio_duration": 2.0,
+   "board": [
+    {
+     "id": "fallback-title",
+     "kind": "heading",
+     "text": "Substation",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "fallback-visual",
+     "kind": "paragraph",
+     "text": "Slow pan across a substation at dusk",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "s-videon-b1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 2.5,
+     "end": 2.5,
+     "narration": "A substation steps the voltage down.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "A",
+       "start": 0.5,
+       "end": 0.833
+      },
+      {
+       "text": "substation",
+       "start": 0.833,
+       "end": 1.167
+      },
+      {
+       "text": "steps",
+       "start": 1.167,
+       "end": 1.5
+      },
+      {
+       "text": "the",
+       "start": 1.5,
+       "end": 1.833
+      },
+      {
+       "text": "voltage",
+       "start": 1.833,
+       "end": 2.167
+      },
+      {
+       "text": "down.",
+       "start": 2.167,
+       "end": 2.5
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.5,
+       "end": 2.5,
+       "text": "A substation steps the voltage down."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": null,
+   "media": null,
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": []
+  },
+  {
+   "scene_id": "s-interactive",
+   "index": 7,
+   "type": "interactive",
+   "concept_id": "ohm",
+   "chapter_id": null,
+   "title": "Try it",
+   "subtitle": null,
+   "chapter_label": null,
+   "start": 49.25,
+   "duration": 3.6,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "hidden",
+    "show_side_panel": false,
+    "fullscreen_media": true
+   },
+   "audio_asset_key": "scene_audio-647a5b70ebd95daa205ed89e37ddca4df4a8ab1f",
+   "audio_url": null,
+   "audio_duration": 2.3,
+   "board": [],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "s-int-b1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 2.8,
+     "end": 2.8,
+     "narration": "Drag the slider to change the resistance.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Drag",
+       "start": 0.5,
+       "end": 0.829
+      },
+      {
+       "text": "the",
+       "start": 0.829,
+       "end": 1.157
+      },
+      {
+       "text": "slider",
+       "start": 1.157,
+       "end": 1.486
+      },
+      {
+       "text": "to",
+       "start": 1.486,
+       "end": 1.814
+      },
+      {
+       "text": "change",
+       "start": 1.814,
+       "end": 2.143
+      },
+      {
+       "text": "the",
+       "start": 2.143,
+       "end": 2.471
+      },
+      {
+       "text": "resistance.",
+       "start": 2.471,
+       "end": 2.8
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.5,
+       "end": 2.8,
+       "text": "Drag the slider to change the resistance."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": null,
+   "media": null,
+   "quiz": null,
+   "p5_code": "function setup(){createCanvas(100,100);}",
+   "poster": null,
+   "objective_ids": []
+  },
+  {
+   "scene_id": "s-quiz",
+   "index": 8,
+   "type": "quiz_checkpoint",
+   "concept_id": "ohm",
+   "chapter_id": null,
+   "title": "Check",
+   "subtitle": null,
+   "chapter_label": null,
+   "start": 52.85,
+   "duration": 10.25,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "left",
+    "show_side_panel": false,
+    "fullscreen_media": false
+   },
+   "audio_asset_key": "scene_audio-f2abdd5d6e961cf4d4b336dacc0cf584e3757d00",
+   "audio_url": null,
+   "audio_duration": 7.95,
+   "board": [],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "s-quiz-b1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 2.2,
+     "end": 2.2,
+     "narration": "Here is a quick question.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Here",
+       "start": 0.5,
+       "end": 0.84
+      },
+      {
+       "text": "is",
+       "start": 0.84,
+       "end": 1.18
+      },
+      {
+       "text": "a",
+       "start": 1.18,
+       "end": 1.52
+      },
+      {
+       "text": "quick",
+       "start": 1.52,
+       "end": 1.86
+      },
+      {
+       "text": "question.",
+       "start": 1.86,
+       "end": 2.2
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.5,
+       "end": 2.2,
+       "text": "Here is a quick question."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "s-quiz-r1",
+     "index": 1,
+     "phase": "reveal",
+     "start": 7.35,
+     "speech_end": 8.45,
+     "end": 8.45,
+     "narration": "The current halves.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "The",
+       "start": 7.35,
+       "end": 7.717
+      },
+      {
+       "text": "current",
+       "start": 7.717,
+       "end": 8.083
+      },
+      {
+       "text": "halves.",
+       "start": 8.083,
+       "end": 8.45
+      }
+     ],
+     "captions": [
+      {
+       "start": 7.35,
+       "end": 8.45,
+       "text": "The current halves."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": null,
+   "media": null,
+   "quiz": {
+    "question": "If R doubles at fixed V, what happens to I?",
+    "options": [
+     "It halves",
+     "It doubles",
+     "It stays the same"
+    ],
+    "correct_index": 0,
+    "feedback_wrong": [
+     "",
+     "No: I = V/R",
+     "No: R changed"
+    ],
+    "explanation": "I = V / R.",
+    "countdown_start": 2.35,
+    "countdown_seconds": 5,
+    "reveal_start": 7.35
+   },
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": []
+  },
+  {
+   "scene_id": "s-noaudio",
+   "index": 9,
+   "type": "summary",
+   "concept_id": "ohm",
+   "chapter_id": null,
+   "title": "Summary",
+   "subtitle": null,
+   "chapter_label": null,
+   "start": 63.1,
+   "duration": 4.81,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "left",
+    "show_side_panel": true,
+    "fullscreen_media": false
+   },
+   "audio_asset_key": null,
+   "audio_url": null,
+   "audio_duration": 0.0,
+   "board": [
+    {
+     "id": "t1",
+     "kind": "takeaway",
+     "text": "V = IR always",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "s-noaudio-b1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 4.01,
+     "end": 4.01,
+     "narration": "To summarise, voltage equals current times resistance.",
+     "board_item_id": "t1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "To",
+       "start": 0.5,
+       "end": 0.691
+      },
+      {
+       "text": "summarise,",
+       "start": 0.691,
+       "end": 1.393
+      },
+      {
+       "text": "voltage",
+       "start": 1.393,
+       "end": 1.904
+      },
+      {
+       "text": "equals",
+       "start": 1.904,
+       "end": 2.351
+      },
+      {
+       "text": "current",
+       "start": 2.351,
+       "end": 2.861
+      },
+      {
+       "text": "times",
+       "start": 2.861,
+       "end": 3.244
+      },
+      {
+       "text": "resistance.",
+       "start": 3.244,
+       "end": 4.01
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.5,
+       "end": 4.01,
+       "text": "To summarise, voltage equals\ncurrent times resistance."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": true
+    }
+   ],
+   "side_panel": {
+    "panel": {
+     "kind": "gif",
+     "title": null,
+     "rationale": "fun",
+     "show_from_beat_id": null,
+     "figure_id": null,
+     "image_prompt": null,
+     "chart": null,
+     "graph": null,
+     "model_3d": null,
+     "manim": null,
+     "terminal": null,
+     "quiz": null,
+     "gif_query": "electricity",
+     "override_asset_key": null
+    },
+    "media": {
+     "kind": "gif",
+     "asset_key": null,
+     "url": "https://media.giphy.com/media/aadhi-invariance/giphy.gif",
+     "mime": "image/gif",
+     "duration": null,
+     "width": null,
+     "height": null,
+     "fit": "contain",
+     "end_behavior": "loop",
+     "ken_burns": null,
+     "attribution": "Powered by GIPHY",
+     "link_url": null,
+     "render_in_mp4": false
+    },
+    "show_at": 0.0
+   },
+   "media": null,
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": []
+  }
+ ],
+ "total_duration": 67.91,
+ "chapters": [
+  {
+   "start": 0.0,
+   "title": "Introduction"
+  },
+  {
+   "start": 15.1,
+   "title": "Current"
+  }
+ ],
+ "captions": [
+  {
+   "start": 12.0,
+   "end": 14.3,
+   "text": "Welcome to this session on Ohm's law."
+  },
+  {
+   "start": 21.6,
+   "end": 23.7,
+   "text": "Voltage is proportional to current."
+  },
+  {
+   "start": 23.95,
+   "end": 26.55,
+   "text": "We write this as V equals I R."
+  },
+  {
+   "start": 26.7,
+   "end": 28.1,
+   "text": "Here is a resistor."
+  },
+  {
+   "start": 28.25,
+   "end": 30.25,
+   "text": "So the current is two amperes."
+  },
+  {
+   "start": 30.4,
+   "end": 32.4,
+   "text": "Let us fill in the step."
+  },
+  {
+   "start": 33.7,
+   "end": 35.1,
+   "text": "Watch the current rise."
+  },
+  {
+   "start": 35.25,
+   "end": 36.65,
+   "text": "And the voltage doubles."
+  },
+  {
+   "start": 37.95,
+   "end": 39.05,
+   "text": "First the battery."
+  },
+  {
+   "start": 39.2,
+   "end": 40.3,
+   "text": "Then nothing visual."
+  },
+  {
+   "start": 40.45,
+   "end": 41.55,
+   "text": "Finally the bulb."
+  },
+  {
+   "start": 42.85,
+   "end": 45.15,
+   "text": "Power lines carry\ncurrent across the state."
+  },
+  {
+   "start": 46.45,
+   "end": 48.45,
+   "text": "A substation steps the voltage down."
+  },
+  {
+   "start": 49.75,
+   "end": 52.05,
+   "text": "Drag the slider to change the resistance."
+  },
+  {
+   "start": 53.35,
+   "end": 55.05,
+   "text": "Here is a quick question."
+  },
+  {
+   "start": 60.2,
+   "end": 61.3,
+   "text": "The current halves."
+  },
+  {
+   "start": 63.6,
+   "end": 67.11,
+   "text": "To summarise, voltage equals\ncurrent times resistance."
+  }
+ ],
+ "branding": {
+  "mascot_clips": {
+   "left": "/branding/aadhi_left_clean.mp4",
+   "right": "/branding/aadhi_right_clean.mp4",
+   "center": "/branding/aadhi_center_clean.mp4",
+   "popup_bottom_left": "/branding/aadhi_popup_clean.mp4",
+   "popup_bottom_right": "/branding/aadhi_popup_clean.mp4",
+   "hidden": "/branding/no_aadhi_clean.mp4"
+  },
+  "static_background_url": "/branding/static_background.png",
+  "bgm_url": "/branding/bgm.mp3",
+  "bgm_volume": 0.06,
+  "tick_url": null,
+  "ding_url": null,
+  "mascot_rig_url": null
+ },
+ "transition_seconds": 0.4,
+ "estimated": true
+}

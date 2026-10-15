@@ -59,6 +59,7 @@ import * as E from '../../lib/screenplayEdit.js';
 import { localProblems, issuesFromValidationError, issuesByScene } from '../../lib/validationIssues.js';
 import { saveDraft, loadDraft, clearDraft, loadPref, savePref } from '../../lib/draftStore.js';
 import { isActive } from '../../lib/jobStages.js';
+import { dynamicRender } from '../../lib/renderOptions.js';
 import { defaultManimTemplate, templatesOf } from '../../lib/manimTemplates.js';
 import { debounce, deepEqual, formatRelative, isEditableTarget, uid } from '../../util.js';
 import { href } from '../../router.js';
@@ -1581,17 +1582,24 @@ export async function mount(container, { app, params, query, signal }) {
 
   async function renderVideo() {
     if (!(await requireSaved('render a video'))) return;
-    const captions = checkbox({ label: 'Burn captions into the video', checked: false, hint: 'Captions are also delivered as SRT/VTT files.' });
-    const softSubs = checkbox({ label: 'Add a selectable caption track', checked: false, hint: 'Some players switch it on straight away. Not added when captions are burned in.' });
-    const intro = checkbox({ label: 'Include the intro (logo and title cards)', checked: true });
-    captions.input.addEventListener('change', () => {
-      softSubs.input.disabled = captions.input.checked;
-      if (captions.input.checked) softSubs.input.checked = false;
-    });
     const stale = !version.has_timeline || version.timeline_stale;
     // A stale timeline is refused anyway (timeline_stale): only check what a built one would show.
     const pre = stale ? null : await loadRenderPreflight();
     if (destroyed) return;
+    // A Dynamic lecture: "Burn captions" starts from its caption policy (§2.6) and every choice is sent (unsent, the
+    // job would apply the policy and a clean file's default-on caption track whatever the boxes showed); it has no
+    // classic intro to include. A classic lecture's dialog is unchanged. Which one it is, is the server's answer only,
+    // as on the project page: without it (the check failed, or a stale lecture is not checked) the classic dialog.
+    const dyn = dynamicRender(pre);
+    const burnFirst = dyn ? dyn.captionsBurn : false;
+    const captions = checkbox({ label: 'Burn captions into the video', checked: burnFirst, hint: 'Captions are also delivered as SRT/VTT files.' });
+    const softSubs = checkbox({ label: 'Add a selectable caption track', checked: !!dyn && !burnFirst, disabled: burnFirst, hint: 'Some players switch it on straight away. Not added when captions are burned in.' });
+    const intro = dyn ? null : checkbox({ label: 'Include the intro (logo and title cards)', checked: true });
+    captions.input.addEventListener('change', () => {
+      softSubs.input.disabled = captions.input.checked;
+      if (captions.input.checked) softSubs.input.checked = false;
+      else if (dyn) softSubs.input.checked = true; // a clean Dynamic file gets the track by default (R-31)
+    });
     const items = degradations(pre && Array.isArray(pre.items) ? pre.items : []);
     const silent = items.filter((/** @type {any} */ it) => it && it.blocking).length;
     /** @type {import('../../components/modal.js').ModalAction[]} */
@@ -1621,8 +1629,13 @@ export async function mount(container, { app, params, query, signal }) {
     if (choice === 'build') return build();
     if (choice !== 'render' && choice !== 'degraded') return;
     /** @type {Record<string, any>} */
-    const body = { burn_captions: captions.input.checked, include_intro: intro.input.checked };
-    if (softSubs.input.checked && !captions.input.checked) body.soft_subtitles = true;
+    const body = { burn_captions: captions.input.checked };
+    if (intro) body.include_intro = intro.input.checked;
+    if (dyn) {
+      if (!captions.input.checked) body.soft_subtitles = softSubs.input.checked; // on or off, as the box shows
+    } else if (softSubs.input.checked && !captions.input.checked) {
+      body.soft_subtitles = true;
+    }
     // Checked: refuse silent scenes unless the teacher chose to render anyway. Not checked: as before.
     if (pre) body.allow_degraded = choice === 'degraded';
     await startRender(body);
@@ -1916,7 +1929,8 @@ export async function mount(container, { app, params, query, signal }) {
   // ------------------------------------------------------------------------------------------
   /**
    * "Save as a copy": a new version of this lecture (POST /duplicate) that receives the unsaved changes and
-   * opens in the editor; this version stays as it was last saved (its videos too).
+   * opens in the editor; this version stays as it was last saved (its videos too). Changes typed while the copy is
+   * being made go to the copy's local draft, which its editor offers to restore.
    */
   async function saveAsCopy() {
     flushPending();
@@ -1952,9 +1966,12 @@ export async function mount(container, { app, params, query, signal }) {
         return;
       }
       if (!copy || !Number.isInteger(copy.id)) return;
+      /** What the copy holds: this version as last saved, then the unsaved changes once they are saved into it. */
+      let held = { screenplay: base, revision: copy.revision };
       if (dirty) {
         try {
-          await put(`/api/versions/${copy.id}/screenplay`, { screenplay: sent, revision: copy.revision });
+          const res = await put(`/api/versions/${copy.id}/screenplay`, { screenplay: sent, revision: copy.revision });
+          held = { screenplay: sent, revision: res && res.version && Number.isInteger(res.version.revision) ? res.version.revision : copy.revision + 1 };
         } catch {
           // The copy exists with the last saved lecture: its editor offers these changes to restore.
           saveDraft(userId, copy.id, { revision: copy.revision, screenplay: sent, base });
@@ -1964,12 +1981,15 @@ export async function mount(container, { app, params, query, signal }) {
       if (destroyed) return;
       // The unsaved changes went into the copy: this version keeps its saved state (no leave question).
       flushPending();
+      // Edits typed while the copy was being made are in neither version: the copy's editor offers them to restore.
+      const later = draft !== sent && !deepEqual(draft, sent);
+      if (later) saveDraft(userId, copy.id, { revision: held.revision, screenplay: draft, base: held.screenplay });
       draft = base;
       autosave.cancel();
       serverAutosave.cancel();
       clearDraft(userId, vid);
       renderChrome();
-      app.toast(`Saved as “${label || `a copy`}”. You are editing the copy now.`, { kind: 'success' });
+      app.toast(`Saved as “${label || `a copy`}”. You are editing the copy now${later ? '; it offers the changes you made meanwhile' : ''}.`, { kind: 'success' });
       app.navigate(href('editor', { id: projectId, vid: copy.id }));
     } finally {
       copying = false;

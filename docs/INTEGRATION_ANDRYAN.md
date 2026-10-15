@@ -420,7 +420,7 @@ slow MP4 render). Three changes are deliberate:
 |---|---|---|
 | `p19-hide-scene` | `SceneBase.hidden` (`schemas/screenplay.py`), `compose/timeline.py` (`build_timeline`, `preview_timeline`), `pipeline/assets.py`, `pipeline/validate.py`, `compose/video.py` (`empty`), `api/routers/renders.py` (409 `all_scenes_hidden`), the inspector's "Skip this scene in the video" (`views/editor/sceneTiming.js`), `sceneList.js`, `timelineStrip.js` | Both renderers skip the scene: the remaining scenes stay contiguous and `TimedScene.index` counts only shown scenes, so captions, chapters and keys leave it out alike. Never built, even when a rebuild names it (no paid work); media built before stays and it is never stale while hidden. A regenerated hidden scene stays hidden. Lint: `lecture.all_scenes_hidden` (warning), `chapter.all_scenes_hidden` and `scene.hidden` (info); a hidden scene's own findings, of every source, become notes (out of the pre-render list, never a paid rewrite or a rebuild; stored issues keep their severity and are served as notes); coverage, length, pacing and abbreviation checks count shown scenes. Hidden AI-video scenes keep their place in the per-lecture AI video limit. The editor will not skip the last scene that plays. Integration: the Visual Review, analytics and render additions below. |
 | `p19-min-duration-hold` | `SceneBase.min_seconds` (1–600), `TimedScene.hold_seconds`, `web/js/player/schedule.js`, `panels/util.js`, `panels/timing.js`, the inspector's "Show for at least" | The extra time is added after the content: beats, captions, sync cues and audio keep their timing, terminal lines and the quiz teaser keep the timing they have without the hold, Aadhi idles. The fork accepted values below 1 s; ours does not (imports clamp). `lecture.duration_mismatch` counts the hold, `scene.too_long` deliberately does not. |
-| `p19-split-scene` | `web/js/studio/views/editor/splitScene.js` ("Split here" from the second beat) | A pure screenplay transform: a new scene id, the beats after the cut and the board items they reveal or fill move (references repaired; companion-sheet entries and legend-row beats follow), the visual and the hold stay with the first part. Quizzes, chapter cards and animations (one step per beat) cannot be split; the second part of footage or a sketch scene becomes a content scene. In "Generated vs edited" the second part is `added`. |
+| `p19-split-scene` | `web/js/studio/views/editor/splitScene.js` ("Split here" from the second beat) | A pure screenplay transform: a new scene id, the beats after the cut and the board items they reveal or fill move (references repaired; companion-sheet entries, legend-row beats, a beat's `answers` and the Dynamic `presentation.hook` follow the items and beats they name), the visual and the hold stay with the first part (the second part keeps the board's `sequence`, never the first part's `look`). Quizzes, chapter cards and animations (one step per beat) cannot be split; the second part of footage or a sketch scene becomes a content scene. In "Generated vs edited" the second part is `added`. |
 | `p19-insert-duplicate-scenes` | the editor's add menu, "Picture from my library…" | A content scene showing the picture as a lecture figure (uploads and document figures only, which a figure accepts; own lectures only). Duplicating a scene already existed. |
 | `p19-timeline-tracks` | `views/editor/timelineStrip.js` | Built from the same preview Timeline as the embedded player: scene, narration (estimated beats hatched), visual and caption lanes, chapter marks, playhead, zoom (remembered), seek by click or drag, drag a block more than 5 px to move a scene; keyboard slider; skipped scenes as thin marks; falls back to the scene list's estimates without a preview. |
 | `p19-playhead-follow-still-preview` | `previewPane.js` (`seekSceneId`, scene id with each change), `editor.js` (`shouldFollow`) | Everything maps by scene id (positions differ once scenes are skipped). The selection follows playback only while playing, never while typing, and only 3 s after the last edit; a paused selection shows a still. |
@@ -532,6 +532,16 @@ slow MP4 render). Three changes are deliberate:
   failed (then the earlier steps are done).
 * Source report: no implicit products with an exponent or quantities with units as inline formulas, and no
   backtracking on long digit runs (same results otherwise: 0 differences over 84,307 lines of this repo).
+* Regression tests (Dynamic video batch B0): one test per item above, in `tests/api/test_batch4_regressions.py`,
+  `tests/pipeline/test_batch4_regressions.py` and `web/tests/studio/batch4Regressions.test.js`; each was checked
+  to fail with its fix undone. They found two gaps, now fixed:
+  * a failed lesson whose built lecture's video failed lost its workflow strip when the teacher had unsaved
+    editor changes in this browser (the next step became "Open the editor to save your changes"); the strip
+    now shows the earlier steps as done (`components/stage.js` `nextStepCard({stageAction})`,
+    `views/projectDetail.js`);
+  * edits typed while "Save as a copy" was making the copy ended up in neither version; they now go to the
+    copy's local draft, which the copy's editor offers to restore (the original is still never saved;
+    `views/editor/editor.js` `saveAsCopy`).
 
 ### Batch 4: deliberately not taken
 
@@ -593,8 +603,12 @@ slow MP4 render). Three changes are deliberate:
   * a light theme for the contrast test, and a server filter for `/api/videos` (the page filters the loaded
     pages).
 * **Before release**:
-  * check the Pollinations 402 behaviour and that the `VEO_MODEL` default (`veo-2.0-generate-001`) is
-    available; neither could be checked offline;
+  * check the Pollinations 402 behaviour and that the `VEO_MODEL` default (`veo-3.1-fast-generate-preview`)
+    is available; neither could be checked offline. The Veo 3.1 models are previews that Google says may
+    shut down as early as 2026-10-22 (replacement: `gemini-omni-1.1-flash`, supported since Dynamic video
+    batch B0 as the `omni` video provider, appended after `veo` automatically and used once Veo is no longer
+    served); see `docs/OPERATIONS.md`
+    sections 3.2 and 3.3;
   * apply migration `0004_claim_operation`;
   * delete by hand any `aadhi-render-*`, `aadhi-manim-*`, `aadhi-m-*` and `aadhi-d-*` folders that
     older versions left in the system temp dir.

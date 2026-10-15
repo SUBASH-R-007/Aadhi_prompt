@@ -154,6 +154,22 @@ async def test_reasoning_models_omit_temperature_and_gemini_names_map(settings) 
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(("model", "reasoning"), [
+    ("gpt-5.6-sol", True), ("gpt-5.6-terra", True), ("gpt-5.6-luna", True), ("gpt-6-luna", True),
+    ("GPT-6.1-sol", True), ("o3", True), ("gpt-4.1", False), ("gpt-4.1-mini", False), ("gpt-4o", False),
+])
+async def test_current_reasoning_models_get_no_temperature(settings, model: str, reasoning: bool) -> None:
+    """gpt-5.x and gpt-6 reason by default: OpenAI accepts sampling parameters only at effort ``none``."""
+    llm, client = make_llm(settings, [openai_response(GOOD)])
+    await llm.generate_json(model=model, system="s", prompt="p", schema=Summary, temperature=0.3,
+                            max_output_tokens=500)
+    call = client.responses.calls[0]
+    assert call["model"] == model and call["max_output_tokens"] == 500
+    assert call["text"]["format"]["type"] == "json_schema" and "reasoning" not in call
+    assert ("temperature" not in call) if reasoning else (call["temperature"] == 0.3)
+
+
+@pytest.mark.asyncio
 async def test_large_pdf_uploaded_and_unsupported_type(settings, monkeypatch) -> None:
     monkeypatch.setattr(openai_llm, "INLINE_FILE_LIMIT", 4)
     llm, client = make_llm(settings, [openai_response(GOOD)])

@@ -20,7 +20,8 @@ redirect hops or WebSockets, Chromium additionally runs behind a proxy that refu
 connection, bypassed only for the allowed origins, WebSockets are closed by
 ``context.route_web_socket``, and an off-origin redirect fails the capture. The scoped render token
 travels in the URL fragment (never sent to the server by the browser). Screenshots are transparent
-PNGs (``omit_background``) at a 1920x1080 viewport, DPR 1.
+PNGs (``omit_background``) at the timeline's stage size (``base.timeline_stage``: 1920x1080 for every classic
+timeline) as the viewport, DPR 1; the page sizes itself from the same timeline (``web/js/render/render.js``).
 """
 
 from __future__ import annotations
@@ -39,7 +40,7 @@ from urllib.parse import urlsplit
 from ..config import Settings
 from ..schemas.timeline import Timeline
 from .aio import DeadlineExceeded, await_polling, gather_or_cancel
-from .base import STAGE_HEIGHT, STAGE_WIDTH
+from .base import timeline_stage
 
 log = logging.getLogger(__name__)
 
@@ -421,9 +422,10 @@ async def capture_render_frames(
                 headless=True, chromium_sandbox=True, args=list(CHROMIUM_ARGS),
                 proxy={"server": f"http://127.0.0.1:{dead_proxy.getsockname()[1]}", "bypass": policy.proxy_bypass()})
             try:
+                stage_w, stage_h = timeline_stage(timeline)
                 context = await browser.new_context(
-                    viewport={"width": STAGE_WIDTH, "height": STAGE_HEIGHT},
-                    screen={"width": STAGE_WIDTH, "height": STAGE_HEIGHT},
+                    viewport={"width": stage_w, "height": stage_h},
+                    screen={"width": stage_w, "height": stage_h},
                     device_scale_factor=1,
                     service_workers="block",
                     accept_downloads=False,

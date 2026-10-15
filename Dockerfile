@@ -3,11 +3,12 @@
 #
 #   docker build -t aadhi-eduengine .                         # default target: app
 #   docker build --target worker-docker -t aadhi-eduengine:docker-cli .   # + docker CLI (MANIM_SANDBOX=docker)
+#   docker build --target test -t aadhi-eduengine:test .      # + test tools: CI's container suites (never deployed)
 #   docker compose up -d                                      # see docker-compose.yml, docs/OPERATIONS.md
 #
 # Stages: web (npm ci -> web/vendor) | pydeps (runtime venv: requirements.txt pinned by
 #         requirements.lock, build tools discarded) | runtime (ffmpeg, cairo/pango, TeX Live for
-#         MathTex, Noto + Indic fonts, Chromium) | app
+#         MathTex, Noto + Indic fonts, Chromium) | app | test (runtime + test tools, CI only)
 # The render worker's Chromium keeps its sandbox: run it with docker/app/chromium-seccomp.json
 # (see docker-compose.yml `render-worker` and docs/OPERATIONS.md section 4.2).
 
@@ -19,7 +20,9 @@ ARG DOCKER_CLI_IMAGE=docker:27-cli
 FROM node:${NODE_VERSION}-slim AS web
 WORKDIR /src
 COPY package.json package-lock.json ./
-COPY scripts/vendor.mjs scripts/vendor.mjs
+COPY scripts/vendor.mjs scripts/vendor_faces.mjs scripts/
+# vendor.mjs copies the Dynamic stage's faces from the generated face table (aadhi/compose/dynamic/faces.py).
+COPY web/js/dynamic/faces.gen.js web/js/dynamic/faces.gen.js
 # `npm ci` runs the postinstall hook (scripts/vendor.mjs), which fills web/vendor.
 RUN npm ci --no-audit --no-fund && test -f web/vendor/manifest.json
 
@@ -77,6 +80,8 @@ WORKDIR /app
 COPY aadhi/ /app/aadhi/
 COPY alembic/ /app/alembic/
 COPY alembic.ini server.py /app/
+# The licences of everything web/vendor serves (generated: scripts/gen_third_party_notices.py; design §4.12).
+COPY THIRD_PARTY_NOTICES /app/
 COPY web/ /app/web/
 COPY docker/app/ /app/docker/app/
 COPY video_template/aadhi_*.mp4 video_template/no_aadhi*.mp4 video_template/logo_animation*.mp4 \
@@ -103,6 +108,38 @@ FROM runtime AS worker-docker
 USER root
 COPY --from=dockercli /usr/local/bin/docker /usr/local/bin/docker
 USER aadhi
+
+# ---- test: the runtime image plus the test tools (CI's container suites; never deployed) -------------------
+# The fast and slow suites, the ffmpeg 5.1 feature checks and the classic invariance harness (tests/invariance:
+# goldens and the differential pixel test) run in here with the production tools (Debian's ffmpeg 5.1, the pinned
+# Chromium, TeX Live, the fonts), against a checkout mounted at /src: tests, docs and evals stay out of every image
+# (.dockerignore) and `npm ci` on the host provides web/vendor. The stages above stay free of pytest
+# (docs/DYNAMIC_VIDEO_DESIGN.md sections 3.6, 7.9 and 10.2; .github/workflows/ci.yml job `container`):
+#   docker build --target test -t aadhi-eduengine:test .
+#   docker run --rm --shm-size=1g --security-opt seccomp=docker/app/chromium-seccomp.json \
+#     --user "$(id -u):$(id -g)" -v "$PWD:/src" aadhi-eduengine:test python -m pytest -m "not slow and not network"
+FROM runtime AS test
+USER root
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+COPY requirements.lock requirements-dev.txt /tmp/
+RUN pip install -c /tmp/requirements.lock -r /tmp/requirements-dev.txt \
+ && python -c "import pytest, pytest_asyncio, respx, yaml, packaging" \
+ && rm -f /tmp/requirements.lock /tmp/requirements-dev.txt
+# The tests choose their own data dirs (tests/conftest.py): the production paths of the image must not reach
+# them, and any uid (CI runs as the runner's own) needs a writable HOME. AADHI_EXPECT_FFMPEG pins the ffmpeg
+# version the `container` checks expect (tests/compose/test_ffmpeg_features.py): a base-image change that moves
+# Debian's ffmpeg off 5.1 fails CI instead of passing unnoticed.
+ENV APP_ENV=test \
+    STORAGE_LOCAL_DIR="" \
+    HOME=/tmp \
+    AADHI_CONTAINER_TESTS=1 \
+    AADHI_EXPECT_FFMPEG=5.1
+WORKDIR /src
+USER aadhi
+HEALTHCHECK NONE
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["python", "-m", "pytest", "-m", "not slow and not network"]
 
 # ---- default target ---------------------------------------------------------------------------------
 FROM runtime AS app

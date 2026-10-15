@@ -35,7 +35,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from aadhi.compose.qa import black_strips, grid_stats, parse_rate, parse_volumedetect  # noqa: E402
+from aadhi.compose.qa import black_strips, edge_sample_size, grid_stats, parse_rate, parse_volumedetect  # noqa: E402
 
 PROTOCOLS = "file,pipe"
 _TIME_RE = re.compile(r"(?:(\d+):)?(\d{1,2}):(\d{2})[.,](\d{3})")
@@ -184,13 +184,17 @@ def mean_diff(a: np.ndarray, b: np.ndarray, *, mask: Sequence[tuple[float, float
 
 
 def black_edges(path: str | Path, times: Sequence[float]) -> list[str]:
-    """Edges that are black on every sampled frame (``aadhi.compose.qa.black_strips`` on 320x180 gray)."""
+    """Edges that are black on every sampled frame (``aadhi.compose.qa.black_strips`` on gray frames of
+    ``aadhi.compose.qa.edge_sample_size``: 320x180, transposed for a portrait video)."""
+    stream = (_ffprobe_json(Path(path), "-select_streams", "v:0", "-show_entries", "stream=width,height")
+              .get("streams") or [{}])[0]
+    w, h = edge_sample_size(stream.get("width"), stream.get("height"))
     found: list[set[str]] = []
     for t in times:
         out = _run([ffmpeg_bin(), "-v", "error", "-nostdin", "-protocol_whitelist", PROTOCOLS, "-ss", f"{t:.3f}",
                     "-i", str(path), "-map", "0:v:0", "-frames:v", "1", "-vf",
-                    "scale=320:180:flags=area:out_range=pc,format=gray", "-f", "rawvideo", "-"])
-        found.append(set(black_strips(out.stdout[: 320 * 180], 320, 180)))
+                    f"scale={w}:{h}:flags=area:out_range=pc,format=gray", "-f", "rawvideo", "-"])
+        found.append(set(black_strips(out.stdout[: w * h], w, h)))
     return sorted(set.intersection(*found)) if found else []
 
 

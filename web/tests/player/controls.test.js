@@ -238,6 +238,11 @@ describe('Controls UI', () => {
     assert.equal(captionLift(500, 499, 0.5), 0, 'a bar below the caption box needs no lift');
     assert.equal(captionLift(500, 440, 0), 0);
     assert.equal(captionLift(NaN, 440, 1), 0);
+    // from where the captions end: a Dynamic 16:9 band ends 48 px above the stage bottom, a 9:16 band 680 px
+    assert.equal(captionLift(500, 440, 0.5, 48), 120 - 48 + 14);
+    assert.equal(captionLift(500, 440, 0.5, 680), 0, 'the bar does not reach a reel caption band: it stays put');
+    assert.equal(captionLift(500, 100, 0.5, 680), 800 - 680 + 14, 'only as far as a (huge) bar needs');
+    assert.equal(captionLift(500, 440, 0.5, NaN), 120 - 40 + 14, 'an unusable bottom falls back to the classic box');
   });
 
   test('visible controls lift the captions; idle controls drop them; render players ignore it', async () => {

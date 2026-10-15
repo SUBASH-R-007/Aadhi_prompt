@@ -28,6 +28,7 @@ from typing import Literal
 from pydantic import Field, field_validator, model_validator
 
 from ..schemas.screenplay import (
+    PLANNABLE_SCENE_TYPES,
     ConceptNode,
     LearningObjective,
     Misconception,
@@ -278,6 +279,14 @@ class PlannedScene(StrictModel):
     _norm_id = field_validator("id", mode="before")(_slug_validator)
     _norm_c = field_validator("concept_id", mode="before")(_opt_slug)
     _norm_lists = field_validator("objective_ids", "misconception_ids", mode="before")(_slug_list)
+
+    @field_validator("type")
+    @classmethod
+    def _plannable(cls, v: str) -> str:
+        # SceneType includes the v3 "clip" scene, which only the editor inserts (design §8.2): never plannable.
+        if v not in PLANNABLE_SCENE_TYPES:
+            raise ValueError(f"a plan cannot contain a {v!r} scene")
+        return v
 
     @model_validator(mode="after")
     def _template_only_for_sim(self) -> "PlannedScene":

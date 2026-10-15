@@ -13,6 +13,15 @@
  *   const off = player.on('timeupdate', ({ t }) => ...);
  *   player.destroy();
  *
+ * Dynamic videos (timeline.presentation.style === "dynamic", DYNAMIC_VIDEO_DESIGN §7.3): live and preview draw the
+ * lecture with the motion engine's stage (web/js/dynamic/stage.js, loaded on demand), the same compositor as the MP4,
+ * sized from the timeline (1080x1920 for a reel); the narration stays the master clock and the stage draws its own
+ * captions. Classic timelines never load it, and render mode is classic only (Dynamic MP4s use /render-dynamic).
+ * A stage that is not 1920x1080 is announced on the root element (`data-stage-shape`, `--ap-stage-w/-h`) so the page's
+ * player box can take its shape (player.css .watch-player, studio.css .preview-box); the captions are drawn at the size
+ * of their format (§4.11), so the caption size is only kept as the viewer's preference (`captionSizeAdjustable`), and
+ * `captionBottom` tells Controls where the stage's caption band ends, to lift it only as far as the control bar needs.
+ *
  * Event details worth knowing: 'scenechange' {index, scene} uses index -1 / scene null for the
  * intro; 'ended' {t, completed} has completed=false when the end was reached by a seek (only
  * continuous playback records the 'complete' analytics event). load() may be called again: the
@@ -29,7 +38,7 @@ import { Clock, isBuffering, mediaMaster } from './clock.js';
 import { Stage, stageRect } from './stage.js';
 import { applyZones, computeZones, STAGE_HEIGHT, STAGE_WIDTH } from './layout.js';
 import { conceptStateAt, normalizeExtraTimes, renderKeyAt, renderStateList, sceneIndexAt, sceneStateAt } from './schedule.js';
-import { CaptionsView } from './captions.js';
+import { CAPTION_SIZES, CaptionsView } from './captions.js';
 import { MascotController } from './mascot.js';
 import { IntroView, introStates } from './intro.js';
 import { createSceneView } from './scenes/index.js';
@@ -38,6 +47,7 @@ import { Analytics } from './analytics.js';
 import { buildPanel, loadPanelModule } from './panel-loader.js';
 import { ensureFonts } from './fonts.js';
 import { mathSpans, texNode } from './richtext.js';
+import { engineProblem } from '../dynamic/engine.js';
 
 /** @typedef {import('../shared/types.js').Timeline} Timeline */
 /** @typedef {import('../shared/types.js').TimedScene} TimedScene */
@@ -67,6 +77,8 @@ export const PLAYER_EVENTS = Object.freeze([
  * @property {(id: number) => void} [cancelFrame]
  * @property {(body: any) => Promise<unknown>} [sendAnalytics]
  * @property {boolean} [waitForFonts]                     default true
+ * @property {(root: HTMLElement, timeline: Timeline, opts: any) => any} [createDynamicStage]   Dynamic timelines
+ *   (default: web/js/dynamic/stage.js, imported on demand)
  */
 
 /**
@@ -83,6 +95,14 @@ export const PLAYER_EVENTS = Object.freeze([
  * @property {PlayerDeps} [deps]            injection points (tests, embedding)
  */
 
+/**
+ * True for a Dynamic timeline (drawn by the motion engine's stage in live and preview mode).
+ * @param {any} timeline
+ */
+export function isDynamicTimeline(timeline) {
+  return !!(timeline && timeline.presentation && timeline.presentation.style === 'dynamic');
+}
+
 const SEEK_TRACK_MIN_DELTA = 0.5;
 const NARRATION_DRIFT = 0.25;
 const NARRATION_RESYNC_MS = 1000;
@@ -91,6 +111,11 @@ const LIVE_FONT_TIMEOUT_MS = 1500;
 const RENDER_FONT_TIMEOUT_MS = 20000;
 /** Hidden tabs get no animation frames: this timer keeps scene changes and narration going. */
 export const BACKGROUND_TICK_MS = 250;
+/**
+ * A Dynamic stage that fails to paint fails on every frame: each distinct failure (scene and message) is reported once
+ * as an 'error' event, at most this many per timeline (a message that varies per frame cannot flood the page either).
+ */
+export const MAX_STAGE_FAILURES = 20;
 
 /** @returns {Promise<void>} */
 function nextFrame() {
@@ -167,6 +192,17 @@ export class Player {
     this._meterOn = false;
     this._meterTried = false;
     this._captionLift = 0;
+    /**
+     * Stage px between the captions' bottom edge and the stage's bottom, for Controls' caption lift: null = the classic
+     * caption box (player.css .ap-captions); a Dynamic stage sets the bottom of its caption band (dynamic/core.js
+     * ZONES: 48 px in 16:9, 680 px in 9:16, where the band sits above the platform UI).
+     * @type {number | null}
+     */
+    this.captionBottom = null;
+    /** The viewer's caption size; a Dynamic stage keeps it unchanged (see captionSize). @type {'s' | 'm' | 'l'} */
+    this._captionSizePref = /** @type {readonly string[]} */ (CAPTION_SIZES).includes(String(opts.captionSize)) ? /** @type {'s' | 'm' | 'l'} */ (opts.captionSize) : 'm';
+    /** Dynamic stage failures already reported for this timeline ('scene|message'; MAX_STAGE_FAILURES). @type {Set<string>} */
+    this._stageFailures = new Set();
     this.buffering = false;
     /** @type {ReturnType<typeof setInterval> | null} */
     this._bgTimer = null;
@@ -216,6 +252,8 @@ export class Player {
     this.bgm = null;
     /** @type {Analytics | null} */
     this.analytics = null;
+    /** Dynamic timelines (live/preview): the motion engine's stage, else null. @type {any} */
+    this.dynamic = null;
   }
 
   // -------------------------------------------------------------------------------------------
@@ -286,6 +324,10 @@ export class Player {
     if (!timeline || !Array.isArray(timeline.scenes) || !Number.isFinite(timeline.total_duration)) {
       throw new TypeError('invalid timeline: expected {scenes: [...], total_duration: number}');
     }
+    // a Dynamic timeline of a newer look engine than this page's stage draws (a newer server than the cached page):
+    // refused before anything is built, as the render page refuses it (timeline_invalid; dynamic/engine.js)
+    const newer = this.mode !== 'render' && isDynamicTimeline(timeline) ? engineProblem(timeline) : null;
+    if (newer) throw Object.assign(new TypeError(`invalid timeline: ${newer}`), { code: 'timeline_invalid' });
     const seq = ++this._loadSeq; // a newer load() supersedes this one while it awaits
     if (this.timeline) this._teardownTimeline();
     this.timeline = timeline;
@@ -295,23 +337,31 @@ export class Player {
     this.el.lang = lang;
     const branding = timeline.branding || {};
     const live = this.mode !== 'render';
+    const dynamic = live && isDynamicTimeline(timeline);
 
-    this.mascot = new MascotController(this.layers.bg, branding, {
-      mode: this.mode,
-      reducedMotion: this._reducedMotion,
-      positions: timeline.scenes.map((s) => s.layout?.mascot_position || 'left'), // only these clips load eagerly
-      now: this.deps.now,
-    });
-    this.captions = new CaptionsView(this.layers.captions, { enabled: live && this.captionsOn, size: this.opts.captionSize });
+    if (dynamic) {
+      // the motion engine's stage draws every pixel (Aadhi only through a scene's presenter clip) and its captions
+      this._sizeStage(timeline.width, timeline.height);
+    } else {
+      this.mascot = new MascotController(this.layers.bg, branding, {
+        mode: this.mode,
+        reducedMotion: this._reducedMotion,
+        positions: timeline.scenes.map((s) => s.layout?.mascot_position || 'left'), // only these clips load eagerly
+        now: this.deps.now,
+      });
+      this.captions = new CaptionsView(this.layers.captions, { enabled: live && this.captionsOn, size: this.opts.captionSize });
+    }
     if (timeline.intro && num(timeline.intro.duration, 0) > 0) {
       this.intro = new IntroView(this.layers.intro, timeline.intro, { mode: this.mode });
     }
     if (live) {
       this.narration = new NarrationDeck();
-      this.sfx = new SoundEffects({ tick: branding.tick_url, ding: branding.ding_url });
+      // the classic quiz scene's tick and ding: the Dynamic stage plays neither live (B3's SFX bank, §5.12), so a
+      // Dynamic lecture does not download them
+      if (!dynamic) this.sfx = new SoundEffects({ tick: branding.tick_url, ding: branding.ding_url });
       this.bgm = new BackgroundMusic(branding.bgm_url, num(branding.bgm_volume, 0.06));
       // WebAudio meter only as the fallback for narration without a build-time loudness envelope
-      if (needsSpeechMeter(timeline.scenes)) this.meter = new SpeechMeter();
+      if (!dynamic && needsSpeechMeter(timeline.scenes)) this.meter = new SpeechMeter();
       this._applyVolume();
       this.narration.setRate(this.rate);
       this.clock.setRate(this.rate);
@@ -340,6 +390,23 @@ export class Player {
       await ensureFonts([lang, timeline.language], { timeoutMs: live ? LIVE_FONT_TIMEOUT_MS : RENDER_FONT_TIMEOUT_MS });
     }
     if (this.destroyed || seq !== this._loadSeq) return;
+    if (dynamic) {
+      const createStage = this.deps.createDynamicStage || (await import('../dynamic/stage.js')).createDynamicStage;
+      // the zones the stage draws in (already loaded with it): Controls lifts the captions from the band's bottom edge
+      const { zonesFor } = await import('../dynamic/core.js');
+      if (this.destroyed || seq !== this._loadSeq) return;
+      const zones = zonesFor(timeline);
+      this.captionBottom = Math.max(0, zones.height - zones.caption.y1);
+      this.dynamic = createStage(this.layers.scene, timeline, {
+        mode: 'live',
+        captions: this.captionsOn,
+        reducedMotion: this._reducedMotion,
+        // a scene finished laying out (TeX, pictures): repaint a paused frame (a playing one repaints anyway)
+        onInvalidate: () => {
+          if (this.dynamic && this.loaded && !this.clock.playing) this._renderFrame(this.clock.time());
+        },
+      });
+    }
     this.loaded = true;
     this.clock.seek(0);
     this._seeked = true;
@@ -360,6 +427,14 @@ export class Player {
     this._syncBackgroundTicker();
     this._setBuffering(false);
     this._unmountScene();
+    if (this.dynamic) {
+      this.dynamic.destroy();
+      this.dynamic = null;
+    }
+    this.captionBottom = null;
+    this._stageFailures.clear();
+    // a Dynamic reel resized it (and the root's shape); a classic timeline is always 1920x1080 in a 16:9 box
+    this._sizeStage(STAGE_WIDTH, STAGE_HEIGHT);
     for (const part of [this.mascot, this.captions, this.intro, this.narration, this.meter, this.sfx, this.bgm]) {
       if (part) part.destroy();
     }
@@ -461,7 +536,7 @@ export class Player {
     const want = this.mode !== 'render' && this.loaded && !this.destroyed && this.clock.playing && hidden;
     if (want && this._bgTimer === null) {
       this._bgTimer = setInterval(() => {
-        if (this.clock.playing) this._renderFrame(this.clock.time());
+        if (this.clock.playing) this._renderFrame(this.clock.time(), true);
         else this._syncBackgroundTicker();
       }, BACKGROUND_TICK_MS);
     } else if (!want && this._bgTimer !== null) {
@@ -555,7 +630,26 @@ export class Player {
   setCaptions(on) {
     this.captionsOn = !!on;
     if (this.captions) this.captions.setEnabled(this.captionsOn && this.mode !== 'render');
-    this._emit('captionschange', { enabled: this.captionsOn, size: this.captions ? this.captions.size : 'm' });
+    if (this.dynamic) this.dynamic.setLayers({ captions: this.captionsOn });
+    this._emit('captionschange', { enabled: this.captionsOn, size: this.captionSize });
+  }
+
+  /**
+   * The caption size: the classic captions' own; with a Dynamic stage, the viewer's preference, kept unchanged for
+   * their classic lectures (the watch page saves it with the other preferences).
+   * @returns {'s' | 'm' | 'l'}
+   */
+  get captionSize() {
+    return this.captions ? this.captions.size : this._captionSizePref;
+  }
+
+  /**
+   * Whether the caption size can be changed: only for the classic captions. A Dynamic stage draws its captions at the
+   * size and in the band of their format (DYNAMIC_VIDEO_DESIGN §4.11, R-34), as in the MP4, so the band always fits
+   * them; Controls disables its size button and says so.
+   */
+  get captionSizeAdjustable() {
+    return !!this.captions;
   }
 
   /**
@@ -570,10 +664,15 @@ export class Player {
     this.el.style.setProperty('--caption-lift', `${lift}px`);
   }
 
-  /** @param {'s' | 'm' | 'l'} size */
+  /**
+   * Set the classic captions' size. Without them (a Dynamic stage) only the preference is kept: the stage's captions
+   * keep their size (captionSizeAdjustable).
+   * @param {'s' | 'm' | 'l'} size
+   */
   setCaptionSize(size) {
+    if (/** @type {readonly string[]} */ (CAPTION_SIZES).includes(String(size))) this._captionSizePref = size;
     if (this.captions) this.captions.setSize(size);
-    this._emit('captionschange', { enabled: this.captionsOn, size: this.captions ? this.captions.size : size });
+    this._emit('captionschange', { enabled: this.captionsOn, size: this.captionSize });
   }
 
   // -------------------------------------------------------------------------------------------
@@ -583,8 +682,9 @@ export class Player {
   /**
    * Render the stage for absolute time t.
    * @param {number} rawT
+   * @param {boolean} [background]  a frame of the hidden-tab timer (_syncBackgroundTicker): nobody sees it
    */
-  _renderFrame(rawT) {
+  _renderFrame(rawT, background = false) {
     if (!this.timeline || this.destroyed) return;
     let t = rawT;
     if (this.duration > 0 && t >= this.duration) {
@@ -603,6 +703,10 @@ export class Player {
     this._seeked = false;
     /** @type {FrameInfo} */
     const frame = { playing: this.clock.playing, rate: this.rate, seeked };
+    if (this.dynamic) {
+      this._renderDynamicFrame(t, frame, background);
+      return;
+    }
     const inIntro = !!this.intro && this.intro.covers(t);
     if (this.intro) this.intro.update(t, frame);
     if (inIntro) {
@@ -654,6 +758,124 @@ export class Player {
     }
     if (this.bgm) this.bgm.setDucked(state.phase === 'beat');
     this._emit('timeupdate', { t, duration: this.duration, sceneIndex: i, sceneT });
+  }
+
+  /**
+   * A Dynamic timeline's frame (live/preview): the stage paints t; narration, music ducking and analytics as for
+   * classic scenes. The stage keeps its own scene state, so `this.state` (the classic SceneState) stays null.
+   * @param {number} t   absolute seconds (already clamped to the duration)
+   * @param {FrameInfo} frame
+   * @param {boolean} [background]  a hidden tab's timer frame (_syncBackgroundTicker)
+   */
+  _renderDynamicFrame(t, frame, background = false) {
+    const timeline = /** @type {Timeline} */ (this.timeline);
+    const scenes = timeline.scenes;
+    if (!scenes.length) return;
+    const i = Math.max(0, sceneIndexAt(timeline, t));
+    const entered = i !== this.sceneIndex;
+    if (entered) this._enterDynamicScene(i, frame.seeked);
+    const scene = scenes[i];
+    const sceneT = Math.max(0, t - scene.start);
+    const sceneFrame = { ...frame, seeked: frame.seeked || this._sceneSeeked };
+    this._sceneSeeked = false;
+    // In a hidden tab nobody sees the stage: while playing it is painted only when the scene changes (its slots and
+    // clips follow the lecture); the clock's next animation frame paints the rest once the tab is visible again, and a
+    // clip that drifted meanwhile is sought back by the stage (LIVE_DRIFT).
+    if (!background || entered || !sceneFrame.playing) this._paintStage(i, t, sceneFrame);
+    this._syncNarration(scene, sceneT, sceneFrame);
+    // The branding music ducks while a beat speaks (the Dynamic audio of today; B3's MusicPlan replaces it, §5.12).
+    // The classic scene state is needed for nothing else here, so it is not computed without a music track.
+    if (this.bgm && this.bgm.hasTrack) this.bgm.setDucked(sceneStateAt(scene, sceneT).phase === 'beat');
+    this._emit('timeupdate', { t, duration: this.duration, sceneIndex: i, sceneT });
+  }
+
+  /**
+   * Paint the Dynamic stage at t. A scene the stage cannot paint fails on every frame: each distinct failure (scene
+   * and message) is reported once ('error'), at most MAX_STAGE_FAILURES per timeline, instead of 60 times a second.
+   * @param {number} i   scene index
+   * @param {number} t   absolute seconds
+   * @param {FrameInfo} frame
+   */
+  _paintStage(i, t, frame) {
+    try {
+      this.dynamic.update(t, { playing: frame.playing, rate: frame.rate, seeked: frame.seeked });
+    } catch (err) {
+      const key = `${i}|${err instanceof Error ? err.message : String(err)}`;
+      if (this._stageFailures.has(key) || this._stageFailures.size >= MAX_STAGE_FAILURES) return;
+      this._stageFailures.add(key);
+      this._error('stage update failed', err);
+    }
+  }
+
+  /**
+   * Enter scene i of a Dynamic timeline: the stage mounts its own scenes, so only the narration switches.
+   * @param {number} i
+   * @param {boolean} [discontinuity]  entered by a seek (not by playing through the previous scene)
+   */
+  _enterDynamicScene(i, discontinuity = true) {
+    const timeline = /** @type {Timeline} */ (this.timeline);
+    const prev = this.sceneIndex;
+    if (this.clock.playing && !discontinuity && prev >= 0 && i === prev + 1) {
+      this._track('scene_complete', timeline.scenes[i].start, undefined, prev);
+    }
+    this.sceneIndex = i;
+    this._sceneSeeked = true;
+    const scene = timeline.scenes[i];
+    if (this.narration) {
+      const el = this.narration.use(i, scene.audio_url);
+      if (el && this._narrationErrorScene !== i) {
+        el.onerror = () => {
+          if (this._narrationErrorScene === i) return;
+          this._narrationErrorScene = i;
+          this._error(`narration audio for scene ${scene.scene_id} failed to load`);
+        };
+      }
+      this.clock.setMaster(el ? mediaMaster(el, scene.start + num(scene.audio_offset, 0)) : null);
+      const next = timeline.scenes[i + 1];
+      if (next) this.narration.preload(i + 1, next.audio_url);
+    }
+    if (this.sessionStarted) this._track('scene_enter', scene.start, undefined, i);
+    this._emit('scenechange', { index: i, scene });
+  }
+
+  /**
+   * Size the logical stage (a Dynamic reel is 1080x1920); no-op when unchanged, so classic timelines never touch it.
+   * @param {unknown} width
+   * @param {unknown} height
+   */
+  _sizeStage(width, height) {
+    const ok = (/** @type {unknown} */ v) => typeof v === 'number' && Number.isInteger(v) && v > 0 && v <= 4096;
+    const w = ok(width) ? /** @type {number} */ (width) : STAGE_WIDTH;
+    const h2 = ok(height) ? /** @type {number} */ (height) : STAGE_HEIGHT;
+    if (this.stage.width === w && this.stage.height === h2) return;
+    this.stage.width = w;
+    this.stage.height = h2;
+    this.stage.el.style.width = `${w}px`;
+    this.stage.el.style.height = `${h2}px`;
+    this._markStageShape(w, h2);
+    this.stage.fit();
+  }
+
+  /**
+   * Let the page's player box take the stage's shape, so a 9:16 reel fills a tall box instead of a small pillar in a
+   * 16:9 one: `data-stage-shape` ('portrait' | 'landscape' | 'square') and `--ap-stage-w` / `--ap-stage-h` (stage px)
+   * on the root element, read by player.css (.watch-player) and studio.css (.preview-box). Set only while the stage is
+   * not the classic 1920x1080, so a classic lecture (and a 16:9 Dynamic one) never touches its 16:9 box; removed again
+   * when the player goes back to it (another timeline, destroy).
+   * @param {number} width
+   * @param {number} height
+   */
+  _markStageShape(width, height) {
+    const root = this.root;
+    if (width === STAGE_WIDTH && height === STAGE_HEIGHT) {
+      delete root.dataset.stageShape;
+      root.style.removeProperty('--ap-stage-w');
+      root.style.removeProperty('--ap-stage-h');
+      return;
+    }
+    root.dataset.stageShape = height > width ? 'portrait' : width > height ? 'landscape' : 'square';
+    root.style.setProperty('--ap-stage-w', String(width));
+    root.style.setProperty('--ap-stage-h', String(height));
   }
 
   /**

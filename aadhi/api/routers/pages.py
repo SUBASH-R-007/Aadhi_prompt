@@ -1,4 +1,4 @@
-"""HTML pages served from ``web_dir`` (Studio, public watch, preview, render frame, p5 sandbox)."""
+"""HTML pages served from ``web_dir`` (Studio, public watch, preview, render frame, Dynamic render page, p5 sandbox)."""
 
 from __future__ import annotations
 
@@ -58,6 +58,15 @@ def preview(version_id: str, settings: AppSettings) -> FileResponse:
 def render_frame(settings: AppSettings) -> FileResponse:
     """Render-mode page driven by the MP4 renderer (token in the URL fragment)."""
     return page_response(settings, "render.html", extra={"Referrer-Policy": "no-referrer"})
+
+
+@router.api_route("/render-dynamic", methods=["GET", "HEAD"])
+def render_dynamic(settings: AppSettings) -> FileResponse:
+    """Render page of the motion engine (Dynamic videos, stage contract v3): the same token-in-fragment scheme, CSP
+    and no-referrer policy as ``/render-frame``. 404 while the admin flag ``DYNAMIC_ENABLED`` is off."""
+    if not settings.dynamic_enabled:
+        raise not_found("Page")
+    return page_response(settings, "render-dynamic.html", extra={"Referrer-Policy": "no-referrer"})
 
 
 @router.api_route("/sandbox/p5", methods=["GET", "HEAD"])

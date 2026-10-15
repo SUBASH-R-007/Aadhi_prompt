@@ -110,6 +110,27 @@ def test_repair_rewrites_failing_scenes_only(job_ctx, providers, lecture, sample
     assert "Rewriting an existing scene" in call["system"]
 
 
+def test_repair_never_targets_an_inserted_clip_scene(job_ctx, providers, lecture, sample_ingest, options):
+    """A teacher-inserted clip scene (v3) is never rewritten: it is not in any plan and AI does not write one. The
+    other failing scene is still repaired (without a plan: the plan is rebuilt from the screenplay)."""
+    sp, scene = lecture["sp"], lecture["content"]
+    data = sp.model_dump(mode="json")
+    chapter = data["scenes"][0]["chapter_id"]
+    clip = {"id": "lab-clip", "type": "clip", "title": "Lab demo", "chapter_id": chapter,
+            "beats": [{"id": "lab-clip-b1", "narration": "Watch the meter."}],
+            "clip": {"asset_key": "clip-lab", "in_frame": 0, "out_frame": 300}}
+    data["scenes"].insert(1, clip)
+    for ch in data["chapters"]:
+        if ch["id"] == chapter:
+            ch["scene_ids"].insert(ch["scene_ids"].index(data["scenes"][0]["id"]) + 1, clip["id"])
+    with_clip = Screenplay.model_validate(data)
+    issues = [Issue(code="factual.error", severity="error", scene_id=sid, source="critic", message="Wrong fact.")
+              for sid in ("lab-clip", scene.id)]
+    res = asyncio.run(repair_detailed(job_ctx, with_clip, issues, sample_ingest, options))
+    assert res.repaired_scene_ids == [scene.id]
+    assert res.screenplay.scene_by_id("lab-clip") == with_clip.scene_by_id("lab-clip")
+
+
 def test_repair_is_bounded_and_keeps_original_on_failure(job_ctx, providers, lecture, sample_ingest, options):
     sp, scene = lecture["sp"], lecture["content"]
 

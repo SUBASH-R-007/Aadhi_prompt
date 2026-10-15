@@ -1,6 +1,11 @@
 """Google image generation: Gemini image models (``generate_content`` with IMAGE output) or Imagen
 (``generate_images``), chosen by ``IMAGE_MODEL``.
 
+Gemini 3 image models (Nano Banana 2 / 2.1 / Pro) always think and may return up to two interim
+"thought" images before the final one: parts marked ``thought`` are skipped and the last remaining
+image is the result. ``image_size`` is not sent (the models' default, 1K). Imagen models were shut
+down on 2026-08-17; the Imagen branch only serves deployments that still name one.
+
 Usage is reported as soon as the billable response is in hand (before the safety check on the
 response and before the bytes are decoded/verified), so a failure afterwards never hides spend.
 """
@@ -28,7 +33,7 @@ IMAGEN_ASPECTS = frozenset({"1:1", "3:4", "4:3", "9:16", "16:9"})
 
 
 class GeminiImage:
-    """``ImageProvider`` for ``gemini-*-image`` and ``imagen-*`` models."""
+    """``ImageProvider`` for Gemini image models (``gemini-nano-banana-*``, ``gemini-*-image``) and ``imagen-*``."""
 
     name = "gemini"
     paid = True
@@ -82,11 +87,12 @@ class GeminiImage:
         response = await self._caller.call(request, what="image generation")
         blob_data, has_image = None, False
         for part in response_parts(response):
+            if getattr(part, "thought", False):  # an interim draft of a thinking image model, not the answer
+                continue
             blob = getattr(part, "inline_data", None)
             mime = str(getattr(blob, "mime_type", "") or "")
             if blob is not None and getattr(blob, "data", None) and mime.startswith("image/"):
-                blob_data, has_image = blob.data, True
-                break
+                blob_data, has_image = blob.data, True  # the last final image wins
         # Tokens are billed even when the answer is blocked or text-only: report before checking.
         await emit_usage(on_usage, usage_from_response(response, model=model, operation="image",
                                                        units=1 if has_image else 0))

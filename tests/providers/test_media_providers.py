@@ -160,6 +160,45 @@ async def test_gemini_image_generate_content(make_settings) -> None:
 
 
 @pytest.mark.asyncio
+async def test_gemini3_image_skips_interim_thought_images(make_settings) -> None:
+    """Nano Banana 2.1 (the default) thinks: interim draft images come back as thought parts."""
+    s = make_settings(gemini_api_key=GEMINI_KEYS[0])
+    assert s.image_model == "gemini-nano-banana-2.1"
+    draft, final = png_bytes(64, 36, (200, 0, 0)), png_bytes(128, 72, (0, 0, 200))
+    response = gtypes.GenerateContentResponse(
+        candidates=[gtypes.Candidate(
+            content=gtypes.Content(role="model", parts=[
+                gtypes.Part(text="Composing the scene", thought=True),
+                gtypes.Part(inline_data=gtypes.Blob(data=draft, mime_type="image/png"), thought=True),
+                gtypes.Part(text="Here is the diagram."),
+                gtypes.Part(inline_data=gtypes.Blob(data=final, mime_type="image/png")),
+            ]),
+            finish_reason=gtypes.FinishReason.STOP,
+        )],
+        usage_metadata=gtypes.GenerateContentResponseUsageMetadata(
+            prompt_token_count=12, candidates_token_count=1120, thoughts_token_count=300),
+    )
+    factory, clients = gemini_factory({GEMINI_KEYS[0]: [response]})
+    usages: list[Usage] = []
+    res = await GeminiImage(s, client_factory=factory, sleep=no_sleep).generate("a diode", on_usage=usages.append)
+    assert res.data == final and (res.width, res.height) == (128, 72)
+    call = clients[GEMINI_KEYS[0]].models.calls[0]
+    assert call["model"] == "gemini-nano-banana-2.1"
+    cfg = call["config"]
+    assert cfg.response_modalities == ["TEXT", "IMAGE"] and cfg.image_config.aspect_ratio == "16:9"
+    assert cfg.image_config.image_size is None and cfg.temperature is None  # the model defaults (1K)
+    assert usages[0].units == 1 and usages[0].output_tokens == 1420  # thinking tokens are billed
+
+    only_drafts = gtypes.GenerateContentResponse(candidates=[gtypes.Candidate(
+        content=gtypes.Content(role="model", parts=[
+            gtypes.Part(inline_data=gtypes.Blob(data=draft, mime_type="image/png"), thought=True)]),
+        finish_reason=gtypes.FinishReason.STOP)])
+    factory, _ = gemini_factory({GEMINI_KEYS[0]: [only_drafts]})
+    with pytest.raises(ProviderError, match="no image"):
+        await GeminiImage(s, client_factory=factory, sleep=no_sleep).generate("x")
+
+
+@pytest.mark.asyncio
 async def test_gemini_image_reports_usage_before_checks(make_settings) -> None:
     s = make_settings(gemini_api_key=GEMINI_KEYS[0], image_model="gemini-2.5-flash-image")
     factory, _ = gemini_factory({GEMINI_KEYS[0]: [gemini_blob_response(BROKEN_PNG, "image/png")]})
@@ -233,6 +272,8 @@ def _op(done: bool, video: gtypes.Video | None = None, **extra) -> SimpleNamespa
 async def test_veo_polls_with_creating_key_and_downloads(gemini_settings, monkeypatch) -> None:
     from aadhi.providers.media import MediaInfo
     from aadhi.providers.video import veo as veo_mod
+
+    gemini_settings = gemini_settings.model_copy(update={"veo_model": "veo-2.0-generate-001"})  # still configurable
 
     async def fake_probe(data, settings=None):
         return MediaInfo(duration=8.0, width=1280, height=720, has_video=True)
@@ -352,6 +393,93 @@ def test_veo_usage_uses_requested_duration(gemini_settings) -> None:
     usage = provider._usage("veo-x", gtypes.GenerateVideosConfig(duration_seconds=5), status="generated")
     assert usage.seconds == 5.0 and usage.units == 1
     assert provider._usage("veo-x", gtypes.GenerateVideosConfig(), status="generated").seconds == 8.0
+
+
+@pytest.mark.asyncio
+async def test_veo31_fast_default_request(gemini_settings, monkeypatch) -> None:
+    """The default model (Veo 3.1 Fast): reference image as an asset, 16:9 default and 9:16 for portrait."""
+    from aadhi.providers.media import MediaInfo
+    from aadhi.providers.video import veo as veo_mod
+
+    async def fake_probe(data, settings=None):
+        return MediaInfo(duration=8.0, width=720, height=1280, has_video=True, has_audio=True)
+
+    monkeypatch.setattr(veo_mod, "probe_media", fake_probe)
+    assert gemini_settings.veo_model == "veo-3.1-fast-generate-preview"
+    video = gtypes.Video(uri="https://files.example/v.mp4", mime_type="video/mp4")
+    factory, clients = gemini_factory({GEMINI_KEYS[0]: [_op(True, video), _op(True, video)]})
+    factory(GEMINI_KEYS[0]).aio.files.download_bytes = MP4_STUB
+    provider = VeoVideo(gemini_settings, client_factory=factory, sleep=no_sleep, poll_interval_s=0)
+    usages: list[Usage] = []
+    ref = ImageInput(data=png_bytes(), mime="image/png")
+    res = await provider.generate("a pendulum swinging", aspect="9:16", reference_image=ref, on_usage=usages.append)
+    assert (res.width, res.height) == (720, 1280) and res.warnings == []
+    first = clients[GEMINI_KEYS[0]].models.calls[0]
+    assert first["model"] == "veo-3.1-fast-generate-preview" and first["source"].image is None
+    cfg = first["config"]
+    assert cfg.reference_images[0].reference_type.value == "ASSET"
+    assert cfg.reference_images[0].image.image_bytes == ref.data
+    assert cfg.aspect_ratio == "9:16" and cfg.number_of_videos == 1 and cfg.negative_prompt
+    # not sent: the model defaults (8 s, 720p, audio always on, person generation per mode/region)
+    assert cfg.duration_seconds is None and cfg.resolution is None and cfg.generate_audio is None
+    assert cfg.person_generation is None
+    await provider.generate("a pendulum swinging", aspect="4:3")  # unsupported aspect -> 16:9
+    assert clients[GEMINI_KEYS[0]].models.calls[1]["config"].aspect_ratio == "16:9"
+    assert usages == [Usage(provider="veo", model="veo-3.1-fast-generate-preview", operation="video", seconds=8.0,
+                            units=1, meta={"status": "generated", "estimated": True})]
+    assert provider.billed_seconds() == 8.0
+
+
+@pytest.mark.parametrize(("model", "requested", "reference", "expected"), [
+    ("veo-3.1-fast-generate-preview", None, False, None),
+    ("veo-3.1-fast-generate-preview", 1, False, 4),
+    ("veo-3.1-fast-generate-preview", 4, False, 4),
+    ("veo-3.1-fast-generate-preview", 5, False, 6),
+    ("veo-3.1-generate-preview", 7, False, 8),
+    ("veo-3.1-generate-preview", 30, False, 8),
+    ("veo-3.1-generate-preview", 4, True, 8),  # asset reference images need 8 s clips
+    ("veo-3.1-lite-generate-preview", 4, True, 4),  # Lite takes the picture as its first frame instead
+    ("veo-3.0-generate-001", 5, False, 6),
+    ("veo-2.0-generate-001", 5, False, 5),  # Veo 2 took the value as given
+])
+def test_veo31_clip_lengths(model: str, requested: int | None, reference: bool, expected: int | None) -> None:
+    from aadhi.providers.video.veo import clip_seconds
+
+    assert clip_seconds(model, requested, reference=reference) == expected
+
+
+@pytest.mark.asyncio
+async def test_veo31_rounded_duration_is_requested_and_billed(make_settings, monkeypatch) -> None:
+    from aadhi.providers.media import MediaInfo
+    from aadhi.providers.video import veo as veo_mod
+
+    async def fake_probe(data, settings=None):
+        return MediaInfo(duration=6.0, width=1280, height=720, has_video=True)
+
+    monkeypatch.setattr(veo_mod, "probe_media", fake_probe)
+    s = make_settings(gemini_api_key=GEMINI_KEYS[0], veo_duration_seconds=5)
+    video = gtypes.Video(uri="https://files.example/v.mp4", mime_type="video/mp4")
+    factory, clients = gemini_factory({GEMINI_KEYS[0]: [_op(True, video), _op(True, video)]})
+    factory(GEMINI_KEYS[0]).aio.files.download_bytes = MP4_STUB
+    provider = VeoVideo(s, client_factory=factory, sleep=no_sleep, poll_interval_s=0)
+    usages: list[Usage] = []
+    await provider.generate("x", on_usage=usages.append)
+    assert clients[GEMINI_KEYS[0]].models.calls[0]["config"].duration_seconds == 6
+    await provider.generate("x", reference_image=ImageInput(data=png_bytes()), on_usage=usages.append)
+    assert clients[GEMINI_KEYS[0]].models.calls[1]["config"].duration_seconds == 8
+    assert [u.seconds for u in usages] == [6.0, 8.0]
+    assert provider.billed_seconds() == 6.0  # the pipeline's estimate before a clip
+
+
+@pytest.mark.asyncio
+async def test_veo31_lite_uses_the_reference_as_first_frame(make_settings) -> None:
+    s = make_settings(gemini_api_key=GEMINI_KEYS[0], veo_model="veo-3.1-lite-generate-preview")
+    factory, clients = gemini_factory({GEMINI_KEYS[0]: [_op(True, None, rai_media_filtered_count=1)]})
+    ref = ImageInput(data=png_bytes(), mime="image/png")
+    with pytest.raises(ContentBlocked):
+        await VeoVideo(s, client_factory=factory, sleep=no_sleep).generate("x", reference_image=ref)
+    call = clients[GEMINI_KEYS[0]].models.calls[0]
+    assert call["source"].image.image_bytes == ref.data and call["config"].reference_images is None
 
 
 # --- gifs ------------------------------------------------------------------------------------------

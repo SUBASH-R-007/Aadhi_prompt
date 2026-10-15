@@ -100,6 +100,22 @@ def board_png(path: Path, color=(240, 200, 40)) -> Path:
     return path
 
 
+# --- black edges ----------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(("picture", "frame", "edges"), [
+    ("640x300", "640:360:0:30", ["bottom", "top"]),  # letterboxed landscape (sampled 320x180)
+    ("300x640", "360:640:30:0", ["left", "right"]),  # pillarboxed portrait (sampled 180x320)
+    ("360x640", "360:640:0:0", []),
+])
+def test_black_edges_sample_both_formats(tmp_path: Path, picture: str, frame: str, edges: list[str]) -> None:
+    out = tmp_path / "edges.mp4"
+    subprocess.run([vqa.ffmpeg_bin(), "-v", "error", "-nostdin", "-f", "lavfi", "-i",
+                    f"color=c=white:s={picture}:d=1:r={FPS}", "-vf", f"pad={frame}:black,format=yuv420p",
+                    "-c:v", "libx264", "-preset", "ultrafast", str(out)], check=True)
+    assert vqa.black_edges(out, [0.2, 0.6]) == edges
+
+
 # --- frame grid -----------------------------------------------------------------------------------
 
 

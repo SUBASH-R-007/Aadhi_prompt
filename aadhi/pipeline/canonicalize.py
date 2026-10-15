@@ -662,10 +662,16 @@ def scene_problems(planned: PlannedScene, out: BaseModel, **kwargs: Any) -> list
 # ---------------------------------------------------------------------------
 
 
+# v3 narrative roles (Dynamic lectures) -> the classic, generator-facing role a plan can hold, until B4 widens
+# ``PlannedScene.narrative_role`` (design §6.5). ``repair.carry_over`` puts the scene's own v3 role back.
+_PLAN_ROLE = {"pretraining": "prerequisite", "predict": "context", "recap": "synthesis"}
+
+
 def planned_from_scene(scene: Any, est_seconds: int | None = None) -> PlannedScene:
     """Reconstruct the PlannedScene a canonical scene was written from (its narrative role and bridge included,
-    so a regenerated scene still continues from its neighbour)."""
+    so a regenerated scene still continues from its neighbour). A v3 role is given as its classic counterpart."""
     intent = scene.intent
+    role = intent.narrative_role if intent else None
     template = None
     if isinstance(scene, SimulationScene):
         template = scene.manim.template
@@ -690,6 +696,6 @@ def planned_from_scene(scene: Any, est_seconds: int | None = None) -> PlannedSce
         manim_template=template,
         misconception_ids=list(dict.fromkeys(miscs)),
         est_seconds=int(min(600, max(5, est_seconds or 45))),
-        narrative_role=intent.narrative_role if intent else None,
+        narrative_role=_PLAN_ROLE.get(role, role),
         bridge_in=intent.bridge_in if intent else "",
     )

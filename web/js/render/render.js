@@ -12,6 +12,9 @@
  *     showIntro({t}) -> Promise<{state_key, ...}>,
  *   }
  *
+ * Size: the page lays itself out on the timeline's stage (stageSize: Timeline.width x height, 1920x1080 for
+ * every classic timeline), the size the render worker gives its viewport.
+ *
  * Auth: a scoped render token arrives in the URL fragment (`#token=...`); it is removed from the
  * URL immediately (history.replaceState) and sent as `Authorization: Bearer` (no cookies).
  */
@@ -24,7 +27,38 @@ export const MAX_TOKEN_LENGTH = 4096;
 /** JWT-like: base64url segments separated by dots. */
 export const TOKEN_PATTERN = /^[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+){0,4}$/;
 export const PLAYER_METHODS = Object.freeze(['load', 'states', 'renderState', 'renderIntro', 'destroy']);
+/** The classic (landscape) stage: the default when a timeline carries no usable size. */
 export const STAGE = Object.freeze({ width: 1920, height: 1080 });
+/** Largest stage side accepted from a timeline (px); anything else falls back to STAGE. */
+export const MAX_STAGE_SIDE = 4096;
+
+/**
+ * The stage a timeline was laid out on (Timeline.width x Timeline.height; aadhi/compose/base.timeline_stage):
+ * 1920x1080 for every classic timeline, 1080x1920 for a portrait one. Missing or implausible sizes give STAGE.
+ * @param {any} timeline
+ * @returns {{ width: number, height: number }}
+ */
+export function stageSize(timeline) {
+  const w = timeline && timeline.width;
+  const h = timeline && timeline.height;
+  /** @param {unknown} v */
+  const ok = (v) => typeof v === 'number' && Number.isInteger(v) && v > 0 && v <= MAX_STAGE_SIDE;
+  return ok(w) && ok(h) ? { width: /** @type {number} */ (w), height: /** @type {number} */ (h) } : { ...STAGE };
+}
+
+/**
+ * Size the page to the stage: the CSS variables render.html lays the page out with, and the viewport meta
+ * (the render worker's browser viewport is set to the same size).
+ * @param {Document} doc
+ * @param {{ width: number, height: number }} size
+ */
+export function applyStageSize(doc, size) {
+  const root = doc.documentElement;
+  root.style.setProperty('--render-stage-width', `${size.width}px`);
+  root.style.setProperty('--render-stage-height', `${size.height}px`);
+  const meta = doc.querySelector('meta[name="viewport"]');
+  if (meta) meta.setAttribute('content', `width=${size.width}, height=${size.height}, initial-scale=1`);
+}
 
 export class RenderError extends Error {
   /**
@@ -271,6 +305,7 @@ export async function boot(deps = {}) {
     }
     const [timeline, Player] = await Promise.all([fetchTimeline(token, fetchImpl), loadPlayerClass(importPlayer)]);
     doc.documentElement.lang = String(timeline.board_language || timeline.language || 'en');
+    applyStageSize(doc, stageSize(timeline));
     const fontsDone = preloadFonts(doc.fonts, fontRequests(timeline));
     const mathJaxDone = loadMathJax();
 

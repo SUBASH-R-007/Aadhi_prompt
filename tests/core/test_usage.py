@@ -60,14 +60,15 @@ def test_tts_image_video_gif(app_env):
     assert estimate_cost(Usage("openai", "tts-1-hd", "tts", characters=1_000_000), app_env) == pytest.approx(30.0)
     assert estimate_cost(Usage("openai", "tts-1", "tts", characters=1_000_000), app_env) == pytest.approx(15.0)
     assert estimate_cost(Usage("elevenlabs", "eleven_multilingual_v2", "tts", characters=1000), app_env) == (
-        pytest.approx(0.3)
+        pytest.approx(0.08)  # $0.08 per 1K characters (ElevenLabs list price re-read in B0; was $0.30)
     )
     assert estimate_cost(Usage("gemini", "gemini-2.5-flash-image", "image", units=3), app_env) == pytest.approx(0.117)
     assert estimate_cost(Usage("gemini", "gemini-2.5-flash-image", "image"), app_env) == pytest.approx(0.039)
     assert estimate_cost(Usage("pollinations", "flux", "image", units=5), app_env) == 0.0
     assert estimate_cost(Usage("veo", "veo-2.0-generate-001", "video", seconds=8), app_env) == pytest.approx(4.0)
     assert estimate_cost(Usage("giphy", "", "gif", units=1), app_env) == 0.0
-    assert estimate_cost(Usage("x", "y", "telepathy", units=1), app_env) == 0.0
+    # unknown operations fail closed (B0): one unit at the global default image rate, never free
+    assert estimate_cost(Usage("x", "y", "telepathy", units=1), app_env) == pytest.approx(0.04)
 
 
 def test_negative_inputs_never_negative(app_env):
@@ -94,9 +95,12 @@ def test_invalid_pricing_file_falls_back(app_env, tmp_path, content):
     path = tmp_path / "prices.json"
     path.write_text(content, encoding="utf-8")
     s = app_env.model_copy(update={"pricing_file": path})
-    assert load_prices(s) is DEFAULT_PRICES
+    before_steps = dt.date(2026, 10, 10)  # before the first scheduled price change: the built-in table itself
+    assert load_prices(s, on=before_steps) is DEFAULT_PRICES
+    assert load_prices(s) == load_prices(app_env)  # any day: the built-in table of that day
     missing = app_env.model_copy(update={"pricing_file": tmp_path / "nope.json"})
-    assert load_prices(missing) is DEFAULT_PRICES
+    assert load_prices(missing, on=before_steps) is DEFAULT_PRICES
+    assert load_prices(missing) == load_prices(app_env)
 
 
 def test_fake_job_context_uses_pricing(job_ctx):

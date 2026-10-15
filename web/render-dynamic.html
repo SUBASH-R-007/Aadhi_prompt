@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en" data-aadhi-render="dynamic">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=1920, height=1080, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Aadhi EduEngine Dynamic render</title>
+    <link rel="stylesheet" href="/web/css/tokens.css" />
+    <link rel="stylesheet" href="/web/css/dynamic.css" />
+    <link rel="stylesheet" href="/web/css/dynamic-fonts.css" />
+    <!-- Page-level layout only (style-src allows inline styles; no inline scripts anywhere). The motion engine's
+         render page (stage contract v3, web/js/dynamic/render.js); the classic page is web/render.html. -->
+    <style>
+      html:root {
+        /* tokens.css sets a dark color-scheme on :root, which would paint an opaque canvas behind the page; the
+           caption-only layer (setLayers) needs a transparent page. The stage paints its own opaque background. */
+        color-scheme: normal;
+        /* The stage size: render.js sets both from the timeline (1920x1080 or 1080x1920); the worker's viewport
+           is the same size. */
+        --render-stage-width: 1920px;
+        --render-stage-height: 1080px;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: var(--render-stage-width);
+        height: var(--render-stage-height);
+        overflow: hidden;
+        background: transparent !important;
+      }
+      [data-aadhi-stage-root] {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: var(--render-stage-width);
+        height: var(--render-stage-height);
+        overflow: hidden;
+        background: transparent;
+      }
+    </style>
+    <script type="module" src="/web/js/dynamic/render.js"></script>
+  </head>
+  <body>
+    <div data-aadhi-stage-root></div>
+  </body>
+</html>

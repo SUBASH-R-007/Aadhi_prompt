@@ -29,7 +29,7 @@ def test_fast_model_per_engine(app_env) -> None:
     assert llm.fast_model(s) == "gpt-5-mini"  # the default engine (fake in tests) reports LLM_MODEL_FAST
     assert llm.fast_model(s, "anthropic") == "claude-fast-test"
     assert llm.fast_model(s, "openai") == "gpt-5-mini"  # LLM_MODEL_FAST names an OpenAI model
-    assert llm.fast_model(s, "gemini") == "gemini-2.5-flash"
+    assert llm.fast_model(s, "gemini") == "gemini-3.8-flash"
 
 
 def test_engine_is_not_part_of_the_render_cache_key(make_request) -> None:

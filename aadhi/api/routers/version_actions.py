@@ -15,6 +15,7 @@ from ...db import compare_and_set
 from ...jobs.queue import complete_review, job_summary
 from ...models import Job, Project, ProjectVersion
 from ...pipeline.base import SUPPORTED_LANGUAGES, LecturePlan
+from ...schemas.screenplay import PLANNABLE_SCENE_TYPES, Screenplay
 from ..deps import RATE_LIMITED, AppSettings, CurrentUser, DbSession, Store, load_version
 from ..errors import ApiException, not_found
 from ..generation import (
@@ -37,11 +38,15 @@ from .versions import safe_screenplay
 router = APIRouter(prefix="/api/versions", tags=["versions"], dependencies=RATE_LIMITED)
 
 
-def _require_screenplay_ids(version: ProjectVersion) -> list[str]:
+def _require_screenplay(version: ProjectVersion) -> Screenplay:
     screenplay = safe_screenplay(version)
     if screenplay is None:
         raise ApiException(409, "no_screenplay", "This version has no screenplay yet.")
-    return [s.id for s in screenplay.scenes]
+    return screenplay
+
+
+def _require_screenplay_ids(version: ProjectVersion) -> list[str]:
+    return [s.id for s in _require_screenplay(version).scenes]
 
 
 class BuildBody(StorableBody):
@@ -109,10 +114,16 @@ def regenerate_scene(
     settings: AppSettings,
     body: RegenerateSceneBody | None = None,
 ) -> dict[str, Any]:
-    """Rewrite one scene with optional teacher instructions."""
+    """Rewrite one scene with optional teacher instructions. 409 ``action_unavailable`` for a teacher-inserted clip
+    scene (v3): AI never writes one, so it cannot be regenerated (refused before any budget or quota is used)."""
     version = load_version(db, user, vid)
-    if scene_id not in _require_screenplay_ids(version):
-        raise not_found("Scene")
+    try:
+        scene = _require_screenplay(version).scene_by_id(scene_id)
+    except KeyError:
+        raise not_found("Scene") from None
+    if scene.type not in PLANNABLE_SCENE_TYPES:
+        raise ApiException(409, "action_unavailable", "Inserted clips are not written by AI, so they cannot be "
+                                                      "regenerated. Replace or edit the clip in the editor.")
     project = db.get(Project, version.project_id)
     keys = request_keys(db, user, settings)
     ensure_version_engine(version, project, settings, keys)

@@ -1,4 +1,4 @@
-"""Canonical screenplay schema (schema_version 2).
+"""Canonical screenplay schema (schema_version 2; 3 when a Dynamic-video field is used).
 
 This is the central contract of the system. Every stage reads or writes it:
 
@@ -20,6 +20,11 @@ Design rules
   into these classes; the model never authors scene/beat/board ids.
 * Structural validity is enforced here (``ValidationError``). Quality checks (lengths,
   pacing, pedagogy) live in ``aadhi.pipeline.validate`` and produce lint issues instead.
+* Dynamic video (design §6.7, §8.2): every v3 field exists as an *inert* field, left out of the
+  JSON at its default (``exclude_if``), so classic screenplays serialise exactly as before. Each
+  model lists its v3 fields in ``V3_FIELDS`` / ``V3_VALUES`` / ``V3_MODEL`` (feature names of
+  ``aadhi.schemas.features``); a screenplay that uses one is written with ``schema_version = 3`` and
+  a newer document is refused with ``NewerDocumentError`` (never silently stripped).
 """
 
 from __future__ import annotations
@@ -29,13 +34,22 @@ import re
 import unicodedata
 from collections import deque
 from enum import Enum
-from typing import Annotated, Any, Literal, Union
+from typing import Annotated, Any, ClassVar, Literal, Union
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializerFunctionWrapHandler,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 
+from .features import check_reader_version, marked_version
 from .jsonsafe import check_storable
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 2  # classic screenplays; a screenplay using a v3 field is written as 3 (aadhi.schemas.features)
 
 # Inline markup accepted inside BoardItem.text, table cells, captions etc. Tokenised by
 # web/js/player/richtext.js (never parsed as HTML); stripped to plain text for captions/TTS.
@@ -57,8 +71,14 @@ TRANSLATABLE_FIELDS = (
     "side_panel.chart.y_label", "side_panel.quiz.*", "side_panel.terminal.output",
     "learning_objectives[].text", "misconceptions[].statement", "misconceptions[].correction",
     "concept_map[].title", "concept_map[].summary", "companion_sheet.*", "lexicon[].spoken",
+    "board[].unit", "board[].date", "captions[].text",  # v3: stat units, timeline dates, clip captions
 )
-PROTECTED_FIELDS = ("*.id", "*_id", "*_ids", "latex", "code", "language", "expr", "figure_id", "manim", "p5_code")
+PROTECTED_FIELDS = (
+    "*.id", "*_id", "*_ids", "latex", "code", "language", "expr", "figure_id", "manim", "p5_code",
+    # v3: icon keywords and stat values are never translated; credits and stock attributions stay exactly as the
+    # licence requires
+    "icon_hint", "value", "credit", "attribution",
+)
 
 # Highest "new AI version" number of a generated visual (SidePanel.variant / AIVideoScene.variant).
 MAX_VISUAL_VARIANT = 99
@@ -108,6 +128,21 @@ def _opt_slug(v: Any) -> Any:
 
 
 Slug = Annotated[str, Field(min_length=1, max_length=64)]
+# Ids of the Dynamic catalogues (theme families, personalities, fonts, caption styles, templates, backgrounds ...).
+CatalogueId = Annotated[str, Field(pattern=r"^[a-z0-9_-]{1,40}$")]
+# "<scene_id>/<item_id>" or "<scene_id>/<beat_id>" (hooks, predictions and the beats that answer them).
+ItemRef = Annotated[str, Field(min_length=3, max_length=129, pattern=r"^[a-z0-9][a-z0-9_\-]{0,63}/[a-z0-9][a-z0-9_\-]{0,63}$")]
+
+
+def _item_ref(v: Any) -> Any:
+    """Normalise both halves of a ``"<scene_id>/<item_id>"`` reference like other ids (None/"" -> None)."""
+    if v in ("", None):
+        return None
+    if isinstance(v, str) and v.count("/") == 1:
+        scene, item = v.split("/")
+        if scene.strip() and item.strip():
+            return f"{slugify(scene)}/{slugify(item)}"
+    return v
 
 # TeX macros that could produce links/attributes/unicode tricks in MathJax output. MathJax is
 # also configured to refuse them (web/js/shared/libs.js); this is defence in depth.
@@ -153,6 +188,12 @@ class StrictModel(BaseModel):
     """
 
     model_config = ConfigDict(extra="ignore", populate_by_name=True, str_strip_whitespace=True, allow_inf_nan=False)
+
+    # Schema v3 bookkeeping (aadhi.schemas.features): v3 field -> feature, v3 enum value -> feature, and the feature
+    # of a model that is v3 as a whole. Every v3 field has an ``exclude_if`` that drops its default.
+    V3_FIELDS: ClassVar[dict[str, str]] = {}
+    V3_VALUES: ClassVar[dict[str, dict[str, str]]] = {}
+    V3_MODEL: ClassVar[str | None] = None
 
 
 # ---------------------------------------------------------------------------
@@ -204,9 +245,14 @@ class LexiconEntry(StrictModel):
 
 
 class ChapterRef(StrictModel):
+    V3_FIELDS: ClassVar[dict[str, str]] = {"builds_on": "presentation"}
+
     id: Slug
     title: str = Field(min_length=1, max_length=160)
     scene_ids: list[Slug] = Field(default_factory=list, max_length=200)
+    # v3 (planner): False when this chapter starts a new argument rather than building on the previous one (a new
+    # background preset / music bed may start there, R-18 / R-47). Left out of the JSON when True.
+    builds_on: bool = Field(default=True, exclude_if=lambda v: v is True)
 
     _norm_id = field_validator("id", mode="before")(_slug_validator)
     _norm_s = field_validator("scene_ids", mode="before")(_slug_list)
@@ -232,6 +278,16 @@ class BoardItemKind(str, Enum):
     figure = "figure"  # ``figure_id`` -> Screenplay.figures; ``caption``
     example_step = "example_step"  # worked-example step; ``justification`` = why; ``blank`` = faded
     takeaway = "takeaway"  # key-takeaway line
+    # v3 (Dynamic lectures, feature "items_v3"; classic surfaces render them as callout_tip / heading + paragraph /
+    # bullet / callout_info / bullet "term — text", design §6.7):
+    question = "question"  # ``text``; ``blank`` = answer withheld until a later beat ``answers`` it; ``level``
+    stat = "stat"  # ``value`` (+ ``unit``) and ``text`` (context); source refs required (lint)
+    step = "step"  # one step of a ``BoardScene.sequence`` (flow, cycle, timeline ...); ``text``, optional ``date``
+    quote = "quote"  # verbatim from the source: ``text`` + ``caption`` (who said it)
+    pair = "pair"  # familiar idea ``term`` <-> concept ``text`` (analogy / correspondence)
+
+
+V3_BOARD_ITEM_KINDS = ("question", "stat", "step", "quote", "pair")
 
 
 class FormulaVariable(StrictModel):
@@ -248,7 +304,25 @@ class FormulaVariable(StrictModel):
     _norm_beat = field_validator("beat_id", mode="before")(_opt_slug)
 
 
+class FigurePin(StrictModel):
+    """A point on a source figure placed by the teacher in Visual Review (never LLM-facing: the model never sees
+    the picture). The camera can push toward it (``cue.lookHere``)."""
+
+    id: Slug
+    x: float = Field(ge=0.0, le=1.0)  # normalised to the figure's width
+    y: float = Field(ge=0.0, le=1.0)  # normalised to the figure's height
+    label: str = Field(default="", max_length=80)
+
+    _norm_id = field_validator("id", mode="before")(_slug_validator)
+
+
 class BoardItem(StrictModel):
+    V3_FIELDS: ClassVar[dict[str, str]] = {
+        "value": "items_v3", "unit": "items_v3", "date": "items_v3", "icon_hint": "items_v3", "pins": "items_v3",
+        "level": "items_v3",
+    }
+    V3_VALUES: ClassVar[dict[str, dict[str, str]]] = {"kind": {k: "items_v3" for k in V3_BOARD_ITEM_KINDS}}
+
     id: Slug
     kind: BoardItemKind
     text: str = Field(default="", max_length=1200)
@@ -265,6 +339,15 @@ class BoardItem(StrictModel):
     blank: bool = False  # example_step shown as "______" until a beat fills it (Beat.fill_item_id)
     misconception_id: Slug | None = None  # kind == misconception -> Screenplay.misconceptions
     source_refs: list[str] = Field(default_factory=list, max_length=10)  # IngestResult chunk ids
+    # v3 (feature "items_v3"); each is left out of the JSON at None / empty, so classic items are unchanged.
+    value: str | None = Field(  # stat: the number as written ("3.5", "-40", "1,200"); protected from translation
+        default=None, max_length=32, pattern=r"^-?[0-9][0-9.,]*$", exclude_if=lambda v: v is None
+    )
+    unit: str | None = Field(default=None, max_length=40, exclude_if=lambda v: v is None)  # stat
+    date: str | None = Field(default=None, max_length=40, exclude_if=lambda v: v is None)  # step of a timeline
+    icon_hint: str | None = Field(default=None, max_length=24, exclude_if=lambda v: v is None)  # one keyword, never translated
+    pins: list[FigurePin] = Field(default_factory=list, max_length=8, exclude_if=lambda v: not v)  # figure (teacher)
+    level: Literal["recall", "apply", "transfer"] | None = Field(default=None, exclude_if=lambda v: v is None)  # question
 
     _norm_id = field_validator("id", mode="before")(_slug_validator)
     _norm_fig = field_validator("figure_id", mode="before")(_opt_slug)
@@ -274,6 +357,16 @@ class BoardItem(StrictModel):
     @model_validator(mode="after")
     def _kind_fields(self) -> "BoardItem":
         k = self.kind
+        if k == BoardItemKind.stat and not ((self.value or "").strip() and self.text.strip()):
+            raise ValueError("stat board item requires 'value' and 'text'")
+        if k == BoardItemKind.pair and not ((self.term or "").strip() and self.text.strip()):
+            raise ValueError("pair board item requires 'term' and 'text'")
+        if k == BoardItemKind.quote and not (self.text.strip() and (self.caption or "").strip()):
+            raise ValueError("quote board item requires 'text' and 'caption'")
+        if self.pins and k != BoardItemKind.figure:
+            raise ValueError("only figure board items can have pins")
+        if len({p.id for p in self.pins}) != len(self.pins):
+            raise ValueError("figure pin ids must be unique")
         if k == BoardItemKind.formula and not (self.latex or "").strip():
             raise ValueError("formula board item requires 'latex'")
         if k == BoardItemKind.code and not (self.code or "").strip():
@@ -288,15 +381,79 @@ class BoardItem(StrictModel):
             raise ValueError("figure board item requires 'figure_id'")
         if k == BoardItemKind.definition and not (self.term or self.text):
             raise ValueError("definition board item requires 'term' and/or 'text'")
-        if self.blank and k != BoardItemKind.example_step:
-            raise ValueError("only example_step items can be blank")
+        if self.blank and k not in (BoardItemKind.example_step, BoardItemKind.question):
+            raise ValueError("only example_step and question items can be blank")
         needs_text = {
             BoardItemKind.heading, BoardItemKind.bullet, BoardItemKind.paragraph, BoardItemKind.callout_info,
             BoardItemKind.callout_tip, BoardItemKind.callout_warning, BoardItemKind.misconception,
-            BoardItemKind.example_step, BoardItemKind.takeaway,
+            BoardItemKind.example_step, BoardItemKind.takeaway, BoardItemKind.question, BoardItemKind.step,
         }
         if k in needs_text and not self.text.strip():
             raise ValueError(f"{k.value} board item requires 'text'")
+        return self
+
+
+# ---------------------------------------------------------------------------
+# Edits anchored to content (v3, design §8.2): narration cuts, clip ranges, overlays
+# ---------------------------------------------------------------------------
+
+
+class WordRange(StrictModel):
+    """A narration cut: caption tokens ``[start, end)`` of the beat's ``narration`` (the tokens the captions show)."""
+
+    start: int = Field(ge=0)
+    end: int  # exclusive, > start
+    text: str = Field(max_length=600)  # the removed words, for re-anchoring when the narration changes
+    mode: Literal["splice", "revoice"] = "splice"
+
+    @model_validator(mode="after")
+    def _order(self) -> "WordRange":
+        if self.end <= self.start:
+            raise ValueError("a cut must end after it starts")
+        return self
+
+
+class ClipRange(StrictModel):
+    """A trimmed range of a normalised clip (asset kind ``clip``, the mezzanine): 30 fps frame grid."""
+
+    asset_key: str = Field(min_length=1, max_length=128)  # authorised through asset_uses
+    in_frame: int = Field(ge=0)
+    out_frame: int  # exclusive
+
+    @model_validator(mode="after")
+    def _order(self) -> "ClipRange":
+        if self.out_frame <= self.in_frame:
+            raise ValueError("a clip range must end after it starts")
+        return self
+
+    @property
+    def frames(self) -> int:
+        return self.out_frame - self.in_frame
+
+
+OVERLAY_MIN_FRAMES = 30  # an overlay shows at least one second of its clip
+CLIP_SCENE_MIN_FRAMES = 15  # a clip scene plays at least half a second
+
+
+class Overlay(StrictModel):
+    """B-roll shown over the narration from an anchor word of its beat (design §8.3)."""
+
+    id: Slug
+    at_word: int = Field(ge=0)  # anchor caption-token index in the beat ...
+    at_text: str = Field(max_length=120)  # ... and its text, for re-anchoring
+    clip: ClipRange
+    region: Literal["full", "panel"] = "full"
+    sound: Literal["mute", "quiet"] = "mute"  # quiet = narration - 20 LU
+    concept_id: Slug | None = None
+    keep_full_length: bool = False  # do not shorten it to keep the reveals under it visible (§8.3)
+
+    _norm_id = field_validator("id", mode="before")(_slug_validator)
+    _norm_c = field_validator("concept_id", mode="before")(_opt_slug)
+
+    @model_validator(mode="after")
+    def _length(self) -> "Overlay":
+        if self.clip.frames < OVERLAY_MIN_FRAMES:
+            raise ValueError(f"an overlay needs at least {OVERLAY_MIN_FRAMES} frames of its clip")
         return self
 
 
@@ -306,6 +463,11 @@ class BoardItem(StrictModel):
 
 
 class Beat(StrictModel):
+    V3_FIELDS: ClassVar[dict[str, str]] = {
+        "speaker": "presentation", "answers": "presentation", "cuts": "cuts", "overlays": "overlays",
+        "voice_override_asset_key": "voice_override",
+    }
+
     id: Slug
     # Plain spoken text, also used for captions. No markup, no LaTeX; formulas as words.
     narration: str = Field(min_length=1, max_length=1500)
@@ -323,10 +485,21 @@ class Beat(StrictModel):
     visual_cue: str | None = Field(default=None, max_length=600)
     # IngestResult chunk ids supporting the claims of this beat (grounding checks).
     source_refs: list[str] = Field(default_factory=list, max_length=10)
+    # v3 (Dynamic lectures and the editor, design §6.7 / §8.2). Each is left out of the JSON at its default, so
+    # classic beats (and their scene hashes) are unchanged. cuts, speaker and voice_override_asset_key change the
+    # audio and stay in the scene hash; overlays do not (aadhi.pipeline.assets.scene_hash).
+    speaker: Literal["narrator", "aadhi", "student"] = Field(default="narrator", exclude_if=lambda v: v == "narrator")
+    # "<scene_id>/<item_id>": the hook or predict question (in an earlier scene) this beat answers.
+    answers: ItemRef | None = Field(default=None, exclude_if=lambda v: v is None)
+    cuts: list[WordRange] = Field(default_factory=list, max_length=20, exclude_if=lambda v: not v)
+    overlays: list[Overlay] = Field(default_factory=list, max_length=4, exclude_if=lambda v: not v)
+    # The teacher's own recorded narration for this beat (asset kind narration_upload), replacing TTS.
+    voice_override_asset_key: str | None = Field(default=None, max_length=128, exclude_if=lambda v: v is None)
 
     _norm_id = field_validator("id", mode="before")(_slug_validator)
     _norm_ref = field_validator("board_item_id", "fill_item_id", mode="before")(_opt_slug)
     _norm_hl = field_validator("highlight_item_ids", mode="before")(_slug_list)
+    _norm_answers = field_validator("answers", mode="before")(_item_ref)
 
 
 # ---------------------------------------------------------------------------
@@ -452,6 +625,8 @@ SidePanelKind = Literal[
 
 
 class SidePanel(StrictModel):
+    V3_FIELDS: ClassVar[dict[str, str]] = {"colour_is_content": "presentation"}
+
     kind: SidePanelKind
     title: str | None = Field(default=None, max_length=160)
     # Why this visual helps learning (coherence principle). Lint warns when empty (except skill_tree).
@@ -473,6 +648,9 @@ class SidePanel(StrictModel):
     # 0, so 0 keeps every existing key. Left out of the serialised model at 0 (scene hashes and stored
     # screenplays unchanged); never LLM-facing.
     variant: int = Field(default=0, ge=0, le=MAX_VISUAL_VARIANT, exclude_if=lambda v: v == 0)
+    # v3: the colours of this picture or animation carry meaning (resistor bands, flame tests, spectra): no palette
+    # style suffix, no Manim colour mapping (design §4.7). Left out of the JSON when False.
+    colour_is_content: bool = Field(default=False, exclude_if=lambda v: v is False)
 
     _norm_fig = field_validator("figure_id", "show_from_beat_id", mode="before")(_opt_slug)
 
@@ -502,7 +680,16 @@ MascotPosition = Literal["left", "right", "center", "popup_bottom_left", "popup_
 
 
 NarrativeRoleName = Literal[
-    "hook", "context", "prerequisite", "concept", "example", "practice", "check", "application", "synthesis", "transition"
+    "hook", "context", "prerequisite", "concept", "example", "practice", "check", "application", "synthesis", "transition",
+    "pretraining", "predict", "recap",  # v3 (Dynamic lectures)
+]
+V3_NARRATIVE_ROLES = ("pretraining", "predict", "recap")
+
+# v3: what a Dynamic scene's picture should do (planner hint; direct.py picks a template within its class, §4.4).
+VisualIntent = Literal[
+    "hook", "context", "pretraining", "define", "explain", "compare", "sequence", "cycle", "timeline", "cause",
+    "quantity", "formula", "example", "code", "data", "spatial", "analogy", "misconception", "predict", "check",
+    "apply", "summarize", "recap",
 ]
 
 
@@ -512,14 +699,149 @@ class SceneIntent(StrictModel):
     ``narrative_role`` and ``bridge_in`` keep the lecture's flow when a single scene is repaired or
     regenerated later (the plan itself is not stored with the screenplay)."""
 
+    V3_FIELDS: ClassVar[dict[str, str]] = {"visual_intent": "presentation"}
+    V3_VALUES: ClassVar[dict[str, dict[str, str]]] = {"narrative_role": {r: "presentation" for r in V3_NARRATIVE_ROLES}}
+
     goal: str = Field(default="", max_length=600)
     key_points: list[str] = Field(default_factory=list, max_length=12)
     source_refs: list[str] = Field(default_factory=list, max_length=20)
     narrative_role: NarrativeRoleName | None = None
     bridge_in: str = Field(default="", max_length=300)
+    visual_intent: VisualIntent | None = Field(default=None, exclude_if=lambda v: v is None)  # v3
+
+
+# ---------------------------------------------------------------------------
+# Dynamic presentation and scene looks (v3, design §6.7; feature "presentation")
+# ---------------------------------------------------------------------------
+
+PersonaId = Annotated[str, Field(min_length=1, max_length=80)]  # aadhi VoicePersona.id (persona registry, B3)
+
+
+class VoiceCalibration(StrictModel):
+    natural_wpm: float = Field(ge=60, le=300)
+    control: str = Field(max_length=200)  # "+8%", "speed=1.05" or a style text, as sent (§5.4)
+
+
+class VoiceCast(StrictModel):
+    narrator: PersonaId
+    aadhi: PersonaId | None = None
+    student: PersonaId | None = None
+    calibration: dict[PersonaId, VoiceCalibration] = Field(default_factory=dict)
+
+    @field_validator("calibration")
+    @classmethod
+    def _few(cls, v: dict[str, VoiceCalibration]) -> dict[str, VoiceCalibration]:
+        if len(v) > 20:
+            raise ValueError("at most 20 voice calibrations")
+        return v
+
+
+class MusicChoice(StrictModel):
+    source: Literal["generated", "library", "upload", "procedural", "off"]
+    provider: str | None = Field(default=None, max_length=40)  # "lyria" | "elevenlabs" | "procedural" | None
+    mood: str | None = Field(default=None, max_length=60)
+    asset_key: str | None = Field(default=None, max_length=128)  # authorised through asset_uses
+    mode: Literal["bed", "gaps_bookends", "off"] = "bed"
+    level: Literal["normal", "low"] = "normal"
+
+
+HookKind = Literal["question", "true_false", "stakes", "mystery", "challenge", "story", "stat"]
+
+
+class HookRef(StrictModel):
+    question_item: ItemRef  # "<scene_id>/<item_id>"
+    kind: HookKind
+    answer_beat: ItemRef | None = None  # "<scene_id>/<beat_id>"
+
+    _norm_refs = field_validator("question_item", "answer_beat", mode="before")(_item_ref)
+
+
+class AssetStyle(StrictModel):
+    """Frozen at generation: drives the image style suffix and the Manim background ("New colours" keeps it)."""
+
+    family: CatalogueId
+    personality: CatalogueId
+
+
+PresentationPin = Literal["theme", "personality", "display_font", "voice", "music", "caption_style"]
+
+
+class Presentation(StrictModel):
+    """How a Dynamic lecture looks and sounds (absent = the classic Aadhi presenter mode). Every resolved choice
+    and seed is stored, so a rebuild never re-rolls (design §6.8)."""
+
+    style: Literal["dynamic"] = "dynamic"
+    format: Literal["landscape", "portrait"] = "landscape"
+    length_profile: Literal["standard", "platform_safe"] = "standard"
+    reel_profile: Literal["learning", "social"] = "learning"
+    destination: Literal["messaging", "lms", "youtube", "lesson_page"] = "messaging"
+    look_seed: int = Field(ge=0, le=2**31 - 1)  # §4.4
+    look_epoch: int = Field(default=0, ge=0)  # bumped by Fresh look / New colours
+    layout_epoch: int = Field(default=0, ge=0)  # bumped by New layouts
+    theme_family: CatalogueId
+    personality: CatalogueId
+    display_font: CatalogueId
+    caption_style: CatalogueId
+    cue_term_style: Literal["marker", "underline"]
+    intro_layout: Literal["fullframe", "card_left", "pip", "split"] | None = None
+    reel_card_x: int | None = Field(default=None, ge=0, le=1080)
+    hook_kind: CatalogueId
+    check_order: list[CatalogueId] = Field(default_factory=list, max_length=12)
+    greeting_id: Slug | None = None
+    asset_style: AssetStyle
+    voices: VoiceCast
+    music: MusicChoice
+    entity_colors: dict[Annotated[str, Field(min_length=1, max_length=80)], Annotated[int, Field(ge=0, le=2)]] = Field(
+        default_factory=dict
+    )  # normalised symbol / entity -> content slot 0..2
+    hook: HookRef | None = None
+    aadhi_recap: bool = True
+    captions_burn: bool = True
+    sfx: bool = True
+    motion: Literal["standard", "calm"] = "standard"
+    pins: list[PresentationPin] = Field(default_factory=list, max_length=6)
+
+    @field_validator("entity_colors")
+    @classmethod
+    def _few_entities(cls, v: dict[str, int]) -> dict[str, int]:
+        if len(v) > 60:
+            raise ValueError("at most 60 entity colours")
+        return v
+
+    @field_validator("pins")
+    @classmethod
+    def _unique_pins(cls, v: list[str]) -> list[str]:
+        return list(dict.fromkeys(v))
+
+
+class PresenterSpec(StrictModel):
+    """Aadhi in a Dynamic scene (intro and recap only, R-12)."""
+
+    clip: Literal["left", "center"]  # never popup/right (R-14)
+    seconds: float = Field(ge=2.0, le=8.0)
+    layout: Literal["fullframe", "card_left", "pip", "split", "card"]
+
+
+class SceneLook(StrictModel):
+    """A scene's look: set by direct.py or the teacher, never LLM-facing. ``lock``: ``auto`` may be re-directed on
+    save, ``settled`` keeps its template across edits, ``pinned`` is the teacher's choice."""
+
+    template: CatalogueId | None = None
+    variant: CatalogueId | None = None
+    background: CatalogueId | None = None
+    palette_slot: int | None = Field(default=None, ge=0, le=40)
+    transition_in: CatalogueId | None = None
+    hold_reason: Literal["formula", "code", "diagram", "think"] | None = None
+    presenter: PresenterSpec | None = None
+    continues_from: Slug | None = None  # scene id: part B of a split continues A's final visual state
+    lock: Literal["auto", "settled", "pinned"] = "auto"
+
+    _norm_cont = field_validator("continues_from", mode="before")(_opt_slug)
 
 
 class SceneBase(StrictModel):
+    V3_FIELDS: ClassVar[dict[str, str]] = {"look": "presentation", "colour_is_content": "presentation"}
+
     id: Slug
     concept_id: Slug | None = None
     chapter_id: Slug | None = None
@@ -540,6 +862,10 @@ class SceneBase(StrictModel):
     # ``min_seconds``: the scene lasts at least this long; the extra time is added after its content (Aadhi idles,
     # the narration and captions keep their timing) in both renderers (``aadhi.compose.timeline``).
     min_seconds: float | None = Field(default=None, ge=1.0, le=600.0, exclude_if=lambda v: v is None)
+    # v3 (Dynamic lectures). ``look``: the scene's resolved template / background / transition and its lock
+    # (direct.py or the teacher; never LLM-facing; outside the asset hash). ``colour_is_content``: see SidePanel.
+    look: SceneLook | None = Field(default=None, exclude_if=lambda v: v is None)
+    colour_is_content: bool = Field(default=False, exclude_if=lambda v: v is False)
 
     _norm_id = field_validator("id", mode="before")(_slug_validator)
     _norm_c = field_validator("concept_id", "chapter_id", mode="before")(_opt_slug)
@@ -551,6 +877,9 @@ class SceneBase(StrictModel):
         ids = [b.id for b in beats]
         if len(ids) != len(set(ids)):
             raise ValueError(f"scene {self.id}: beat ids must be unique")
+        overlay_ids = [o.id for b in beats for o in b.overlays]
+        if len(overlay_ids) != len(set(overlay_ids)):
+            raise ValueError(f"scene {self.id}: overlay ids must be unique")
         if not isinstance(self, BoardScene):
             for b in beats:
                 if b.board_item_id or b.fill_item_id or b.highlight_item_ids:
@@ -567,8 +896,14 @@ class BoardScene(SceneBase):
     """Board-driven scenes. Items without a revealing beat are visible from scene start;
     layout always follows list order regardless of reveal order."""
 
+    V3_FIELDS: ClassVar[dict[str, str]] = {**SceneBase.V3_FIELDS, "sequence": "presentation"}
+
     type: Literal["content", "example", "summary", "key_takeaway", "recap", "title"]
     board: list[BoardItem] = Field(default_factory=list, max_length=12)
+    # v3: the board's ``step`` items form a flow / cycle / timeline / chain / checklist (Dynamic sequence templates).
+    sequence: Literal["flow", "cycle", "timeline", "chain", "checklist"] | None = Field(
+        default=None, exclude_if=lambda v: v is None
+    )
 
     @model_validator(mode="after")
     def _board_refs(self) -> "BoardScene":
@@ -684,19 +1019,68 @@ class QuizScene(SceneBase):
         return list(self.beats) + list(self.reveal_beats)
 
 
+class ClipCaption(StrictModel):
+    """A caption of an inserted clip, in clip-relative seconds (after the trim)."""
+
+    start: float = Field(ge=0.0)
+    end: float
+    text: str = Field(min_length=1, max_length=300)
+
+    @model_validator(mode="after")
+    def _order(self) -> "ClipCaption":
+        if self.end <= self.start:
+            raise ValueError("a clip caption must end after it starts")
+        return self
+
+
+ClipFormat = Literal["landscape", "portrait"]
+
+
+class ClipScene(SceneBase):
+    """A teacher-inserted external clip (v3, feature "clip"; design §8.2). Never plannable: only the editor
+    inserts one. It lasts max(clip length, voice-over narration + its pauses); a longer voice-over freezes the
+    last frame (or loops)."""
+
+    V3_MODEL: ClassVar[str | None] = "clip"
+
+    type: Literal["clip"]
+    beats: list[Beat] = Field(default_factory=list, max_length=40)  # optional voice-over
+    clip: ClipRange
+    sound: Literal["keep", "mute"] = "keep"
+    gain_db: float = Field(default=0.0, ge=-30.0, le=12.0)  # after loudness matching
+    fit: Literal["contain_blur", "contain", "cover"] = "contain_blur"
+    focus: dict[ClipFormat, tuple[float, float]] = Field(default_factory=dict)  # cover focus point (0..1) per format
+    end_behavior: Literal["freeze", "loop"] = "freeze"
+    captions: list[ClipCaption] = Field(default_factory=list, max_length=500)
+    credit: str = Field(default="", max_length=200)  # protected from translation (licence attribution)
+
+    @model_validator(mode="after")
+    def _clip(self) -> "ClipScene":
+        if self.clip.frames < CLIP_SCENE_MIN_FRAMES:
+            raise ValueError(f"scene {self.id}: a clip scene needs at least {CLIP_SCENE_MIN_FRAMES} frames")
+        for fmt, (x, y) in self.focus.items():
+            if not (0.0 <= x <= 1.0 and 0.0 <= y <= 1.0):
+                raise ValueError(f"scene {self.id}: focus for {fmt} must be within 0..1")
+        return self
+
+
 Scene = Annotated[
-    Union[BoardScene, ChapterCardScene, SimulationScene, AIVideoScene, InteractiveScene, QuizScene],
+    Union[BoardScene, ChapterCardScene, SimulationScene, AIVideoScene, InteractiveScene, QuizScene, ClipScene],
     Field(discriminator="type"),
 ]
 
 SCENE_TYPES = (
     "title", "content", "example", "summary", "key_takeaway", "recap",
     "chapter_card", "simulation", "ai_video", "interactive", "quiz_checkpoint",
+    "clip",  # v3: teacher-inserted clips (never plannable; feature "clip")
 )
 SceneType = Literal[
     "title", "content", "example", "summary", "key_takeaway", "recap",
     "chapter_card", "simulation", "ai_video", "interactive", "quiz_checkpoint",
+    "clip",
 ]
+# Scene types a plan may contain (the planner and plan review never create a clip scene).
+PLANNABLE_SCENE_TYPES = SCENE_TYPES[:-1]
 
 
 # ---------------------------------------------------------------------------
@@ -779,6 +1163,10 @@ class SourceInfo(StrictModel):
 
 
 class Screenplay(StrictModel):
+    V3_FIELDS: ClassVar[dict[str, str]] = {"presentation": "presentation"}
+
+    # 2 for classic screenplays, 3 when a v3 field is used (set on validation and on every dump); a document above
+    # aadhi.schemas.features.READER_SCHEMA_VERSION is refused (NewerDocumentError).
     schema_version: int = SCHEMA_VERSION
     subject_name: str = Field(default="", max_length=240)
     unit_name: str = Field(default="", max_length=240)
@@ -795,6 +1183,23 @@ class Screenplay(StrictModel):
     companion_sheet: CompanionSheet = Field(default_factory=CompanionSheet)
     figures: list[SourceFigure] = Field(default_factory=list, max_length=200)
     source: SourceInfo = Field(default_factory=SourceInfo)
+    # v3: absent = the classic Aadhi presenter mode (design §3.6); left out of the JSON when None.
+    presentation: Presentation | None = Field(default=None, exclude_if=lambda v: v is None)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reader_version(cls, data: Any) -> Any:
+        # A newer build's document is refused, never read with its unknown fields dropped (NewerDocumentError).
+        check_reader_version(data, "screenplay")
+        return data
+
+    @model_serializer(mode="wrap")
+    def _write_version(self, handler: SerializerFunctionWrapHandler) -> Any:
+        # Written as 3 whenever a v3 field is used, even after a model_copy that skipped validation.
+        data = handler(self)
+        if isinstance(data, dict) and "schema_version" in data:
+            data["schema_version"] = marked_version(self, self.schema_version)
+        return data
 
     @field_validator("learning_objectives", mode="before")
     @classmethod
@@ -841,7 +1246,25 @@ class Screenplay(StrictModel):
             bad = [x for x in ch.scene_ids if x not in scenes]
             if bad:
                 raise ValueError(f"chapter {ch.id} references unknown scenes {bad}")
+        self._check_answers()
+        version = marked_version(self, self.schema_version)
+        if version != self.schema_version:
+            self.schema_version = version
         return self
+
+    def _check_answers(self) -> None:
+        """``Beat.answers`` names a board item of an earlier scene (the hook or predict question it answers)."""
+        earlier: dict[str, set[str]] = {}
+        for s in self.scenes:
+            for b in s.all_beats():
+                if b.answers is None:
+                    continue
+                scene_id, item_id = b.answers.split("/")
+                if item_id not in earlier.get(scene_id, ()):
+                    raise ValueError(
+                        f"scene {s.id}: beat {b.id} answers {b.answers}, which is not a board item of an earlier scene"
+                    )
+            earlier[s.id] = {i.id for i in s.board} if isinstance(s, BoardScene) else set()
 
     def scene_by_id(self, scene_id: str) -> Any:
         for s in self.scenes:

@@ -19,6 +19,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from ..jobs.base import FatalJobError, JobContext, job_handler
+from ..schemas.features import disabled_features
 from ..schemas.screenplay import Screenplay
 from ..security.strict_json import loads_strict
 from .convert import convert_legacy, is_legacy
@@ -100,6 +101,14 @@ async def _import_json(ctx: JobContext, key: str) -> dict[str, Any]:
         screenplay, warnings = await asyncio.to_thread(parse_lecture_bytes, raw)
     except (UnicodeDecodeError, ValueError, RecursionError) as exc:
         raise FatalJobError(ctx.settings.redact(str(exc))[:500], code="invalid_payload") from exc
+    # A newer screenplay already failed above (NewerDocumentError -> newer_document); Dynamic-video features this
+    # server does not enable are refused like POST /api/projects/import does (design §6.7).
+    unavailable = disabled_features(screenplay, getattr(ctx.settings, "dynamic_features", None))
+    if unavailable:
+        raise FatalJobError(
+            f"The lecture uses features this server does not enable: {', '.join(unavailable)} (DYNAMIC_FEATURES).",
+            code="feature_unavailable",
+        )
 
     def run() -> int:
         with ctx.session() as db:

@@ -45,12 +45,15 @@
 aadhi/                     Python package (backend)
   config.py db.py models.py                                          [contract]
   credentials.py           API keys saved in the Studio: resolve_keys, save/delete, verify_key
+  assets_auth.py           which stored media a project may name: FIELD_RULES (field -> kinds + MIME family),
+                           record_asset_refs (the one way to add AssetRef rows)
   library.py               each user's media library: items, deterministic matcher, AI description
   review.py                Visual Review: per-scene visuals, sign-offs (fingerprints), visual actions
   changes.py               generated snapshot (store / load), "Generated vs edited" comparison, scene revert
   stage.py                 lesson stage + next step derived from stored state
   scratch.py               private scratch root for temporary work dirs (SCRATCH_DIR); the only place sweeps look
-  schemas/                 screenplay.py, manifest.py, timeline.py   [contract]; jsonsafe (storable JSON)
+  schemas/                 screenplay.py, manifest.py, timeline.py   [contract]; jsonsafe (storable JSON);
+                           features (schema v3: DYNAMIC_FEATURES, reader-version marker); generate (web/schemas)
   storage/                 base.py, local.py, assets.py, __init__   [contract]; s3.py
   auth/                    passwords, tokens (session + scoped), cookies, deps, bootstrap
   security/                headers (CSP), csrf, ratelimit, uploads, bodylimit, client_ip,
@@ -58,9 +61,11 @@ aadhi/                     Python package (backend)
   usage/                   pricing, service (record, budgets, summaries)
   legacy/                  v1 JSON + v1 projects.db importers, "import_legacy" job
   jobs/                    base.py [contract]; queue, worker, context, events (SSE), inline,
-                           limits (process-wide semaphores), cleanup ("cleanup" job)
+                           limits (process-wide semaphores), cleanup ("cleanup" job), reader_version
+                           (refuses jobs on documents of a newer build)
   providers/               base.py [contract]; llm/ (gemini, openai, anthropic, fake, schema), tts/, image/,
-                           video/, gif/, factory.py, health (cooldowns), operations (paid video checkpoints)
+                           video/ (veo, omni, fake), gif/, factory.py, health (cooldowns), operations (paid video
+                           checkpoints)
   pipeline/                base.py [contract]; gen_models, canonicalize, ingest, codeblocks, plan, script,
                            validate, critic, repair, companion, assets, audio, envelope (narration
                            loudness), translate, plan_state, checkpoint (LLM stage + per-scene checkpoints),
@@ -71,24 +76,39 @@ aadhi/                     Python package (backend)
                            runtime/hardening.py (in-sandbox block), render, qa, health (self-check)
   compose/                 base.py [contract]; timeline, sync (word-anchored cues), captions, chapters,
                            screenshot, ffmpeg, sounds, video ("render_video" job), preflight, capabilities,
-                           qa, workspace
+                           qa, workspace, loudness (EBU R128 helpers for the Dynamic audio chain),
+                           presentation (Dynamic timeline: TimelinePresentation, ResolvedLook, the flag; §14)
+    compose/motion/        the motion render engine (§14): job (render_dynamic), engine, stage (capture
+                           workers), resources (W, CPU slots), chunks, cache, encode, media (frame extraction)
+    compose/dynamic/       stage_page (the /render-dynamic page driver), preflight, container (post-render
+                           checks), colour (CSS colours, compositing, WCAG contrast), determinism (the 1x300 /
+                           3x100 / reverse harness)
   evals/                   eval harness (python -m aadhi.evals ...)
   api/                     FastAPI routers + errors + deps + storable (JSON body guard); main.py builds the app
   cli.py worker.py         python -m aadhi.cli … | python -m aadhi.worker
 alembic/                   migrations
 web/                       frontend (native ES modules + JSDoc types, no bundler)
-  index.html watch.html render.html sandbox/p5.html
-  css/ (tokens, base, player, panels, studio)  js/shared/ js/player/ js/render/ js/studio/
+  index.html watch.html render.html render-dynamic.html (the motion engine's render page) sandbox/p5.html
+  css/ (tokens, base, player, panels, studio, dynamic)  js/shared/ js/player/ js/render/ js/studio/
+  js/dynamic/ (the Dynamic stage: one compositor for the live player and render-dynamic.html; §14)
+  js/motion/ (the in-house motion toolkit, pure)
   vendor/ (generated: libs + fonts)            schemas/ (generated JSON schemas)  tests/
 scripts/vendor.mjs         copies pinned libs/fonts from node_modules into web/vendor
 scripts/clean_mascot_clip.py  reproduces the *_clean.mp4 clips (left: black bars filled; --watermark: the
                            "Veo" corner of right/center/popup/no_aadhi filled from a temporal-median plate;
                            --watermark --box: the sparkle of logo_animation_clean.mp4)
+scripts/bench_motion.py    the motion engine benchmark (docs/OPERATIONS.md §4.2)
+scripts/gen_env_example.py, gen_chromium_seccomp.py, lock_requirements.py   generate .env.example, the render
+                           worker's seccomp profile and requirements.lock (each with --check)
+scripts/dev_demo.py        the offline demo server (fake providers, data-demo/)
 video_template/            branding: mascot clips (each <clip>_clean.mp4 replaces <clip>.mp4, which stays for
                            old timelines), posters/<clip>.jpg (frame 0 of each clip), bgm, logo, static
                            background (served at /branding)
 evals/                     fixtures, video_qa.py (frame-accurate MP4 checks), render_parity.py (preview vs MP4)
-docker/ tests/ docs/
+docker/ tests/ docs/      tests/invariance: the classic invariance harness (goldens, differential pixel test);
+                           tests/determinism: the motion engine's determinism, parity and real-page suites (§14);
+                           tests/web: Studio and watch page checks in real Chromium;
+                           docs/research: the reports behind docs/DYNAMIC_VIDEO_DESIGN.md
 server.py                  thin shim: `from aadhi.main import app`
 ```
 
@@ -122,7 +142,9 @@ worker: generate_lecture  (payload: source_document_id, options, base_revision, 
   2 brief      one structured call → ConceptBrief: the concepts to teach (facts, examples,
                prerequisites, teaching order, the source's own questions). Every chunk is cited or
                set aside (`skipped_chunks`, reason only); planners and scene writers then receive
-               the cited chunks only. A failed brief falls back to ungated planning.
+               the cited chunks only. A failed brief falls back to ungated planning; a provider
+               rate limit is not a failure: the attempt ends and the job is retried (as for the
+               critic and the practice problems).
      source    only with `review_source`: AwaitingReview (stage `source_review`,
      review    `generation_meta["review_stage"]="source"`). The teacher reads the source report and
                may set parts aside, restore parts the brief set aside and rename concepts
@@ -172,7 +194,11 @@ worker: render_video  tool check → timeline (rebuilt for include_intro) → pr
 * `Asset` rows are content-addressed; blobs at `assets/<kind>/<key>/<random>.<ext>` (public) or
   `private/...` (sources, extracts, screenshots, `snapshot`s: the screenplay exactly as Aadhi wrote it).
   `AssetRef(project_id, asset_key)` authorises keys used in screenplays and enables GC; the cleanup GC
-  never collects `snapshot` blobs.
+  never collects `snapshot` blobs. Rows are added only through `assets_auth.record_asset_refs` (uploads, imports,
+  generated media, renders; idempotent, `ON CONFLICT DO NOTHING`), and a screenplay field accepts a key only when
+  the asset's kind and MIME family fit it (`assets_auth.FIELD_RULES`, §13). The Dynamic kinds `music`, `clip`,
+  `clip_proxy`, `clip_sprite`, `waveform`, `voice_sample`, `thumbnail` and `narration_upload` are public like the
+  classic media; `calibration` stays private.
 * `Job`/`JobEvent` (progress + SSE), `Render`, `UsageEvent`, `ShareLink`, `AnalyticsEvent`.
   `UsageEvent.billed_to` is `server` (server or `.env` key) or `user` (paid with the job starter's
   personal key); only `server` rows count toward the per-user daily budget.
@@ -207,13 +233,20 @@ worker: render_video  tool check → timeline (rebuilt for include_intro) → pr
   with the extract key they were made on), `scene_history` (earlier versions of a scene kept by scene
   regeneration, newest first) and `generated_snapshot_key` (the `snapshot` blob written with the
   generated screenplay by `generate_lecture` and `translate`; never by regeneration, saves or builds;
-  `aadhi/changes.py` compares the current screenplay with it and puts scenes back).
+  `aadhi/changes.py` compares the current screenplay with it and puts scenes back). A translation copies its source
+  version's `ingest_key` and `source_overrides`, so regenerating one of its scenes reads the extract its scenes cite
+  and keeps the teacher's set-asides out, and its edit-time lint gets the exact chunk ids and the admin-leak check
+  like an original version's; a translation made before that (or a copy of one) falls back to its source version's
+  under the rules of the brief (`orchestrator._version_extract`: same project and source document, at most 8 hops).
 * Scene fields `hidden` (skipped by the timeline, captions, chapters and the asset build; still in the
   lecture) and `min_seconds` (1–600: the scene lasts at least this long) are left out of the JSON at their
   defaults and ignored by the asset hash, so lectures that use neither store, hash, build and render exactly
   as before. No table changed in batch 4; the lesson stage, review checkpoints and video history are derived
   from existing rows (`aadhi/stage.py`, `api/serializers.py`).
 * One active version-mutating job per version (partial unique index → 409 `job_in_progress`).
+* Document versions (Dynamic video B0, §13): `screenplay`, `timeline` and `asset_manifest` carry `schema_version`
+  (2 classic, 3 when a Dynamic field is used). Every loader refuses a document above 3 (`NewerDocumentError`:
+  409 `newer_document` in the API, a fatal job error), so an older build never drops fields it does not know.
 
 ## 5. Job system (`aadhi/jobs`)
 
@@ -264,6 +297,11 @@ worker: render_video  tool check → timeline (rebuilt for include_intro) → pr
   re-submitted (`video.ambiguous_submission`).
 * A `render_video` job that ends outside its handler (cancelled while queued, reaped, failed before
   start) settles its `Render` row (`queue.settle_render`).
+* Newer documents: before a handler runs, the worker reads only the `schema_version` markers of the job's version
+  (and of `payload["source_version_id"]`, which `translate` reads) in one query; a document of a newer build fails
+  the job with `error_code="newer_document"` without running it (`jobs/reader_version.py`). A loader meeting one
+  mid-job fails it the same way, never as a retry. Deploys therefore stop the workers, start the API, then start
+  the workers on the same image (`docs/OPERATIONS.md` §4.8).
 * `WORKER_MODE=inline` runs `WORKER_CONCURRENCY` threads (own event loop each) in the API process
   (dev). Production: `python -m aadhi.worker` processes; dedicated render workers via
   `WORKER_KINDS=render_video`. Worker processes (and inline mode) do host housekeeping: at start
@@ -283,7 +321,7 @@ worker: render_video  tool check → timeline (rebuilt for include_intro) → pr
 | `regenerate_scene` | `{scene_id, instructions, base_revision}` | `{version_id, scene_id}` |
 | `build_assets` | `{scene_ids: list or null, base_revision}` | `{version_id}` |
 | `translate` | `{source_version_id, target_language, translate_board, tts_voice?}` | `{version_id}` |
-| `render_video` | `{render_id, burn_captions, include_intro, soft_subtitles?}` | `{render_id, video_asset_key, …}` |
+| `render_video` | `{render_id, burn_captions?, include_intro, soft_subtitles?}` (`burn_captions` left out when the request did not set it for a Dynamic lecture: the presentation decides, §14) | `{render_id, video_asset_key, …}` |
 | `import_legacy` | `{legacy_db_path}` or `{json_asset_key}` | `{project_ids}` |
 | `cleanup` | `{}` | `{deleted: {...}}` (also expired `asset_claims`, and this host's work files) |
 
@@ -345,15 +383,27 @@ worker: render_video  tool check → timeline (rebuilt for include_intro) → pr
   (deterministic WAV with exact word timings). Voices per language in `tts/voices.py`. Speech text =
   `normalize_for_speech(lexicon(beat.spoken or beat.narration))`; captions keep `narration`.
 * Images: `gemini`, `pollinations`, `none`, `fake`. Video: `veo` (B-roll without the mascot — the
-  mascot is the background layer), `none`, `fake`. GIFs: GIPHY hotlinks (live player only).
+  mascot is the background layer), `omni` (Gemini Omni through the Interactions API, Veo 3.1's successor; same
+  Gemini key, same checkpoint and resume rules), `none`, `fake`. GIFs: GIPHY hotlinks (live player only).
+  `VIDEO_PROVIDERS` sets the video order exactly; while it is empty a chain that names `veo` gets `omni` appended
+  (`Settings._video_order`, recorded as `Settings.auto_video_backup`). Veo answering 404 / 410 (a model no longer
+  served) is `ProviderUnavailable`, so the chain moves on without a charge. That automatic successor is tried only
+  while Veo is unavailable (that failure, an account refusal, or Veo's `unavailable` cooldown): after a Veo
+  timeout, rate limit or bad output the scene keeps its still, since the accepted Veo job may still bill
+  (`pipeline/assets.py`, `_generate_video`); a named `omni` backup is tried after any fallback-able failure. Both video
+  adapters expose `.model`; Omni clips are keyed by `OMNI_MODEL`. The Omni adapter keeps one genai client per key
+  and event loop (`GeminiCaller(per_loop=True)`): every job runs in its own loop, and the Interactions resource's
+  pooled connections belong to the loop that opened them; the last clip of a job closes them (`loop_lease`).
 * Media provider chain (`pipeline/assets.py` + `factory.media_chain`): `IMAGE_PROVIDER` /
   `VIDEO_PROVIDER` first (`none` switches the medium off), then `IMAGE_FALLBACK_PROVIDERS` /
   `VIDEO_FALLBACK_PROVIDERS`; a lecture's `GenerationOptions.image_provider` goes first when set.
   Error taxonomy (`providers/base.py`): `ProviderUnavailable` (HTTP 401/402/403: payment or account,
-  permanent for that provider), `RateLimited`, `ContentBlocked`, `InvalidMediaOutput`,
-  `OperationLost`. The chain never falls back after a safety refusal or a refused personal key; a
-  rate limit falls back only when another provider remains. `providers/health.py` keeps a
-  per-process cooldown per (provider, key scope): 60 s after a rate limit/outage/bad output, 600 s
+  permanent for that provider), `ModelUnavailable` (a `ProviderUnavailable`: HTTP 404/410 on a request naming the
+  configured model, i.e. retired, renamed or misspelt, or for OpenAI a model the key may not use; nothing billed;
+  raised by the Gemini and OpenAI speech adapters, and a TTS model falls back to Edge with an `assets.tts_fallback`
+  warning, §7), `RateLimited`, `ContentBlocked`, `InvalidMediaOutput`, `OperationLost`. The chain never falls
+  back after a safety refusal or a refused personal key; a rate limit falls back only when another provider
+  remains. `providers/health.py` keeps a per-process cooldown per (provider, key scope): 60 s after a rate limit/outage/bad output, 600 s
   after a payment refusal; a cooling provider is tried last, never dropped. Adapters declare
   `paid`, `aspects`, `max_prompt_chars`, `resumable`. Output is validated (images ≥ 32 px and ≤
   `AI_MAX_IMAGE_BYTES`, Veo clips ≤ `AI_MAX_VIDEO_BYTES` and ≥ 0.5 s; flat or mis-shaped images are
@@ -420,6 +470,12 @@ worker: render_video  tool check → timeline (rebuilt for include_intro) → pr
   review's `SourceOverrides` (`effective_brief`, `without_chunks`).
 * `assets.build_assets(...) -> AssetManifest` — incremental by per-scene content hash; graceful
   degradation (simulation → content fallback board, ai_video → Ken-Burns still) reported as issues.
+  A voice model the provider no longer serves (`ModelUnavailable`: a retired `GEMINI_TTS_MODEL`, or
+  `OPENAI_TTS_MODEL` once OpenAI retires its speech models) never leaves the lecture silent: the build switches once
+  to the free Edge voice for the lecture's language (`fallback_voice_config`) with one lecture-level
+  `assets.tts_fallback` warning and a job-log warning, the scene that met the error is narrated again wholly in Edge,
+  and its clips are keyed like an Edge lecture's; the next build tries the lecture's voice again. Without Edge on the
+  server the scene fails as before (`assets.tts_failed`).
   A `hidden` scene is never built, even when a rebuild names it (no provider is called); media built before
   it was hidden is kept and it is never listed stale, so the build still counts as complete; it becomes
   stale again when shown, if it changed. Hidden AI video scenes keep their place in the lecture's AI video
@@ -546,7 +602,15 @@ worker: render_video  tool check → timeline (rebuilt for include_intro) → pr
   have without the hold, and Aadhi idles through it.
 * Time base invariants are validated by `Timeline` (contiguous scenes, fade-in inside the scene,
   `audio_offset`, scene-relative inner times, absolute captions/chapters).
-* Render-mode page contract (`web/render.html` + `web/js/render/`), at a fixed 1920×1080 stage, DPR 1:
+* Stage size (Dynamic video B0): `compose.base.stage_size(format)` is 1920×1080 for landscape (and every classic
+  lecture) and 1080×1920 for portrait; `build_timeline` stores it as `Timeline.width` × `height`. The renderer
+  reads it back (`timeline_stage`: the page viewport, screenshot and state-PNG size, segment specs) and encodes
+  `output_size(tl, settings)`: exactly `RENDER_WIDTH` × `RENDER_HEIGHT` for the classic stage, other stages scaled
+  by the configured short side. Captions wrap to `split_caption(..., width=)` and the output check samples black
+  edges transposed for portrait (`qa.edge_sample_size`).
+* Render-mode page contract (`web/render.html` + `web/js/render/`), at the timeline's stage size (1920×1080 for
+  every classic timeline; `render.js` `stageSize` / `applyStageSize` set the page's CSS size and viewport at boot),
+  DPR 1:
   * `window.aadhiRender.ready` → true after timeline, fonts (all families incl. the timeline's script)
     and MathJax are loaded.
   * `aadhiRender.states(sceneIndex) → [{t, key}]`: scene-relative times at which the visual state
@@ -595,7 +659,11 @@ worker: render_video  tool check → timeline (rebuilt for include_intro) → pr
 
 Native ES modules served under `/web/`, JSDoc types (`npm run typecheck`), `node --test` unit tests
 (jsdom available). The player renders a fixed **1920×1080 logical stage** scaled with a CSS transform
-in every mode, so preview and export wrap text identically.
+in every mode, so preview and export wrap text identically. (The render page is sized from the timeline, §9.) The
+live player sizes a Dynamic stage from the timeline (1080×1920 for a reel, §14) and marks its root
+(`data-stage-shape` plus `--ap-stage-w` / `--ap-stage-h`) while the stage is not 1920×1080, so the watch page's
+`.watch-player` and the Studio preview's `.preview-box` take a 9:16 reel's shape; classic and 16:9 boxes are
+unchanged.
 
 ### Player API (`web/js/player/player.js`)
 
@@ -607,6 +675,8 @@ player.play(); player.pause(); player.seek(seconds); player.seekScene(index);
 player.on('timeupdate' | 'scenechange' | 'ended' | 'quizanswer' | 'error' | 'blocked', handler);
 player.destroy();                       // releases WebGL contexts, timers, audio, blob URLs
 // render mode: player.states(sceneIndex), player.renderState({sceneIndex, t}), player.renderIntro({t})
+player.captionSize; player.captionSizeAdjustable;   // getters: false with a Dynamic stage (its captions keep their size)
+player.captionBottom;                   // stage px under a Dynamic stage's caption band (null: the classic captions)
 ```
 
 * Clock: the scene narration `<audio>` is the master clock while narration plays; a performance.now()
@@ -686,6 +756,15 @@ Videos, Usage (+ Admin); the links get a little narrower below 1280 px.
   notes and offer no rebuild or rewrite; preflight lines number scenes as the scene list does. "Generated vs edited" (`changes.js`,
   `changesPanel.js`): Edited / New / Moved badges from `GET .../changes`, a side-pane list with removed
   scenes, and "Compare and revert…" (`POST .../scenes/{id}/revert`, confirmed first, undoable).
+* Transforms keep what they do not understand (Dynamic video B0): a scene type change keeps every common scene
+  field (`screenplayEdit.js` `COMMON_SCENE_KEYS`: `hidden`, `min_seconds`, `look`, `colour_is_content` …) and,
+  between board types, the board with its `sequence` (`BOARD_SCENE_KEYS`); reference repair keeps a blank
+  `question` and the beat that fills it (`BLANKABLE_KINDS`); "Split here" moves `Beat.answers` and the
+  presentation hook with the items and beats they name. The transform-survival tests
+  (`tests/core/test_transform_survival.py`, `web/tests/studio/transformSurvival.test.js`, over
+  `tests/core/fixtures/transform_survival_dynamic.json` and `tests/schemas/fixtures/screenplay_v3_maximal.json`)
+  are a gate of every batch: `PUT`/`GET`, revert, export/import, regeneration carry-over, translation, local
+  drafts, merges, splits and every type change must leave a maximal Dynamic document unchanged.
 
 * Library (`views/library.js`, `#/library`): the teacher's pictures and clips (`/api/library`) with
   search (debounced; kind and source filters kept in the URL), pages of 48 with "Load more", upload of
@@ -743,7 +822,15 @@ Videos, Usage (+ Admin); the links get a little narrower below 1280 px.
   409 `render_preflight` asks again). An optional "selectable caption track" sends `soft_subtitles`.
   The dialog also lists the quality check's open errors and warnings (at most 12, never blocking).
   The project page shows the preflight list, the quality list under its own heading and, per render,
-  its output check and affected scenes.
+  its output check and affected scenes. Both render dialogs (the editor's "Render MP4", the project page's "Make the
+  video") tell a Dynamic render from a classic one only by the preflight's `presentation`
+  (`lib/renderOptions.js` `dynamicRender(preflight)`); without that answer (the request failed, or the editor did not
+  check a stale lecture) they show the classic dialog. For a Dynamic lecture they pre-check "Burn captions" from
+  `presentation.captions_burn`, always send `burn_captions`, leave out the intro option and, in the editor, send
+  `soft_subtitles` explicitly when the captions are not burned (pre-checked, the R-31 default). The job stepper
+  (`lib/jobStages.js` `RENDER_STAGES`, `renderEngine`, `stagesFor`) follows the engine the job reports: classic
+  screenshots, segments, mux, check, store; motion preflight, capture, mux, check, store; `done` marks every step
+  done.
 
 ## 11. Security model (details: `docs/SECURITY.md`)
 
@@ -783,6 +870,210 @@ Videos, Usage (+ Admin); the links get a little narrower below 1280 px.
 * Python 3.11, type hints, `ruff` clean, no blocking I/O in `async def`, atomic SQL for state changes.
 * `logging.getLogger(__name__)` + redaction filter; never log secrets or full prompts at INFO.
 * Tests: pytest with fakes, `app_env` fixture (fresh DB/data dir); `@pytest.mark.slow` for real
-  manim/ffmpeg/playwright output.
+  manim/ffmpeg/playwright output; `@pytest.mark.container` (also slow) for the ffmpeg feature checks the Docker
+  `test` image runs on Debian's ffmpeg 5.1 (`AADHI_EXPECT_FFMPEG=5.1` pins the version there). The image also sets
+  `AADHI_CONTAINER_TESTS=1`, under which a missing tool or stage bundle fails the Dynamic suites instead of skipping
+  them (`tests/compose/dynamic/helpers.missing`).
+* Classic invariance (from B0): `tests/invariance/` goldens (fast suite) and the differential pixel test (merge
+  base vs HEAD in the Docker `test` image, CI job `container`, measured tolerances) must pass in every batch; a
+  classic change on purpose carries the `classic-change` PR label and regenerated goldens.
 * Frontend: never `innerHTML` with dynamic data (`shared/dom.js`), never `eval`/`new Function`, no
   model ids as DOM ids, release everything in `destroy()`.
+
+## 13. Dynamic video foundations (batch B0)
+
+The Dynamic video mode (`docs/DYNAMIC_VIDEO_DESIGN.md`) ships in batches. B0 changes nothing a teacher or student
+sees: classic lectures keep their screenplay JSON, scene hashes, timeline and MP4 (checked by `tests/invariance/`).
+It lays down the contracts the later batches build on:
+
+* **Inert schema v3.** Every Dynamic field and enum value of the design (§6.7, §8.2) exists in the screenplay,
+  timeline and manifest models, is validated and kept by every transform, and is left out of the JSON at its
+  default (`exclude_if`). `scene_hash` ignores `look` and the beats' `overlays` (they never change the audio) and
+  keeps `cuts`, `speaker` and `voice_override_asset_key`; `repair.carry_over` keeps `look` and the scene's v3
+  intent (role, `visual_intent`). Plans rebuilt from a screenplay (`plan_from_screenplay`, for repair and
+  regenerate) leave clip scenes out and give v3 roles as their classic counterparts (`pretraining` ->
+  `prerequisite`, `predict` -> `context`, `recap` -> `synthesis`) until B4 widens `PlannedScene`; a clip scene
+  itself cannot be regenerated (409 `action_unavailable`).
+* **Write gates.** `DYNAMIC_FEATURES` (`presentation`, `items_v3`, `cuts`, `overlays`, `clip`, `voice_override`)
+  lists what a server accepts. Saves, lint, the timeline preview and imports that use another feature get 422
+  `feature_unavailable` (`api.screenplay_service.require_features`); a feature the stored lecture already uses
+  stays editable.
+* **Reader-version marker** (`schemas/features.py`): documents that use a Dynamic field are written with
+  `schema_version` 3; anything above 3 is refused by the API (409 `newer_document`; write paths, Visual Review included,
+  check the stored screenplay and asset manifest before writing) and the workers (`jobs/reader_version.py`). Because B0 knows every v3 field, it is the rollback floor (`docs/OPERATIONS.md` §4.8).
+* **Asset authorisation** (`assets_auth.py`): the clip of a clip scene, overlays, the music bed and the teacher's
+  own narration are authorised like the classic key fields (`FIELD_RULES`, `asset_uses`); import strips what the
+  user may not use.
+* **Format plumbing** (§9): stage and output sizes come from the timeline (`stage_size`, `output_size`), so a
+  portrait timeline renders on a 1080×1920 stage while the classic one stays 1920×1080. Burned-in captions size
+  from the frame's short side (`ffmpeg.subtitles_filter`): a portrait render gets the classic glyph size.
+* **Audio and pricing groundwork:** `compose/loudness.py` (EBU R128 measurement and two-pass `loudnorm`); the
+  `music` price operation; unknown operations priced fail-closed; the up-front budget check counts generated music,
+  premium voices and their calibration when the Dynamic options carry them.
+* **Gemini Omni** (`providers/video/omni.py`): Veo 3.1's successor as a video provider (§6), because Google lists
+  the Veo 3.1 previews for shutdown from 2026-10-22.
+* **Gates:** the classic invariance harness and the ffmpeg 5.1 checks run in the Docker `test` image (CI job
+  `container`), the transform-survival tests (§10) and the batch-4 regression tests
+  (`tests/api/test_batch4_regressions.py`, `tests/pipeline/test_batch4_regressions.py`,
+  `web/tests/studio/batch4Regressions.test.js`) run with the suites.
+
+## 14. Dynamic video: the motion engine (batch B1)
+
+B1 renders Dynamic lectures (`docs/DYNAMIC_VIDEO_DESIGN.md` §7) behind the admin flag `DYNAMIC_ENABLED` (off by
+default). With the flag off `/render-dynamic` is 404 and a lecture with a `presentation` is built, played and
+rendered as a classic lecture (no `Timeline.presentation`, the classic intro, `RENDER_FPS`, classic captions), except
+that its stage still follows `presentation.format` (`compose/timeline.py` sizes every timeline with `stage_size`, a B0
+decision): a portrait presentation gives a classic timeline on a 1080×1920 stage, which the classic renderer renders
+on a 1080×1920 page and encodes as a portrait MP4 (`output_size`, §9: 1080×1920 at the default output size), while
+the live player shows it on its 16:9 classic stage. The flag applies when a timeline is served
+(`api/timelines.current_timeline`, like `MASCOT_CUES`): a build of the current revision whose
+engine differs from what the flag and the screenplay ask for now is served rebuilt (`build_timeline`, as the render
+job builds it); a stale build (the screenplay changed since) is served as built, except a Dynamic build while the
+flag is off, which is rebuilt from the current screenplay as a classic timeline. So turning the flag off stops the
+Dynamic stage at once and the player never disagrees with the MP4. The API and the render workers must share the
+flag: the worker builds the timeline it renders with its own settings, and the API decides from its own flag whether
+a request without `burn_captions` leaves it out of the job payload (`api/routers/renders.py`
+`render_presentation`). A worker with the flag off would render such a lecture classic without `burn_captions`, and
+the classic job then burns captions as `RENDER_BURN_CAPTIONS` says instead of not at all. The classic engine,
+`web/render.html` (contract v2) and their output are unchanged (the invariance goldens and the differential pixel
+test check it).
+
+* **Timeline** (`compose/timeline.py`, `compose/presentation.py`). With the flag on, a screenplay with a
+  `presentation` gets `Timeline.presentation` (`TimelinePresentation`: format, resolved content colours, fonts,
+  caption style, `captions_burn`, `engine_version`) and one `ResolvedLook` per scene: template `board_generic`;
+  background `colour_block` for chapter cards and `mesh_drift` elsewhere, toned `bg` / `bg-alt` / `bg-tint` within a
+  chapter; `crossfade` (0.45 s) into a new chapter and into or out of a colour block (R-54), hard cuts inside a
+  chapter (R-23); the structure colours of the four R1 theme families; seeds are SHA-256 of `(look_seed, look_epoch,
+  scene id, purpose)`. From Dynamic video batch B2a the colours come from `compose/dynamic/themes.py` (on
+  `colour_math.py`), the zones and type floors from `zones.py`, and the template registry from `templates.py`; the
+  generated `web/js/dynamic/catalogue.gen.js` carries their geometry to the stage. The resolver writes look-engine
+  generation 2: `look.tokens` also stores the block and scrim colours the stage derived at run time, a scene's palette
+  slot follows `Timeline.chapters` (or `SceneLook.palette_slot`), crossfades last 0.3-0.45 s, and the presentation
+  gains `content_alt`, `family`, `mode`, `motion_scale` and `entity_colors` (`DYNAMIC_VIDEO_DESIGN.md` §4.7, §6.7).
+  A stored Dynamic timeline of an older generation is served rebuilt; the stage refuses a newer one. A Dynamic timeline has no classic intro, runs at
+  30 fps (`DYNAMIC_FPS`) on the format's stage (1920×1080 or 1080×1920), so its word-anchored sync cues snap to that
+  30 fps grid (`SyncOptions.from_settings(settings, fps=DYNAMIC_FPS)`; classic timelines keep `RENDER_FPS`) and, in
+  9:16, wraps phrase captions at 16 characters,
+  grouped by `presentation.portrait_caption_cues` so no chunk flashes by (R-32: ≥ 1.0 s where the beat allows it)
+  and long words split only between grapheme clusters, keeping their word's timing.
+* **Engine switch** (`compose/video.render_video`): a timeline whose `presentation.style` is `"dynamic"` goes to
+  `compose/motion/job.render_dynamic`, every other one to the classic path; one render never mixes engines. The
+  Dynamic branch checks the flag (`dynamic_disabled`), tools and disk, runs **preflight**, captures, runs the
+  **container checks** and stores MP4, SRT and VTT like the classic path. `Render.options["qa"]` gets the motion QA
+  document (`docs/API.md`). Captions are burned (drawn by the stage) when the request asks for it, else as
+  `presentation.captions_burn` says (`motion.job.caption_modes`; `POST .../render` leaves an unset `burn_captions` out
+  of a Dynamic lecture's payload), and a clean file gets the default-on caption track unless the request turns it
+  off. Its render warnings are the classic ones worded for the motion engine plus one per side panel the stage does
+  not draw yet (a chart, graph, 3D model, skill tree or quiz panel: reason `panel_not_drawn`,
+  `motion.job.UNDRAWN_PANEL_KINDS`), in scene order: nothing is dropped silently.
+* **One compositor** (`web/js/dynamic/`). `stage.js` `createDynamicStage(root, timeline, {mode})` paints a frame as a
+  pure function of `(timeline, t)`: background (`backgrounds/mesh_drift.js` on a 1/8-size canvas, drifting in 0.2 s
+  steps; `colour_block.js` with a coarse seeded grain; both frozen and desaturated during holds), template
+  (`templates/board_generic.js`: title words rising in, cards entering 120 ms before their beat, older cards
+  collapsing into a "+N earlier" chip, chapter cards, quizzes with a countdown ring and the answer, media and split
+  layouts, in both formats), transition (`transitions.js`: cut, crossfade over the outgoing scene's final state,
+  clamped to 300-500 ms and never longer than the scene) and captions (`captions.js`: `clean_pill` / `bold_outline` in
+  a fixed band), styled by `web/css/dynamic.css` (also linked by `watch.html` and `index.html`). Colours come from the
+  roles: the stage and each scene set `--dyn-ink` and `--dyn-page` (`stage.js`), which colour the stage's background,
+  inherited text and the matte around contained media, and a card sets its own; the only literal colours
+  in `dynamic.css` are neutral shadows and the captions (white on a dark pill or outline, and the key-term yellow
+  until B2's `mark` role), so a light family gets no dark literal. The live player (`web/js/player/player.js`) loads
+  it on demand for a Dynamic timeline: the narration stays the master clock; clips are real `<video>` elements,
+  re-sought past 0.1 s of drift and played at the player's rate, and a paused clip that cannot seek yet is sought
+  once it can. A reel resizes the stage to 1080×1920 and the page's box takes its shape (§10), and the control bar
+  fits that box (`web/css/player.css` §12: the `ap-shaped-box` size container drops mute, then the time, the scene
+  list and the speed as the box narrows; play/pause, the seek bar, captions and fullscreen always stay). The bar lifts
+  the stage's captions only past their band's bottom (`Player.captionBottom`: 48 stage px in 16:9, 680 in 9:16,
+  which a bar rarely reaches); the caption-size control is disabled ("Caption size: set by this video": the captions
+  keep their format's size, as in the MP4, and the viewer's classic size preference is kept). A Dynamic lecture
+  preloads no quiz tick or ding, computes the classic scene state only to duck the branding music, paints nothing in
+  a hidden tab except at scene changes, and reports a stage failure once per scene and message (at most 20 per
+  timeline). The render page `web/render-dynamic.html` + `render.js` drives the same code in render mode (stage
+  contract v3, `docs/INTERFACES.md`). A medium the mode cannot show (in the render: a GIPHY GIF or anything kept out
+  of the MP4) takes no frame: the scene is laid out without it. The same holds for a side panel `board_generic` does
+  not draw yet (a chart, graph, 3D model, skill tree or quiz panel), in the live player and the MP4 alike; a render
+  warning says so. In 9:16 a table of more than two columns is drawn one line per row under a legend of its headers
+  (a grid would be clipped in the text column). A terminal panel's card enters with its first output line. A quiz
+  question keeps its rich-lite markup (TeX, bold, terms, code) word by word, with bold at weight 900 against the 700 title (no heavier face in Inter or the Indic
+  faces, so there it does not stand out); in 16:9 the title block ends 24 px left of the 96 px countdown ring. A
+  medium shown `contain_blur` sits over a blurred, darkened copy of its own frame drawn in a 64 px wide canvas
+  (`media.js` `BACKDROP_WIDTH`), none when it covers its box.
+* **Motion toolkit** (`web/js/motion/`, in-house, pure): CSS-exact cubic-bezier easing and the §4.8 tokens, keyframe
+  tracks (numbers, arrays, OKLCH colours), OKLCH parsing / mixing / gamut mapping and WCAG contrast,
+  `Intl.Segmenter` grapheme / word / line splitting (Indic conjuncts kept whole), stroke drawing, mulberry32 with a
+  documented `hashSeed`, an `en-IN` count-up. No GSAP, Remotion or tsParticles (§7.13).
+* **Determinism** (§7.4). Every visual property is a function of `(timeline, frame)`.
+  `web/tests/dynamic/sourceScan.test.js` parses `web/js/dynamic/**`, `web/js/motion/**`, `web/css/dynamic.css` and
+  `web/render-dynamic.html` with the TypeScript compiler API and fails on wall clocks (`Date.now`, `performance.now`,
+  `new Date()`, `document.timeline`), unseeded randomness, `requestAnimationFrame` and timers, CSS transitions,
+  animations and `@keyframes`, `element.animate()`, Chart.js without `animation: false`, self-clocked libraries,
+  `<video>`, DOM globals inside `web/js/motion`, and structure colours or emphasis on template content elements.
+  Stage infrastructure may keep a reasoned exception on the same or the previous line:
+  `// determinism-allow raf|timer|video: <reason>` (today: the one animation-frame wait of `seek()` and the live-only
+  `<video>` elements); the motion toolkit and the templates have none. After `ready` the timer guard (`guard.js`)
+  makes `setTimeout` / `setInterval` throw and records the trip (`window.aadhiStageGuard`, log line
+  `aadhi timer guard`). The page is never driven with `page.clock`; CDP `Animation.setPlaybackRate(0)` is the backstop
+  for stray CSS animation. Measured necessities (each of these made frames depend on the order they were rendered):
+  no `will-change` and no promoted layers, except a `contain_blur` clip's box (`will-change: transform`: Chromium
+  composites every shown 2D canvas, so without a layer for the box the clip above its backdrop changed with render
+  order; a picture must not be promoted); moving cards snap to whole pixels and media frames rise instead of
+  scaling; and the stage's Chromium is launched with `--disable-partial-raster` (`stage_page.DETERMINISM_ARGS`, the
+  Dynamic stage only): partial raster re-rasterised only the invalidated part of a tile, whose antialiasing differed
+  by a few levels from a full-tile raster (76 of 300 portrait frames differed between 1×300 and reverse; none with
+  the flag, at no measurable capture cost).
+* **Capture and encode** (`compose/motion/`). `W = min(6, CPU quota - 1, physical cores - 1, cpuset - 1)` workers
+  (cgroup v2 `cpu.max` / v1 `cfs_quota_us`; `RENDER_MOTION_WORKERS` overrides), limited by host-wide CPU slots
+  (`RENDER_CPU_SLOTS` lock files in `RENDER_SLOT_DIR`, `flock` / `msvcrt.locking`, released by the OS when a process
+  dies). Each worker is one sandboxed `chrome-headless-shell` with one page (the classic capture's flags plus
+  `--disable-partial-raster`, network policy and token-in-fragment; not launched with reduced motion); the workers
+  share one Playwright driver. Every worker's page must report the timeline's stage size, rate, frame count and scene
+  frame ranges before it captures (an empty scene list is a `stage_contract` mismatch), and a page that fails to come
+  up is closed at once. Frames
+  are captured with CDP `Page.captureScreenshot` (JPEG q92, `optimizeForSpeed`) and piped to one x264 encoder per
+  chunk (the §7.5 command plus `-frames:v N` and `-threads 4`), as MPEG-TS. Chunks are scene-aligned, 240-600 frames,
+  taken longest first; a chunk's packet count must equal its frames; a failed chunk (a crashed page, a wrong count,
+  an encoder failure) is captured once more on a fresh page, a contract violation never is; pages are recycled
+  after 1,800 frames or when their rate halves. Chunks are cached in the render workspace by content key (stage
+  bundle, engine version, frame range, the timeline slices that touch them, media identities, encoder and capture
+  parameters including the Chromium launch flags, Chromium version), so a retry captures only what is missing. The
+  master audio (the classic per-scene mix and the ducked branding BGM, AAC-LC 48 kHz stereo 384 kbps) is encoded
+  while the frames are captured; the final mux copies chunks and audio, adds the chapters and, for a clean file, a default-on `mov_text` track, with
+  `+faststart+negative_cts_offsets`.
+* **Media in the stage** (§7.7). For each chunk the worker asks `mediaPlan(f0, f1 + 10)`, fetches only sources the
+  timeline names, extracts the listed source frames (`-ss` half a frame early) at the largest size they are shown,
+  and answers the page's `/__frames/<key>/<n>.jpg` requests with `route.fulfill` from its workspace; the frames are
+  deleted after the chunk and never reach the API. A clip at another rate than the page's grid (a 24 fps Veo clip on
+  the 30 fps grid) is extracted at its own rate and page index n gets file frame `floor(n * rate / srcFps)`, so a
+  frame never depends on where its chunk starts. A panel not shown yet lists its first frame (the page paints it while
+  hidden). With presigned storage URLs every page the engine opens gets freshly signed links. The page's boot paint
+  never asks for them (`ready` does not wait for per-chunk frames). A chunk that fails anywhere from its media plan
+  on leaves none of its extracted frames behind. Overlay clips are not fetched before the capture until the stage
+  draws overlays (B6: `motion.engine.OVERLAYS_DRAWN`), so a missing overlay asset cannot fail a render it would not
+  appear in.
+* **Preflight** (`compose/dynamic/preflight.py`, §7.12) loads the stage once and seeks 24 spread frames, every scene's
+  first and last frame, every beat's settled frame (0.6 s after it starts: a card that later collapses is checked
+  while it is on screen) and, in 9:16, every caption chunk's (in B1: phrase caption's) first frame. From
+  `textBoxes()` it checks text overflow (too tall, past the column with the cards on screen with it, or clipped at
+  the sides), safe zones (R-59 bands, from `zones.py` since B2a; with burned captions no other critical text may reach into
+  the caption band), analytic contrast (R-53) and the R-29 type floor (labels ≥ 40/44 px, 9:16 text ≤ 64 px at weight
+  ≥ 600; warn only). The page draws exactly the render's caption layer (`setLayers` after every load), so captions
+  are checked only when the render burns them (the request's `burn_captions` wins over `presentation.captions_burn`).
+  The page must report the engine's frame count, the scene-bounds total (`motion.chunks.scene_frame_bounds`: a final
+  scene shorter than half a frame keeps one frame). Remedies (shrink to the slot minimum, the template's safe variant,
+  the scrim) are written into the served timeline's looks (from B2a into `look.fixes` only; the stage still reads B1's
+  `variant: "safe"` / `text_fit` of older timelines) and checked again, with one item kept per check, scene and
+  slot across both rounds; what is still wrong blocks with a teacher action (`preflight_blocked`, "Shorten text");
+  contrast and the type floor only warn. The title block reports its text in the slots `kicker` and `title` (a
+  chapter card's subtitle in `title`); a scrim for either covers the whole block, and its text is then reported on
+  the scrim composited over the background, so a contrast remedy that works ends `fixed`. A TeX word wider than the
+  column at the title's minimum size holds the title at that size and blocks there.
+* **Container checks** (`compose/dynamic/container.py`): exact frame count per chunk and in total (remedy: capture
+  those chunks again, on a fresh browser that waits for a CPU slot of its own, cancel-aware, since the capture's
+  slots were released when it ended), first video frame at 0 also without the edit list and the audio within one
+  frame, BT.709 TV-range tags, frame grid and declared rate, caption track (remedy: mux again), audible sound
+  (remedy: encode the audio again); black edges warn. Each remedy runs at most once; a problem that survives fails with `render_invalid`.
+* **Not yet** (later batches): the burned second version, draft renders, static-run deduplication and the Studio
+  render estimate (B4/B9); persisting preflight's remedies into the lecture so the live player shows them too (until
+  then a remedy changes only the MP4); the analytics flags of the two allowed live/MP4 differences and the low-end
+  fallback; `cues.js`, the other R1 templates and backgrounds (B2); the side panels `board_generic` leaves out (charts
+  with B2's `chart_build`); overlays (B6); the WebGL probe in `capabilities.py` (B7).

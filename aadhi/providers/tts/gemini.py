@@ -1,4 +1,14 @@
-"""Gemini TTS (``response_modalities=["AUDIO"]``; 24 kHz mono PCM wrapped as WAV, no word timings)."""
+"""Gemini TTS (``response_modalities=["AUDIO"]``; 24 kHz mono 16-bit WAV, no word timings).
+
+Gemini 3.8 TTS models answer with a WAV file (RIFF header) by default, earlier models with headerless
+PCM (``audio/L16;rate=24000``), which is wrapped as WAV here. 3.8 reads the text as a verbatim
+transcript (no "Say cheerfully:" style prompts), which is what narration needs; all catalogue voices
+(``voices.GEMINI_VOICES``) are among its 30 prebuilt voices.
+
+A speech model Google no longer serves (``generate_content`` answered 404 / 410: ``GEMINI_TTS_MODEL`` shut down,
+renamed or misspelt) raises ``ModelUnavailable`` after that one request (never retried; nothing was generated, so
+nothing is billed): the asset build narrates with the free Edge voice instead, with a warning (design §10.3 H0).
+"""
 
 from __future__ import annotations
 
@@ -8,8 +18,9 @@ from typing import Any
 from ...config import Settings
 from .._common import emit_usage, make_error
 from .._retry import SleepFn
-from ..base import ProviderError, SpeechResult, UsageSink
+from ..base import ModelUnavailable, ProviderError, ProviderUnavailable, SpeechResult, UsageSink
 from ..gemini_common import (
+    GEMINI_HOST,
     ClientFactory,
     GeminiCaller,
     check_blocked,
@@ -22,6 +33,7 @@ from .voices import default_voice, voices_for
 
 _VOICE_RE = re.compile(r"^[A-Za-z]{2,32}$")
 _RATE_IN_MIME = re.compile(r"rate=(\d+)")
+MODEL_GONE_STATUSES = (404, 410)  # a generate_content request naming a model the API does not serve
 
 
 def _audio_from_parts(parts: list[Any]) -> tuple[bytes, str]:
@@ -84,7 +96,14 @@ class GeminiTTS:
         async def request(client: Any, _key: str) -> Any:
             return await client.aio.models.generate_content(model=model, contents=text, config=config)
 
-        response = await self._caller.call(request, what="speech synthesis")
+        try:
+            response = await self._caller.call(request, what="speech synthesis")
+        except ProviderError as exc:
+            if exc.status in MODEL_GONE_STATUSES and not isinstance(exc, ProviderUnavailable):
+                raise make_error(ModelUnavailable, self.name, f"the speech model {model} is not available (shut down, "
+                                 "renamed, or not open to this API key; GEMINI_TTS_MODEL)", settings=self.settings, status=exc.status,
+                                 host=GEMINI_HOST, detail=str(exc)) from None
+            raise
         # Tokens are billed even for blocked/empty answers: report before any check or probe can fail.
         await emit_usage(on_usage, usage_from_response(response, model=model, operation="tts",
                                                        characters=len(text), meta={"voice": voice}))

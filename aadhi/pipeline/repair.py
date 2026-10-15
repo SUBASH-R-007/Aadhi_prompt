@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ..providers.base import FileInput
-from ..schemas.screenplay import Screenplay
+from ..schemas.screenplay import PLANNABLE_SCENE_TYPES, V3_NARRATIVE_ROLES, Screenplay
 from . import integrations
 from .aio import gather_all
 from .assets import carry_visual_variant
@@ -59,13 +59,24 @@ def carry_over(current: Any, new: Any) -> Any:
       ``override_asset_key`` when the new panel has the same kind;
     * the "new AI version" number (``variant``, Visual Review) of a generated picture or clip whose
       request is unchanged (``assets.carry_visual_variant``), so a rewritten narration keeps the picture;
-    * ``hidden`` and ``min_seconds`` (a regenerated hidden scene stays hidden, a held scene keeps its hold).
+    * ``hidden`` and ``min_seconds`` (a regenerated hidden scene stays hidden, a held scene keeps its hold);
+    * the Dynamic ``look`` (template, background, lock ...): a rewrite keeps the scene's settled or pinned look;
+      ``direct.py`` re-fits it only when its template no longer fits the new content (design §6.8);
+    * the scene's v3 ``intent`` annotations (a ``pretraining`` / ``predict`` / ``recap`` narrative role and its
+      ``visual_intent``): the rewrite's intent is rebuilt from a plan, which only holds classic roles until B4.
     """
     update: dict[str, Any] = {"chapter_id": current.chapter_id}
     if current.hidden:
         update["hidden"] = True
     if current.min_seconds is not None:
         update["min_seconds"] = current.min_seconds
+    if getattr(current, "look", None) is not None:
+        update["look"] = current.look
+    old_intent, new_intent = current.intent, new.intent
+    if old_intent is not None and new_intent is not None and (
+            old_intent.narrative_role in V3_NARRATIVE_ROLES or old_intent.visual_intent is not None):
+        update["intent"] = new_intent.model_copy(update={"narrative_role": old_intent.narrative_role,
+                                                         "visual_intent": old_intent.visual_intent})
     if new.type == current.type:
         update["mascot_position"] = current.mascot_position
         for name in ("override_asset_key", "poster_override_asset_key"):
@@ -152,7 +163,9 @@ async def repair_detailed(
     sem = asyncio.Semaphore(max(1, int(ctx.settings.llm_max_parallel)))
     rounds = 0
     for rnd in range(max_rounds):
-        targets = scenes_needing_repair(lint_issues + other)
+        # never a teacher-inserted clip scene (v3): AI does not write one, and a plan cannot hold it
+        writable = {s.id for s in current.scenes if s.type in PLANNABLE_SCENE_TYPES}
+        targets = {sid: found for sid, found in scenes_needing_repair(lint_issues + other).items() if sid in writable}
         if not targets:
             break
         rounds = rnd + 1

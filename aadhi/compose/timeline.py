@@ -14,6 +14,10 @@ counts only the scenes shown, so the captions and chapters leave it out too); a 
 ``min_seconds`` is held at the end for the difference (``TimedScene.hold_seconds``, part of ``duration``),
 and everything inside it (beats, captions, sync cues) is timed as without the hold.
 
+Dynamic video (design §6.7): while ``DYNAMIC_ENABLED`` is on, a screenplay with a ``presentation`` gets
+``Timeline.presentation`` and a ``TimedScene.look`` per scene (``aadhi.compose.presentation``), no classic intro,
+30 fps and, in portrait, shorter phrase captions. Without a presentation nothing here changes.
+
 Degradation (never fails on missing assets):
 
 * simulation without media -> board of bullets built from the beats' ``visual_cue``;
@@ -63,6 +67,7 @@ from ..schemas.timeline import (
     TimedScene,
     TimedWord,
     Timeline,
+    TimelinePresentation,
     TitleCard,
 )
 from ..storage.assets import AssetStore
@@ -79,12 +84,19 @@ from .base import (
     SCENE_TAIL_SECONDS,
     SCENE_TRANSITION_SECONDS,
     SILENT_SCENE_SECONDS,
-    STAGE_HEIGHT,
-    STAGE_WIDTH,
     STATIC_BACKGROUND,
+    stage_size,
 )
 from .captions import EST_SECONDS_PER_CHAR, estimate_words, normalize_cues, shift_cues, split_caption
 from .chapters import opening_title
+from .presentation import (
+    PORTRAIT_CAPTION_LINE_CHARS,
+    PORTRAIT_CAPTION_MIN_SECONDS,
+    dynamic_enabled,
+    portrait_caption_cues,
+    resolve_looks,
+    timeline_presentation,
+)
 from .sync import SyncOptions, scene_sync_cues
 
 log = logging.getLogger(__name__)
@@ -95,6 +107,7 @@ BRANDING_PREFIX = "/branding/"
 CAPTION_HOLD_SECONDS = 0.4  # the last caption of a beat stays up a little into the pause
 MIN_EST_BEAT_SECONDS = 0.6
 FULLSCREEN_TYPES = ("simulation", "ai_video", "interactive")
+DYNAMIC_FPS = 30  # Dynamic videos are 30 fps CFR in both formats (design §2.1)
 
 Phase = Literal["main", "reveal"]
 
@@ -390,6 +403,7 @@ class _Ctx:
     storage_keys: dict[str, str] = field(default_factory=dict)
     fallbacks: list[dict[str, str]] = field(default_factory=list)
     sync: SyncOptions | None = None  # word-anchored cues (aadhi.compose.sync); None = off
+    caption_width: int | None = None  # caption line length; None = the classic default (captions.MAX_LINE_CHARS)
 
     def note_storage(self, asset_key: str | None, storage_key: str | None) -> None:
         if asset_key and storage_key:
@@ -515,7 +529,10 @@ def _ai_video_fallback_board(scene: AIVideoScene) -> list[BoardItem]:
 # ---------------------------------------------------------------------------
 
 
-def _timed_beats(plan: _AudioPlan, reveal_override: dict[str, str]) -> list[TimedBeat]:
+def _timed_beats(plan: _AudioPlan, reveal_override: dict[str, str],
+                 caption_width: int | None = None) -> list[TimedBeat]:
+    """``caption_width`` is set for Dynamic 9:16 only: its phrase captions (R-32) are grouped so no chunk flashes by
+    (``presentation.portrait_caption_cues``); every other timeline keeps ``split_caption`` exactly."""
     lead = SCENE_LEAD_SECONDS
     out: list[TimedBeat] = []
     for idx, bp in enumerate(plan.beats):
@@ -525,9 +542,15 @@ def _timed_beats(plan: _AudioPlan, reveal_override: dict[str, str]) -> list[Time
         end = _r(lead + bp.end)
         words = [TimedWord(text=w.text, start=_r(lead + w.start), end=_r(lead + max(w.end, w.start)))
                  for w in bp.words]
-        cues = split_caption(beat.narration, words, start=start, end=speech_end)
+        hold = min(end, speech_end + CAPTION_HOLD_SECONDS)
+        if caption_width is None:
+            cues = split_caption(beat.narration, words, start=start, end=speech_end)
+        else:
+            cues = portrait_caption_cues(beat.narration, words, start=start, speech_end=speech_end, hold_end=hold,
+                                         width=caption_width)
+            if cues:  # R-32's hard minimum for the last chunk too, out of the beat's pause where it has one
+                hold = max(hold, min(end, cues[-1].start + PORTRAIT_CAPTION_MIN_SECONDS))
         if cues:
-            hold = min(end, speech_end + CAPTION_HOLD_SECONDS)
             if hold > cues[-1].end:
                 cues[-1] = cues[-1].model_copy(update={"end": _r(hold)})
         out.append(TimedBeat(
@@ -566,7 +589,7 @@ def _build_scene(scene: Any, index: int, start: float, plan: _AudioPlan, sm: Sce
         fullscreen = False
         ctx.fallbacks.append({"scene_id": scene.id, "reason": "ai_video_without_media"})
 
-    beats = _timed_beats(plan, reveal_override)
+    beats = _timed_beats(plan, reveal_override, ctx.caption_width)
     lead = SCENE_LEAD_SECONDS
     if not beats:
         duration = SILENT_SCENE_SECONDS
@@ -702,8 +725,15 @@ def _assemble(
     branding: Branding | None,
     preview: bool,
 ) -> Timeline:
-    ctx = _Ctx(figures={f.id: f for f in screenplay.figures}, sync=SyncOptions.from_settings(settings))
-    intro = build_intro(screenplay) if include_intro else None
+    # Dynamic video (design §6.7): only a screenplay with a presentation, and only while DYNAMIC_ENABLED is on. It has
+    # no classic intro, a reel's phrase captions are shorter (R-32), and it is 30 fps whatever RENDER_FPS says
+    # (DYNAMIC_FPS), so its word-anchored cues snap to that frame grid. Classic timelines take none of these paths.
+    dynamic = screenplay.presentation is not None and dynamic_enabled(settings)
+    ctx = _Ctx(figures={f.id: f for f in screenplay.figures},
+               sync=SyncOptions.from_settings(settings, fps=DYNAMIC_FPS if dynamic else None))
+    if dynamic and screenplay.presentation is not None and screenplay.presentation.format == "portrait":
+        ctx.caption_width = PORTRAIT_CAPTION_LINE_CHARS
+    intro = build_intro(screenplay) if include_intro and not dynamic else None
     t = intro.duration if intro else 0.0
     scenes: list[TimedScene] = []
     shown = [s for s in screenplay.scenes if not s.hidden]  # a hidden scene is in neither renderer
@@ -744,25 +774,36 @@ def _assemble(
     }
     if ctx.fallbacks:
         meta[FALLBACKS_META] = ctx.fallbacks
+    # The stage follows the lecture's format (design §6.7); 1920x1080 for every classic lecture (no presentation).
+    width, height = stage_size(screenplay.presentation.format if screenplay.presentation is not None else None)
+    # One chapter list for the chapters a viewer sees (and board_generic's kicker) and the looks' chapter boundaries
+    # (accent, tone reset, crossfade; presentation.chapter_indices).
+    chapters = build_chapters(screenplay, scenes)
+    presentation: TimelinePresentation | None = None
+    if dynamic and screenplay.presentation is not None:
+        for timed, look in zip(scenes, resolve_looks(screenplay, scenes, chapters)):
+            timed.look = look
+        presentation = timeline_presentation(screenplay.presentation, scenes, _r(t))
     return Timeline(
         version_id=version_id,
         screenplay_revision=revision,
         language=screenplay.language,
         board_language=screenplay.board_language or screenplay.language,
-        fps=settings.render_fps,
-        width=STAGE_WIDTH,
-        height=STAGE_HEIGHT,
+        fps=DYNAMIC_FPS if presentation is not None else settings.render_fps,
+        width=width,
+        height=height,
         meta=meta,
         concept_map=list(screenplay.concept_map),
         learning_objectives=list(screenplay.learning_objectives),
         intro=intro,
         scenes=scenes,
         total_duration=_r(t),
-        chapters=build_chapters(screenplay, scenes),
+        chapters=chapters,
         captions=normalize_cues(captions),
         branding=branding if branding is not None else default_branding(settings),
         transition_seconds=SCENE_TRANSITION_SECONDS,
         estimated=estimated,
+        **({"presentation": presentation} if presentation is not None else {}),  # classic: left unset, as before
     )
 
 

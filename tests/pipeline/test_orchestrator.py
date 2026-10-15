@@ -471,3 +471,82 @@ def test_a_scene_scoped_build_that_skips_changed_scenes_does_not_count_as_built(
     assert AssetManifest.model_validate(v.asset_manifest).stale_scenes == []
     if integrations.build_timeline_fn() is not None:
         assert v.built_revision == 3 and not v.timeline_stale
+
+
+def _store_dynamic(world: dict[str, Any]) -> tuple[dict[str, Any], str, str, str]:
+    """The generated lecture with v3 annotations (as a Dynamic lecture, or a newer build's document after a rollback,
+    stores them): a ``recap`` role on one content scene, a ``recap`` role with a ``visual_intent`` on another, and a
+    teacher-inserted clip scene. Returns (stored document, annotated scene id, scene to regenerate, clip scene id)."""
+    s = world["seeded"]
+    v = get_version(s.version_id)
+    data = v.screenplay
+    contents = [i for i, x in enumerate(data["scenes"]) if x["type"] == "content"]
+    annotated, target = data["scenes"][contents[0]], data["scenes"][contents[1]]
+    annotated["intent"]["narrative_role"] = "recap"
+    target["intent"].update(narrative_role="recap", visual_intent="summarize")
+    clip = {"id": "lab-clip", "type": "clip", "title": "Lab demo", "chapter_id": annotated["chapter_id"],
+            "beats": [], "clip": {"asset_key": "clip-lab-demo", "in_frame": 0, "out_frame": 300}}
+    data["scenes"].insert(contents[0] + 1, clip)
+    chapter = next(c for c in data["chapters"] if c["id"] == annotated["chapter_id"])
+    chapter["scene_ids"].insert(chapter["scene_ids"].index(annotated["id"]) + 1, clip["id"])
+    data = Screenplay.model_validate(data).model_dump(mode="json")
+    assert data["schema_version"] == 3
+    with session_scope() as db:  # stored as a newer build (or the API with DYNAMIC_FEATURES) writes it
+        assert compare_and_set(db, ProjectVersion, v.id, {"revision": 2}, {"screenplay": data, "revision": 3})
+    return data, annotated["id"], target["id"], clip["id"]
+
+
+def test_plan_from_screenplay_leaves_out_clip_scenes_and_maps_v3_roles():
+    """Design §6.7 / §8.2: a plan holds no clip scene and only classic roles; both maximal documents plan."""
+    import json
+    from pathlib import Path
+
+    from aadhi.pipeline.screenplay_ops import plan_from_screenplay
+    from aadhi.schemas.screenplay import V3_NARRATIVE_ROLES
+
+    root = Path(__file__).resolve().parents[1]
+    for path in (root / "core" / "fixtures" / "transform_survival_dynamic.json",
+                 root / "schemas" / "fixtures" / "screenplay_v3_maximal.json"):
+        sp = Screenplay.model_validate(json.loads(path.read_text(encoding="utf-8")))
+        clips = {x.id for x in sp.scenes if x.type == "clip"}
+        assert clips and any(x.intent and x.intent.narrative_role in V3_NARRATIVE_ROLES for x in sp.scenes), path.name
+        planned = [p for ch in plan_from_screenplay(sp).chapters for p in ch.scenes]
+        assert [p.id for p in planned] == [x.id for x in sp.scenes if x.id not in clips], path.name
+        assert not {p.narrative_role for p in planned} & set(V3_NARRATIVE_ROLES)
+
+
+def test_regenerate_scene_in_a_lecture_with_a_clip_scene_and_v3_roles(world):
+    """Regenerating any scene works in a lecture with a clip scene or a v3 narrative role (the rollback floor):
+    the other scenes, the clip scene among them, come back unchanged, and the rewritten scene keeps its own v3
+    role and visual intent."""
+    generate(world)
+    s = world["seeded"]
+    data, annotated, target, clip = _store_dynamic(world)
+    result = run(world["ctx"], orchestrator.regenerate_scene, "regenerate_scene",
+                 {"scene_id": target, "instructions": "Use a cricket example.", "base_revision": 3})
+    assert result == {"version_id": s.version_id, "scene_id": target}
+    v = get_version(s.version_id)
+    assert v.status == "ready" and v.revision == 4
+    out = v.screenplay
+    assert [x["id"] for x in out["scenes"]] == [x["id"] for x in data["scenes"]]
+    for before, after in zip(data["scenes"], out["scenes"], strict=True):
+        if before["id"] != target:
+            assert after == before, before["id"]  # the clip scene and the other v3 role among them
+    rewritten = next(x for x in out["scenes"] if x["id"] == target)
+    assert rewritten["intent"]["narrative_role"] == "recap" and rewritten["intent"]["visual_intent"] == "summarize"
+    assert out["schema_version"] == 3
+    assert next(x for x in out["scenes"] if x["id"] == annotated)["intent"]["narrative_role"] == "recap"
+    assert next(x for x in out["scenes"] if x["id"] == clip)["type"] == "clip"
+
+
+def test_regenerate_refuses_a_clip_scene(world):
+    generate(world)
+    s = world["seeded"]
+    _, _, _, clip = _store_dynamic(world)
+    n = len(world["providers"].llm.calls)
+    with pytest.raises(FatalJobError) as exc:
+        run(world["ctx"], orchestrator.regenerate_scene, "regenerate_scene",
+            {"scene_id": clip, "instructions": "", "base_revision": 3})
+    assert exc.value.code == "bad_request"
+    v = get_version(s.version_id)
+    assert v.revision == 3 and v.status == "ready" and len(world["providers"].llm.calls) == n

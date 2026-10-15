@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import copy
+import math
 import re
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 import pytest
 
@@ -21,6 +23,23 @@ from aadhi.pipeline.validate import lint, scenes_needing_repair
 from aadhi.schemas.screenplay import Screenplay
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+_T = TypeVar("_T")
+
+
+def _fastest(run: Callable[[], _T], budget: float, tries: int = 3) -> tuple[float, _T]:
+    """(wall-clock seconds of the fastest of up to ``tries`` runs of ``run``, the last run's result), stopping at the
+    first run within ``budget``. A budget pins the algorithm, not the machine: a run slowed by other work on a loaded
+    machine is measured again, while a slow algorithm is over budget every time."""
+    best = math.inf
+    for _ in range(tries):
+        started = time.perf_counter()
+        result = run()
+        best = min(best, time.perf_counter() - started)
+        if best < budget:
+            break
+    return best, result
 
 
 def item(iid: str, kind: str = "bullet", **kw: Any) -> dict[str, Any]:
@@ -533,10 +552,8 @@ def test_adversarial_text_stays_fast(name):
                 "beats": [{"id": f"s{n}-b{k}", "narration": text[:1500]} for k in range(4)]}
 
     lesson = sp([big(n) for n in range(200)])
-    started = time.perf_counter()
-    lint_quality(lesson)
-    quality_report(lesson)
-    assert time.perf_counter() - started < 6.0  # both passes over ~1 MB of crafted text; typical lessons take ms
+    seconds, _ = _fastest(lambda: (lint_quality(lesson), quality_report(lesson)), 6.0)
+    assert seconds < 6.0  # both passes over ~1 MB of crafted text; typical lessons take ms
 
 
 def _spellings(word: str, hyphen: bool):
@@ -558,10 +575,9 @@ def test_thousands_of_spellings_of_one_term_stay_fast(hyphen, code):
                   "board": [item(f"s{n}-i{k}", text=" ".join(f"[[{next(forms)}]]" for _ in range(40))[:1200])
                             for k in range(3)],
                   "beats": [{"id": f"s{n}-b", "narration": "A short clean beat."}]} for n in range(200)])
-    started = time.perf_counter()
-    codes = [i.code for i in lint_quality(lesson)]
-    report = quality_report(lesson)
-    assert time.perf_counter() - started < 6.0  # was over an hour (quadratic in the number of spellings)
+    seconds, (issues, report) = _fastest(lambda: (lint_quality(lesson), quality_report(lesson)), 6.0)
+    assert seconds < 6.0  # was over an hour (quadratic in the number of spellings)
+    codes = [i.code for i in issues]
     assert codes.count(code) == 1
     repair = next(r for r in report["repairs"] if r["code"] == code)
     assert 0 < len(repair["edits"]) <= 40
@@ -588,10 +604,8 @@ def test_thousands_of_distinct_capital_tokens_stay_fast():
     lesson = sp([{"id": f"s{n}", "type": "content", "title": f"Scene {n}",
                   "board": [item(f"s{n}-i{k}", text=text()) for k in range(4)],
                   "beats": [{"id": f"s{n}-b", "narration": "A short clean beat."}]} for n in range(200)])
-    started = time.perf_counter()
-    lint_quality(lesson)
-    report = quality_report(lesson)
-    assert time.perf_counter() - started < 3.0
+    seconds, (_, report) = _fastest(lambda: (lint_quality(lesson), quality_report(lesson)), 3.0)
+    assert seconds < 3.0
     reported = [a["abbreviation"] for a in report["registry"]["abbreviations"]]
     assert reported == order[:MAX_ABBREVIATIONS]  # the first ones in first-use order, as before
 
@@ -612,10 +626,9 @@ def test_many_term_groups_and_undefined_abbreviations_stay_fast():
     lesson = sp([{"id": f"s{n}", "type": "content", "title": f"Scene {n}",
                   "board": [item(f"s{n}-i{k}", text=bullet(n, k)) for k in range(12)],
                   "beats": [{"id": f"s{n}-b", "narration": "A short clean beat."}]} for n in range(200)])
-    started = time.perf_counter()
-    codes = [i.code for i in lint_quality(lesson)]
-    quality_report(lesson)
-    assert time.perf_counter() - started < 3.0
+    seconds, (issues, _) = _fastest(lambda: (lint_quality(lesson), quality_report(lesson)), 3.0)
+    assert seconds < 3.0
+    codes = [i.code for i in issues]
     assert codes.count("terminology.abbreviation_undefined") == 30
 
 
@@ -626,10 +639,9 @@ def test_many_meanings_for_one_symbol_stay_fast():
     lesson = sp([{"id": f"s{s}", "type": "content", "title": f"Scene {s}",
                   "board": [formula(f"s{s}-f{k}", "V = IR", *[("V", f"q{next(n)}") for _ in range(8)]) for k in range(12)],
                   "beats": [{"id": f"s{s}-b", "narration": "A short clean beat."}]} for s in range(200)])
-    started = time.perf_counter()
-    issues = [i for i in lint_quality(lesson) if i.code == "formula.symbol_conflict"]
-    quality_report(lesson)
-    assert time.perf_counter() - started < 3.0
+    seconds, (found, _) = _fastest(lambda: (lint_quality(lesson), quality_report(lesson)), 3.0)
+    assert seconds < 3.0
+    issues = [i for i in found if i.code == "formula.symbol_conflict"]
     assert len(issues) == 1
     assert "“q0” in scene 1" in issues[0].message and "“q2”" in issues[0].message and "“q3”" not in issues[0].message
 
@@ -638,6 +650,5 @@ def test_a_typical_lesson_is_checked_quickly():
     lesson = sp([scene(f"s{n}", f"Scene {n} topic", bullets(f"s{n}", "A [[resistor]] limits current.", "Use **Ohm's law**."),
                        narration="Here V is voltage and I is current, so we use Ohm's law to find the value.")
                  for n in range(150)])
-    started = time.perf_counter()
-    lint_quality(lesson)
-    assert time.perf_counter() - started < 0.5
+    seconds, _ = _fastest(lambda: lint_quality(lesson), 0.5)
+    assert seconds < 0.5

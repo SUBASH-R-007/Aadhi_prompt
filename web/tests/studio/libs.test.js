@@ -6,7 +6,8 @@ import * as P from '../../js/studio/lib/planEdit.js';
 import { passwordHints, passwordScore, generateTempPassword, blockingHints, serverMinLength } from '../../js/studio/lib/password.js';
 import * as T from '../../js/studio/lib/manimTemplates.js';
 import { saveDraft, loadDraft, clearDraft, clearAllDrafts, noteSignedInUser, draftKey, loadPref, savePref, MAX_DRAFT_CHARS } from '../../js/studio/lib/draftStore.js';
-import { stageStates, isActive, isTerminal, statusLabel } from '../../js/studio/lib/jobStages.js';
+import { stageStates, isActive, isTerminal, statusLabel, renderEngine, RENDER_STAGES } from '../../js/studio/lib/jobStages.js';
+import { dynamicRender } from '../../js/studio/lib/renderOptions.js';
 import { checkExpr } from '../../js/studio/lib/expr.js';
 import { tokenizeRichLite, stripRichLite } from '../../js/studio/lib/richLite.js';
 import * as U from '../../js/studio/util.js';
@@ -344,9 +345,9 @@ test('stageStates marks done/active/failed stages', () => {
   assert.deepEqual(stageStates({ kind: 'build_assets', status: 'succeeded', stage: 'assets' }).map((x) => x.state), ['done', 'done']);
   assert.deepEqual(stageStates({ kind: 'build_assets', status: 'failed', stage: 'timeline' }).map((x) => x.state), ['done', 'failed']);
   assert.deepEqual(stageStates({ kind: 'generate_lecture', status: 'awaiting_review', stage: 'plan' }).map((x) => x.state).slice(0, 3), ['done', 'done', 'pending']);
-  // render_video reports screenshots -> segments -> mux -> store (aadhi/compose/video.py)
+  // a classic render_video reports screenshots -> segments -> mux -> check -> store (aadhi/compose/video.py)
   const render = stageStates({ kind: 'render_video', status: 'running', stage: 'segments' });
-  assert.deepEqual(render.map((x) => [x.name, x.state]), [['screenshots', 'done'], ['segments', 'active'], ['mux', 'pending'], ['store', 'pending']]);
+  assert.deepEqual(render.map((x) => [x.name, x.state]), [['screenshots', 'done'], ['segments', 'active'], ['mux', 'pending'], ['check', 'pending'], ['store', 'pending']]);
   assert.equal(render[0].label, 'Capture frames');
   assert.deepEqual(stageStates({ kind: 'translate', status: 'running', stage: 'assets' }).map((x) => x.state), ['done', 'active', 'pending']);
   assert.deepEqual(stageStates({ kind: 'import_legacy', status: 'running', stage: 'import' }).map((x) => x.label), ['Import']);
@@ -358,6 +359,49 @@ test('stageStates marks done/active/failed stages', () => {
   assert.equal(isTerminal({ status: 'cancelled' }), true);
   assert.equal(statusLabel('awaiting_review'), 'Awaiting review');
   assert.equal(statusLabel('weird'), 'weird');
+});
+
+// A Dynamic video's render runs the motion engine (aadhi/compose/motion/job.py, engine.py): preflight -> capture -> mux ->
+// check -> store. Its stages used to be unknown to the stepper (indexOf -1: every step pending for the whole capture),
+// and a classic render fell back to all-pending during its own `check` and at `done`.
+test('stageStates follows the engine of a render: classic and motion stages, never all-pending once started', () => {
+  const states = (/** @type {any} */ job, /** @type {string[]} */ seen = []) => stageStates({ kind: 'render_video', status: 'running', ...job }, seen).map((x) => [x.name, x.state]);
+  assert.deepEqual(RENDER_STAGES.motion, ['preflight', 'capture', 'mux', 'check', 'store']);
+  assert.deepEqual(states({ stage: 'preflight' }), [['preflight', 'active'], ['capture', 'pending'], ['mux', 'pending'], ['check', 'pending'], ['store', 'pending']]);
+  assert.deepEqual(states({ stage: 'capture' }, ['preflight']), [['preflight', 'done'], ['capture', 'active'], ['mux', 'pending'], ['check', 'pending'], ['store', 'pending']]);
+  // a motion render at a shared stage: its earlier events name the engine
+  assert.deepEqual(states({ stage: 'check' }, ['preflight', 'capture', 'mux']), [['preflight', 'done'], ['capture', 'done'], ['mux', 'done'], ['check', 'active'], ['store', 'pending']]);
+  const labels = stageStates({ kind: 'render_video', status: 'running', stage: 'capture' }).map((x) => x.label);
+  assert.deepEqual(labels, ['Check layout', 'Capture & encode', 'Join & mix audio', 'Check video', 'Save video']);
+  // classic: `check` after mux no longer resets the stepper
+  assert.deepEqual(states({ stage: 'check' }, ['screenshots', 'segments', 'mux']), [['screenshots', 'done'], ['segments', 'done'], ['mux', 'done'], ['check', 'active'], ['store', 'pending']]);
+  assert.deepEqual(states({ stage: 'store' }), [['screenshots', 'done'], ['segments', 'done'], ['mux', 'done'], ['check', 'done'], ['store', 'active']]);
+  // `done` (reported just before the job is marked finished): every step done, for both engines
+  assert.ok(stageStates({ kind: 'render_video', status: 'running', stage: 'done' }, ['preflight']).every((x) => x.state === 'done'));
+  assert.ok(stageStates({ kind: 'render_video', status: 'running', stage: 'done' }).every((x) => x.state === 'done'));
+  // a stage a newer server reports keeps the steps seen so far done (none active), instead of resetting them
+  assert.deepEqual(states({ stage: 'polish' }, ['preflight', 'capture', 'polish']), [['preflight', 'done'], ['capture', 'done'], ['mux', 'pending'], ['check', 'pending'], ['store', 'pending']]);
+  // before any stage (queued / just started) nothing is done yet; a failure marks the stage it stopped in
+  assert.ok(states({ stage: '' }).every(([, s]) => s === 'pending'));
+  assert.deepEqual(stageStates({ kind: 'render_video', status: 'failed', stage: 'preflight' }).map((x) => x.state), ['failed', 'pending', 'pending', 'pending', 'pending']);
+  assert.equal(renderEngine({ stage: 'mux' }), 'classic', 'nothing names the motion engine yet: the classic list (same place for mux/check/store)');
+  assert.equal(renderEngine({ stage: 'mux' }, ['capture']), 'motion');
+  assert.equal(renderEngine({ stage: 'preflight' }), 'motion');
+});
+
+// --- renderOptions --------------------------------------------------------------------------------
+
+test('dynamicRender: only the server says which render a lecture gets; without its answer it is classic', () => {
+  const portrait = { style: 'dynamic', format: 'portrait', captions_burn: false };
+  assert.deepEqual(dynamicRender({ items: [], presentation: portrait }), { format: 'portrait', captionsBurn: false });
+  assert.deepEqual(dynamicRender({ items: [], presentation: { style: 'dynamic', format: 'landscape', captions_burn: true } }), { format: 'landscape', captionsBurn: true });
+  assert.deepEqual(dynamicRender({ items: [], presentation: { style: 'dynamic' } }), { format: 'landscape', captionsBurn: true }, 'schema defaults');
+  assert.equal(dynamicRender({ items: [], presentation: null }), null, 'the server: classic (e.g. DYNAMIC_ENABLED off)');
+  assert.equal(dynamicRender({ items: [] }), null, 'an answer without a presentation: classic');
+  assert.equal(dynamicRender(null), null, 'no answer (the check failed): classic, whatever the screenplay says');
+  assert.equal(dynamicRender(undefined), null);
+  assert.equal(dynamicRender('nope'), null);
+  assert.equal(dynamicRender({ presentation: 'dynamic' }), null);
 });
 
 // --- expr / richLite ----------------------------------------------------------------------------------

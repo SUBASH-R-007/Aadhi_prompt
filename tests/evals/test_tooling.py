@@ -181,7 +181,10 @@ def test_lock_satisfies_requirement_ranges(lock):
 def test_requirement_floors_match_the_verified_versions():
     reqs = {Requirement(line).name.lower(): Requirement(line) for line in _req_lines("requirements.txt")}
     assert not reqs["openai"].specifier.contains("2.9.0") and reqs["openai"].specifier.contains("3.22.1")
-    assert not reqs["google-genai"].specifier.contains("1.99.0") and reqs["google-genai"].specifier.contains("2.26.0")
+    # google-genai: 2.26 is the SDK Omni's client.aio.interactions was verified against (Gemini 3.8 TTS, the
+    # GEMINI_TTS_MODEL default, needs >= 2.25; design §10.3 H0); tests/providers/test_omni.py checks the same floor
+    genai = reqs["google-genai"].specifier
+    assert genai.contains("2.26.0") and not any(genai.contains(v) for v in ("1.99.0", "2.25.0", "2.25.99", "3.0.0"))
     assert not reqs["sqlalchemy"].specifier.contains("2.0.40") and reqs["sqlalchemy"].specifier.contains("2.1.1")
     assert str(reqs["manim"].specifier) == "==0.21.*"
     sandbox = _text("docker/manim-sandbox/Dockerfile")
@@ -203,13 +206,17 @@ def test_lock_render_adds_platform_pins_once(lock):
 
 
 def test_linux_closure_finds_platform_only_dependencies(lock):
-    _needed, missing = lock.linux_closure(["uvicorn[standard]"])
-    assert "uvloop" in missing  # Linux-only extra dependency that pip freeze on Windows never sees
+    needed_linux, missing = lock.linux_closure(["uvicorn[standard]"])
+    # Linux-only extra dependency that pip freeze on Windows never sees: the Linux closure reaches it whether or not
+    # it is installed on the machine running the test (missing on Windows, installed on a Linux runner).
+    assert "uvloop" in missing or "uvloop" in needed_linux
     win = {**lock.LINUX_ENV, "sys_platform": "win32", "platform_system": "Windows", "os_name": "nt"}
     needed, missing_win = lock.linux_closure(["uvicorn[standard]"], env=win)
     assert "uvloop" not in missing_win and {"click", "h11", "httptools", "watchfiles"} <= needed
-    assert "colorama" in lock.linux_closure(["tqdm"], env=win)[0]  # Windows-only marker ...
-    assert "colorama" not in lock.linux_closure(["tqdm"])[0]  # ... skipped for Linux
+    reached_win = set().union(*lock.linux_closure(["tqdm"], env=win))  # needed | missing: installed or not here
+    reached_linux = set().union(*lock.linux_closure(["tqdm"]))
+    assert "colorama" in reached_win  # Windows-only marker ...
+    assert "colorama" not in reached_linux  # ... skipped for Linux
     assert lock.linux_closure(["uvicorn"])[1] == {}  # extras are only followed when requested
 
 
@@ -339,9 +346,21 @@ def test_dockerfile_contract():
 
 
 def test_dockerfile_installs_runtime_dependencies_only():
-    installs = [i for i in _dockerfile_instructions() if i.startswith("RUN pip install")]
-    assert installs == ["RUN pip install -c /tmp/requirements.lock -r /tmp/requirements.txt boto3"]
-    assert "requirements-dev" not in _text("Dockerfile")
+    # The deployable stages install the runtime requirements only; the dev tools exist in the CI-only `test`
+    # target alone (docs/DYNAMIC_VIDEO_DESIGN.md section 7.9), which nothing deployable is built from.
+    stage, installs, dev_stages = "", {}, set()
+    for ins in _dockerfile_instructions():
+        if ins.startswith("FROM "):
+            stage = ins.split()[-1]
+            assert ins.split()[1] != "test", ins
+        elif ins.startswith("RUN pip install"):
+            installs.setdefault(stage, []).append(ins)
+        if "requirements-dev" in ins:
+            dev_stages.add(stage)
+    assert installs.pop("pydeps") == ["RUN pip install -c /tmp/requirements.lock -r /tmp/requirements.txt boto3"]
+    (test_install,) = installs.pop("test")
+    assert test_install.startswith("RUN pip install -c /tmp/requirements.lock -r /tmp/requirements-dev.txt")
+    assert installs == {} and dev_stages == {"test"}
 
 
 def test_dockerfile_copies_an_allow_list():
@@ -361,6 +380,23 @@ def test_dockerfile_copies_an_allow_list():
                 assert not _dockerignored(rel, patterns), f"COPY source {rel} is excluded by .dockerignore"
     for debris in V1_DEBRIS:
         assert not any(re.fullmatch(_docker_regex(src.rstrip("/")).pattern, debris) for src in runtime), debris
+
+
+def test_dockerfile_web_stage_has_what_vendor_mjs_imports():
+    """`npm ci` in the web stage runs scripts/vendor.mjs: every local module it imports (vendor_faces.mjs, the generated
+    face table web/js/dynamic/faces.gen.js; B2b) must be copied into that stage, or the image build fails. The runtime
+    image carries the generated THIRD_PARTY_NOTICES (design §4.12)."""
+    copies = _copy_sources(_dockerfile_instructions())
+    web = [src for stage, srcs in copies if stage == "web" for src in srcs]
+    vendor = (SCRIPTS / "vendor.mjs").read_text(encoding="utf-8")
+    local = re.findall(r"^import .* from '(\.{1,2}/[^']+)';$", vendor, re.M)
+    assert "./vendor_faces.mjs" in local and "../web/js/dynamic/faces.gen.js" in local
+    for spec in local:
+        rel = (SCRIPTS / spec).resolve().relative_to(ROOT_DIR.resolve()).as_posix()
+        assert rel in web, f"the Dockerfile's web stage does not copy {rel} (imported by scripts/vendor.mjs)"
+    assert "scripts/vendor.mjs" in web
+    runtime = [src for stage, srcs in copies if stage == "runtime" for src in srcs]
+    assert "THIRD_PARTY_NOTICES" in runtime
 
 
 def test_dockerfile_ships_every_branding_file():
@@ -625,8 +661,16 @@ def test_ci_workflows():
     assert 'pytest -m "not slow and not network"' in steps
     assert "pip install -c requirements.lock -r requirements.txt -r requirements-dev.txt" in steps
     assert "ruff check aadhi tests scripts evals docker" in steps
-    for check in ("gen_env_example.py --check", "gen_chromium_seccomp.py --check", "make_fixtures.py --check"):
+    for check in ("gen_env_example.py --check", "gen_chromium_seccomp.py --check", "make_fixtures.py --check",
+                  "python -m aadhi.compose.dynamic.catalogue --check", "python -m aadhi.compose.dynamic.faces --check",
+                  "python -m aadhi.compose.dynamic.icons --check", "python scripts/gen_third_party_notices.py --check"):
         assert check in steps
+    # the notices and the icon index are generated from node_modules: the Python job installs it before its
+    # generated-files step
+    py_steps = [str(s.get("run", "")) for s in ci["jobs"]["python"]["steps"]]
+    npm = next(i for i, r in enumerate(py_steps) if "npm ci" in r)
+    for check in ("gen_third_party_notices.py --check", "python -m aadhi.compose.dynamic.icons --check"):
+        assert npm < next(i for i, r in enumerate(py_steps) if check in r), check
     assert "npm ci" in steps and "npm run typecheck" in steps and "npm test" in steps
     uses = [s.get("uses", "") for job in ci["jobs"].values() for s in job["steps"]]
     assert any(u.startswith("actions/setup-python") for u in uses) and any(u.startswith("actions/setup-node") for u in uses)

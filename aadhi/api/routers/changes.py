@@ -44,7 +44,7 @@ from ..screenplay_service import (
 from ..serializers import version_summary
 from ..storable import StorableBody, ensure_storable
 from ..util import utcnow
-from .versions import safe_manifest, safe_screenplay
+from .versions import require_readable_manifest, safe_manifest, safe_screenplay
 
 router = APIRouter(prefix="/api/versions", tags=["versions"], dependencies=RATE_LIMITED)
 
@@ -88,7 +88,10 @@ def _busy(job: Job) -> ApiException:
 def revert_scene(
     vid: int, scene_id: str, body: RevertBody, user: CurrentUser, db: DbSession, store: Store
 ) -> dict[str, Any]:
-    """Put one scene back as Aadhi wrote it (or as an earlier regenerated version), as one saved edit."""
+    """Put one scene back as Aadhi wrote it (or as an earlier regenerated version), as one saved edit.
+
+    A stored screenplay or asset manifest written by a newer build is refused (409 ``newer_document``) before
+    anything is written."""
     version = load_version(db, user, vid)
     busy = active_mutating_job(db, version.id)
     if busy is not None:
@@ -100,6 +103,7 @@ def revert_scene(
     current = safe_screenplay(version)
     if current is None:
         raise ApiException(409, "no_screenplay", "This version has no screenplay yet.")
+    require_readable_manifest(version)  # a newer stored manifest: 409 newer_document before anything is written
     meta = dict(version.generation_meta or {})
     generated = changes_service.load_generated(store, meta)
     try:
