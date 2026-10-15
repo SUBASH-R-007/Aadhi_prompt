@@ -1102,6 +1102,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "item:step",
       "item:row",
       "item:column",
+      "item:term",
       "panel",
       "panel:bar",
       "panel:point",
@@ -1753,7 +1754,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "formula_focus": {
       "class": "formula",
-      "consumes": {"kinds": ["reveal", "var", "draw"], "targets": ["item", "item:var"]},
+      "consumes": {"kinds": ["reveal", "var", "draw", "look_here"], "targets": ["item", "item:var"]},
       "dense": true,
       "duration": {
         "landscape": {"end_screen": null, "max": 25.0, "min": 10.0, "per_item": false},
@@ -1762,11 +1763,148 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "forced_for": [],
       "formats": ["landscape", "portrait"],
       "holds": ["formula"],
-      "implemented": false,
+      "implemented": true,
       "push_ok": false,
       "release": "R1",
       "representational": true,
-      "slots": {},
+      "slots": {
+        "formula": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.0,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [64, 104],
+              "tracking_em": 0.0,
+              "w": 1616,
+              "weight": 400
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.0,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [68, 96],
+              "tracking_em": 0.0,
+              "w": 696,
+              "weight": 400
+            }
+          }
+        },
+        "legend": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [40, 48],
+              "tracking_em": 0.0,
+              "w": 840,
+              "weight": 400
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [44, 52],
+              "tracking_em": 0.0,
+              "w": 588,
+              "weight": 600
+            }
+          }
+        },
+        "text": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [48, 52],
+              "tracking_em": 0.0,
+              "w": 1616,
+              "weight": 400
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 3,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [56, 60],
+              "tracking_em": 0.0,
+              "w": 588,
+              "weight": 600
+            }
+          }
+        },
+        "title": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [72, 96],
+              "tracking_em": -0.015,
+              "w": 1728,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [56, 88],
+              "tracking_em": -0.015,
+              "w": 696,
+              "weight": 700
+            }
+          }
+        }
+      },
       "variants": {"landscape": [], "portrait": []}
     },
     "full_bleed_media": {
@@ -1882,7 +2020,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "list_build": {
       "class": "enumeration",
-      "consumes": {"kinds": ["reveal", "cue_term", "look_here"], "targets": ["item"]},
+      "consumes": {"kinds": ["reveal", "cue_term", "look_here"], "targets": ["item", "item:term"]},
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 5.0, "min": 3.0, "per_item": true},
@@ -1891,16 +2029,134 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "forced_for": [],
       "formats": ["landscape", "portrait"],
       "holds": [],
-      "implemented": false,
+      "implemented": true,
       "push_ok": false,
       "release": "R1",
       "representational": false,
-      "slots": {},
+      "slots": {
+        "heading": {
+          "landscape": {
+            "centred": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.15,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [84, 96],
+              "tracking_em": 0.0,
+              "w": 1036,
+              "weight": 700
+            },
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.15,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [84, 96],
+              "tracking_em": 0.0,
+              "w": 1728,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.15,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [56, 88],
+              "tracking_em": 0.0,
+              "w": 696,
+              "weight": 700
+            }
+          }
+        },
+        "item": {
+          "landscape": {
+            "centred": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [40, 52],
+              "tracking_em": 0.0,
+              "w": 932,
+              "weight": 700
+            },
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [40, 52],
+              "tracking_em": 0.0,
+              "w": 834,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [56, 64],
+              "tracking_em": 0.0,
+              "w": 496,
+              "weight": 700
+            }
+          }
+        },
+        "row": {
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [40, 40],
+              "tracking_em": 0.0,
+              "w": 496,
+              "weight": 600
+            }
+          }
+        }
+      },
       "variants": {"landscape": [], "portrait": []}
     },
     "media_split": {
       "class": "media",
-      "consumes": {"kinds": ["reveal", "cue_term", "look_here", "output"], "targets": ["item", "panel", "panel:row"]},
+      "consumes": {
+        "kinds": ["reveal", "cue_term", "look_here", "output"],
+        "targets": ["item", "item:term", "panel", "panel:row"]
+      },
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 20.0, "min": 8.0, "per_item": false},
@@ -1909,11 +2165,156 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "forced_for": [],
       "formats": ["landscape", "portrait"],
       "holds": ["diagram"],
-      "implemented": false,
+      "implemented": true,
       "push_ok": true,
       "release": "R1",
       "representational": true,
-      "slots": {},
+      "slots": {
+        "body": {
+          "landscape": {
+            "media_left": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.3,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [44, 52],
+              "tracking_em": 0.0,
+              "w": 706,
+              "weight": 400
+            },
+            "media_right": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.3,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [44, 52],
+              "tracking_em": 0.0,
+              "w": 706,
+              "weight": 400
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.2,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [48, 64],
+              "tracking_em": 0.0,
+              "w": 660,
+              "weight": 700
+            }
+          }
+        },
+        "terminal": {
+          "landscape": {
+            "media_left": {
+              "critical": true,
+              "face": "mono",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [36, 44],
+              "tracking_em": 0.0,
+              "w": 874,
+              "weight": 400
+            },
+            "media_right": {
+              "critical": true,
+              "face": "mono",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [36, 44],
+              "tracking_em": 0.0,
+              "w": 874,
+              "weight": 400
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "mono",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [40, 44],
+              "tracking_em": 0.0,
+              "w": 904,
+              "weight": 700
+            }
+          }
+        },
+        "title": {
+          "landscape": {
+            "media_left": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.08,
+              "max_chars": null,
+              "max_lines": 3,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [64, 88],
+              "tracking_em": -0.015,
+              "w": 742,
+              "weight": 700
+            },
+            "media_right": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.08,
+              "max_chars": null,
+              "max_lines": 3,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [64, 88],
+              "tracking_em": -0.015,
+              "w": 742,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.06,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [56, 88],
+              "tracking_em": -0.015,
+              "w": 696,
+              "weight": 700
+            }
+          }
+        }
+      },
       "variants": {"landscape": ["media_left", "media_right"], "portrait": []}
     },
     "model_spin": {

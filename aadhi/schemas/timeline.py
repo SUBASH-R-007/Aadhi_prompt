@@ -261,6 +261,10 @@ class TimelinePresentation(StrictModel):
     # R-30 / §4.7: the lesson-wide entity map, normalised symbol or entity name -> content slot (entity:0..2), copied
     # from Presentation.entity_colors (deviation 22: one map per lesson, not per scene).
     entity_colors: dict[EntityKey, EntitySlot] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    # B2c (plan §1.4 ``ctx.motion``): the text entrance of the personality the stage draws (§4.8 table: Crisp
+    # ``baseline_reveal``, Soft ``fade_rise``; themes.Personality.text_entrances), so the stage reads it from the
+    # timeline, never from the catalogue (plan §1.1). None (left out): the stage's default, ``fade_rise``.
+    text_entrance: CatalogueId | None = Field(default=None, exclude_if=lambda v: v is None)
 
     @field_validator("entity_colors")
     @classmethod

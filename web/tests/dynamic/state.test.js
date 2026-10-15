@@ -105,3 +105,44 @@ test('chapterTitleAt: the last chapter (in the timeline order) starting at or be
   assert.equal(chapterTitleAt(unordered, 12), '', 'the last match in order wins (an untitled one: no title)');
   assert.equal(chapterTitleAt(unordered, 2), 'A');
 });
+
+// --- B2c: item states (plan §1.5) -------------------------------------------------------------------------------------
+
+test('item states: the closed list, each look from the roles (current: 700 + ink2 border; done: ok; struck: warn line)', async () => {
+  const { ITEM_STATES, itemStateStyle } = await import('../../js/dynamic/state.js');
+  const { makeRoles } = await import('../../js/dynamic/core.js');
+  assert.deepEqual([...ITEM_STATES], ['current', 'past', 'done', 'struck']);
+  assert.ok(Object.isFrozen(ITEM_STATES));
+  const roles = makeRoles(/** @type {any} */ (dynamicTimeline().presentation), null);
+  const c = (/** @type {string} */ r) => roles.color(r);
+  assert.deepEqual(itemStateStyle('current', roles), { weight: 700, ink: c('ink'), border: c('ink2'), check: null, strike: null });
+  assert.deepEqual(itemStateStyle('past', roles), { weight: null, ink: c('ink2'), border: null, check: null, strike: null });
+  assert.deepEqual(itemStateStyle('done', roles), { weight: null, ink: c('ink'), border: c('ok'), check: c('ok'), strike: null });
+  assert.deepEqual(itemStateStyle('struck', roles), { weight: null, ink: c('ink2'), border: null, check: null, strike: c('warn') });
+  for (const state of ITEM_STATES) {
+    const s = itemStateStyle(state, roles);
+    for (const v of [s.ink, s.border, s.check, s.strike]) {
+      assert.ok(v === null || ![c('mark'), c('focus'), c('struct.accent')].includes(v) || v === c('ink'), `${state}: no cue or structure colour`);
+    }
+  }
+  assert.throws(() => itemStateStyle('glow', roles), RangeError);
+});
+
+test('itemStatesAt: the item entered last is current from its entrance; earlier ones past from the next entrance', async () => {
+  const { itemStatesAt } = await import('../../js/dynamic/state.js');
+  const scene = dynamicTimeline().scenes[0]; // b1 at 0.35 (no beat), b2 0.38, b3 2.08, b4 4.08, b5 6.08
+  const at = (/** @type {number} */ t, /** @type {string[] | null} */ ids = null) => {
+    const r = itemStatesAt(scene, t, ids);
+    return { current: r.current, states: Object.fromEntries([...r.states].map(([k, v]) => [k, [v.state, Math.round(v.since * 100) / 100]])) };
+  };
+  assert.deepEqual(at(0.1), { current: null, states: {} });
+  assert.deepEqual(at(3), { current: 'b3', states: { b1: ['past', 0.38], b2: ['past', 2.08], b3: ['current', 2.08] } });
+  assert.deepEqual(at(3, ['b2', 'b3', 'b4']), { current: 'b3', states: { b2: ['past', 2.08], b3: ['current', 2.08] } });
+  assert.deepEqual(at(9).current, 'b5');
+  // a reveal event moves an entrance, and with it the states
+  const moved = structuredClone(scene);
+  moved.events = [{ t: 2.5, kind: 'reveal', target: 'b2' }];
+  const r = itemStatesAt(moved, 3);
+  assert.equal(r.current, 'b2');
+  assert.equal(/** @type {any} */ (r.states.get('b3')).state, 'past');
+});

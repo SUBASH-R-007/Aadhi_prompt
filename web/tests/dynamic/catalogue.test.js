@@ -272,6 +272,7 @@ test('the stage draws the look-engine generation the resolver writes (aadhi/comp
 
 test('templateSlots: a template\'s slots, or null for an id the registry does not list (never an inherited key)', () => {
   assert.equal(templateSlots('board_generic'), CATALOGUE.templates.board_generic.slots);
-  assert.deepEqual(templateSlots('formula_focus'), {}, 'not implemented yet: no slots');
+  assert.deepEqual(templateSlots('versus'), {}, 'a W2 template: not implemented yet, no slots');
+  assert.equal(templateSlots('formula_focus'), CATALOGUE.templates.formula_focus.slots, 'a B2c pilot: its slots');
   for (const id of ['nope', 'constructor', '__proto__', 'toString']) assert.equal(templateSlots(id), null, id);
 });

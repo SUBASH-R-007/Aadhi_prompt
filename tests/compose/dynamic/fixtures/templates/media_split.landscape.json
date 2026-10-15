@@ -1,0 +1,332 @@
+{
+  "board_language": "en-IN",
+  "branding": {
+    "bgm_url": null,
+    "bgm_volume": 0.06,
+    "ding_url": null,
+    "mascot_clips": {},
+    "mascot_rig_url": null,
+    "static_background_url": null,
+    "tick_url": null
+  },
+  "captions": [
+    {
+      "end": 3.2,
+      "start": 0.6,
+      "text": "Current is the flow of charge."
+    },
+    {
+      "end": 6.2,
+      "start": 3.4,
+      "text": "Voltage is the push that drives it."
+    },
+    {
+      "end": 9.4,
+      "start": 6.4,
+      "text": "And Ohm's law ties them together."
+    }
+  ],
+  "chapters": [
+    {
+      "start": 0.0,
+      "title": "Circuits"
+    }
+  ],
+  "concept_map": [],
+  "estimated": false,
+  "fps": 30,
+  "height": 1080,
+  "intro": null,
+  "language": "en-IN",
+  "learning_objectives": [],
+  "meta": {},
+  "presentation": {
+    "caption_style": "clean_pill",
+    "captions_burn": true,
+    "content": {
+      "entity:0": "#0FE3FE",
+      "entity:1": "#C4A4FE",
+      "entity:2": "#FEACE3",
+      "focus": "#F2D935",
+      "ink": "#F3F5F9",
+      "ink2": "#B9BEC7",
+      "mark": "#F2D935",
+      "ok": "#5DD8AA",
+      "warn": "#F8A87F"
+    },
+    "content_alt": {
+      "entity:0": "#0267C7",
+      "entity:1": "#80369E",
+      "entity:2": "#870C62",
+      "focus": "#141822",
+      "ink": "#141822",
+      "ink2": "#484D58",
+      "mark": "#F2D935",
+      "ok": "#016F50",
+      "warn": "#9F4503"
+    },
+    "cue_term_style": "marker",
+    "engine_version": 2,
+    "family": "midnight_indigo",
+    "fonts": {
+      "body": "inter",
+      "display": "outfit",
+      "indic": "noto_sans",
+      "mono": "jetbrains_mono"
+    },
+    "format": "landscape",
+    "generated_seconds": 10.0,
+    "mode": "dark",
+    "motion": "standard",
+    "motion_scale": 1.15,
+    "personality": "soft",
+    "safe_zone": "universal",
+    "sfx": false,
+    "style": "dynamic",
+    "text_entrance": "fade_rise"
+  },
+  "scenes": [
+    {
+      "audio_asset_key": null,
+      "audio_duration": 0.0,
+      "audio_offset": 0.4,
+      "audio_url": null,
+      "beats": [
+        {
+          "beat_id": "k1",
+          "board_item_id": "b1",
+          "captions": [
+            {
+              "end": 3.2,
+              "start": 0.6,
+              "text": "Current is the flow of charge."
+            }
+          ],
+          "end": 3.4,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 0,
+          "narration": "Current is the flow of charge.",
+          "phase": "main",
+          "speech_end": 3.2,
+          "start": 0.6,
+          "visual_cue": null,
+          "words": []
+        },
+        {
+          "beat_id": "k2",
+          "board_item_id": "b2",
+          "captions": [
+            {
+              "end": 6.2,
+              "start": 3.4,
+              "text": "Voltage is the push that drives it."
+            }
+          ],
+          "end": 6.4,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 1,
+          "narration": "Voltage is the push that drives it.",
+          "phase": "main",
+          "speech_end": 6.2,
+          "start": 3.4,
+          "visual_cue": null,
+          "words": []
+        },
+        {
+          "beat_id": "k3",
+          "board_item_id": "b3",
+          "captions": [
+            {
+              "end": 9.4,
+              "start": 6.4,
+              "text": "And Ohm's law ties them together."
+            }
+          ],
+          "end": 9.6,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 2,
+          "narration": "And Ohm's law ties them together.",
+          "phase": "main",
+          "speech_end": 9.4,
+          "start": 6.4,
+          "visual_cue": null,
+          "words": []
+        }
+      ],
+      "board": [
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "b1",
+          "justification": null,
+          "kind": "bullet",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "[[Current]] is the flow of charge",
+          "variables": []
+        },
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "b2",
+          "justification": null,
+          "kind": "definition",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": "Voltage",
+          "text": "the push that drives it",
+          "variables": []
+        },
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "b3",
+          "justification": null,
+          "kind": "bullet",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "Ohm's law: $I = V/R$",
+          "variables": []
+        }
+      ],
+      "chapter_id": null,
+      "chapter_label": null,
+      "concept_id": null,
+      "duration": 10.0,
+      "events": [
+        {
+          "anchored": true,
+          "dur": 1.6,
+          "kind": "cue_term",
+          "sfx": null,
+          "t": 1.4,
+          "target": "b1",
+          "words": ""
+        },
+        {
+          "anchored": true,
+          "dur": 2.0,
+          "kind": "look_here",
+          "sfx": null,
+          "t": 6.4,
+          "target": "panel",
+          "words": ""
+        }
+      ],
+      "figures": {},
+      "index": 0,
+      "layout": {
+        "fullscreen_media": false,
+        "mascot_position": "left",
+        "show_side_panel": true
+      },
+      "look": {
+        "background": {
+          "frozen_at": null,
+          "params": {
+            "tone": "bg"
+          },
+          "preset": "mesh_drift",
+          "seed": 1101
+        },
+        "hold_reason": null,
+        "presenter": null,
+        "template": "media_split",
+        "text_fit": {},
+        "tokens": {
+          "bg": "#10132C",
+          "bg-alt": "#181D37",
+          "bg-tint": "#26120C",
+          "block.base": "#A15778",
+          "block.highlight": "#C46979",
+          "block.ink": "#FFFFFF",
+          "block.ink2": "#F6EDF1",
+          "scrim": "#10132CC7",
+          "struct.accent": "#FF936D",
+          "surface": "#252A3F"
+        },
+        "transition_in": {
+          "kind": "cut",
+          "seconds": 0.0
+        },
+        "variant": "media_right"
+      },
+      "media": null,
+      "objective_ids": [],
+      "p5_code": null,
+      "poster": null,
+      "quiz": null,
+      "scene_id": "s-split",
+      "side_panel": {
+        "media": {
+          "asset_key": "img-fixture",
+          "attribution": null,
+          "duration": null,
+          "end_behavior": "loop",
+          "fit": "contain",
+          "height": 900,
+          "ken_burns": null,
+          "kind": "image",
+          "link_url": null,
+          "mime": null,
+          "render_in_mp4": true,
+          "url": "data:image/png;base64,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AAAAJGABAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAAAgYAEAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAACBgAQAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAIGABAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAACRgAQAAADBpc0cAg7jerB0CAAAA5AYWAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAABAAhYAAAAAjGO2WK6cAgAAAAC5gQUAAAAACVgAAAAAJGABAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAJWAAAAADwLOZ/3/7pFAAAAADIDSwAAAAASMACAAAAIAELAAAAABKwAAAAACABCwAAAIAELAAAAABIwAIAAAAgAQsAAAAAErAAAAAAIAELAAAAgAQsAAAAAEjAAgAAACABCwAAAAASsAAAAAAgAQsAAACABCwAAAAASMACAAAAIAELAAAAABKwAAAAACABCwAAAIAELAAAAABIwAIAAAAgAQsAAAAAErAAAAAAIAELAAAAgAQsAAAAAEjAAgAAACABCwAAAAASsAAAAAAgAQsAAACABCwAAAAASMACAAAAIAELAAAAABKwAAAAACABCwAAAIAELAAAAABIwAIAAAAgAQsAAAAAErAAAAAAIAELAAAAgAQsAAAAAEjAAgAAACABCwAAAAASsAAAAAAgAQsAAACABCwAAAAASMACAAAAgAQsAAAAABKwAAAAACABCwAAAIAELAAAAABIwAIAAACABCwAAAAAJuEbMbQADYzWufoAAAAASUVORK5CYII=",
+          "width": 1600
+        },
+        "panel": {
+          "chart": null,
+          "figure_id": null,
+          "gif_query": null,
+          "graph": null,
+          "image_prompt": "A simple circuit: a battery, wires and a bulb",
+          "kind": "image",
+          "manim": null,
+          "model_3d": null,
+          "override_asset_key": null,
+          "quiz": null,
+          "rationale": "Shows the circuit.",
+          "show_from_beat_id": null,
+          "terminal": null,
+          "title": "A simple circuit"
+        },
+        "show_at": 0.0
+      },
+      "start": 0.0,
+      "subtitle": null,
+      "title": "How current flows in a circuit",
+      "type": "content"
+    }
+  ],
+  "schema_version": 3,
+  "screenplay_revision": null,
+  "total_duration": 10.0,
+  "transition_seconds": 0.4,
+  "version_id": null,
+  "width": 1920
+}

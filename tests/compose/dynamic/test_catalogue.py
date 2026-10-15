@@ -57,7 +57,7 @@ def test_the_registries_are_the_python_ones() -> None:
     keys = {"class", "representational", "release", "implemented", "formats", "variants", "forced_for", "duration",
             "holds", "dense", "push_ok", "slots", "consumes"}
     assert all(set(t) == keys for t in data["templates"].values())
-    assert [t for t, v in data["templates"].items() if v["implemented"]] == ["board_generic"]
+    assert {t for t, v in data["templates"].items() if v["implemented"]} == set(tp.IMPLEMENTED) >= {"board_generic"}
     bg = data["templates"]["board_generic"]
     assert bg["slots"]["title"]["portrait"]["default"] == {
         "w": 696, "max_lines": 2, "size": [56, 88], "role": "title", "face": "display", "weight": 700,

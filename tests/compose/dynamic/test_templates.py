@@ -112,7 +112,9 @@ def test_implemented_matches_the_stage() -> None:
     templates = re.search(r"export const TEMPLATES = Object\.freeze\(\{([^}]*)\}\);", stage)
     backgrounds = re.search(r"export const BACKGROUNDS = Object\.freeze\(\{([^}]*)\}\);", stage)
     assert templates and backgrounds
-    assert set(re.findall(r"(\w+):", templates.group(1))) == set(tp.IMPLEMENTED) == {"board_generic"}
+    assert set(re.findall(r"(\w+):", templates.group(1))) == set(tp.IMPLEMENTED)
+    # board_generic since B1; from B2c the R1 templates whose JS exists (a W2 or B6 one only with its release)
+    assert "board_generic" in tp.IMPLEMENTED and all(tp.TEMPLATES[t].release == "R1" for t in tp.IMPLEMENTED)
     assert set(re.findall(r"(\w+):", backgrounds.group(1))) == {b for b, s in tp.BACKGROUNDS.items() if s.implemented}
     transitions = re.search(r"export const TRANSITIONS = Object\.freeze\(\[([^\]]*)\]\);",
                             (JS / "transitions.js").read_text(encoding="utf-8"))
@@ -364,6 +366,8 @@ def test_board_generic_text_metrics_are_the_stylesheets() -> None:
     ("ex:step:3", Target("item:step", item="ex", index=3)),
     ("t1:row:0", Target("item:row", item="t1", index=0)),
     ("t1:column:2", Target("item:column", item="t1", index=2)),
+    ("b2:term:0", Target("item:term", item="b2", index=0)),
+    ("b2:term:11", Target("item:term", item="b2", index=11)),
     ("panel", Target("panel")),
     ("panel:bar:0:3", Target("panel:bar", series=0, index=3)),
     ("panel:point:1:0", Target("panel:point", series=1, index=0)),
@@ -379,8 +383,9 @@ def test_targets_parse_and_format_back(text: str, target: Target) -> None:
 
 
 def test_every_target_form_is_covered() -> None:
-    assert set(tp.TARGET_FORMS) == {"item", "item:line", "item:var", "item:step", "item:row", "item:column", "panel",
-                                    "panel:bar", "panel:point", "panel:row", "panel:column", "option"}
+    assert set(tp.TARGET_FORMS) == {"item", "item:line", "item:var", "item:step", "item:row", "item:column",
+                                    "item:term", "panel", "panel:bar", "panel:point", "panel:row", "panel:column",
+                                    "option"}
     assert tp.RESERVED_TARGET_WORDS == {"panel", "option"}
 
 
@@ -388,7 +393,8 @@ def test_every_target_form_is_covered() -> None:
     "", "I1", "-a", "a" * 65, "a1:", "a1:line", "a1:line:", "a1:line:01", "a1:line:-1", "a1:line:x", "a1:line:1.0",
     "a1:line:1:2", "a1:foo:1", "a1:var:", "a1:var: V", "a1:var:V ", "a1:var:V\n", "a1:var:" + "x" * 81, "panel:",
     "panel:bar", "panel:bar:0", "panel:bar:x:1", "panel:bar:0:1:2", "panel:pie:0:1", "panel:row", "panel:row:1:2",
-    "option", "option:", "option:a", "option:1:2", "option:-1", "a1:row:1234567", " i1", "i1 ",
+    "option", "option:", "option:a", "option:1:2", "option:-1", "a1:row:1234567", " i1", "i1 ", "a1:term",
+    "a1:term:", "a1:term:01", "a1:term:x", "a1:term:1:2", "panel:term:0",
 ])
 def test_malformed_targets_are_refused(text: str) -> None:
     with pytest.raises(ValueError):
@@ -555,6 +561,7 @@ def test_fit_quantity_formula_procedure_code_refutation() -> None:
     assert rows(beside) == ["list", "chart", "media"] and "chart_build" not in fits(beside)
     assert fits(beside)["media_split"] == 1.0 and fits(beside)["list_build"] == 1.0
     assert fits(board(item("formula"))) == {"formula_focus": 1.0, "board_generic": FIT_FALLBACK}
+    assert "formula_focus" not in fits(board(item("formula"), panel="figure"))  # no side panel (formula_focus.js fitsScene)
     worked = board(item("formula"), item("example_step", 1), item("example_step", 2, blank=True))
     assert fits(worked) == {"worked_steps": 1.0, "board_generic": FIT_FALLBACK}
     code = board(item("code", code="\n".join(["x = 1"] * 10)))

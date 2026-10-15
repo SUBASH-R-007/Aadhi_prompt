@@ -6,9 +6,12 @@ What is here (declarative data and pure functions, no I/O):
 * :data:`SEMANTIC_CLASSES`: §4.2's 19 classes, their claims and members, frozen (plan §1.8). Every template's class is
   in it and every member is a template (``tests/compose/dynamic/test_templates.py``).
 * :data:`TEMPLATES`: one :class:`TemplateSpec` per §4.3 template (41: 23 ``R1``, 17 ``W2``, ``clip_scene`` ``B6``).
-  ``implemented`` is True only where ``web/js/dynamic/templates/<id>.js`` exists (``board_generic`` since B1); direct.py
-  (B2e) picks only implemented templates. ``slots`` hold the measured-text geometry of the implemented ones
-  (``board_generic``: its ``LAYOUT`` / ``MIN_*`` constants); the others' slots arrive with their JS (B2c/B2f).
+  ``implemented`` is True only where ``web/js/dynamic/templates/<id>.js`` exists (``board_generic`` since B1; the B2c
+  pilots ``formula_focus``, ``media_split`` and ``list_build``); direct.py (B2e) picks only implemented templates, and
+  until then the resolver draws ``board_generic`` only (``presentation.TEMPLATES``), so the pilots are reached only by
+  timelines that name them (fixtures, gallery, tests). ``slots`` hold the measured-text geometry of the implemented ones
+  (``board_generic``: its ``LAYOUT`` / ``MIN_*`` constants; each pilot: its JS ``LAYOUT``); the others' slots arrive
+  with their JS (B2f).
 * :func:`signals` (the §4.4 table rows a scene matches) and ``TemplateSpec.fit`` (how well a template renders a scene,
   0 = cannot): deterministic, documented below; direct.py (B2e) builds its choice on them.
 * The **target grammar** of visual events (plan §1.7): :func:`parse_target` / :func:`format_target`, the closed list
@@ -68,7 +71,7 @@ Release = Literal["R1", "W2", "B6"]  # §4.3: R1 = B2 builds them; W2 = B7; clip
 HoldReason = Literal["formula", "code", "diagram", "think"]  # SceneLook.hold_reason (R-16)
 FaceRole = Literal["display", "body", "mono", "indic"]  # themes.FaceRole
 TargetForm = Literal[
-    "item", "item:line", "item:var", "item:step", "item:row", "item:column",
+    "item", "item:line", "item:var", "item:step", "item:row", "item:column", "item:term",
     "panel", "panel:bar", "panel:point", "panel:row", "panel:column", "option",
 ]
 
@@ -143,13 +146,19 @@ BLOCK_ROLES: Final = DERIVED_KEYS
 # everything after ``var:``, never an index: B1's sync cue part ``var:<n>`` (sync.py, the n-th of the item's
 # ``variables``) becomes the target ``<item>:var:<variables[n].symbol_latex>`` when events.py (B2d) writes it, so
 # ``f1:var:0`` names the symbol ``0``. ``panel`` and ``option`` are reserved: an item with that id cannot be a target.
+# ``<item>:term:<n>`` (B2c, additive) is the n-th ``[[term]]`` of the item, 0-based, counted over its rich-lite fields
+# in the order ``term``, ``text``, ``justification``, ``caption`` (each field's terms in reading order; the order
+# board_generic draws them in): the one key term a ``cue_term`` event marks when the item has several; ``<item>``
+# alone marks every term of the item. A template's ``itemEl`` hands the stage the item's term spans in that order, so
+# a 9:16 misconception drawn as two cards (myth, then fact) reaches the correction's terms too.
 
 TARGET_FORMS: Final[tuple[TargetForm, ...]] = get_args(TargetForm)
 RESERVED_TARGET_WORDS: Final = frozenset({"panel", "option"})
 _SLUG = re.compile(r"[a-z0-9][a-z0-9_\-]{0,63}")  # screenplay Slug (_SLUG_RE)
 _INDEX = re.compile(r"0|[1-9][0-9]{0,5}")
 _SYMBOL_MAX = 80  # Presentation.entity_colors key length
-_ITEM_PARTS: Final = {"line": "item:line", "step": "item:step", "row": "item:row", "column": "item:column"}
+_ITEM_PARTS: Final = {"line": "item:line", "step": "item:step", "row": "item:row", "column": "item:column",
+                       "term": "item:term"}
 _PANEL_PARTS: Final = {"row": "panel:row", "column": "panel:column"}
 
 
@@ -721,7 +730,11 @@ def _fit_concept_tree(scene: SceneBase, fmt: Format) -> float:
 
 
 def _fit_formula_focus(scene: SceneBase, fmt: Format) -> float:
-    # a formula item (its variables: the legend rows and the var cues); 9:16 width is measured (portrait.formula_wide)
+    # a formula item (its variables: the legend rows and the var cues); 9:16 width is measured (portrait.formula_wide).
+    # The page draws no side panel (formula_focus.js fitsScene hands such a scene to board_generic whole), so a scene
+    # with one is not this template's
+    if _panel(scene) is not None:
+        return FIT_NONE
     return FIT_PREFERRED if _shape(scene, {"formula": (1, 1)}) else FIT_NONE
 
 
@@ -920,6 +933,129 @@ def _board_slots() -> SlotTable:
     return MappingProxyType({slot: MappingProxyType({f: MappingProxyType(v) for f, v in per.items()})
                              for slot, per in out.items()})
 
+# --- formula_focus's slots (B2c): web/js/dynamic/templates/formula_focus.js LAYOUT, LINE_HEIGHT, FORMULA_SLOT and
+# slotWidths (web/tests/dynamic/templates/formula_focus.test.js pins the two against each other) ----------------------
+
+
+@dataclass(frozen=True)
+class FormulaFocusLayout:
+    """formula_focus.js ``LAYOUT[format]``'s text slots, (min, max) px each: ``title`` (lines, prefer_lines, weight
+    700), ``formula`` (the TeX size), ``text`` (the formula's sentence: lines, weight) and ``legend`` (a legend row:
+    weight); and the widths the page lays each out in at most (``slotWidths``): 16:9 the critical width (1728) for
+    the headline, the card's inner width (1728 - 2 x 56) for the formula and the sentence, a column of the two-column
+    legend ((1728 - 48) / 2); 9:16 the headline region (696), the 768 px card's inner width (696) for the formula, the
+    narrow card's (660 - 2 x 36 = 588, the text column below the rail: the conservative width) for the sentence and
+    the text column (588) for a legend row."""
+
+    title: tuple[int, int]
+    title_lines: int
+    title_prefer: int | None
+    formula: tuple[int, int]
+    text: tuple[int, int]
+    text_lines: int
+    text_weight: int
+    legend: tuple[int, int]
+    legend_weight: int
+    widths: tuple[int, int, int, int]  # title, formula, text, legend
+
+
+FORMULA_FOCUS_LAYOUT: Final[Mapping[Format, FormulaFocusLayout]] = MappingProxyType({
+    "landscape": FormulaFocusLayout(title=(72, 96), title_lines=2, title_prefer=None, formula=(64, 104), text=(48, 52),
+                                    text_lines=2, text_weight=400, legend=(40, 48), legend_weight=400,
+                                    widths=(1728, 1616, 1616, 840)),
+    # R-25: a 1-line headline when it fits at >= 56 px; R-29: weight >= 600 at <= 64 px (the TeX formula, whose
+    # glyphs have one weight, stays above 64 px)
+    "portrait": FormulaFocusLayout(title=(56, 88), title_lines=2, title_prefer=1, formula=(68, 96), text=(56, 60),
+                                   text_lines=3, text_weight=600, legend=(44, 52), legend_weight=600,
+                                   widths=(696, 696, 588, 588)),
+})
+# formula_focus.js LINE_HEIGHT (Latin: the page sets Indic text at the type scale's Indic floors, 1.25 / 1.45) and
+# TITLE_TRACKING (dynamic.css .dyn-title)
+FORMULA_FOCUS_LINE_HEIGHT: Final = (1.05, 1.35)  # display, body
+
+
+def _formula_focus_slots() -> SlotTable:
+    """formula_focus's slots, variant ``default`` (it has no look variants; 9:16's narrow card is a layout decision
+    of the page, never stored). The formula slot is a TeX picture: textfit does not measure it (``max_lines`` None),
+    it is reported as body text at its TeX size."""
+    display, body = FORMULA_FOCUS_LINE_HEIGHT
+    out: dict[str, dict[Format, dict[str, SlotSpec]]] = {}
+    for fmt in FORMATS:
+        lay = FORMULA_FOCUS_LAYOUT[fmt]
+        w_title, w_formula, w_text, w_legend = lay.widths
+        specs = {
+            "title": SlotSpec(w=w_title, max_lines=lay.title_lines, size=lay.title, role="title", face="display",
+                              weight=700, line_height=display, tracking_em=-0.015, prefer_lines=lay.title_prefer),
+            "formula": SlotSpec(w=w_formula, max_lines=None, size=lay.formula, role="body", face="body", weight=400,
+                                line_height=1.0),
+            "text": SlotSpec(w=w_text, max_lines=lay.text_lines, size=lay.text, role="body", face="body",
+                             weight=lay.text_weight, line_height=body),
+            "legend": SlotSpec(w=w_legend, max_lines=None, size=lay.legend, role="label", face="body",
+                               weight=lay.legend_weight, line_height=body),
+        }
+        for slot, spec in specs.items():
+            out.setdefault(slot, {})[fmt] = {"default": spec}
+    return MappingProxyType({slot: MappingProxyType({f: MappingProxyType(v) for f, v in per.items()})
+                             for slot, per in out.items()})
+
+
+# --- media_split's slots (web/js/dynamic/templates/media_split.js LAYOUT, B2c; B2c proposals, pending the owner's
+# review). 16:9: the 45% text region (right-45 or its mirror, 766 px) less the 24 px gutter = 742 px; the body text
+# starts after the 36 px marker column; the terminal card is the 938 px medium region less 2 x 32 px padding. 9:16: the
+# headline region (696 px), the phrase column below the TikTok rail (x 120-780, 660 px), the stage (960 px) less
+# 2 x 28 px padding. Heading / takeaway items are drawn at 700 in 16:9 (the slot's weight is the 400 of the others).
+def _media_split_slots() -> SlotTable:
+    variants = ("media_left", "media_right")
+    title_l = SlotSpec(w=742, max_lines=3, size=(64, 88), role="title", face="display", weight=700, line_height=1.08,
+                       tracking_em=-0.015)
+    body_l = SlotSpec(w=742 - 36, max_lines=None, size=(44, 52), role="body", face="body", weight=400, line_height=1.3)
+    term_l = SlotSpec(w=938 - 2 * 32, max_lines=None, size=(36, 44), role="body", face="mono", weight=400,
+                      line_height=1.35)
+    title_p = SlotSpec(w=696, max_lines=2, size=(56, 88), role="title", face="display", weight=700, line_height=1.06,
+                       tracking_em=-0.015, prefer_lines=1)
+    body_p = SlotSpec(w=660, max_lines=2, size=(48, 64), role="body", face="body", weight=700, line_height=1.2)
+    term_p = SlotSpec(w=960 - 2 * 28, max_lines=None, size=(40, 44), role="body", face="mono", weight=700,
+                      line_height=1.35)
+    out = {slot: MappingProxyType({"landscape": MappingProxyType({v: land for v in variants}),
+                                   "portrait": MappingProxyType({"default": port})})
+           for slot, land, port in (("title", title_l, title_p), ("body", body_l, body_p),
+                                    ("terminal", term_l, term_p))}
+    return MappingProxyType(out)
+
+
+# --- list_build's slots (B2c): web/js/dynamic/templates/list_build.js LAYOUT, PAD, boxes() and slotRows();
+# list_build.test.js pins the catalogue's rows to slotRows. The 16:9 "default" variant is the split layout (the
+# narrower boxes: a size fitted there is an upper bound for the centred one too).
+LIST_PAD: Final = 12  # cues.js FOCUS_OUTSET + FOCUS_PX: the look_here outline around a row's text lies on the row's edge
+LIST_NUMBER: Final[Mapping[Format, tuple[int, int]]] = MappingProxyType({"landscape": (64, 16), "portrait": (56, 12)})
+
+
+def _list_build_slots() -> SlotTable:
+    def heading(w: int, size: tuple[float, float]) -> SlotSpec:
+        return SlotSpec(w=w, max_lines=2, size=size, role="title", face="display", weight=700, line_height=1.15,
+                        prefer_lines=1)
+
+    def text(w: int, size: tuple[float, float], weight: int) -> SlotSpec:
+        return SlotSpec(w=w, max_lines=None, size=size, role="body", face="body", weight=weight, line_height=1.35)
+
+    regions = zn.REGIONS["landscape"]
+    portrait = zn.ZONES["portrait"]
+    num_l, gap_l = LIST_NUMBER["landscape"]
+    num_p, gap_p = LIST_NUMBER["portrait"]
+    split_w = regions["left-55"].w - 2 * LIST_PAD - num_l - gap_l        # 834
+    centred_w = regions["centre-60"].w - 2 * LIST_PAD - num_l - gap_l    # 932
+    row_w = portrait.text_column.w - 2 * LIST_PAD - num_p - gap_p        # 496
+    out = {
+        "heading": {"landscape": {"default": heading(regions["top-band"].w, (84, 96)),
+                                  "centred": heading(regions["centre-60"].w, (84, 96))},
+                    "portrait": {"default": heading(portrait.title.w, (56, 88))}},
+        "item": {"landscape": {"default": text(split_w, (40, 52), 700), "centred": text(centred_w, (40, 52), 700)},
+                 "portrait": {"default": text(row_w, (56, 64), 700)}},
+        "row": {"portrait": {"default": text(row_w, (40, 40), 600)}},
+    }
+    return MappingProxyType({slot: MappingProxyType({f: MappingProxyType(v) for f, v in per.items()})
+                             for slot, per in out.items()})
+
 
 # --- the registry (§4.3) -------------------------------------------------------------------------------------------
 
@@ -987,12 +1123,14 @@ _SPECS: Final[tuple[TemplateSpec, ...]] = (
     TemplateSpec("kinetic_statement", "statement", False, "R1", _d((3.0, 7.0), (2.0, 5.0)),
                  _c(("reveal", "cue_term")), _fit_kinetic_statement),
     TemplateSpec("list_build", "enumeration", False, "R1", _d((3.0, 5.0), per_item=True),
-                 _c(("reveal", "cue_term", "look_here")), _fit_list_build),
+                 _c(("reveal", "cue_term", "look_here"), ("item", "item:term")), _fit_list_build, implemented=True,
+                 slots=_list_build_slots()),
     # variant names "media_left" / "media_right": A2 proposal, pending owner review; not in the design (§4.3 / §4.4
     # say only that the media side changes at chapter boundaries); 9:16 stacks, so it has none
     TemplateSpec("media_split", "media", True, "R1", _d((8.0, 20.0), (5.0, 12.0)),
-                 _c(("reveal", "cue_term", "look_here", "output"), ("item", "panel", "panel:row")), _fit_media_split,
-                 variants=_v(("media_left", "media_right"), ()), holds=_DIAGRAM, push_ok=True),
+                 _c(("reveal", "cue_term", "look_here", "output"), ("item", "item:term", "panel", "panel:row")),
+                 _fit_media_split, implemented=True, variants=_v(("media_left", "media_right"), ()), holds=_DIAGRAM,
+                 push_ok=True, slots=_media_split_slots()),
     TemplateSpec("full_bleed_media", "media", True, "R1", _d((3.0, 12.0)), _c(("reveal",)), _fit_full_bleed_media,
                  forced_for=("ai_video",)),
     TemplateSpec("spotlight_image", "media", True, "W2", _d((6.0, 12.0)),
@@ -1016,8 +1154,8 @@ _SPECS: Final[tuple[TemplateSpec, ...]] = (
     TemplateSpec("concept_tree", "hierarchy", True, "W2", _d((8.0, 15.0)), _c(("reveal", "look_here"), ("panel",)),
                  _fit_concept_tree, holds=_DIAGRAM),
     TemplateSpec("formula_focus", "formula", True, "R1", _d((10.0, 25.0), (8.0, 16.0)),
-                 _c(("reveal", "var", "draw"), ("item", "item:var")), _fit_formula_focus, holds=("formula",),
-                 dense=True),
+                 _c(("reveal", "var", "draw", "look_here"), ("item", "item:var")), _fit_formula_focus,
+                 implemented=True, holds=("formula",), dense=True, slots=_formula_focus_slots()),
     TemplateSpec("worked_steps", "procedure", True, "R1", _d((15.0, 45.0), (10.0, 30.0)),
                  _c(("reveal", "fill", "countdown", "look_here"), ("item", "item:var")), _fit_worked_steps,
                  holds=("formula", "think"), dense=True),

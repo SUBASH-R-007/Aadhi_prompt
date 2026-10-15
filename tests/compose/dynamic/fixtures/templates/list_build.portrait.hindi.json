@@ -1,0 +1,587 @@
+{
+ "board_language": "hi-IN",
+ "branding": {
+  "bgm_url": null,
+  "bgm_volume": 0.06,
+  "ding_url": null,
+  "mascot_clips": {},
+  "mascot_rig_url": null,
+  "static_background_url": null,
+  "tick_url": null
+ },
+ "captions": [
+  {
+   "end": 1.4,
+   "start": 0.5,
+   "text": "पहले बैटरी चाहिए।"
+  },
+  {
+   "end": 2.7,
+   "start": 1.8,
+   "text": "फिर एक बंद रास्ता।"
+  },
+  {
+   "end": 4.0,
+   "start": 3.1,
+   "text": "फिर एक बल्ब।"
+  },
+  {
+   "end": 5.3,
+   "start": 4.4,
+   "text": "और एक स्विच।"
+  },
+  {
+   "end": 7.35,
+   "start": 7.0,
+   "text": "மின்னழுத்தம் என்றால் என்ன?"
+  },
+  {
+   "end": 8.1,
+   "start": 7.75,
+   "text": "மின்னோட்டம் இதைப் பொறுத்தது."
+  },
+  {
+   "end": 8.85,
+   "start": 8.5,
+   "text": "மின்தடை ஓமில் அளக்கப்படுகிறது."
+  }
+ ],
+ "chapters": [
+  {
+   "start": 0.0,
+   "title": "विद्युत परिपथ के भाग"
+  },
+  {
+   "start": 6.5,
+   "title": "ஓம் விதி"
+  }
+ ],
+ "concept_map": [],
+ "estimated": false,
+ "fps": 30,
+ "height": 1920,
+ "intro": null,
+ "language": "hi-IN",
+ "learning_objectives": [],
+ "meta": {
+  "session_number": "Session 3",
+  "session_title": "Circuits",
+  "subject_name": "Basic Electrical Engineering",
+  "unit_name": "Unit 2: DC Circuits"
+ },
+ "presentation": {
+  "caption_style": "clean_pill",
+  "captions_burn": true,
+  "content": {
+   "entity:0": "#0267C7",
+   "entity:1": "#80369E",
+   "entity:2": "#870C62",
+   "focus": "#141822",
+   "ink": "#141822",
+   "ink2": "#484D58",
+   "mark": "#F2D935",
+   "ok": "#016F50",
+   "warn": "#9F4503"
+  },
+  "content_alt": {
+   "entity:0": "#0FE3FE",
+   "entity:1": "#C4A4FE",
+   "entity:2": "#FEACE3",
+   "focus": "#F2D935",
+   "ink": "#F3F5F9",
+   "ink2": "#B9BEC7",
+   "mark": "#F2D935",
+   "ok": "#5DD8AA",
+   "warn": "#F8A87F"
+  },
+  "cue_term_style": "marker",
+  "engine_version": 2,
+  "family": "mint_studio",
+  "fonts": {
+   "body": "inter",
+   "display": "outfit",
+   "indic": "noto_sans",
+   "mono": "jetbrains_mono"
+  },
+  "format": "portrait",
+  "generated_seconds": 10.05,
+  "mode": "light",
+  "motion": "standard",
+  "motion_scale": 1.15,
+  "personality": "soft",
+  "safe_zone": "universal",
+  "sfx": false,
+  "style": "dynamic",
+  "text_entrance": "fade_rise"
+ },
+ "scenes": [
+  {
+   "audio_asset_key": null,
+   "audio_duration": 5.2,
+   "audio_offset": 0.5,
+   "audio_url": null,
+   "beats": [
+    {
+     "beat_id": "lb-hi-stack-0",
+     "board_item_id": "d1",
+     "captions": [
+      {
+       "end": 1.4,
+       "start": 0.5,
+       "text": "पहले बैटरी चाहिए।"
+      }
+     ],
+     "end": 1.8,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 0,
+     "narration": "पहले बैटरी चाहिए।",
+     "phase": "main",
+     "speech_end": 1.4,
+     "start": 0.5,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "lb-hi-stack-1",
+     "board_item_id": "d2",
+     "captions": [
+      {
+       "end": 2.7,
+       "start": 1.8,
+       "text": "फिर एक बंद रास्ता।"
+      }
+     ],
+     "end": 3.1,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 1,
+     "narration": "फिर एक बंद रास्ता।",
+     "phase": "main",
+     "speech_end": 2.7,
+     "start": 1.8,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "lb-hi-stack-2",
+     "board_item_id": "d3",
+     "captions": [
+      {
+       "end": 4.0,
+       "start": 3.1,
+       "text": "फिर एक बल्ब।"
+      }
+     ],
+     "end": 4.4,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 2,
+     "narration": "फिर एक बल्ब।",
+     "phase": "main",
+     "speech_end": 4.0,
+     "start": 3.1,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "lb-hi-stack-3",
+     "board_item_id": "d4",
+     "captions": [
+      {
+       "end": 5.3,
+       "start": 4.4,
+       "text": "और एक स्विच।"
+      }
+     ],
+     "end": 5.7,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 3,
+     "narration": "और एक स्विच।",
+     "phase": "main",
+     "speech_end": 5.3,
+     "start": 4.4,
+     "visual_cue": null,
+     "words": []
+    }
+   ],
+   "board": [
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "h1",
+     "justification": null,
+     "kind": "heading",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "विद्युत परिपथ के भाग",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "d1",
+     "justification": null,
+     "kind": "bullet",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "[[बैटरी]] आवेश को धकेलती है",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "d2",
+     "justification": null,
+     "kind": "bullet",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "बंद रास्ता धारा को बहने देता है",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "d3",
+     "justification": null,
+     "kind": "bullet",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "बल्ब ऊर्जा का उपयोग करता है",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "d4",
+     "justification": null,
+     "kind": "bullet",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "स्विच परिपथ को तोड़ता है",
+     "variables": []
+    }
+   ],
+   "chapter_id": null,
+   "chapter_label": null,
+   "concept_id": null,
+   "duration": 6.5,
+   "events": [
+    {
+     "anchored": true,
+     "dur": 1.0,
+     "kind": "cue_term",
+     "sfx": null,
+     "t": 0.9,
+     "target": "d1",
+     "words": ""
+    },
+    {
+     "anchored": true,
+     "dur": 1.2,
+     "kind": "look_here",
+     "sfx": null,
+     "t": 3.6,
+     "target": "d2",
+     "words": ""
+    }
+   ],
+   "figures": {},
+   "index": 0,
+   "layout": {
+    "fullscreen_media": false,
+    "mascot_position": "left",
+    "show_side_panel": true
+   },
+   "look": {
+    "background": {
+     "frozen_at": null,
+     "params": {
+      "tone": "bg"
+     },
+     "preset": "mesh_drift",
+     "seed": 4000
+    },
+    "hold_reason": null,
+    "presenter": null,
+    "template": "list_build",
+    "text_fit": {},
+    "tokens": {
+     "bg": "#E4F9F1",
+     "bg-alt": "#DAEFE7",
+     "bg-tint": "#EAF0FF",
+     "block.base": "#4F69D7",
+     "block.highlight": "#5E79DC",
+     "block.ink": "#FFFFFF",
+     "block.ink2": "#D9E1FA",
+     "scrim": "#E4F9F1C7",
+     "struct.accent": "#4F69D7",
+     "surface": "#FBFEFD"
+    },
+    "transition_in": {
+     "kind": "cut",
+     "seconds": 0.0
+    },
+    "variant": null
+   },
+   "media": null,
+   "objective_ids": [],
+   "p5_code": null,
+   "poster": null,
+   "quiz": null,
+   "scene_id": "lb-hi-stack",
+   "side_panel": null,
+   "start": 0.0,
+   "subtitle": null,
+   "title": "विद्युत परिपथ के भाग",
+   "type": "content"
+  },
+  {
+   "audio_asset_key": null,
+   "audio_duration": 2.25,
+   "audio_offset": 0.5,
+   "audio_url": null,
+   "beats": [
+    {
+     "beat_id": "lb-hi-mixed-0",
+     "board_item_id": null,
+     "captions": [
+      {
+       "end": 0.85,
+       "start": 0.5,
+       "text": "மின்னழுத்தம் என்றால் என்ன?"
+      }
+     ],
+     "end": 1.25,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 0,
+     "narration": "மின்னழுத்தம் என்றால் என்ன?",
+     "phase": "main",
+     "speech_end": 0.85,
+     "start": 0.5,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "lb-hi-mixed-1",
+     "board_item_id": null,
+     "captions": [
+      {
+       "end": 1.6,
+       "start": 1.25,
+       "text": "மின்னோட்டம் இதைப் பொறுத்தது."
+      }
+     ],
+     "end": 2.0,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 1,
+     "narration": "மின்னோட்டம் இதைப் பொறுத்தது.",
+     "phase": "main",
+     "speech_end": 1.6,
+     "start": 1.25,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "lb-hi-mixed-2",
+     "board_item_id": null,
+     "captions": [
+      {
+       "end": 2.35,
+       "start": 2.0,
+       "text": "மின்தடை ஓமில் அளக்கப்படுகிறது."
+      }
+     ],
+     "end": 2.75,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 2,
+     "narration": "மின்தடை ஓமில் அளக்கப்படுகிறது.",
+     "phase": "main",
+     "speech_end": 2.35,
+     "start": 2.0,
+     "visual_cue": null,
+     "words": []
+    }
+   ],
+   "board": [
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "h1",
+     "justification": null,
+     "kind": "heading",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "ஓம் விதி: Ohm's law",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "m1",
+     "justification": null,
+     "kind": "bullet",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "மின்னழுத்தம் [[voltage]] என்பது $V$",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "m2",
+     "justification": null,
+     "kind": "bullet",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "$I = V / R$ மின்னோட்டம் current",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "m3",
+     "justification": null,
+     "kind": "bullet",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "மின்தடையின் அலகு ohm $\\Omega$",
+     "variables": []
+    }
+   ],
+   "chapter_id": null,
+   "chapter_label": null,
+   "concept_id": null,
+   "duration": 3.55,
+   "figures": {},
+   "index": 1,
+   "layout": {
+    "fullscreen_media": false,
+    "mascot_position": "left",
+    "show_side_panel": true
+   },
+   "look": {
+    "background": {
+     "frozen_at": null,
+     "params": {
+      "tone": "bg"
+     },
+     "preset": "mesh_drift",
+     "seed": 4001
+    },
+    "hold_reason": null,
+    "presenter": null,
+    "template": "list_build",
+    "text_fit": {},
+    "tokens": {
+     "bg": "#E4F9F1",
+     "bg-alt": "#DAEFE7",
+     "bg-tint": "#FEE9F6",
+     "block.base": "#B24393",
+     "block.highlight": "#BB589E",
+     "block.ink": "#FFFFFF",
+     "block.ink2": "#F3DAE9",
+     "scrim": "#E4F9F1C7",
+     "struct.accent": "#B24393",
+     "surface": "#FBFEFD"
+    },
+    "transition_in": {
+     "kind": "crossfade",
+     "seconds": 0.45
+    },
+    "variant": null
+   },
+   "media": null,
+   "objective_ids": [],
+   "p5_code": null,
+   "poster": null,
+   "quiz": null,
+   "scene_id": "lb-hi-mixed",
+   "side_panel": null,
+   "start": 6.5,
+   "subtitle": null,
+   "title": "ஓம் விதி",
+   "type": "content"
+  }
+ ],
+ "schema_version": 3,
+ "screenplay_revision": null,
+ "total_duration": 10.05,
+ "transition_seconds": 0.4,
+ "version_id": null,
+ "width": 1080
+}

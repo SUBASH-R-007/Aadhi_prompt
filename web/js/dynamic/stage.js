@@ -13,17 +13,19 @@
  *   stage.destroy()
  *
  * Each frame: the scene that owns the frame is painted by its template at scene time t, over its background at the
- * background clock (frozen in holds); during a crossfade the previous scene's final state is painted below it
- * (§4.9); then the caption. Every write goes through the Painter, so the key covers everything that moved.
+ * background clock (frozen in holds); then its cues (cues.js: `cue.term` and `cue.look_here` from the scene's events,
+ * B2 plan §1.5); during a crossfade the previous scene's final state is painted below it (§4.9); then the caption.
+ * Every write goes through the Painter, so the key covers everything that moved.
  * Only a timeline whose presentation style is "dynamic" may reach this module (a classic one is refused), and only one
  * of a look-engine generation it knows (engine.js; it feature-detects the fields of those it knows).
  */
 
 import { h } from '../shared/dom.js';
 import { sceneIndexAt } from '../player/schedule.js';
-import { contrastRatio } from '../motion/color.js';
+import { composite, contrastRatio } from '../motion/color.js';
 import { hashSeed, mulberry32 } from '../motion/random.js';
-import { Painter, fixesOf, makeRoles, sceneIndexOfFrame, stageInfo, toneColor, zonesFor } from './core.js';
+import { Painter, entityRole, fixesOf, makeRoles, sceneIndexOfFrame, stageInfo, toneColor, zonesFor } from './core.js';
+import { cameraAround, createCues, cueLayer, cueNeeds } from './cues.js';
 import { engineProblem } from './engine.js';
 import { fontStacks } from './fonts.js';
 import { backgroundTime, captionAt, chapterTitleAt, dynamicStateAt, freezeProgress } from './state.js';
@@ -31,6 +33,9 @@ import { paintTransition, transitionAt } from './transitions.js';
 import { CaptionLayer, captionStyle } from './captions.js';
 import { LIVE_DRIFT, MediaView, mediaPlan as planMedia, presenterOf, frameUrl, mediaKey } from './media.js';
 import boardGeneric from './templates/board_generic.js';
+import formulaFocus from './templates/formula_focus.js';
+import listBuild from './templates/list_build.js';
+import mediaSplit from './templates/media_split.js';
 import meshDrift from './backgrounds/mesh_drift.js';
 import colourBlock from './backgrounds/colour_block.js';
 
@@ -44,11 +49,19 @@ import colourBlock from './backgrounds/colour_block.js';
 /** @typedef {import('./core.js').Zones} Zones */
 
 /**
- * Templates by id (B1: board_generic only; an unknown or unreleased id falls back to it). The catalogue's registry
- * lists exactly these as `implemented` (web/tests/dynamic/catalogue.test.js).
+ * Templates by id (B1: board_generic; B2c: the pilots formula_focus, list_build and media_split; an unknown or
+ * unreleased id falls back to board_generic). The catalogue's registry lists exactly these as `implemented`
+ * (web/tests/dynamic/catalogue.test.js, tests/compose/dynamic/test_templates.py). Until B2e's direct.py the resolver
+ * names board_generic for every scene (presentation.TEMPLATES), so the pilots draw only timelines that name them
+ * (template fixtures, the gallery, tests): no timeline built today changes frames.
  * @type {Readonly<Record<string, TemplateModule>>}
  */
-export const TEMPLATES = Object.freeze({ board_generic: boardGeneric });
+export const TEMPLATES = Object.freeze({
+  board_generic: boardGeneric,
+  formula_focus: formulaFocus,
+  list_build: listBuild,
+  media_split: mediaSplit,
+});
 /** Background presets by id (B1: mesh_drift and colour_block; unknown ids get mesh_drift). */
 export const BACKGROUNDS = Object.freeze({ mesh_drift: meshDrift, colour_block: colourBlock });
 
@@ -61,12 +74,15 @@ export function isDynamic(timeline) {
 }
 
 /**
+ * The template a scene is drawn with: `look.template` when the registry has it, else board_generic.
  * @param {TimedScene} scene
+ * @param {Readonly<Record<string, TemplateModule>>} [registry]   TEMPLATES (a stage built with `templates` passes
+ *   its own)
  * @returns {TemplateModule}
  */
-export function templateFor(scene) {
+export function templateFor(scene, registry = TEMPLATES) {
   const id = scene.look && scene.look.template;
-  return Object.prototype.hasOwnProperty.call(TEMPLATES, String(id)) ? TEMPLATES[String(id)] : boardGeneric;
+  return Object.prototype.hasOwnProperty.call(registry, String(id)) ? registry[String(id)] : boardGeneric;
 }
 
 /**
@@ -78,12 +94,33 @@ export function templateFor(scene) {
  * @param {Zones} zones
  * @param {'live' | 'render'} mode
  * @param {string | undefined} slot
+ * @param {Readonly<Record<string, TemplateModule>>} [registry]
  * @returns {{w: number, h: number}}
  */
-export function mediaBoxOf(scene, zones, mode, slot) {
-  const tpl = templateFor(scene);
+export function mediaBoxOf(scene, zones, mode, slot, registry = TEMPLATES) {
+  const tpl = templateFor(scene, registry);
   const box = typeof tpl.mediaBox === 'function' ? tpl.mediaBox(scene, zones, mode, slot, fixesOf(scene.look)) : null;
   return box && box.w > 0 && box.h > 0 ? { w: box.w, h: box.h } : { w: zones.width, h: zones.height };
+}
+
+/** The text entrance a timeline without `presentation.text_entrance` gets (Soft's fade + 16 px rise, §4.8). */
+export const DEFAULT_TEXT_ENTRANCE = 'fade_rise';
+
+/**
+ * `ctx.motion` (plan §1.4): the personality's motion values as the timeline carries them (never from the catalogue,
+ * plan §1.1): `scale`, the duration scale (`presentation.motion_scale`, §4.8: Crisp 0.85, Soft 1.15; 1 when absent:
+ * B1's timings), and `entrance`, the text entrance (`presentation.text_entrance`, B2c: `fade_rise` Soft,
+ * `baseline_reveal` Crisp, the W2 ones by name; DEFAULT_TEXT_ENTRANCE when absent). Frozen.
+ * @param {any} presentation
+ * @returns {Readonly<{scale: number, entrance: string}>}
+ */
+export function motionOf(presentation) {
+  const p = presentation || {};
+  const scale = typeof p.motion_scale === 'number' && Number.isFinite(p.motion_scale) && p.motion_scale > 0 && p.motion_scale <= 4
+    ? p.motion_scale : 1;
+  const entrance = typeof p.text_entrance === 'string' && /^[a-z0-9_-]{1,40}$/.test(p.text_entrance)
+    ? p.text_entrance : DEFAULT_TEXT_ENTRANCE;
+  return Object.freeze({ scale, entrance });
 }
 
 /**
@@ -131,7 +168,13 @@ export function syncClip(v, t, playing, frameInfo) {
 }
 
 /**
- * One scene on the stage: its background, its template and (from B2) its presenter clip.
+ * One scene on the stage: its background, its template, its cues and (from B2) its presenter clip.
+ *
+ * DOM: `.dyn-scene` > background, [presenter], content, [cue layer]. The content is the template's layer (`ctx.root`);
+ * for a scene whose template may push the camera on a look_here (push_ok, cues.js) it sits inside the Slot's own
+ * `.dyn-camera` wrapper (templates never transform `ctx.root`, plan §1.4), and a scene with look_here cues gets the
+ * `.dyn-cues` layer above it (below the captions, which the stage draws above every scene). Both exist only for a scene
+ * with cue events its template draws, so every other scene's DOM, writes and frame keys are what they were before B2c.
  */
 class Slot {
   /**
@@ -157,6 +200,8 @@ class Slot {
     // ones, else picked over the block's colours as B1 did), on anything else the content inks
     const block = backgroundFor(scene) === colourBlock;
     const ink = block ? roles.color('block.ink') : roles.color('ink');
+    this.template = templateFor(scene, stage.templates);
+    const needs = cueNeeds(scene, this.template.id);
     // The scene's own page colour and ink for what the stylesheet draws without a template colour (dynamic.css: the
     // matte around contained media, inherited text): from the roles, so a light family never gets a dark literal.
     this.el = h('div', {
@@ -168,7 +213,12 @@ class Slot {
     });
     this.el.appendChild(this.bg.el);
     const content = h('div', { class: 'dyn-content' });
-    this.el.appendChild(content);
+    /** @type {HTMLElement | null} the push wrapper (cues.js), only where a look_here may push */
+    this.camera = needs.camera ? cameraAround(content) : null;
+    this.el.appendChild(this.camera || content);
+    /** @type {HTMLElement | null} the look_here outline layer, only for a scene with look_here cues */
+    this.cueLayer = needs.layer ? cueLayer() : null;
+    if (this.cueLayer) this.el.appendChild(this.cueLayer);
     // attached before the template builds (so it can measure), in scene order whatever the order of seeks
     const next = [...stage.scenesEl.children].find((c) => Number(/** @type {HTMLElement} */ (c).dataset.scene) > index);
     stage.scenesEl.insertBefore(this.el, next || null);
@@ -189,9 +239,16 @@ class Slot {
       rectOf: (el) => stage.rectOf(el),
       locale: stage.locale,
       renderTex: stage.renderTex,
+      motion: stage.motion,
+      outgoing: null,
+      entityRole: (symbol) => entityRole(stage.entityColors, symbol),
     };
-    this.template = templateFor(scene);
     this.ctx.view = this.template.build(this.ctx);
+    /** @type {import('./cues.js').SlotCues | null} */
+    this.cues = needs.events.length ? createCues({
+      template: this.template, ctx: this.ctx, events: needs.events, layer: this.cueLayer, camera: this.camera,
+      termStyle: stage.cueTermStyle, pushOk: needs.camera, reducedMotion: stage.reducedMotion,
+    }) : null;
     this.presenter = this._presenter();
     this.laidOut = false;
     /** @type {Promise<void> | null} */
@@ -206,7 +263,7 @@ class Slot {
    */
   _media(ref, opts = {}) {
     const own = ref.kind !== 'video' && opts.box && opts.box.w > 0 && opts.box.h > 0 ? opts.box : null;
-    const box = own || mediaBoxOf(this.scene, this.stage.zones, this.stage.mode, opts.slot);
+    const box = own || mediaBoxOf(this.scene, this.stage.zones, this.stage.mode, opts.slot, this.stage.templates);
     const view = new MediaView(ref, {
       mode: this.stage.mode, box, start: opts.start, sceneDuration: Number(this.scene.duration) || 0,
       fps: this.stage.info.fps, reducedMotion: this.stage.reducedMotion, alt: opts.alt,
@@ -268,7 +325,10 @@ class Slot {
     this.ctx.frameInfo = frameInfo;
     paint.note(`s${this.index}`); // the time itself is not a visual input: a frozen hold repeats its key
     this.bg.update(paint, bgT, freezeProgress(this.scene, sceneT));
+    if (this.cues) this.cues.begin(paint);
     this.template.update(this.ctx, sceneT, dynamicStateAt(this.scene, sceneT));
+    // the cues after the template: they read its geometry as painted this frame (plan §1.5)
+    if (this.cues) this.cues.update(paint, sceneT);
     const pr = this.presenter;
     if (pr) {
       const on = sceneT < pr.spec.t_exit;
@@ -292,9 +352,24 @@ class Slot {
     return Promise.all(waits);
   }
 
-  /** @returns {TextEntry[]} */
+  /**
+   * The template's text entries; text a look_here dims keeps its place among the critical text, reported with the
+   * colours it is drawn in (plan §1.5): its group at opacity f over what lies behind the group (the background's
+   * worst case), so the ink is ink at f over that and the background behind the text is its own colour at f over it.
+   * @returns {TextEntry[]}
+   */
   texts() {
-    return typeof this.template.texts === 'function' ? this.template.texts(this.ctx) : [];
+    const out = typeof this.template.texts === 'function' ? this.template.texts(this.ctx) : [];
+    if (!this.cues) return out;
+    const cues = this.cues;
+    const under = this.ctx.onBackground.bg;
+    return out.map((e) => {
+      const f = cues.dimOf(e.el);
+      if (!(f < 1)) return e;
+      const a = Math.round(f * 255).toString(16).padStart(2, '0');
+      const over = (/** @type {string} */ c) => composite(`${c.slice(0, 7)}${a}`, under);
+      return { ...e, ink: over(e.ink), bg: e.bg ? over(e.bg) : e.bg };
+    });
   }
 
   destroy() {
@@ -325,6 +400,10 @@ class Slot {
  * @property {import('../player/richtext.js').TexRenderer} [renderTex]   TeX converter: the render page passes its
  *   page-wide one (render.js pageTexRenderer: never evicts, counts what templates leave out of tex()); live mode and
  *   the tests without one get richtext's MathJax with its 400-string cache
+ * @property {Readonly<Record<string, TemplateModule>>} [templates]   templates added to TEMPLATES for this stage only,
+ *   by id (a test seam: the unit tests drive cues.js through a stand-in template, and a template's own tests may run
+ *   before it is registered). Each id keeps its catalogue entry (its consumes and push_ok). Never passed by the render
+ *   page, the player or the editor.
  */
 
 /**
@@ -368,6 +447,10 @@ export function createDynamicStage(root, timeline, opts = {}) {
     timeline, mode, info, zones, locale, el, scenesEl, painter: new Painter(), destroyed: false,
     reducedMotion: mode === 'live' && !!opts.reducedMotion,
     renderTex: opts.renderTex,
+    templates: opts.templates ? Object.freeze({ ...TEMPLATES, ...opts.templates }) : TEMPLATES,
+    motion: motionOf(presentation),
+    cueTermStyle: /** @type {'marker' | 'underline'} */ (presentation.cue_term_style === 'underline' ? 'underline' : 'marker'),
+    entityColors: presentation.entity_colors && typeof presentation.entity_colors === 'object' ? presentation.entity_colors : {},
     /** @param {Element} node */
     rectOf(node) {
       if (!node || !node.isConnected) return null;
@@ -459,6 +542,10 @@ export function createDynamicStage(root, timeline, opts = {}) {
       prune(new Set(outgoing === null ? [i] : [i, outgoing]));
       const bgT = stage.reducedMotion ? 0 : backgroundTime(timeline, t);
       const inc = slotFor(i);
+      // what the incoming template may know of the scene it is entered from (plan §1.4 ctx.outgoing): data only
+      inc.ctx.outgoing = outgoing === null || !tr ? null : Object.freeze({
+        index: outgoing, scene: timeline.scenes[outgoing], look: timeline.scenes[outgoing].look || null, kind: tr.kind, p: tr.p,
+      });
       inc.update(p, sceneT, bgT, frameInfo);
       /** @type {Slot | null} */
       let out = null;
@@ -548,7 +635,7 @@ export function createDynamicStage(root, timeline, opts = {}) {
      */
     mediaPlan(f0, f1) {
       // the render page's layout: what the worker extracts frames for (live mode shows clips as <video>)
-      return planMedia(timeline, Number(f0), Number(f1), (scene, slot) => mediaBoxOf(scene, zones, 'render', slot));
+      return planMedia(timeline, Number(f0), Number(f1), (scene, slot) => mediaBoxOf(scene, zones, 'render', slot, stage.templates));
     },
 
     /** Text boxes of the frame on screen, in stage px. */

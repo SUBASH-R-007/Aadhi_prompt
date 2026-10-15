@@ -1227,16 +1227,20 @@ export default {
   /**
    * The element holding an item's text, where cue.term finds its [[term]] spans (`.rt-k`, kept by renderRich): the
    * body of the item's card (`option:<i>`: the option's), as `cardOf` finds it. Null for anything else. In 9:16 a
-   * misconception with a justification is two cards, and every target of it names the first, its myth: the terms of
-   * its correction (the `<id>:fact` card) are out of reach, while in 16:9 one card holds both. No cue reaches this
-   * template (its consumes list no cue_term or look_here, templates.py); B2c settles how a split item is reached
-   * before cues.js uses itemEl.
+   * misconception with a justification is two cards: then both bodies, the myth's and the fact's, in that order (the
+   * item's field order, text then justification, which `<item>:term:<n>` counts in; B2c settled the open B2a item
+   * this way), so the terms of the correction are reached as in 16:9, where one card holds both. No cue reaches this
+   * template yet (its consumes list no cue_term or look_here, templates.py, so cues.js never calls this).
    * @param {TemplateContext} ctx
    * @param {string} itemId
+   * @returns {Element | Element[] | null}
    */
   itemEl(ctx, itemId) {
-    const card = cardOf(ctx.view, itemId);
-    return card ? card.body : null;
+    const v = ctx.view;
+    const card = cardOf(v, itemId);
+    if (!card) return null;
+    const fact = card.spec.part === 'myth' ? v.cards.find((/** @type {any} */ c) => c.spec.lead === card.spec.id) : null;
+    return fact ? [card.body, fact.body] : card.body;
   },
 
   /**

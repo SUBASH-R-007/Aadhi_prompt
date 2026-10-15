@@ -4,8 +4,9 @@
  *
  *   export default {
  *     id, build(ctx), layout(ctx), update(ctx, t, state), texts(ctx),
- *     focusRect(ctx, target) -> {rect, shape: 'rect' | 'ring' | 'bar', radius} | null   whole stage px
- *     itemEl(ctx, itemId) -> Element | null       the item's text: cue.term finds its .rt-k spans inside
+ *     focusRect(ctx, target) -> {rect, shape: 'rect' | 'ring' | 'bar', radius, el?} | null   whole stage px
+ *     itemEl(ctx, itemId) -> Element | Element[] | null   the item's text: cue.term finds its .rt-k spans inside (an
+ *                                                 item drawn in pieces: every piece, in the item's field order)
  *     dimGroups(ctx) -> Element[]                 content groups look_here dims to 70% (all but the target's)
  *     anchor(ctx) -> {el, rect} | null            the shared-element morph's source / target
  *     mediaBox(scene, zones, mode, slot, fixes) -> {w, h} | null   static: the largest box `slot`'s medium is shown in
@@ -16,11 +17,20 @@
  * (idempotent; deterministic because it only reads the laid-out page), `update` paints scene time `t` through
  * `ctx.paint` as a pure function of `t` and the scene state. Colours come only from `ctx.roles`. Templates never
  * transform `ctx.root` and never draw emphasis (cues.js does, from the geometry focusRect / itemEl / dimGroups give
- * it), and never read the timeline: what they show of other scenes reaches them through the context (`chapter`) or the
- * look (`look.refs`, denormalised by the resolver). The static hooks take no context, so the stage can ask them before
- * (and without) building a scene: `mediaBox` sizes the clips `mediaPlan` lists and `ctx.media` shows (one function, so
- * every frame the page asks for is a frame the worker extracted), `tex` is converted before `ready` (render.js), so no
- * MathJax work happens while frames are captured. No runtime behaviour.
+ * it), and never read the timeline: what they show of other scenes reaches them through the context (`chapter`,
+ * `outgoing`) or the look (`look.refs`, denormalised by the resolver).
+ *
+ * B2c (the cues, cues.js): the stage applies a scene's `cue_term` / `look_here` events only to a template whose spec
+ * consumes them (templates.py `consumes`), after its `update`, from these hooks: `itemEl` for the [[term]] spans
+ * (`<item>`: all of them, `<item>:term:<n>`: the n-th over the item's fields term, text, justification, caption),
+ * `focusRect` for the outline or push (read after `update`, so it follows the target as painted), `dimGroups` for the
+ * 70% dim. The elements `dimGroups` returns are the same at every t, and the template never writes their `opacity`
+ * (the stage does: wrap the parts whose opacity the template animates in a group element, `_shared.js` `group`).
+ *
+ * The static hooks take no context, so the stage can ask them before (and without) building a scene: `mediaBox`
+ * sizes the clips `mediaPlan` lists and `ctx.media` shows (one function, so every frame the page asks for is a frame
+ * the worker extracted), `tex` is converted before `ready` (render.js), so no MathJax work happens while frames are
+ * captured. No runtime behaviour.
  */
 
 /**
@@ -53,6 +63,24 @@
  *   counted); in live mode none (richtext's cached MathJax)
  * @property {import('../media.js').MediaFrameInfo} [frameInfo]   live playback state for clips (render: none)
  * @property {any} [view]                    what `build` returned
+ * @property {Readonly<{scale: number, entrance: string}>} [motion]   the personality's motion values from the timeline
+ *   (stage.js motionOf, plan §1.4): `scale` multiplies the template's own durations (Crisp 0.85, Soft 1.15; 1 for a
+ *   timeline without one), `entrance` names the text entrance (`fade_rise`, `baseline_reveal`, ...); _shared.js
+ *   `seconds` / `textEntrance` apply them. The cues (cues.js) keep their own fixed timings.
+ * @property {OutgoingScene | null} [outgoing]   while this scene is entered by a transition (its first `seconds`), the
+ *   scene it is entered from (data only; the stage paints that scene's final state below this one); null otherwise
+ * @property {(symbol: string) => string | null} [entityRole]   the lesson-wide entity colour of a formula symbol or
+ *   compared entity (`presentation.entity_colors`, R-30, core.js entityRole): `entity:<n>`, or null (it stays `ink`)
+ */
+
+/**
+ * `ctx.outgoing`: the scene a transition enters this one from.
+ * @typedef {object} OutgoingScene
+ * @property {number} index
+ * @property {import('../../shared/types.js').TimedScene} scene
+ * @property {import('../../shared/types.js').ResolvedLook | null} look
+ * @property {string} kind     the transition ('crossfade')
+ * @property {number} p        its linear progress, 0..1
  */
 
 /**
@@ -69,11 +97,14 @@
 
 /**
  * What `focusRect` returns: the target's box in whole stage px, its shape (cues.js draws the look_here outline around
- * it, outset >= 8 px) and its own corner radius.
+ * it, outset >= 8 px: `rect` a rounded rectangle, `ring` a circle, `bar` a pill around a line) and its own corner
+ * radius; `el`, the target's element, tells cues.js which dim group holds it (without it, the group whose box holds
+ * the target's centre is the one left undimmed).
  * @typedef {object} FocusRect
  * @property {{x: number, y: number, w: number, h: number}} rect
  * @property {'rect' | 'ring' | 'bar'} shape
  * @property {number} radius
+ * @property {Element} [el]
  */
 
 /**
@@ -85,7 +116,7 @@
  * @property {(ctx: TemplateContext, t: number, state: import('../../shared/types.js').SceneState) => void} update
  * @property {(ctx: TemplateContext) => TextEntry[]} [texts]
  * @property {(ctx: TemplateContext, target: string) => FocusRect | null} [focusRect]
- * @property {(ctx: TemplateContext, itemId: string) => Element | null} [itemEl]
+ * @property {(ctx: TemplateContext, itemId: string) => Element | Element[] | null} [itemEl]
  * @property {(ctx: TemplateContext) => Element[]} [dimGroups]
  * @property {(ctx: TemplateContext) => {el: Element, rect: {x: number, y: number, w: number, h: number}} | null}
  *   [anchor]

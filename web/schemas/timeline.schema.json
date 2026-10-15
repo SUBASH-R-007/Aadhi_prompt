@@ -2966,6 +2966,19 @@
      },
      "title": "Entity Colors",
      "type": "object"
+    },
+    "text_entrance": {
+     "anyOf": [
+      {
+       "pattern": "^[a-z0-9_-]{1,40}$",
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Text Entrance"
     }
    },
    "required": [

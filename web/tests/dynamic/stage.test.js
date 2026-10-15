@@ -43,8 +43,10 @@ test('board_generic variants: stack, title card, quiz cards, media and split', (
   const s = dynamicTimeline().scenes;
   assert.deepEqual(s.map(variantOf), ['stack', 'title', 'stack', 'media', 'split']);
   assert.equal(templateFor(s[0]), boardGeneric);
-  assert.equal(templateFor(/** @type {any} */ ({ look: { template: 'formula_focus' } })), boardGeneric, 'unreleased templates fall back');
-  assert.deepEqual(Object.keys(TEMPLATES), ['board_generic']);
+  assert.equal(templateFor(/** @type {any} */ ({ look: { template: 'versus' } })), boardGeneric, 'unreleased templates fall back');
+  assert.equal(templateFor(/** @type {any} */ ({ look: { template: 'no_such_template' } })), boardGeneric);
+  assert.equal(templateFor(/** @type {any} */ ({ look: { template: 'toString' } })), boardGeneric);
+  assert.equal(TEMPLATES.board_generic, boardGeneric, 'board_generic since B1; B2c adds the pilots (catalogue.test.js: parity)');
   assert.deepEqual(Object.keys(BACKGROUNDS), ['mesh_drift', 'colour_block']);
 });
 
@@ -1264,27 +1266,30 @@ test('itemEl, dimGroups and anchor: the item\'s text (its [[terms]] kept), the c
   quiz.done();
 });
 
-test("itemEl in 9:16: a misconception with a justification is two cards, and every target reaches the myth's", () => {
-  // Pinned as it stands (B2a): the §1.7 grammar has no part form for the fact card, so a [[term]] of the correction is
-  // out of reach in 9:16 (in 16:9 one card holds both). board_generic consumes no cue_term or look_here event
-  // (templates.py), so no cue reaches it; B2c settles how a split item is reached before cues.js uses itemEl.
+test("itemEl in 9:16: a misconception with a justification is two cards, and its targets reach both (myth, then fact)", () => {
+  // B2c settled the B2a open item: itemEl returns every piece of a split item in the item's field order (text, then
+  // justification), so cues.js finds a [[term]] of the correction in 9:16 as in 16:9 (`<item>:term:<n>` counts over
+  // the pieces in that order). board_generic consumes no cue_term or look_here event (templates.py), so no cue
+  // reaches it yet; the termSpans case below is what cues.js would draw.
   const tpl = /** @type {any} */ (boardGeneric);
   for (const format of /** @type {const} */ (['portrait', 'landscape'])) {
     const tl = dynamicTimeline(format);
-    tl.scenes[0].board.push({ id: 'm1', kind: 'misconception', text: 'Current is used up', justification: 'The [[current]] is the same all round' });
+    tl.scenes[0].board.push({ id: 'm1', kind: 'misconception', text: 'The [[charge]] is used up', justification: 'The [[current]] is the same all round' });
     const { ctx, v, done } = boardFor(0, tl);
     const ids = v.cards.map((/** @type {any} */ c) => c.spec.id);
     const myth = v.cards.find((/** @type {any} */ c) => c.spec.id === 'm1');
-    for (const target of ['m1', 'm1:line:1', 'm1:step:1']) assert.equal(tpl.itemEl(ctx, target), myth.body, `${format} ${target}`);
+    const terms = (/** @type {any} */ found) => (Array.isArray(found) ? found : [found]).flatMap((e) => [...e.querySelectorAll('.rt-k')].map((k) => k.textContent));
     if (format === 'portrait') {
       assert.ok(ids.includes('m1') && ids.includes('m1:fact'), 'two cards');
-      assert.equal(myth.body.querySelector('.rt-k'), null, 'the myth card holds no term');
       const fact = v.cards.find((/** @type {any} */ c) => c.spec.id === 'm1:fact');
-      assert.equal(fact.body.querySelector('.rt-k')?.textContent, 'current', 'the term is on the fact card');
+      for (const target of ['m1', 'm1:line:1', 'm1:step:1', 'm1:fact']) assert.deepEqual(tpl.itemEl(ctx, target), [myth.body, fact.body], `${format} ${target}`);
+      assert.equal(myth.body.querySelector('.rt-k')?.textContent, 'charge', "the myth card holds the myth's term");
+      assert.equal(fact.body.querySelector('.rt-k')?.textContent, 'current', "the fact card holds the correction's");
     } else {
       assert.ok(!ids.includes('m1:fact'), 'one card');
-      assert.equal(myth.body.querySelector('.rt-k')?.textContent, 'current', 'one card holds both texts');
+      for (const target of ['m1', 'm1:line:1', 'm1:step:1']) assert.equal(tpl.itemEl(ctx, target), myth.body, `${format} ${target}`);
     }
+    assert.deepEqual(terms(tpl.itemEl(ctx, 'm1')), ['charge', 'current'], `${format}: the item's terms in its field order`);
     done();
   }
 });

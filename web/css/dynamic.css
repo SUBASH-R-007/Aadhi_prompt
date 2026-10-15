@@ -56,9 +56,75 @@
 .dyn-scene,
 .dyn-bg-fill,
 .dyn-content,
+.dyn-camera,
+.dyn-cues,
 .dyn-captionlayer {
   position: absolute;
   inset: 0;
+}
+
+/* --- cues (web/js/dynamic/cues.js; §4.8, B2 plan §1.5) ----------------------------------------------------------
+   .dyn-camera: the Slot's push wrapper around a push_ok template's layer (cues.js writes its transform and origin per
+   frame; templates never transform their own root). .dyn-cues: the look_here outline layer above the content and
+   below the captions; it never takes pointer events. A term cue styles its own span (background layers). */
+.dyn-cues {
+  pointer-events: none;
+}
+
+.dyn-cues-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  overflow: visible;
+}
+
+/* --- shared template parts (web/js/dynamic/templates/_shared.js) ---------------------------------------------------
+   A stored icon (ResolvedLook.icons, drawn by _shared.js storedIcon): explicit display and vertical alignment, so an
+   inline icon sits on the text's middle and a block icon has no baseline gap below it (B2b review). Its stroke, caps,
+   joins and fill are attributes the helper sets from the stored geometry. */
+.dyn-sicon {
+  display: inline-block;
+  vertical-align: middle;
+  flex: none;
+  overflow: visible;
+}
+
+.dyn-sicon--block {
+  display: block;
+}
+
+/* An item state (state.js ITEM_STATES, _shared.js paintItemState): a 2 px inset border in the state's colour (never an
+   outline: that is the look_here cue's), the "done" check and the "struck" line over the item's box; none takes
+   layout room, so a state change never moves text. */
+.dyn-stateful {
+  box-shadow: inset 0 0 0 2px var(--dyn-state-border, transparent);
+}
+
+.dyn-state-mark {
+  position: absolute;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.dyn-state-check {
+  right: 16px;
+  top: 50%;
+  width: 1em;
+  height: 1em;
+  margin-top: -0.5em;
+}
+
+.dyn-state-strike {
+  left: 0;
+  top: 0;
+}
+
+/* A text-entrance mask (_shared.js revealMask): the Crisp "revealed from the baseline" entrance slides the text up
+   inside it. */
+.dyn-reveal-mask {
+  display: block;
+  overflow: hidden;
 }
 
 .dyn-scenes {
