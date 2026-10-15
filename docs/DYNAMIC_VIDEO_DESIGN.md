@@ -3107,6 +3107,30 @@ integrator. It is what makes a real lecture use the new templates instead of dra
   Reference frames for every implemented template, both formats, dark and light, are
   `docs/plans/b2/demo_frames/index.html` (`python -m tests.compose.dynamic.make_reference_frames`);
   `docs/plans/b2/b2c_frames/` keeps the earlier B2c-only sheet.
+- **A generated lecture is now Dynamic at all.** `compose/dynamic/authoring.py` writes a default
+  `Screenplay.presentation` for a newly generated lecture (`pipeline/script.py` `_default_presentation`, which the
+  real generation calls with the job's settings). Before it, a presentation could reach a lecture only through an edit
+  or an import, so a freshly generated lecture was always classic whatever the flag said. Every value is a released R1
+  one; music is `off` and only the teacher's own narrator is cast (B3 owns the rest).
+  - **The look rotates** on the lecture's own seed (owner decision, 2026-10-15), so two lectures do not look alike:
+    the theme family (the four R1 families, two dark and two light), the personality (`crisp` / `soft`) and the hook
+    kind, each drawn from its own SHA-256 stream so they never move together, and `look_epoch` re-rolls them for
+    Fresh look / New colours while a plain rebuild never does (§6.8). The caption style and the cue style are
+    *derived* from the chosen personality, which the design's table already pairs them with, so a 9:16 Crisp lecture
+    takes `bold_outline` captions instead of the hardcoded `clean_pill` the first draft stored.
+  - **`display_font` does not rotate yet:** `faces.resolver_fonts` maps a display id the B1 stage never drew to
+    `outfit`, so storing `poppins` would change the stored look and nothing on screen. It waits for B2e's resolver
+    and the live player's `stageFontRequests` preload (§4.6, §7.3). `check_order`, `greeting_id`, `intro_layout` and
+    `reel_card_x` wait for `check` and `aadhi_intro`.
+- **The mode is a switch in the Studio, not only an environment variable.** `models.AppSetting` (`app_settings`,
+  migration `0007_app_settings`) stores an administrator's switches; `aadhi/runtime_flags.py` reads them on a 5 s
+  per-process cache and falls back to the environment whenever there is no database to read, so a switch is never the
+  reason something fails to run. `compose.presentation.dynamic_enabled` is the single place the stored switch and
+  `DYNAMIC_ENABLED` are merged, so the API, the job workers and the compose layer always agree with no signature
+  change anywhere. `GET` / `PATCH /api/admin/settings` (admins only) read and set it, and the Studio's Administration
+  page carries a **Video mode** switch that also says which of the two sources is in force. It governs what happens
+  next: a lecture already generated keeps the style it was made with, and a Dynamic lecture served while the switch is
+  off is played and rendered as a classic one.
 - **Open.** The scenes the demo still draws with `board_generic` need the remaining R1 templates
   (`full_bleed_media` for `ai_video`, `animation_stage` for `simulation`, `check` for a quiz checkpoint,
   `aadhi_intro` / `outro_next` / `myth_fact` / `predict` / `code_walkthrough` / `chart_build` /

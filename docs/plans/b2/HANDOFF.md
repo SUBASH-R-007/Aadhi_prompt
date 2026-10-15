@@ -1,7 +1,8 @@
 # Session handoff — Batch B2 (Dynamic video visual system)
 
-Updated 2026-10-15 (deadline mode), after B2b-H and B2c landed. NEXT: the demo phase (step 3 of the prompt). To continue, paste the
-"Prompt for the next session" block below into a new session.
+Updated 2026-10-15 (deadline mode), after the DEMO PHASE landed. NEXT: the remaining R1 templates, re-prioritised by
+the owner to the ones the demo actually needs (below). To continue, paste the "Prompt for the next session" block
+below into a new session.
 
 ## Where things are (2026-10-15, end of the first account's session)
 
@@ -25,6 +26,27 @@ superseded where they conflict.
   a template builder reads it first) and design 10.3 B2 "Status (B2c)". On the merged tree: ruff, tsc, all
   generated-file checks and npm (1402 passed) are green; the fast suite was re-run on the merged tree in the next
   session (result recorded with the demo phase).
+- **The DEMO PHASE landed (2026-10-15).** `direct.py` (which template draws each scene) and `events.py` (the scene's
+  visual events) are wired into the build; six more R1 templates are registered (`definition_card`, `chapter_bumper`,
+  `hook_question`, `key_terms`, `worked_steps`, `recap_retrieval`), so ten R1 templates draw; `ENGINE_VERSION` is 3,
+  so stored Dynamic timelines rebuild when served. Review: 7 findings (5 major, 2 minor), all fixed at the root.
+  Record: design §10.3 B2 "Status (B2 demo phase)", `final_videos/demo_b2/README.md` (the four showcase MP4s, the
+  per-scene template table and why the rest still fall back), `docs/plans/b2/demo_frames/index.html` (304 reference
+  frames over all nine templates, for the owner's review).
+- **A GENERATED lecture is now Dynamic, and the mode is a switch in the Studio.** `compose/dynamic/authoring.py`
+  writes a default `presentation` for a newly generated lecture (before it, only an edit or an import could, so a
+  fresh lecture was always classic), and the look ROTATES on the lecture's seed: theme family, personality and hook
+  kind, with the caption and cue styles derived from the personality (owner decision, 2026-10-15). The mode itself is
+  no longer environment-only: `app_settings` + `aadhi/runtime_flags.py` + `GET/PATCH /api/admin/settings` + a
+  **Video mode** switch on the Studio's Administration page. `compose.presentation.dynamic_enabled` is the single
+  place the switch and `DYNAMIC_ENABLED` are merged. It governs what is generated NEXT; existing lectures keep their
+  style.
+- **What the demo still falls back on (the owner's re-prioritised next step, 2026-10-15).** 12 of the showcase's 16
+  scenes still draw `board_generic`. The owner reordered step 4 to the templates that convert the most scenes:
+  **1. `full_bleed_media`** (3 `ai_video` scenes), **2. `animation_stage`** (a `simulation`), **3. side-panel support
+  in `worked_steps` / `key_terms`** (3 more scenes; both refuse a scene carrying a panel today), then **4. `check`**
+  (the quiz checkpoint) and **5. `predict`**, and only then `myth_fact`, `aadhi_intro`, `outro_next`,
+  `code_walkthrough`, `chart_build`.
 - **Worktree hygiene:** the B2c worktree is **removed** (`C:/t/b2c` is gone; nothing is registered but the main
   checkout). For the next one, remember `C:/t/<wt>/node_modules` is a JUNCTION to the main repo's `node_modules`
   while `web/vendor` is a real copy: remove the junction with `cmd /c rmdir` BEFORE

@@ -371,6 +371,31 @@ async def _write_scene(
     return SceneWriteResult(scene, issues)
 
 
+def _default_presentation(plan: LecturePlan, options: GenerationOptions, settings: Any | None) -> Any:
+    """The Dynamic ``presentation`` for a new lecture, or ``None`` for a classic one.
+
+    The import is made here, not at module level, so a classic generation loads no Dynamic module
+    (``tests/compose/test_dynamic_isolation.py``'s rule for the build applies to generation too).
+    """
+    if settings is None:
+        return None
+    from ..compose.presentation import dynamic_enabled
+
+    if not dynamic_enabled(settings):
+        return None
+    from ..compose.dynamic.authoring import default_presentation
+
+    return default_presentation(
+        subject_name=plan.subject_name,
+        unit_name=plan.unit_name,
+        session_number=plan.session_number,
+        session_title=plan.session_title,
+        narrator_voice=options.tts_voice,
+        tts_provider=options.tts_provider or getattr(settings, "tts_provider", None),
+        language=options.language,
+    )
+
+
 def assemble_screenplay(
     plan: LecturePlan,
     scenes: list[Any],
@@ -378,14 +403,21 @@ def assemble_screenplay(
     options: GenerationOptions,
     lexicon: list[LexiconEntry],
     source: SourceInfo | None = None,
+    settings: Any | None = None,
 ) -> Screenplay:
     """Screenplay with plan metadata, chapters and scenes in plan order.
 
     Plan values are clamped to the (stricter) Screenplay limits; ``write_scenes_detailed`` has already
     fitted the scene count, so this never fails after the scene calls were paid for.
+
+    ``settings``: when ``DYNAMIC_ENABLED`` is on, the lecture is given the default
+    ``presentation`` of :mod:`aadhi.compose.dynamic.authoring`, which is what makes it a Dynamic video
+    (``compose.timeline.build_timeline``); without it, or with the flag off, the screenplay is classic and serialises
+    exactly as before (the ``tests/invariance`` goldens). B4 replaces the default with the Dynamic generation options.
     """
     written = {s.id for s in scenes}
     return Screenplay(
+        presentation=_default_presentation(plan, options, settings),
         subject_name=plan.subject_name[: META_MAX["subject_name"]],
         unit_name=plan.unit_name[: META_MAX["unit_name"]],
         session_number=plan.session_number[: META_MAX["session_number"]] or "Session 1",
@@ -470,7 +502,8 @@ async def write_scenes_detailed(
         return res
 
     results = await gather_all(one(p) for p in pos_list)
-    screenplay = assemble_screenplay(plan, [r.scene for r in results], ingest, options, lc.lexicon, source)
+    screenplay = assemble_screenplay(plan, [r.scene for r in results], ingest, options, lc.lexicon, source,
+                                     settings=ctx.settings)
     issues = early + [i for r in results for i in r.issues]
     return ScriptResult(screenplay, issues, [r.scene.id for r in results if r.fallback], plan=plan,
                         source_attached=bool(files))

@@ -2,7 +2,8 @@
 /**
  * Admin: users (create, role, active toggle, daily budget, reset password -> must change on
  * next sign-in), server API keys saved in the Studio (views/apiKeys.js serverKeysSection), the
- * media provider chains (GET /api/admin/media-providers) and per-user usage (GET /api/admin/usage).
+ * media provider chains (GET /api/admin/media-providers), the runtime switches
+ * (GET/PATCH /api/admin/settings: the Dynamic video mode) and per-user usage (GET /api/admin/usage).
  */
 
 import { h, clear } from '../../shared/dom.js';
@@ -86,6 +87,55 @@ export function renderMediaProviders(host, status) {
 }
 
 /** @type {import('../types.js').ViewMount} */
+/**
+ * The Dynamic video mode switch (GET/PATCH /api/admin/settings).
+ *
+ * It decides what a NEW lecture is generated as: on, a generated lecture is a Dynamic video (its own templates,
+ * backgrounds and captions, no Aadhi presenter intro); off, it is a classic Aadhi presenter lecture. It changes
+ * nothing already generated - a lecture keeps the style it was made with until it is generated again.
+ * @param {HTMLElement} host
+ * @param {any} state   the /api/admin/settings body, or null when it could not be read
+ * @param {(on: boolean) => Promise<void>} onToggle
+ * @param {() => Promise<void>} [onRetry]   re-read the state; NEVER onToggle, which would switch the mode
+ */
+export function renderVideoMode(host, state, onToggle, onRetry) {
+  clear(host);
+  host.append(h('h2', {}, 'Video mode'));
+  if (!state || !state.dynamic_enabled) {
+    host.appendChild(errorState('Could not read the video mode.', () => void (onRetry && onRetry())));
+    return;
+  }
+  const flag = state.dynamic_enabled;
+  const box = checkbox({
+    label: flag.value ? 'Dynamic video' : 'Classic (Aadhi presenter)',
+    checked: !!flag.value,
+    hint: flag.value
+      ? 'New lectures are generated as Dynamic videos: scene templates, backgrounds and captions, without the Aadhi presenter intro.'
+      : 'New lectures are generated as classic Aadhi presenter videos.',
+  });
+  box.input.addEventListener('change', async () => {
+    const on = box.input.checked;
+    const ok = await confirmDialog({
+      title: on ? 'Generate Dynamic videos?' : 'Generate classic videos?',
+      message: on
+        ? 'Every lecture generated from now on becomes a Dynamic video, for every teacher. Lectures that already exist keep the style they were made with.'
+        : 'Every lecture generated from now on becomes a classic Aadhi presenter video. Dynamic lectures that already exist are played and rendered as classic ones.',
+      confirmLabel: on ? 'Generate Dynamic' : 'Generate classic',
+    });
+    if (!ok) {
+      box.input.checked = !on;
+      return;
+    }
+    await onToggle(on);
+  });
+  host.append(box);
+  // Which of the two sources is in force, so an admin is never surprised by DYNAMIC_ENABLED in the environment.
+  host.append(h('p', { class: 'muted small' }, flag.source === 'studio'
+    ? `Set here. The environment alone would be ${flag.environment ? 'Dynamic' : 'classic'}.`
+    : 'Set by the environment (DYNAMIC_ENABLED). Switching here overrides it for every process.'));
+}
+
+
 export function mount(container, { app }) {
   let destroyed = false;
   const me = app.user();
@@ -94,12 +144,32 @@ export function mount(container, { app }) {
   const usageHost = h('section', { class: 'panel glass' });
   const keysHost = h('section', { class: 'panel glass server-keys' });
   const providersHost = h('section', { class: 'panel glass media-providers' });
-  container.append(pageHeader('Administration', 'Teacher accounts, budgets and server API keys.', createBtn), usersHost, keysHost, providersHost, usageHost);
+  const videoModeHost = h('section', { class: 'panel glass video-mode' }, spinner('Loading video mode…'));
+  container.append(pageHeader('Administration', 'Teacher accounts, budgets and server API keys.', createBtn), videoModeHost, usersHost, keysHost, providersHost, usageHost);
   const serverKeys = serverKeysSection(keysHost, app);
 
   async function loadProviders() {
     const status = await get('/api/admin/media-providers').catch(() => null);
     if (!destroyed) renderMediaProviders(providersHost, status);
+  }
+
+  async function loadVideoMode() {
+    const state = await get('/api/admin/settings').catch(() => null);
+    if (!destroyed) renderVideoMode(videoModeHost, state, toggleVideoMode, loadVideoMode);
+  }
+
+  /** @param {boolean} on */
+  async function toggleVideoMode(on) {
+    try {
+      const state = await patch('/api/admin/settings', { dynamic_enabled: on });
+      if (destroyed) return;
+      renderVideoMode(videoModeHost, state, toggleVideoMode, loadVideoMode);
+      app.toast(on ? 'New lectures are generated as Dynamic videos.' : 'New lectures are generated as classic videos.', { kind: 'success' });
+    } catch (err) {
+      if (destroyed) return;
+      app.reportError(err);
+      await loadVideoMode();
+    }
   }
 
   /** @type {Map<number, any>} */
@@ -316,6 +386,7 @@ export function mount(container, { app }) {
 
   void load();
   void loadProviders();
+  void loadVideoMode();
   return {
     destroy() {
       destroyed = true;

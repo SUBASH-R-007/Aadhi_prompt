@@ -381,7 +381,7 @@ class Settings(BaseSettings):
     # captured frame by frame from the /render-dynamic stage by parallel workers (one headless Chromium + one x264
     # encoder each) in scene-aligned chunks, then joined and muxed once with the audio. Classic (Aadhi presenter)
     # renders never use it.
-    dynamic_enabled: bool = False  # admin switch for Dynamic videos: on = a lecture with a presentation gets a Dynamic timeline, rendered by the motion engine (/render-dynamic); off = /render-dynamic is 404 and such a lecture is built, played and rendered as a classic one (applied when a timeline is served: no rebuild needed)
+    dynamic_enabled: bool = False  # Dynamic videos, the DEFAULT an admin can override in the Studio (Administration -> Video mode, PATCH /api/admin/settings; aadhi.runtime_flags): on = a newly generated lecture is written with a presentation and gets a Dynamic timeline, rendered by the motion engine (/render-dynamic); off = /render-dynamic is 404 and such a lecture is built, played and rendered as a classic one (applied when a timeline is served: no rebuild needed)
     render_motion_workers: int = Field(default=0, ge=0, le=32)  # capture workers per motion render; 0 = auto: min(6, container CPU quota - 1, physical cores - 1), at least 1
     render_cpu_slots: int = Field(default=0, ge=0, le=512)  # CPU slots shared by every motion render on the host (each worker holds one; a render waits for at least one); 0 = physical cores - 1
     render_slot_dir: str = ""  # directory of the CPU slot lock files; mount the same host directory into every render container on the host; empty = <render work dir>/cpu-slots

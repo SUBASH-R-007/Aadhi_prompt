@@ -48,6 +48,7 @@ def test_0006_creates_the_table_and_matches_the_model(app_env, tmp_path):
         assert uniques["uq_visual_reviews_version_scene"] == ["version_id", "scene_id"]
     finally:
         engine.dispose()
+    command.upgrade(cfg, "head")  # 0006 is no longer the head: the models carry later tables too
     command.check(cfg)  # no drift between the models and the migrated schema
 
 
@@ -102,4 +103,5 @@ def test_0006_is_idempotent_after_create_all(app_env, tmp_path):
     finally:
         engine.dispose()
     command.upgrade(cfg, "0006_visual_reviews")
+    command.upgrade(cfg, "head")  # 0006 is no longer the head
     command.check(cfg)

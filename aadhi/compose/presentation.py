@@ -408,5 +408,15 @@ def portrait_caption_cues(text: str, words: Sequence[TimedWord] | None, *, start
 
 
 def dynamic_enabled(settings: Any) -> bool:
-    """True when the admin flag ``DYNAMIC_ENABLED`` is on (Dynamic timelines are built and rendered)."""
-    return bool(getattr(settings, "dynamic_enabled", False))
+    """True when the Dynamic video mode is on (Dynamic timelines are generated, built, served and rendered).
+
+    The administrator's switch in the Studio wins (``aadhi.runtime_flags``, the ``app_settings`` row an admin writes
+    through ``PATCH /api/admin/settings``); without one, the environment's ``DYNAMIC_ENABLED`` rules. This is the one
+    place the two are merged, so the API, the job workers and the compose layer always agree. Reading the override is
+    cached per process and falls back to the environment whenever there is no database to read.
+    """
+    env = bool(getattr(settings, "dynamic_enabled", False))
+    from ..runtime_flags import get as runtime_flag  # lazy: a classic build must not import the database layer
+
+    override = runtime_flag("dynamic_enabled")
+    return env if override is None else bool(override)

@@ -28,12 +28,14 @@ def test_linear_revision_history():
     script = ScriptDirectory.from_config(_config(Path("unused.db")))
     revisions = list(script.walk_revisions())  # newest first
     assert [r.revision for r in revisions] == [
-        "0006_visual_reviews", "0005_library_items", "0004_claim_operation", "0003_asset_claims", "0002", "0001"
+        "0007_app_settings", "0006_visual_reviews", "0005_library_items", "0004_claim_operation",
+        "0003_asset_claims", "0002", "0001"
     ]
     assert [r.down_revision for r in revisions] == [
-        "0005_library_items", "0004_claim_operation", "0003_asset_claims", "0002", "0001", None
+        "0006_visual_reviews", "0005_library_items", "0004_claim_operation", "0003_asset_claims", "0002", "0001",
+        None
     ]
-    assert script.get_heads() == ["0006_visual_reviews"]
+    assert script.get_heads() == ["0007_app_settings"]
 
 
 def test_upgrade_check_downgrade(app_env, tmp_path):

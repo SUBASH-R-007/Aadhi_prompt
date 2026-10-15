@@ -105,6 +105,7 @@ ROUTERS = (
     usage.router,
     keys.router,
     admin.router,
+    admin.settings_router,
     render_internal.router,
     pages.router,
 )

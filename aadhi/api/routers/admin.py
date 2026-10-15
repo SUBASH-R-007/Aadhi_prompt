@@ -147,3 +147,53 @@ def patch_user(user_id: int, body: UserPatch, admin: AdminUser, db: DbSession, s
         db.commit()
         db.refresh(target)
     return {"user": user_dict(target)}
+
+
+# --- Runtime switches (``/api/admin/settings``) ------------------------------------------------------------------
+
+settings_router = APIRouter(prefix="/api/admin/settings", tags=["admin"], dependencies=RATE_LIMITED)
+
+
+class SettingsPatch(BaseModel):
+    """Switches an administrator changes in the Studio. Omitted = unchanged."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    dynamic_enabled: bool | None = None
+
+
+def _settings_state(settings: AppSettings) -> dict[str, Any]:
+    """Each switch's effective value and where it comes from, so the Studio can say what is in force."""
+    from ...compose.presentation import dynamic_enabled
+    from ...runtime_flags import flags
+
+    stored = flags(refresh=True)
+    return {
+        "dynamic_enabled": {
+            "value": dynamic_enabled(settings),
+            "source": "studio" if stored.get("dynamic_enabled") is not None else "environment",
+            "environment": bool(getattr(settings, "dynamic_enabled", False)),
+        }
+    }
+
+
+@settings_router.get("")
+def read_settings(admin: AdminUser, settings: AppSettings) -> dict[str, Any]:
+    """The runtime switches and what each one is set by."""
+    return _settings_state(settings)
+
+
+@settings_router.patch("")
+def patch_settings(body: SettingsPatch, admin: AdminUser, db: DbSession, settings: AppSettings) -> dict[str, Any]:
+    """Switch the Dynamic video mode on or off for every process (``aadhi.runtime_flags``).
+
+    It applies to what happens next, not to what was made before: a lecture generated while it was off has no
+    ``presentation`` and stays classic until it is generated again, while a Dynamic lecture served with it off is
+    played and rendered as a classic one.
+    """
+    from ...runtime_flags import set_flag
+
+    if body.dynamic_enabled is not None:
+        set_flag(db, "dynamic_enabled", body.dynamic_enabled, user_id=admin.id)
+        db.commit()
+    return _settings_state(settings)

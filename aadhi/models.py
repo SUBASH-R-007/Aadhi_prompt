@@ -553,3 +553,24 @@ class AnalyticsEvent(Base):
     scene_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     data: Mapped[dict[str, Any]] = mapped_column(JsonDoc, default=dict, nullable=False)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+# --- Runtime settings -------------------------------------------------------
+
+#: Settings an administrator switches in the Studio instead of in the environment
+#: (``aadhi.runtime_flags``). One row per key; absent = the environment's value rules.
+class AppSetting(Base):
+    """One administrator-set switch, overriding the environment for every process (``aadhi.runtime_flags``).
+
+    ``value`` is a JSON scalar, so a later switch can be a string or a number without a migration. Rows are tiny
+    and read on a short cache, never in a hot loop. A deleted user leaves ``updated_by`` NULL.
+    """
+
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[Any] = mapped_column(JsonDoc, nullable=False)
+    updated_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False
+    )
