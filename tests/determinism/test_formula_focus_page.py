@@ -144,7 +144,12 @@ async def test_a_legend_too_long_for_a_reel_is_blocked_never_cut_to_a_carousel(r
     res = await run_preflight(real_app.settings, tl, token=TOKEN, served_timeline=served, base_url=real_app.base)
     blocks = [i for i in res.items() if i["blocking"]]
     assert not res.ok and blocks and {i["scene_index"] for i in blocks} == {0}, res.items()
-    assert {i["slot"] for i in blocks} == {"legend"}, blocks
+    # the legend's overflow blocks with "Shorten text" (no remedy left); the same scene may block on more (with all its
+    # sizes at their minimums the formula takes the narrow card, wider than it at 68 px; the overflowing legend
+    # reaches the caption band): every finding preflight now sees, none masked by a mid-entrance sighting
+    legend = [i for i in blocks if i["slot"] == "legend" and i["check"] == "text_overflow"]
+    assert legend and legend[0]["remedy"] is None and legend[0]["action"] == "Shorten text", blocks
+    assert {i["slot"] for i in blocks} <= {"legend", "formula"}, blocks
     async with open_stage(real_app.settings, size=(tl.width, tl.height), token=TOKEN, base_url=real_app.base,
                           served_timeline=served) as page:
         info = await page.info()

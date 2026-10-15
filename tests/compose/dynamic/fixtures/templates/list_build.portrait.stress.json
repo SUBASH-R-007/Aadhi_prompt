@@ -230,7 +230,7 @@
      "rows": null,
      "source_refs": [],
      "term": null,
-     "text": "[[Ohm's law]] $V = I R$ holds when $R$ stays fixed",
+     "text": "[[Ohm's law]] $V = I R$ for a fixed $R$",
      "variables": []
     }
    ],

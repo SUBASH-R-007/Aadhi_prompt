@@ -51,6 +51,9 @@ LANGS = {"en": "en-IN", "ta": "ta-IN", "hi": "hi-IN"}
 WIDE = "MAXIMUM WATTAGE WHEN WARM MOTORS MEET HEAVY LOADS"
 LONG_WORD = "Pneumonoultramicroscopicsilicovolcanoconiosis is a famously long word"
 TEX_ROW = "[[Ohm's law]] $V = I R$ holds when $R$ stays fixed"
+# 9:16: the stack's third row is large (56 px) under two compact rows, so the longest TeX row a reel holds is shorter
+# (TEX_ROW there overflowed the stack by 10 px; preflight blocks it, "Shorten text": B2c review fix round)
+TEX_ROW_REEL = "[[Ohm's law]] $V = I R$ for a fixed $R$"
 
 
 def _presentation(fmt: str, family_id: str, personality: str, cue_style: str, display: str) -> dict[str, Any]:
@@ -154,8 +157,8 @@ def _english_typical(sid: str, beat_len: float) -> dict[str, Any]:
     }
 
 
-def _stress(sid: str, beat_len: float, *, beats: bool) -> dict[str, Any]:
-    items = [_item("w1", "bullet", WIDE), _item("w2", "bullet", LONG_WORD), _item("w3", "bullet", TEX_ROW)]
+def _stress(sid: str, beat_len: float, *, beats: bool, tex_row: str = TEX_ROW) -> dict[str, Any]:
+    items = [_item("w1", "bullet", WIDE), _item("w2", "bullet", LONG_WORD), _item("w3", "bullet", tex_row)]
     narration = ["The longest rows a lint allows.", "One word longer than any line.", "Formulas sit inside the text."]
     return {
         "id": sid, "title": "Stress rows", "beat_len": beat_len, "items": items,
@@ -233,7 +236,7 @@ def fixtures() -> dict[str, Timeline]:
     port = _english_typical("lb-p-typical", 2.1)  # 9.7 s
     # b2 enters on a reveal event (it wins over its beat; state.js itemTimings), a little after its beat starts
     port["events"] = [_cue(1.1, "cue_term", "b1", 1.3), _cue(2.9, "reveal", "b2"), _cue(7.0, "look_here", "b2", 1.4)]
-    port_stress = _stress("lb-p-stress", 1.8, beats=True)  # 6.7 s
+    port_stress = _stress("lb-p-stress", 1.8, beats=True, tex_row=TEX_ROW_REEL)  # 6.7 s
     port_stress["events"] = [_cue(4.4, "cue_term", "w3", 1.2)]
     port_short = _short("lb-p-short", 1.0, beats=False)  # 3.3 s, the 9:16 plain list, entered by a crossfade
     hindi = _hindi("lb-hi-stack", 1.3)  # 6.5 s

@@ -204,3 +204,36 @@ and B4 hook rotation). 17 animation_stage Manim colour mapping/content key defer
 18 live checkpoint interaction (predict/check pause) deferred to B4. 19 emoji as images and Anek axis rotation W2.
 20 energy has no stored field (B4). 21 engine_version relabelled look-engine generation. 22 entity map lesson-wide.
 23 presenter cache location. 24 remedies persisted in B4 (B2 keeps them MP4-only, as B1).
+
+B2c additions (the vertical slice; review round 1, 2026-10-15). 25 cue.term styles the term's own span in place
+(background layers under the glyphs plus a background-clip:text glyph layer), not a layer above (plan §1.5's "cue
+layer" cannot put a marker under glyphs); cue timings are absolute (not scaled by the personality); a cue without
+`dur` holds 2 s. 26 target grammar gains `<item>:term:<n>`; `itemEl` may return an array (a 9:16 misconception's two
+cards). 27 `consumes` narrows kinds to forms (templates.py `Consumes.narrow` / `forms`, catalogue `consumes.forms`):
+the gate is per kind, never the cross product (review CG-5). 28 a clip is never scaled: no camera push in a scene that
+shows a clip (its look_here keeps the outline form), media_split's clip enters by a fade (measured order-dependent
+under a push or scale; §P (d) measured stills only). 29 `TimelinePresentation.text_entrance` is written on every
+engine-2 build (frames unchanged: board_generic never reads it; chunk-cache keys of rebuilt projects change, cache
+misses only; d63ff94's model accepts the new JSON) (review NVC-1). 30 look_here around a picture, card or drawing
+(`FocusRect.kind` 'shape') is clamped to the shapes area, not the critical text boxes (review CG-1). 31 pilot type
+sizes below R-29's nominal ranges, above its floors (board_generic's precedent; OWNER DECISION, review V8): media_split
+16:9 title 64-88 (headings 84-120), body 44-52 (48-56), 9:16 phrase 48-64 (body 56-64); list_build 16:9 rows 40-52;
+inline TeX in media_split 9:16 phrases and list_build 9:16 rows is MathJax's one weight (400) at <= 64 px, while
+formula_focus keeps its 9:16 formula >= 68 px for R-29's weight clause; preflight's type_floor cannot see TeX weight.
+32 9:16 headlines may take 2 lines in all three pilots (prefer 1; board_generic's precedent) against §4.3 media_split's
+"one-line headline" and R-25's 9:16 column; a 2-line headline runs past the zone's y 440 and costs the picture room
+(OWNER DECISION, review V9). 33 formula_focus: §4.3's 9:16 "768 px" read as the card (text keeps R-59's 696 px
+column); the box is a 4 px struct.border drawn on `draw`; braces at their symbol's glyphs (under, over a numerator,
+none when boxed in), each leaving at the next symbol's cue or the first look_here, the last after at most 2 s; the
+sentence is left out before the legend overflows; no legend row ever leaves (L-13); `consumes` gains look_here (R-16
+walk), whose focused symbol keeps its legend row bright. 34 list_build: the current row's state is plan §1.5's 2 px
+ink2 inset border (not §4.3's 3 px ink outline); look_here goes round the row's card, outside the state border; 16:9
+is centred unless a picture/clip panel or a stored icon for every row fills the right 45%; 9:16 draws no panel (a
+scene with a panel it does not draw scores 0 and falls back to board_generic). 35 media_split: the 9:16 key phrase is
+the current text item, one at a time, sharing the headline's left edge; a pushing scene lays its text inside the push
+area; every 16:9 item but a heading carries a marker dot; Indic text takes the Indic line heights.
+36 preflight (fix, not a deviation): a finding seen first as a warning (critical text mid-entrance is reported as not
+critical) no longer masks a checked sighting of the same slot (`Finding.merge`); it had let a 9:16 key phrase and a
+9:16 list row that overflowed at their minimums pass. Today's timelines have no finding either way (12 timelines
+checked). The 9:16 media_split phrase column (x 192-780, less push room) holds at most 2 lines at 48 px, so key
+phrases are short (the Tamil and long fixtures were shortened to fit; preflight blocks a longer one).

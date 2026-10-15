@@ -186,7 +186,9 @@ def fixtures() -> dict[str, Obj]:
         [cue(1.2, "cue_term", "p1"), cue(4.0, "look_here", "panel"), cue(7.2, "look_here", "p3")], None,
         image_panel("The bulb", wide, 1600, 900), seed=4404)
 
-    items = [{"id": "i1", "kind": "bullet", "text": "[[மின்னோட்டம்]] என்பது மின்னூட்டத்தின் ஓட்டம்"},
+    # each phrase at most two lines at the 48 px floor in the 9:16 phrase column (x 192-780, less the push room;
+    # preflight blocks a longer one: B2c review round, the column narrowed to the headline's left edge, V7)
+    items = [{"id": "i1", "kind": "bullet", "text": "[[மின்னோட்டம்]] என்பது ஓட்டம்"},
              {"id": "i2", "kind": "bullet", "text": "वोल्टेज [[धक्का]] देता है"},
              {"id": "i3", "kind": "bullet", "text": "Ohm விதி: [[மின்தடை]] $R = V/I$"}]
     out["portrait.indic"] = timeline(
@@ -195,7 +197,7 @@ def fixtures() -> dict[str, Obj]:
         [cue(1.2, "cue_term", "i1"), cue(4.0, "cue_term", "i2"), cue(7.2, "look_here", "panel")], None,
         image_panel("மின்சுற்று", square, 1200, 1200), seed=5505, language="ta-IN")
 
-    items = [{"id": "q1", "kind": "bullet", "text": "WWW MMM WWW MMM WWW MMM WWW MMM"},
+    items = [{"id": "q1", "kind": "bullet", "text": "WWW MMM WWW MMM WWW MMM"},
              {"id": "q2", "kind": "paragraph", "text": "Pneumonoultramicroscopicsilicovolcanoconiosis"},
              {"id": "q3", "kind": "takeaway", "text": "Wide words make [[maximum]] demands"}]
     out["portrait.long"] = timeline(

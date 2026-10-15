@@ -923,7 +923,7 @@ test('Indic and mixed text: Tamil and Hindi clusters stay whole, [[terms]] and T
   await m.stage.seek(290);
   const v = m.view();
   const words = v.items[0].words.map((/** @type {HTMLElement} */ w) => w.textContent);
-  assert.deepEqual(words, ['மின்னோட்டம்', 'என்பது', 'மின்னூட்டத்தின்', 'ஓட்டம்']);
+  assert.deepEqual(words, ['மின்னோட்டம்', 'என்பது', 'ஓட்டம்']);
   assert.equal(v.items[1].content.querySelector('.rt-k')?.textContent, 'धक्का');
   assert.equal(v.items[2].content.querySelector('.fake-mjx')?.textContent, 'R = V/I');
   assert.deepEqual(m.tex.seen.map((x) => x.tex), mediaSplit.tex?.(tl.scenes[0], tl.scenes[0].look, 'portrait').map((x) => x.tex));
