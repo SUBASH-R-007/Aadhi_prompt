@@ -1,0 +1,370 @@
+{
+ "board_language": "en-IN",
+ "branding": {
+  "bgm_url": null,
+  "bgm_volume": 0.06,
+  "ding_url": null,
+  "mascot_clips": {},
+  "mascot_rig_url": null,
+  "static_background_url": null,
+  "tick_url": null
+ },
+ "captions": [
+  {
+   "end": 2.1,
+   "start": 0.5,
+   "text": "Put both numbers into the law."
+  },
+  {
+   "end": 4.1,
+   "start": 2.5,
+   "text": "That gives the current."
+  },
+  {
+   "end": 6.1,
+   "start": 4.5,
+   "text": "Now the power. Pause and try."
+  },
+  {
+   "end": 8.1,
+   "start": 6.5,
+   "text": "Here it is."
+  }
+ ],
+ "chapters": [
+  {
+   "start": 0.0,
+   "title": "Find the current"
+  }
+ ],
+ "concept_map": [],
+ "estimated": false,
+ "fps": 30,
+ "height": 1920,
+ "intro": null,
+ "language": "en-IN",
+ "learning_objectives": [],
+ "meta": {
+  "session_number": "Session 3",
+  "session_title": "Circuits",
+  "subject_name": "Basic Electrical Engineering",
+  "unit_name": "Unit 2: DC Circuits"
+ },
+ "presentation": {
+  "caption_style": "clean_pill",
+  "captions_burn": true,
+  "content": {
+   "entity:0": "#0FE3FE",
+   "entity:1": "#C4A4FE",
+   "entity:2": "#FEACE3",
+   "focus": "#F2D935",
+   "ink": "#F3F5F9",
+   "ink2": "#B9BEC7",
+   "mark": "#F2D935",
+   "ok": "#5DD8AA",
+   "warn": "#F8A87F"
+  },
+  "content_alt": {
+   "entity:0": "#0267C7",
+   "entity:1": "#80369E",
+   "entity:2": "#870C62",
+   "focus": "#141822",
+   "ink": "#141822",
+   "ink2": "#484D58",
+   "mark": "#F2D935",
+   "ok": "#016F50",
+   "warn": "#9F4503"
+  },
+  "cue_term_style": "underline",
+  "engine_version": 3,
+  "entity_colors": {
+   "I": 2,
+   "R": 1,
+   "V": 0
+  },
+  "family": "midnight_indigo",
+  "fonts": {
+   "body": "inter",
+   "display": "poppins",
+   "indic": "anek",
+   "mono": "jetbrains_mono"
+  },
+  "format": "portrait",
+  "generated_seconds": 9.3,
+  "mode": "dark",
+  "motion": "standard",
+  "motion_scale": 1.15,
+  "personality": "soft",
+  "safe_zone": "universal",
+  "sfx": false,
+  "style": "dynamic",
+  "text_entrance": "fade_rise"
+ },
+ "scenes": [
+  {
+   "audio_asset_key": null,
+   "audio_duration": 8.0,
+   "audio_offset": 0.5,
+   "audio_url": null,
+   "beats": [
+    {
+     "beat_id": "ws-p-stack-0",
+     "board_item_id": "s1",
+     "captions": [
+      {
+       "end": 2.1,
+       "start": 0.5,
+       "text": "Put both numbers into the law."
+      }
+     ],
+     "end": 2.5,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 0,
+     "narration": "Put both numbers into the law.",
+     "phase": "main",
+     "speech_end": 2.1,
+     "start": 0.5,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "ws-p-stack-1",
+     "board_item_id": "s2",
+     "captions": [
+      {
+       "end": 4.1,
+       "start": 2.5,
+       "text": "That gives the current."
+      }
+     ],
+     "end": 4.5,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 1,
+     "narration": "That gives the current.",
+     "phase": "main",
+     "speech_end": 4.1,
+     "start": 2.5,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "ws-p-stack-2",
+     "board_item_id": "s3",
+     "captions": [
+      {
+       "end": 6.1,
+       "start": 4.5,
+       "text": "Now the power. Pause and try."
+      }
+     ],
+     "end": 6.5,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 2,
+     "narration": "Now the power. Pause and try.",
+     "phase": "main",
+     "speech_end": 6.1,
+     "start": 4.5,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "ws-p-stack-3",
+     "board_item_id": null,
+     "captions": [
+      {
+       "end": 8.1,
+       "start": 6.5,
+       "text": "Here it is."
+      }
+     ],
+     "end": 8.5,
+     "estimated": false,
+     "fill_item_id": "s3",
+     "highlight_item_ids": [],
+     "index": 3,
+     "narration": "Here it is.",
+     "phase": "main",
+     "speech_end": 8.1,
+     "start": 6.5,
+     "visual_cue": null,
+     "words": []
+    }
+   ],
+   "board": [
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "f1",
+     "justification": null,
+     "kind": "formula",
+     "language": null,
+     "latex": "I = \\frac{V}{R}",
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "",
+     "variables": [
+      {
+       "meaning": "voltage",
+       "symbol_latex": "V",
+       "unit": "V"
+      },
+      {
+       "meaning": "resistance",
+       "symbol_latex": "R",
+       "unit": "ohm"
+      },
+      {
+       "meaning": "current",
+       "symbol_latex": "I",
+       "unit": "A"
+      }
+     ]
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "s1",
+     "justification": "Ohm's law",
+     "kind": "example_step",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "$I = 12 / 4$",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "s2",
+     "justification": "then the unit",
+     "kind": "example_step",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "$I = 3\\ \\mathrm{A}$",
+     "variables": []
+    },
+    {
+     "blank": true,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "s3",
+     "justification": "power",
+     "kind": "example_step",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "$P = 36\\ \\mathrm{W}$",
+     "variables": []
+    }
+   ],
+   "chapter_id": null,
+   "chapter_label": null,
+   "concept_id": null,
+   "duration": 9.3,
+   "events": [
+    {
+     "anchored": true,
+     "dur": 1.4,
+     "kind": "countdown",
+     "sfx": null,
+     "t": 4.58,
+     "target": "s3",
+     "words": ""
+    },
+    {
+     "anchored": true,
+     "dur": 1.2,
+     "kind": "look_here",
+     "sfx": null,
+     "t": 1.0,
+     "target": "s1",
+     "words": ""
+    }
+   ],
+   "figures": {},
+   "index": 0,
+   "layout": {
+    "fullscreen_media": false,
+    "mascot_position": "left",
+    "show_side_panel": true
+   },
+   "look": {
+    "background": {
+     "frozen_at": 0.0,
+     "params": {
+      "tone": "bg"
+     },
+     "preset": "mesh_drift",
+     "seed": 7000
+    },
+    "hold_reason": null,
+    "presenter": null,
+    "template": "worked_steps",
+    "text_fit": {},
+    "tokens": {
+     "bg": "#10132C",
+     "bg-alt": "#181D37",
+     "bg-tint": "#26120C",
+     "block.base": "#A15778",
+     "block.highlight": "#C46979",
+     "block.ink": "#FFFFFF",
+     "block.ink2": "#F6EDF1",
+     "scrim": "#10132CC7",
+     "struct.accent": "#FF936D",
+     "surface": "#252A3F"
+    },
+    "transition_in": {
+     "kind": "cut",
+     "seconds": 0.0
+    },
+    "variant": null
+   },
+   "media": null,
+   "objective_ids": [],
+   "p5_code": null,
+   "poster": null,
+   "quiz": null,
+   "scene_id": "ws-p-stack",
+   "side_panel": null,
+   "start": 0.0,
+   "subtitle": null,
+   "title": "Find the current",
+   "type": "content"
+  }
+ ],
+ "schema_version": 3,
+ "screenplay_revision": null,
+ "total_duration": 9.3,
+ "transition_seconds": 0.4,
+ "version_id": null,
+ "width": 1080
+}

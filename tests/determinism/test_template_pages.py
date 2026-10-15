@@ -26,7 +26,9 @@ from tests.compose.dynamic.template_fixtures import fixture_name, fixture_paths,
 pytestmark = [pytest.mark.slow, pytest.mark.container]
 TOKEN = "template.page"
 PATHS = fixture_paths()
-PILOTS = ("formula_focus", "list_build", "media_split")
+# every implemented template with fixtures (B2c's three pilots plus the demo phase's six)
+PILOTS = ("chapter_bumper", "definition_card", "formula_focus", "hook_question", "key_terms", "list_build",
+          "media_split", "recap_retrieval", "worked_steps")
 
 
 def test_every_pilot_has_fixtures_in_both_formats() -> None:

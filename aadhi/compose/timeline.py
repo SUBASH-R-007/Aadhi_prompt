@@ -781,8 +781,13 @@ def _assemble(
     chapters = build_chapters(screenplay, scenes)
     presentation: TimelinePresentation | None = None
     if dynamic and screenplay.presentation is not None:
-        for timed, look in zip(scenes, resolve_looks(screenplay, scenes, chapters)):
+        from .dynamic.direct import plan as direct_plan  # lazy: a classic build imports no Dynamic module
+
+        plans = direct_plan(screenplay, scenes, screenplay.presentation.format, chapters)
+        for timed, look, scene_plan in zip(scenes, resolve_looks(screenplay, scenes, chapters, plans), plans,
+                                           strict=True):
             timed.look = look
+            timed.events = list(scene_plan.events)
         presentation = timeline_presentation(screenplay.presentation, scenes, _r(t))
     return Timeline(
         version_id=version_id,

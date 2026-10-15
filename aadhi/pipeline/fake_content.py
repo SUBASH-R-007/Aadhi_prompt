@@ -1443,8 +1443,10 @@ def _worked_steps(inp: dict[str, Any]) -> list[dict[str, Any]] | None:
             said = lead.rstrip(".") + ", we get" if lead else "This gives"
             beats.append(_beat(f"{said} {speakable(expr)}.", item))
     takeaway = next((s for s in reversed(inp["sents"]) if "=" not in s and s != problem and s not in setup), "")
+    # the closing line is SPOKEN, not written: a worked example's board is its setup line plus its steps (design
+    # §4.3 worked_steps data, templates.py ``_fit_worked_steps``), and a takeaway tile on the same board sends the
+    # whole scene back to board_generic (B2-demo review D1). The lecture's own takeaways are `key_takeaway` scenes.
     beats.append(_beat(takeaway or "Always check that the result is simpler and still means the same thing.",
-                       {"kind": "takeaway", "text": key_phrase(takeaway) if takeaway else "Check every step"},
                        highlight_steps=[2]))
     return beats
 
@@ -1474,7 +1476,7 @@ def _situation(inp: dict[str, Any]) -> list[dict[str, Any]]:
                            {"kind": "example_step", "text": "Say it in your own words", "justification": "check yourself"},
                            pause_after=2.0))
     if conclusion:
-        beats.append(_beat(conclusion, {"kind": "takeaway", "text": key_phrase(conclusion)}))
+        beats.append(_beat(conclusion))  # spoken, not written (see ``_worked_steps``: the board stays the example)
     return beats
 
 
@@ -1496,8 +1498,8 @@ def _example(inp: dict[str, Any]) -> list[dict[str, Any]]:
                   {"kind": "example_step", "text": f"${lhs} = {va} {sym} {vb} = {res_s}$", "blank": True,
                    "justification": "substitute the given values"}, pause_after=3.0),
             _beat(f"{va} {word} {vb} gives {res_s}, so {lhs} is {res_s}.", fill_previous_blank=True),
-            _beat("Always check that the answer is sensible before you move on.",
-                  {"kind": "takeaway", "text": "Substitute, compute, then sanity-check the result"}, highlight_steps=[2]),
+            # spoken, not written (see ``_worked_steps``: the board stays the example, so worked_steps can draw it)
+            _beat("Always check that the answer is sensible before you move on.", highlight_steps=[2]),
         ]
     return _worked_steps(inp) or _situation(inp)
 

@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import dataclasses
+import json
 import re
 from pathlib import Path
 from typing import Any
@@ -604,6 +605,59 @@ def test_fit_quantity_formula_procedure_code_refutation() -> None:
     assert fits(board(item("misconception", justification=None))) == {"board_generic": FIT_FALLBACK}  # no fact card
 
 
+def _example_prompt(text: str) -> str:
+    """A ``GenBoardScene`` prompt for an ``example`` scene over ``text`` (``prompting.json_section``'s shape)."""
+    def section(title: str, payload: Any) -> str:
+        return f"## {title}\n```json\n{json.dumps(payload)}\n```\n"
+    return (section("This scene", {"type": "example", "concept": {"title": "Ohm's law"}, "source_refs": ["c1"],
+                                   "bridge_in": "Let's work through an example."})
+            + section("Relevant source", [{"id": "c1", "text": text}])
+            + section("Lecture", {"session_title": "Ohm's law"}))
+
+
+# the two shapes ``fake_content``'s ``example`` scene takes: a formula example (``_example`` / ``_worked_steps``) and
+# a situation example (``_situation``)
+EXAMPLE_SOURCES = (
+    "Ohm's law relates the three quantities. Consider a lamp of resistance 5 ohm on a 10 volt supply. "
+    "We start from V = I * R. Substituting the values, 10 = I * 5. Therefore I = 2. "
+    "The current through the lamp is two amperes.",
+    "A node has two incoming currents. Consider a junction where 5 A and 3 A enter. "
+    "By Kirchhoff's current law, the total is 5 + 3. So the total is 8 A. "
+    "Therefore the outgoing current equals the sum of the incoming ones.",
+)
+
+
+def test_worked_steps_fit_and_the_example_row_accept_the_same_shapes() -> None:
+    """§4.4's ``example`` row and ``_fit_worked_steps`` share ``WORKED_EXTRA``, so neither can accept a shape the
+    other scores 0 (``fit`` is ``min(best, data)``) - review D1, where the fit was widened and the row was not, so
+    every generated worked example fell back to board_generic."""
+    steps = [item("example_step", 1), item("example_step", 2, blank=True)]
+    for top in ("heading", "callout_info", "paragraph"):
+        scene = board(item(top), *steps, type="example")
+        assert rows(scene) == ["example"], top
+        assert fits(scene)["worked_steps"] == 1.0, top
+    assert tp.TEMPLATES["worked_steps"].data_fit(board(*steps, type="example"), "landscape") == 1.0  # no top line
+    two_tops = board(item("heading"), item("callout_info"), *steps, type="example")
+    assert "worked_steps" not in fits(two_tops) and rows(two_tops) == ["fallback"]  # one top line, or board_generic
+    # worked_steps.js draws no takeaway tile and no side panel: such a scene is board_generic's whole (CG-2)
+    assert "worked_steps" not in fits(board(item("callout_info"), *steps, item("takeaway"), type="example"))
+    assert "worked_steps" not in fits(board(item("callout_info"), *steps, type="example", panel="graph"))
+
+
+@pytest.mark.parametrize("source", EXAMPLE_SOURCES)
+def test_worked_steps_draws_the_board_the_generator_writes(source: str) -> None:
+    """The board ``fake_content`` writes for an ``example`` scene is a worked_steps board, in both formats (review
+    D1: its trailing takeaway tile made every generated worked example board_generic's)."""
+    from aadhi.pipeline import fake_content
+
+    out = fake_content.board_responder(_example_prompt(source), BoardScene)  # the responder ignores the schema
+    kinds = [b["board"]["kind"] for b in out["beats"] if b["board"]]
+    assert out["side_panel"] is None and kinds.count("example_step") >= 2
+    scene = board(*[item(kind, n) for n, kind in enumerate(kinds)], type="example")
+    assert rows(scene) == ["example"]
+    assert fits(scene)["worked_steps"] == 1.0 and fits(scene, "portrait")["worked_steps"] == 1.0
+
+
 def test_fit_prompts_and_recap() -> None:
     blank = item("question", blank=True)
     assert fits(board(blank, role="predict")) == {"predict": 1.0, "board_generic": FIT_FALLBACK}
@@ -614,6 +668,12 @@ def test_fit_prompts_and_recap() -> None:
     assert fits(board(*recap, type="recap", presenter=True)) == {"aadhi_recap": 1.0, "board_generic": FIT_FALLBACK}
     assert fits(board(*recap, item("takeaway", 7), type="recap"))["recap_retrieval"] == FIT_STRETCHED
     assert "recap_retrieval" not in fits(board(*recap, item("bullet"), type="recap"))
+    # recap_retrieval.js draws no medium and plans no media box, so a recap carrying a side panel is board_generic's
+    # whole (CG-2; review D5: the panel's picture was planned by no one and vanished from the video)
+    for panel in ("image", "figure", "chart", "graph", "terminal"):
+        panelled = board(*recap, type="recap", panel=panel)
+        assert "recap_retrieval" not in fits(panelled), panel
+        assert "recap_retrieval" not in fits(panelled, "portrait"), panel
 
 
 def test_fit_media_row() -> None:

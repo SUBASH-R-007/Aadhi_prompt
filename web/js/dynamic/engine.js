@@ -1,7 +1,8 @@
 // @ts-check
 /**
  * The look-engine generations the Dynamic stage draws (B2 plan §1.3, deviation register 21). A timeline records the
- * generation of the resolver that built it in `TimelinePresentation.engine_version` (1 = B1's, 2 = B2's; absent = 1);
+ * generation of the resolver that built it in `TimelinePresentation.engine_version` (1 = B1's, 2 = B2a's,
+ * 3 = the demo phase's director; absent = 1);
  * the stage contract stays aadhiStage v3. The stage refuses a timeline of a generation newer than it knows (a newer
  * server than this page: the render page rejects `ready` with `timeline_invalid`, the live player's `load()` rejects
  * with that code) and otherwise draws whatever fields the timeline carries: it feature-detects them and never branches
@@ -12,7 +13,7 @@
  */
 
 /** The newest look-engine generation this stage draws (aadhi/compose/presentation.py ENGINE_VERSION). */
-export const ENGINE_VERSION = 2;
+export const ENGINE_VERSION = 3;
 
 /**
  * A timeline's look-engine generation, read as aadhi/api/timelines.py `built_engine` reads it: an integer >= 1 is

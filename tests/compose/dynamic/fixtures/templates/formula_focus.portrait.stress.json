@@ -116,7 +116,7 @@
       "warn": "#9F4503"
     },
     "cue_term_style": "underline",
-    "engine_version": 2,
+    "engine_version": 3,
     "entity_colors": {
       "E_{\\mathrm{total}}": 0,
       "g": 2,

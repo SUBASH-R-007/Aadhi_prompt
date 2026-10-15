@@ -33,9 +33,15 @@ import { paintTransition, transitionAt } from './transitions.js';
 import { CaptionLayer, captionStyle } from './captions.js';
 import { LIVE_DRIFT, MediaView, mediaPlan as planMedia, presenterOf, frameUrl, mediaKey } from './media.js';
 import boardGeneric from './templates/board_generic.js';
+import chapterBumper from './templates/chapter_bumper.js';
+import definitionCard from './templates/definition_card.js';
 import formulaFocus from './templates/formula_focus.js';
+import hookQuestion from './templates/hook_question.js';
+import keyTerms from './templates/key_terms.js';
 import listBuild from './templates/list_build.js';
 import mediaSplit from './templates/media_split.js';
+import recapRetrieval from './templates/recap_retrieval.js';
+import workedSteps from './templates/worked_steps.js';
 import meshDrift from './backgrounds/mesh_drift.js';
 import colourBlock from './backgrounds/colour_block.js';
 
@@ -49,18 +55,25 @@ import colourBlock from './backgrounds/colour_block.js';
 /** @typedef {import('./core.js').Zones} Zones */
 
 /**
- * Templates by id (B1: board_generic; B2c: the pilots formula_focus, list_build and media_split; an unknown or
+ * Templates by id (B1: board_generic; B2c: the pilots formula_focus, list_build and media_split; the demo phase:
+ * chapter_bumper, definition_card, hook_question, key_terms, recap_retrieval and worked_steps; an unknown or
  * unreleased id falls back to board_generic). The catalogue's registry lists exactly these as `implemented`
- * (web/tests/dynamic/catalogue.test.js, tests/compose/dynamic/test_templates.py). Until B2e's direct.py the resolver
- * names board_generic for every scene (presentation.TEMPLATES), so the pilots draw only timelines that name them
- * (template fixtures, the gallery, tests): no timeline built today changes frames.
+ * (web/tests/dynamic/catalogue.test.js, tests/compose/dynamic/test_templates.py). The resolver asks
+ * `compose/dynamic/direct.py` which of them draws each scene (presentation.TEMPLATES), so a real lecture now uses
+ * them; `direct.candidate` is the gate, so a template joins the resolver's set by flipping `implemented`.
  * @type {Readonly<Record<string, TemplateModule>>}
  */
 export const TEMPLATES = Object.freeze({
   board_generic: boardGeneric,
+  chapter_bumper: chapterBumper,
+  definition_card: definitionCard,
   formula_focus: formulaFocus,
+  hook_question: hookQuestion,
+  key_terms: keyTerms,
   list_build: listBuild,
   media_split: mediaSplit,
+  recap_retrieval: recapRetrieval,
+  worked_steps: workedSteps,
 });
 /** Background presets by id (B1: mesh_drift and colour_block; unknown ids get mesh_drift). */
 export const BACKGROUNDS = Object.freeze({ mesh_drift: meshDrift, colour_block: colourBlock });

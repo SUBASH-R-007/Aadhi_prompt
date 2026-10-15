@@ -62,7 +62,7 @@ def test_the_registries_are_the_python_ones() -> None:
     assert bg["slots"]["title"]["portrait"]["default"] == {
         "w": 696, "max_lines": 2, "size": [56, 88], "role": "title", "face": "display", "weight": 700,
         "line_height": 1.06, "tracking_em": -0.015, "max_words": None, "max_chars": None, "prefer_lines": 1,
-        "critical": True}
+        "critical": True, "tabular_nums": False}
     assert bg["consumes"] == {"kinds": ["reveal", "fill"], "targets": ["item"],
                               "forms": {"reveal": ["item"], "fill": ["item"]}}
     # B2c review CG-5: the forms per kind, so the stage applies a cue only on a form its template draws it on

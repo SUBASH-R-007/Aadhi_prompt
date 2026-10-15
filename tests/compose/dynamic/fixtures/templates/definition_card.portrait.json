@@ -1,0 +1,273 @@
+{
+  "board_language": "en-IN",
+  "branding": {
+    "bgm_url": null,
+    "bgm_volume": 0.06,
+    "ding_url": null,
+    "mascot_clips": {},
+    "mascot_rig_url": null,
+    "static_background_url": null,
+    "tick_url": null
+  },
+  "captions": [
+    {
+      "end": 3.7,
+      "start": 0.6,
+      "text": "Resistance is what opposes charge."
+    },
+    {
+      "end": 7.3,
+      "start": 4.0,
+      "text": "Thin wires resist."
+    }
+  ],
+  "chapters": [
+    {
+      "start": 0.0,
+      "title": "Resistance"
+    }
+  ],
+  "concept_map": [],
+  "estimated": false,
+  "fps": 30,
+  "height": 1920,
+  "intro": null,
+  "language": "en-IN",
+  "learning_objectives": [],
+  "meta": {},
+  "presentation": {
+    "caption_style": "bold_outline",
+    "captions_burn": true,
+    "content": {
+      "entity:0": "#0FE3FE",
+      "entity:1": "#C4A4FE",
+      "entity:2": "#FEACE3",
+      "focus": "#F2D935",
+      "ink": "#F3F5F9",
+      "ink2": "#B9BEC7",
+      "mark": "#F2D935",
+      "ok": "#5DD8AA",
+      "warn": "#F8A87F"
+    },
+    "content_alt": {
+      "entity:0": "#0267C7",
+      "entity:1": "#80369E",
+      "entity:2": "#870C62",
+      "focus": "#141822",
+      "ink": "#141822",
+      "ink2": "#484D58",
+      "mark": "#F2D935",
+      "ok": "#016F50",
+      "warn": "#9F4503"
+    },
+    "cue_term_style": "underline",
+    "engine_version": 3,
+    "family": "deep_teal",
+    "fonts": {
+      "body": "inter",
+      "display": "outfit",
+      "indic": "noto_sans",
+      "mono": "jetbrains_mono"
+    },
+    "format": "portrait",
+    "generated_seconds": 8.0,
+    "mode": "dark",
+    "motion": "standard",
+    "motion_scale": 0.85,
+    "personality": "crisp",
+    "safe_zone": "universal",
+    "sfx": false,
+    "style": "dynamic",
+    "text_entrance": "baseline_reveal"
+  },
+  "scenes": [
+    {
+      "audio_asset_key": null,
+      "audio_duration": 7.2,
+      "audio_offset": 0.4,
+      "audio_url": null,
+      "beats": [
+        {
+          "beat_id": "dc-p-typical-1",
+          "board_item_id": "d1",
+          "captions": [
+            {
+              "end": 3.7,
+              "start": 0.6,
+              "text": "Resistance is what opposes charge."
+            }
+          ],
+          "end": 4.0,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 0,
+          "narration": "Resistance is what opposes charge.",
+          "phase": "main",
+          "speech_end": 3.7,
+          "start": 0.6,
+          "visual_cue": null,
+          "words": []
+        },
+        {
+          "beat_id": "dc-p-typical-2",
+          "board_item_id": "b1",
+          "captions": [
+            {
+              "end": 7.3,
+              "start": 4.0,
+              "text": "Thin wires resist."
+            }
+          ],
+          "end": 7.6,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 1,
+          "narration": "Thin wires resist.",
+          "phase": "main",
+          "speech_end": 7.3,
+          "start": 4.0,
+          "visual_cue": null,
+          "words": []
+        }
+      ],
+      "board": [
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "icon_hint": "filter",
+          "id": "d1",
+          "justification": null,
+          "kind": "definition",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": "Resistance",
+          "text": "what [[opposes]] charge",
+          "variables": []
+        },
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "b1",
+          "justification": null,
+          "kind": "bullet",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "Thin wires resist",
+          "variables": []
+        }
+      ],
+      "chapter_id": null,
+      "chapter_label": null,
+      "concept_id": null,
+      "duration": 8.0,
+      "events": [
+        {
+          "anchored": true,
+          "dur": 1.4,
+          "kind": "cue_term",
+          "sfx": null,
+          "t": 1.4,
+          "target": "d1",
+          "words": ""
+        },
+        {
+          "anchored": true,
+          "dur": null,
+          "kind": "reveal",
+          "sfx": null,
+          "t": 4.2,
+          "target": "b1",
+          "words": ""
+        }
+      ],
+      "figures": {},
+      "index": 0,
+      "layout": {
+        "fullscreen_media": false,
+        "mascot_position": "left",
+        "show_side_panel": true
+      },
+      "look": {
+        "background": {
+          "frozen_at": null,
+          "params": {
+            "tone": "bg"
+          },
+          "preset": "mesh_drift",
+          "seed": 7303
+        },
+        "hold_reason": null,
+        "icons": {
+          "d1": {
+            "filled": false,
+            "name": "funnel",
+            "paths": [
+              "M10 20a1 1 0 0 0 .553 .895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"
+            ],
+            "set": "lucide",
+            "stroke_width": 2.0,
+            "version": "1.48.0",
+            "viewBox": [
+              0.0,
+              0.0,
+              24.0,
+              24.0
+            ]
+          }
+        },
+        "presenter": null,
+        "template": "definition_card",
+        "text_fit": {},
+        "tokens": {
+          "bg": "#001B1C",
+          "bg-alt": "#002527",
+          "bg-tint": "#251118",
+          "block.base": "#7B64A8",
+          "block.highlight": "#A970B6",
+          "block.ink": "#FFFFFF",
+          "block.ink2": "#F1EFF7",
+          "scrim": "#001B1CC7",
+          "struct.accent": "#FF89B0",
+          "surface": "#0E3133"
+        },
+        "transition_in": {
+          "kind": "cut",
+          "seconds": 0.0
+        },
+        "variant": "card_icon_right"
+      },
+      "media": null,
+      "objective_ids": [],
+      "p5_code": null,
+      "poster": null,
+      "quiz": null,
+      "scene_id": "dc-p-typical",
+      "side_panel": null,
+      "start": 0.0,
+      "subtitle": null,
+      "title": "Resistance",
+      "type": "content"
+    }
+  ],
+  "schema_version": 3,
+  "screenplay_revision": null,
+  "total_duration": 8.0,
+  "transition_seconds": 0.4,
+  "version_id": null,
+  "width": 1080
+}

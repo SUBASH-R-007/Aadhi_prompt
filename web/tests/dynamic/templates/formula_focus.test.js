@@ -864,20 +864,20 @@ test('the catalogue\'s slots are this template\'s (templates.py mirrors LAYOUT; 
     assert.deepEqual({ ...spec('title') }, {
       w: w.title, max_lines: L.title.lines, size: [L.title.min, L.title.max], role: 'title', face: 'display', weight: L.title.weight,
       line_height: LINE_HEIGHT.display.latin, tracking_em: TITLE_TRACKING, max_words: null, max_chars: null,
-      prefer_lines: L.title.prefer || null, critical: true,
+      prefer_lines: L.title.prefer || null, critical: true, tabular_nums: false,
     });
     assert.deepEqual({ ...spec('formula') }, {
       w: w.formula, max_lines: null, size: [L.formula.min, L.formula.max], role: FORMULA_SLOT.role, face: FORMULA_SLOT.face,
       weight: FORMULA_SLOT.weight, line_height: FORMULA_SLOT.lineHeight, tracking_em: 0, max_words: null, max_chars: null,
-      prefer_lines: null, critical: true,
+      prefer_lines: null, critical: true, tabular_nums: false,
     });
     assert.deepEqual({ ...spec('text') }, {
       w: w.text, max_lines: L.text.lines, size: [L.text.min, L.text.max], role: 'body', face: 'body', weight: L.text.weight,
-      line_height: LINE_HEIGHT.body.latin, tracking_em: 0, max_words: null, max_chars: null, prefer_lines: null, critical: true,
+      line_height: LINE_HEIGHT.body.latin, tracking_em: 0, max_words: null, max_chars: null, prefer_lines: null, critical: true, tabular_nums: false,
     });
     assert.deepEqual({ ...spec('legend') }, {
       w: w.legend, max_lines: null, size: [L.legend.min, L.legend.max], role: 'label', face: 'body', weight: L.legend.weight,
-      line_height: LINE_HEIGHT.body.latin, tracking_em: 0, max_words: null, max_chars: null, prefer_lines: null, critical: true,
+      line_height: LINE_HEIGHT.body.latin, tracking_em: 0, max_words: null, max_chars: null, prefer_lines: null, critical: true, tabular_nums: false,
     });
   }
   const behaviour = templateBehaviour(ID);

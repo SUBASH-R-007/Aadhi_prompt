@@ -1,9 +1,11 @@
-"""Write the B2c reference frames for the owner's review (B2 plan §A step 3: "Reference frames produced for owner
-review"): each pilot template (formula_focus, media_split, list_build) in both formats and two families (one dark, one
-light), plus the cases that carry the open owner decisions (B2c review V11: media_split's long 9:16 phrases with a tall
-picture, its terminal card and a clip, which is never scaled; formula_focus's stress scenes with their crossfades),
-drawn by the real render page ``/render-dynamic`` at its semantic instants, into ``docs/plans/b2/b2c_frames/`` with an
-``index.html`` contact sheet.
+"""Write the reference frames for the owner's review (B2 plan §A step 3: "Reference frames produced for owner
+review"): every implemented template in both formats and two families (one dark, one light) - B2c's pilots
+formula_focus, media_split and list_build, and the demo phase's chapter_bumper, definition_card, hook_question,
+key_terms, recap_retrieval and worked_steps - plus the cases that carry the open owner decisions (B2c review V11:
+media_split's long 9:16 phrases with a tall picture, its terminal card and a clip, which is never scaled;
+formula_focus's and hook_question's stress scenes with their crossfades), drawn by the real render page
+``/render-dynamic`` at its semantic instants, into ``docs/plans/b2/demo_frames/`` with an ``index.html`` contact sheet.
+``docs/plans/b2/b2c_frames/`` keeps the earlier B2c-only sheet.
 
 The instants of each scene the template draws (scene time, seconds):
 
@@ -43,7 +45,7 @@ from typing import Any
 from aadhi.config import ROOT_DIR
 from tests.compose.dynamic.template_fixtures import FIXTURE_DIR, fixture_name
 
-OUT_DIR = ROOT_DIR / "docs" / "plans" / "b2" / "b2c_frames"
+OUT_DIR = ROOT_DIR / "docs" / "plans" / "b2" / "demo_frames"
 TOKEN = "b2c.reference"
 SETTLE = 0.9  # an entrance (450-600 ms, times the personality's scale) and its state change are done
 CUE_PEAK = 0.7  # the cue's draw (sweep 300 ms, outline 250 ms, push 600 ms, tint and brace 300 ms) is complete
@@ -67,6 +69,21 @@ CHOSEN: dict[tuple[str, str], tuple[str, ...]] = {
                                   "media_split.portrait.long.json", "media_split.portrait.json+clip"),
     ("list_build", "landscape"): ("list_build.landscape.json", "list_build.landscape.tamil.json"),
     ("list_build", "portrait"): ("list_build.portrait.json", "list_build.portrait.hindi.json"),
+    # the demo phase's six, each a dark typical case plus its light / Indic / stress case
+    ("chapter_bumper", "landscape"): ("chapter_bumper.landscape.json", "chapter_bumper.landscape.light.json"),
+    ("chapter_bumper", "portrait"): ("chapter_bumper.portrait.json", "chapter_bumper.portrait.hindi.json"),
+    ("definition_card", "landscape"): ("definition_card.landscape.json", "definition_card.landscape.light.json"),
+    ("definition_card", "portrait"): ("definition_card.portrait.json", "definition_card.portrait.indic.json"),
+    ("hook_question", "landscape"): ("hook_question.landscape.json", "hook_question.landscape.light.json",
+                                     "hook_question.landscape.stress.json"),
+    ("hook_question", "portrait"): ("hook_question.portrait.json", "hook_question.portrait.light.json",
+                                    "hook_question.portrait.stress.json"),
+    ("key_terms", "landscape"): ("key_terms.landscape.json", "key_terms.landscape.tamil.json"),
+    ("key_terms", "portrait"): ("key_terms.portrait.json", "key_terms.portrait.hindi.json"),
+    ("recap_retrieval", "landscape"): ("recap_retrieval.landscape.json", "recap_retrieval.landscape.tamil.json"),
+    ("recap_retrieval", "portrait"): ("recap_retrieval.portrait.json", "recap_retrieval.portrait.hindi.json"),
+    ("worked_steps", "landscape"): ("worked_steps.landscape.json", "worked_steps.landscape.light.json"),
+    ("worked_steps", "portrait"): ("worked_steps.portrait.json", "worked_steps.portrait.light.json"),
 }
 CLIP = "+clip"
 
@@ -157,10 +174,13 @@ async def _capture(settings: Any, base: str, name: str, out: Path) -> list[Shot]
 
 
 def contact_sheet(groups: dict[tuple[str, str], list[tuple[str, str, list[Shot]]]]) -> str:
-    """index.html: one section per template, a row per format and family, each frame captioned."""
+    """index.html: one section per template CAPTURED (never a hard-coded list: review D3, where the sheet still
+    named B2c's three pilots and left the demo phase's six templates out of the owner's size review), in CHOSEN's
+    order, with a row per format and family and each frame captioned."""
+    names = list(dict.fromkeys(t for t, _ in CHOSEN if any(k[0] == t for k in groups)))
     parts = ["""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>B2c reference frames</title>
+<title>B2 reference frames</title>
 <style>
 :root { color-scheme: light dark; --bg: #f6f6f4; --ink: #1b1d22; --muted: #5b606b; --card: #ffffff; --line: #d9dbe0; }
 @media (prefers-color-scheme: dark) { :root { --bg: #15171c; --ink: #eceef2; --muted: #9aa0ab; --card: #1f2229;
@@ -178,16 +198,16 @@ figure img { display: block; width: 100%; height: auto; }
 figcaption { padding: 6px 8px; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 figcaption b { color: var(--ink); font-weight: 600; }
 </style></head><body><main>
-<h1>B2c reference frames</h1>
-<p>The three pilot templates drawn by the real render page (<code>/render-dynamic</code>, render mode) from the
+<h1>B2 reference frames</h1>
+<p>__TEMPLATES__ drawn by the real render page (<code>/render-dynamic</code>, render mode) from the
 template fixtures in <code>tests/compose/dynamic/fixtures/templates/</code>, at their semantic instants: entrance
 settled, each beat, each cue at its peak, a crossfade's middle, and the hold (the scene's last frame). Both formats,
 a dark and a light family each, and the cases behind the open owner decisions (media_split's terminal card, long 9:16
 phrases beside a tall picture and a clip; formula_focus's stress scenes). Frames are saved at half size (960 x 540 or
 540 x 960) as JPEG q85; click one to open that file on its own. Regenerate with
 <code>python -m tests.compose.dynamic.make_reference_frames</code>.</p>
-"""]
-    for template in ("formula_focus", "media_split", "list_build"):
+""".replace("__TEMPLATES__", f"The {len(names)} templates <code>{html.escape(', '.join(names))}</code>")]
+    for template in names:
         parts.append(f"<h2>{html.escape(template)}</h2>")
         for fmt in ("landscape", "portrait"):
             for family, fixture, shots in groups.get((template, fmt), []):

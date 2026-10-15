@@ -1,0 +1,375 @@
+{
+ "board_language": "en-IN",
+ "branding": {
+  "bgm_url": null,
+  "bgm_volume": 0.06,
+  "ding_url": null,
+  "mascot_clips": {},
+  "mascot_rig_url": null,
+  "static_background_url": null,
+  "tick_url": null
+ },
+ "captions": [
+  {
+   "end": 2.1,
+   "start": 0.5,
+   "text": "First, the push."
+  },
+  {
+   "end": 4.1,
+   "start": 2.5,
+   "text": "Then the flow."
+  },
+  {
+   "end": 6.1,
+   "start": 4.5,
+   "text": "And what slows it."
+  }
+ ],
+ "chapters": [
+  {
+   "start": 0.0,
+   "title": "Three words first"
+  }
+ ],
+ "concept_map": [],
+ "estimated": false,
+ "fps": 30,
+ "height": 1920,
+ "intro": null,
+ "language": "en-IN",
+ "learning_objectives": [],
+ "meta": {
+  "session_number": "Session 3",
+  "session_title": "Circuits",
+  "subject_name": "Basic Electrical Engineering",
+  "unit_name": "Unit 2: DC Circuits"
+ },
+ "presentation": {
+  "caption_style": "clean_pill",
+  "captions_burn": true,
+  "content": {
+   "entity:0": "#0FE3FE",
+   "entity:1": "#C4A4FE",
+   "entity:2": "#FEACE3",
+   "focus": "#F2D935",
+   "ink": "#F3F5F9",
+   "ink2": "#B9BEC7",
+   "mark": "#F2D935",
+   "ok": "#5DD8AA",
+   "warn": "#F8A87F"
+  },
+  "content_alt": {
+   "entity:0": "#0267C7",
+   "entity:1": "#80369E",
+   "entity:2": "#870C62",
+   "focus": "#141822",
+   "ink": "#141822",
+   "ink2": "#484D58",
+   "mark": "#F2D935",
+   "ok": "#016F50",
+   "warn": "#9F4503"
+  },
+  "cue_term_style": "underline",
+  "engine_version": 3,
+  "family": "midnight_indigo",
+  "fonts": {
+   "body": "inter",
+   "display": "poppins",
+   "indic": "anek",
+   "mono": "jetbrains_mono"
+  },
+  "format": "portrait",
+  "generated_seconds": 7.3,
+  "mode": "dark",
+  "motion": "standard",
+  "motion_scale": 1.15,
+  "personality": "soft",
+  "safe_zone": "universal",
+  "sfx": false,
+  "style": "dynamic",
+  "text_entrance": "fade_rise"
+ },
+ "scenes": [
+  {
+   "audio_asset_key": null,
+   "audio_duration": 6.0,
+   "audio_offset": 0.5,
+   "audio_url": null,
+   "beats": [
+    {
+     "beat_id": "kt-p-stack-0",
+     "board_item_id": "p1",
+     "captions": [
+      {
+       "end": 2.1,
+       "start": 0.5,
+       "text": "First, the push."
+      }
+     ],
+     "end": 2.5,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 0,
+     "narration": "First, the push.",
+     "phase": "main",
+     "speech_end": 2.1,
+     "start": 0.5,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "kt-p-stack-1",
+     "board_item_id": "p2",
+     "captions": [
+      {
+       "end": 4.1,
+       "start": 2.5,
+       "text": "Then the flow."
+      }
+     ],
+     "end": 4.5,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 1,
+     "narration": "Then the flow.",
+     "phase": "main",
+     "speech_end": 4.1,
+     "start": 2.5,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "kt-p-stack-2",
+     "board_item_id": "p3",
+     "captions": [
+      {
+       "end": 6.1,
+       "start": 4.5,
+       "text": "And what slows it."
+      }
+     ],
+     "end": 6.5,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 2,
+     "narration": "And what slows it.",
+     "phase": "main",
+     "speech_end": 6.1,
+     "start": 4.5,
+     "visual_cue": null,
+     "words": []
+    }
+   ],
+   "board": [
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "h1",
+     "justification": null,
+     "kind": "heading",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "Three words first",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "icon_hint": "zap",
+     "id": "p1",
+     "justification": null,
+     "kind": "definition",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": "[[Voltage]]",
+     "text": "The push on charge",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "icon_hint": "activity",
+     "id": "p2",
+     "justification": null,
+     "kind": "definition",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": "Current",
+     "text": "The [[flow]] of charge",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "icon_hint": "shield",
+     "id": "p3",
+     "justification": null,
+     "kind": "definition",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": "Resistance",
+     "text": "What slows the flow",
+     "variables": []
+    }
+   ],
+   "chapter_id": null,
+   "chapter_label": null,
+   "concept_id": null,
+   "duration": 7.3,
+   "events": [
+    {
+     "anchored": true,
+     "dur": 1.3,
+     "kind": "cue_term",
+     "sfx": null,
+     "t": 1.0,
+     "target": "p1",
+     "words": ""
+    },
+    {
+     "anchored": true,
+     "dur": null,
+     "kind": "draw",
+     "sfx": null,
+     "t": 5.0,
+     "target": "p3",
+     "words": ""
+    }
+   ],
+   "figures": {},
+   "index": 0,
+   "layout": {
+    "fullscreen_media": false,
+    "mascot_position": "left",
+    "show_side_panel": true
+   },
+   "look": {
+    "background": {
+     "frozen_at": null,
+     "params": {
+      "tone": "bg"
+     },
+     "preset": "mesh_drift",
+     "seed": 7000
+    },
+    "hold_reason": null,
+    "icons": {
+     "p1": {
+      "filled": false,
+      "name": "zap",
+      "paths": [
+       "M15.914 4a1.5 1.5 0 0 0-2.474-1.561l-9 9A1.5 1.5 0 0 0 5.5 14h4.002a.5 .5 0 0 1 .471 .666L8.086 20a1.5 1.5 0 0 0 2.475 1.56l9-9A1.5 1.5 0 0 0 18.5 10h-3.997a.5 .5 0 0 1-.472-.667z"
+      ],
+      "set": "lucide",
+      "stroke_width": 2.0,
+      "version": "1.48.0",
+      "viewBox": [
+       0.0,
+       0.0,
+       24.0,
+       24.0
+      ]
+     },
+     "p2": {
+      "filled": false,
+      "name": "activity",
+      "paths": [
+       "M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25 .25 0 0 1-.48 0L9.24 2.18a.25 .25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"
+      ],
+      "set": "lucide",
+      "stroke_width": 2.0,
+      "version": "1.48.0",
+      "viewBox": [
+       0.0,
+       0.0,
+       24.0,
+       24.0
+      ]
+     },
+     "p3": {
+      "filled": false,
+      "name": "shield",
+      "paths": [
+       "M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+      ],
+      "set": "lucide",
+      "stroke_width": 2.0,
+      "version": "1.48.0",
+      "viewBox": [
+       0.0,
+       0.0,
+       24.0,
+       24.0
+      ]
+     }
+    },
+    "presenter": null,
+    "template": "key_terms",
+    "text_fit": {},
+    "tokens": {
+     "bg": "#10132C",
+     "bg-alt": "#181D37",
+     "bg-tint": "#26120C",
+     "block.base": "#A15778",
+     "block.highlight": "#C46979",
+     "block.ink": "#FFFFFF",
+     "block.ink2": "#F6EDF1",
+     "scrim": "#10132CC7",
+     "struct.accent": "#FF936D",
+     "surface": "#252A3F"
+    },
+    "transition_in": {
+     "kind": "cut",
+     "seconds": 0.0
+    },
+    "variant": null
+   },
+   "media": null,
+   "objective_ids": [],
+   "p5_code": null,
+   "poster": null,
+   "quiz": null,
+   "scene_id": "kt-p-stack",
+   "side_panel": null,
+   "start": 0.0,
+   "subtitle": null,
+   "title": "Three words first",
+   "type": "content"
+  }
+ ],
+ "schema_version": 3,
+ "screenplay_revision": null,
+ "total_duration": 7.3,
+ "transition_seconds": 0.4,
+ "version_id": null,
+ "width": 1080
+}

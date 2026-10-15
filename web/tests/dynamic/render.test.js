@@ -238,7 +238,7 @@ test('render-dynamic.html: module script only, the stage root, dynamic.css, no i
 // --- B2a: the look-engine generation, the templates' TeX, the post-ready conversion counter ----------------------------
 
 test('a timeline of a newer look engine is refused with timeline_invalid before anything loads (engine.js)', async () => {
-  for (const v of [3, 40]) {
+  for (const v of [4, 40]) {
     const { w, loads } = makePage();
     const tl = dynamicTimeline();
     tl.presentation.engine_version = v;
@@ -253,8 +253,8 @@ test('a timeline of a newer look engine is refused with timeline_invalid before 
   }
 });
 
-test('B2\'s look engine (a v2 timeline with its stored tokens), B1\'s and an unversioned timeline boot', async () => {
-  for (const v of [2, 1, undefined]) {
+test('the director\'s look engine, B2a\'s (a v2 timeline with its stored tokens), B1\'s and an unversioned timeline boot', async () => {
+  for (const v of [3, 2, 1, undefined]) {
     const { w } = makePage();
     const tl = dynamicTimeline();
     tl.presentation.engine_version = v;

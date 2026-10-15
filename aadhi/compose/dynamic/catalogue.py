@@ -116,7 +116,8 @@ def _boxes(boxes: tuple[zn.Box, ...]) -> list[dict[str, int]]:
 def _slot(s: tp.SlotSpec) -> dict[str, Any]:
     return {"w": s.w, "max_lines": s.max_lines, "size": list(s.size), "role": s.role, "face": s.face,
             "weight": s.weight, "line_height": s.line_height, "tracking_em": s.tracking_em, "max_words": s.max_words,
-            "max_chars": s.max_chars, "prefer_lines": s.prefer_lines, "critical": s.critical}
+            "max_chars": s.max_chars, "prefer_lines": s.prefer_lines, "critical": s.critical,
+            "tabular_nums": s.tabular_nums}
 
 
 def _template(spec: tp.TemplateSpec) -> dict[str, Any]:

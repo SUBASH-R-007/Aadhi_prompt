@@ -29,7 +29,26 @@ superseded where they conflict.
   checkout). For the next one, remember `C:/t/<wt>/node_modules` is a JUNCTION to the main repo's `node_modules`
   while `web/vendor` is a real copy: remove the junction with `cmd /c rmdir` BEFORE
   `git worktree remove --force` (never let a junction be deleted recursively).
-- **The next phase is prepared, not started:** `docs/plans/b2/demo_workflow.js` is a ready Workflow script (pass
+- **The DEMO PHASE is integrated (2026-10-15).** `docs/plans/b2/demo_workflow.js` ran: six template builders plus
+  the Director in parallel, then the integrator. What landed on `overhaul/v2`:
+  - **`direct.py` + `events.py` wired in.** `compose/presentation.py resolve_looks` takes the template and variant
+    from `dynamic.direct.plan`, `compose/timeline.py` puts the plan's events on each timed scene, and
+    `presentation.TEMPLATES` is now the implemented R1 set. **`ENGINE_VERSION` is 3** (presentation.py and
+    `web/js/dynamic/engine.js`), so a stored generation-2 Dynamic timeline is rebuilt at serve time.
+  - **Six more templates registered:** chapter_bumper, definition_card, hook_question, key_terms, recap_retrieval,
+    worked_steps (stage.js `TEMPLATES`, `templates.py` implemented/slots/consumes, catalogue regenerated). The
+    catalogue's `SlotSpec` gained `tabular_nums`.
+  - **A CG-2 parity rule extended:** a template's Python `fit` must refuse what its JS `drawsScene` refuses. The
+    demo render caught `worked_steps` being planned and then drawn by board_generic; side-panel guards were added to
+    `_fit_hook_question`, `_fit_worked_steps`, `_fit_key_terms` and `_fit_definition_card`.
+  - **Demo MP4s** of the showcase lecture (16:9 + 9:16, one dark and one light family) in `final_videos/demo_b2/`
+    with a README naming the template of every scene; reference frames for every implemented template in
+    `docs/plans/b2/demo_frames/index.html`.
+  - **Still board_generic in the demo:** `ai_video` (needs `full_bleed_media`), `simulation` (`animation_stage`),
+    `quiz_checkpoint` (`check`), and the worked examples and content scenes that carry a side panel no built
+    template draws. Those are the next step (the user's priority list: aadhi_intro, outro_next, myth_fact,
+    check/predict, code_walkthrough, chart_build, then B2d kinetic captions and B2f backgrounds/transitions).
+- **The workflow script that produced it:** `docs/plans/b2/demo_workflow.js` (pass
   `args: {base: <HEAD after the B2c merge>}`): direct.py + events.py wire the built templates into real lectures
   (template chosen by `TemplateSpec.fit` among implemented R1 templates; events generated from the screenplay),
   six more templates built in parallel (definition_card, chapter_bumper, hook_question, key_terms, worked_steps,

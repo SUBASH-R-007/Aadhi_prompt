@@ -606,6 +606,7 @@ export const TYPE_FLOORS = CATALOGUE.type.floors;
  * @property {number | null} max_chars
  * @property {number | null} prefer_lines
  * @property {boolean} critical
+ * @property {boolean} tabular_nums
  */
 
 /**

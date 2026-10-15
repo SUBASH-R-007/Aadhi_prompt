@@ -208,7 +208,7 @@ def test_an_older_look_engine_is_served_rebuilt(app_env) -> None:
         pid, vid, stored = _store_engine(harness, engine=1)
         c = harness.login("alice")
         served = c.get(f"/api/versions/{vid}/timeline").json()
-        assert served["presentation"]["engine_version"] == ENGINE_VERSION == 2 and not _marked(served)
+        assert served["presentation"]["engine_version"] == ENGINE_VERSION == 3 and not _marked(served)
         assert all(tuple(s["look"]["tokens"]) == themes.SCENE_TOKEN_KEYS for s in served["scenes"])
         with harness.db() as db:
             row = db.get(ProjectVersion, vid)
@@ -222,10 +222,10 @@ def test_an_older_look_engine_is_served_rebuilt(app_env) -> None:
         page = harness.client(browser=False).get("/api/render/timeline",
                                                  headers={"Authorization": f"Bearer {_render_token(vid)}"}).json()
         for other in (watch, page):
-            assert other["presentation"]["engine_version"] == 2 and not _marked(other)
+            assert other["presentation"]["engine_version"] == ENGINE_VERSION and not _marked(other)
 
 
-@pytest.mark.parametrize(("engine", "stale"), [(2, False), (3, False), (1, True), (2, True), (None, False)])
+@pytest.mark.parametrize(("engine", "stale"), [(3, False), (4, False), (1, True), (2, True), (None, False)])
 def test_other_builds_are_served_as_stored(app_env, engine: int | None, stale: bool) -> None:
     """Served exactly as stored: a current-generation build; one of a newer generation (the stage refuses it with
     timeline_invalid rather than a downgrade here); a stale build of the previous revision (served as built, as with
@@ -245,13 +245,13 @@ def test_the_etag_changes_with_the_look_engine(app_env, monkeypatch: pytest.Monk
     from aadhi.api import timelines
 
     with running(app_env, dynamic=True) as harness:
-        _, vid, _ = _store_engine(harness, engine=2)
+        _, vid, _ = _store_engine(harness, engine=3)
         c = harness.login("alice")
         first = c.get(f"/api/versions/{vid}/timeline")
         etag = first.headers["etag"]
         assert _marked(first.json())
         assert c.get(f"/api/versions/{vid}/timeline", headers={"If-None-Match": etag}).status_code == 304
-        monkeypatch.setattr(timelines, "ENGINE_VERSION", 3)
+        monkeypatch.setattr(timelines, "ENGINE_VERSION", 4)
         after = c.get(f"/api/versions/{vid}/timeline", headers={"If-None-Match": etag})
         assert after.status_code == 200 and after.headers["etag"] != etag
-        assert not _marked(after.json()), "the stored generation 2 is now older: rebuilt"
+        assert not _marked(after.json()), "the stored generation 3 is now older: rebuilt"

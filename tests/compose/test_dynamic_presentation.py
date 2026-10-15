@@ -16,6 +16,7 @@ import pytest
 
 from aadhi.compose import presentation as pres
 from aadhi.compose.captions import MAX_LINES
+from aadhi.compose.dynamic import direct
 from aadhi.compose.dynamic import faces as fc
 from aadhi.compose.dynamic import themes as th
 from aadhi.compose.timeline import DYNAMIC_FPS, build_timeline, preview_timeline
@@ -128,7 +129,7 @@ def test_presentation_is_resolved(flag_on: Settings) -> None:
                                                "indic": "noto_sans"}  # B2b: the B2 form of B1's faces
     assert (p.personality, p.caption_style, p.cue_term_style) == ("crisp", "clean_pill", "underline")
     assert (p.captions_burn, p.sfx, p.motion) == (True, False, "calm")
-    assert p.engine_version == pres.ENGINE_VERSION == 2  # the look-engine generation of the B2 resolver
+    assert p.engine_version == pres.ENGINE_VERSION == 3  # the look-engine generation of the B2 resolver
     assert p.content_alt == pres.content_tokens("light"), "the other mode's palette (code editor surface)"
     assert (p.family, p.mode, p.motion_scale) == ("midnight_indigo", "dark", 0.85)  # Crisp: x0.85 (§4.8)
     assert p.entity_colors == {"V": 0, "I": 1, "R": 2}  # Presentation.entity_colors, lesson-wide (R-30)
@@ -143,7 +144,8 @@ def test_looks_of_every_scene(flag_on: Settings) -> None:
     tl = build(dynamic_screenplay(), flag_on)
     for s in tl.scenes:
         look = s.look
-        assert look is not None and look.template == "board_generic"
+        # the director names a template the stage draws (presentation.TEMPLATES), board_generic as the fallback
+        assert look is not None and look.template in pres.TEMPLATES
         # B1's five anchors first, then the colours the B1 stage derived at run time (plan §1.2)
         assert tuple(look.tokens) == ("struct.accent", "bg", "bg-alt", "bg-tint", "surface", "block.base",
                                       "block.highlight", "block.ink", "block.ink2", "scrim")
@@ -152,7 +154,9 @@ def test_looks_of_every_scene(flag_on: Settings) -> None:
         assert look.background["preset"] == ("colour_block" if s.type == "chapter_card" else "mesh_drift")
         assert look.background["params"]["tone"] in pres.TONES
         assert 0 <= look.background["seed"] < 2**31
-        assert look.background["frozen_at"] is None
+        # R-55: a dense template (or a hold) freezes the background from the scene start, nothing else does
+        dense = look.template in pres.DENSE_TEMPLATES or look.hold_reason is not None
+        assert look.background["frozen_at"] == (0.0 if dense else None)
         assert look.transition_in["kind"] in pres.TRANSITIONS
     seeds = [s.look.background["seed"] for s in tl.scenes]
     assert len(set(seeds)) == len(seeds), "one composition per scene"
@@ -212,20 +216,27 @@ def test_the_teachers_look_is_honoured_within_what_b1_draws(flag_on: Settings) -
 
 def test_a_dense_template_freezes_its_background_throughout(flag_on: Settings, monkeypatch: pytest.MonkeyPatch) -> None:
     """R-55 (§4.5): throughout formula_focus, worked_steps and code_walkthrough the background is frozen from the
-    scene start, as a hold freezes it. The resolver draws board_generic only until B2e, so this is shown with the
-    resolver allowed to draw formula_focus; a scene without a hold in any other template keeps its drifting
-    background."""
-    looks = {"s-board": {"template": "formula_focus"}, "s-sim": {"template": "board_generic"}}
-    tl = build(dynamic_screenplay(looks=looks), flag_on)
-    by = {s.scene_id: s for s in tl.scenes}
-    assert by["s-board"].look.template == "board_generic", "B2c: still board_generic"
-    assert by["s-board"].look.background["frozen_at"] is None
-    monkeypatch.setattr(pres, "TEMPLATES", ("board_generic", "formula_focus"))
-    tl = build(dynamic_screenplay(looks=looks), flag_on)
+    scene start, as a hold freezes it; a scene without a hold in any other template keeps its drifting background.
+    This screenplay's boards are empty, so the director names ``board_generic`` for every scene; the rule under test
+    is the resolver's, so the director's plan for the content scene is rewritten to formula_focus here (the resolver
+    takes the template from the plan, §4.4)."""
+    import dataclasses
+
+    from aadhi.compose.dynamic import direct as dr
+
+    real_plan = dr.plan
+
+    def plan_with_a_formula(*a: Any, **kw: Any) -> Any:
+        return [dataclasses.replace(p, template="formula_focus") if p.scene_id == "s-board" else p
+                for p in real_plan(*a, **kw)]
+
+    monkeypatch.setattr(dr, "plan", plan_with_a_formula)
+    tl = build(dynamic_screenplay(), flag_on)
     by = {s.scene_id: s for s in tl.scenes}
     board = by["s-board"].look
     assert board.template == "formula_focus" and board.hold_reason is None
     assert board.background["frozen_at"] == 0.0, "frozen from the scene start"
+    assert by["s-sim"].look.template == "board_generic"
     assert by["s-sim"].look.background["frozen_at"] is None
 
 
@@ -438,6 +449,8 @@ B1_LOOKS = json.loads((Path(__file__).parent / "fixtures" / "b1_looks.json").rea
 B1_TOKEN_KEYS = ("struct.accent", "bg", "bg-alt", "bg-tint", "surface")
 # the presentation fields after B1: B2a's five and B2c's text_entrance
 B2A_PRESENTATION_KEYS = ("content_alt", "family", "mode", "motion_scale", "entity_colors", "text_entrance")
+# what the demo phase's director decides, so the B1 golden no longer pins it (checked against the plan instead)
+DIRECTED = frozenset({"template", "variant"})
 
 
 def golden_build(cfg: dict[str, Any], settings: Settings) -> dict[str, Any]:
@@ -448,10 +461,17 @@ def golden_build(cfg: dict[str, Any], settings: Settings) -> dict[str, Any]:
 @pytest.mark.parametrize("cfg", B1_LOOKS["configs"], ids=[c["name"] for c in B1_LOOKS["configs"]])
 def test_b1_choices_are_kept(flag_on: Settings, cfg: dict[str, Any]) -> None:
     """Against what the B1 resolver itself resolved (``fixtures/b1_looks.json``, captured from commit 54c72c5): the
-    template, variant, the five B1 tokens (value and order), background (preset, tone, seed, freeze), transition and
-    hold of every scene, and every B1 presentation value, are unchanged; what B2a adds is only added. The one
-    deliberate change: a lecture without ``Screenplay.chapters`` (``no_screenplay_chapters``) now changes accent and
-    tone where its chapter list (chapter cards) changes chapter, which B1 ignored (compose-classic bug 4)."""
+    five B1 tokens (value and order), background preset, tone and seed, transition and hold of every scene, and every
+    B1 presentation value, are unchanged; what B2a adds is only added.
+
+    Two deliberate changes:
+
+    * a lecture without ``Screenplay.chapters`` (``no_screenplay_chapters``) changes accent and tone where its chapter
+      list (chapter cards) changes chapter, which B1 ignored (compose-classic bug 4);
+    * the demo phase's director (``dynamic.direct``, engine generation 3) decides the ``template`` and ``variant`` of
+      every scene instead of naming ``board_generic`` everywhere, and a dense template it picks freezes the
+      background from the scene start (R-55). Those three fields are checked against the director's own plan here;
+      everything else still has to match B1 exactly."""
     tl = golden_build(cfg, flag_on)
     assert tl["chapters"] == cfg["chapters_list"]
     old_p, new_p = cfg["timeline_presentation"], tl["presentation"]
@@ -459,22 +479,34 @@ def test_b1_choices_are_kept(flag_on: Settings, cfg: dict[str, Any]) -> None:
     assert new_p["fonts"] == {**old_p["fonts"], "indic": "noto_sans"}
     assert fc.stage_roles(new_p["fonts"]) == fc.stage_roles(old_p["fonts"])
     assert {k: v for k, v in new_p.items() if k not in B2A_PRESENTATION_KEYS} == {
-        **old_p, "engine_version": 2, "fonts": new_p["fonts"]}
+        **old_p, "engine_version": 3, "fonts": new_p["fonts"]}
     assert list(new_p)[:len(old_p)] == list(old_p), "B1's keys keep their order"
     assert [s["scene_id"] for s in tl["scenes"]] == [s["scene_id"] for s in cfg["scenes"]]
     family = pres.family_for(cfg["presentation"].get("theme_family", "midnight_indigo"))
     timed = Timeline.model_validate(tl)
     numbers = pres.chapter_indices(timed.scenes, timed.chapters)
+    plans = {p.scene_id: p for p in direct.plan(
+        dynamic_screenplay(cfg["format"], chapters=cfg["chapters"], looks=cfg.get("looks"), **cfg["presentation"]),
+        timed.scenes, cfg["format"], timed.chapters)}
     for i, (old, new) in enumerate(zip(cfg["scenes"], tl["scenes"])):
         assert (new["start"], new["duration"]) == (old["start"], old["duration"])
         b1, look = old["look"], new["look"]
-        assert set(look) == set(b1), "B2a's look fields stay out of the JSON at their defaults here"
+        assert set(look) - DIRECTED <= set(b1) and set(b1) - DIRECTED <= set(look), \
+            "B2a's look fields stay out of the JSON at their defaults here"
         assert list(look["tokens"]) == [*B1_TOKEN_KEYS, *th.DERIVED_KEYS]
         assert look["tokens"] == th.scene_tokens(family, numbers[i])
+        # the director's, not B1's (engine 3): the template, its variant and a dense template's frozen background
+        decided = plans[new["scene_id"]]
+        assert (look["template"], look.get("variant")) == (decided.template, decided.variant)
+        dense = decided.template in pres.DENSE_TEMPLATES or look.get("hold_reason") is not None
+        assert look["background"]["frozen_at"] == (0.0 if dense else None)
         if cfg["name"] == "no_screenplay_chapters":
             continue
         assert {k: look["tokens"][k] for k in B1_TOKEN_KEYS} == b1["tokens"], (cfg["name"], old["scene_id"])
-        assert {k: v for k, v in look.items() if k != "tokens"} == {k: v for k, v in b1.items() if k != "tokens"}
+        assert {k: v for k, v in look.items() if k not in DIRECTED and k != "tokens"} == {
+            k: v for k, v in b1.items() if k not in DIRECTED and k != "tokens"}
+        assert {k: v for k, v in look["background"].items() if k != "frozen_at"} == {
+            k: v for k, v in b1["background"].items() if k != "frozen_at"}
     if cfg["name"] == "no_screenplay_chapters":
         # B1: one accent for the whole lecture, though its chapter list (and kicker) changes at the chapter card
         assert len({s["look"]["tokens"]["struct.accent"] for s in cfg["scenes"]}) == 1 and len(tl["chapters"]) == 2
@@ -483,7 +515,7 @@ def test_b1_choices_are_kept(flag_on: Settings, cfg: dict[str, Any]) -> None:
         assert [s["look"]["background"]["params"]["tone"] for s in tl["scenes"]][card:card + 4] == [
             "bg", "bg-alt", "bg-tint", "bg"], "the tone steps restart with the chapter (§4.5)"
         for old, new in zip(cfg["scenes"], tl["scenes"]):  # nothing else changed
-            keep = ("template", "variant", "transition_in", "hold_reason")
+            keep = ("transition_in", "hold_reason")
             assert {k: new["look"][k] for k in keep} == {k: old["look"][k] for k in keep}
             assert new["look"]["background"]["seed"] == old["look"]["background"]["seed"]
 
@@ -659,8 +691,9 @@ def test_presentation_carries_the_other_mode_family_and_entities(flag_on: Settin
 def test_the_resolver_draws_only_what_the_stage_implements() -> None:
     from aadhi.compose.dynamic import templates
 
-    # the resolver draws board_generic only until B2e's direct.py (a subset of what the stage implements)
-    assert pres.TEMPLATES == ("board_generic",) and set(pres.TEMPLATES) <= set(templates.IMPLEMENTED)
+    # the resolver draws exactly the implemented R1 templates; direct.candidate is the gate
+    assert set(pres.TEMPLATES) == {t for t, s in templates.TEMPLATES.items() if s.implemented and s.release == "R1"}
+    assert set(pres.TEMPLATES) <= set(templates.IMPLEMENTED)
     assert pres.DEFAULT_TEMPLATE == templates.FALLBACK_TEMPLATE
     assert pres.DENSE_TEMPLATES == tuple(k for k, s in templates.TEMPLATES.items() if s.dense)
     assert pres.BACKGROUNDS == tuple(k for k, b in templates.BACKGROUNDS.items() if b.implemented)

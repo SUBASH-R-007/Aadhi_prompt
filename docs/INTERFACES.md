@@ -197,7 +197,8 @@ marked_version(model, current: int) -> int                    # 3 when a v3 fiel
 # --- timeline.py, Dynamic video B2a (additive; every field left out of the JSON at its default, so a B1 timeline
 #     reads and writes back byte for byte; DYNAMIC_VIDEO_DESIGN §6.7 "As built in B2a")
 # TimelinePresentation:
-#   engine_version: int = 1 (>= 1)   # the LOOK-ENGINE GENERATION (1 = B1's resolver, 2 = B2's; the stage contract
+#   engine_version: int = 1 (>= 1)   # the LOOK-ENGINE GENERATION (1 = B1's resolver, 2 = B2a's, 3 = B2's
+#                                   # director; the stage contract
 #                                    # stays aadhiStage v3); compose.presentation.ENGINE_VERSION = 2
 #   content_alt: dict[str, str] = {} # the other mode's content tokens, the keys of `content`
 #   family: CatalogueId | None ; mode: "dark" | "light" | None
@@ -413,7 +414,7 @@ presentation.resolve_looks(screenplay, timed_scenes, chapters=None) -> list[Reso
 #   tone step resets at each chapter; transition_in: cut into scene 0, crossfade into/out of colour_block, else the
 #   requested cut/crossfade, else crossfade at a new chapter or a changed struct.accent, else cut; a crossfade lasts
 #   crossfade_seconds(d) (None -> cut); continues_from kept only when it names the previous scene
-presentation.timeline_presentation(presentation, timed_scenes, total) -> TimelinePresentation   # engine_version 2;
+presentation.timeline_presentation(presentation, timed_scenes, total) -> TimelinePresentation   # engine_version 3;
 #   also content_alt (themes.content_alt_tokens(mode)), family, mode, motion_scale, entity_colors
 presentation.ENGINE_VERSION = 2 ; CROSSFADE_SECONDS 0.45, CROSSFADE_MIN_SECONDS 0.3, CROSSFADE_MAX_SECONDS 0.5 (=
 #   transitions.js) ; CHAPTER_START_EPS = 1e-3

@@ -1,0 +1,606 @@
+{
+ "board_language": "en-IN",
+ "branding": {
+  "bgm_url": null,
+  "bgm_volume": 0.06,
+  "ding_url": null,
+  "mascot_clips": {},
+  "mascot_rig_url": null,
+  "static_background_url": null,
+  "tick_url": null
+ },
+ "captions": [
+  {
+   "end": 1.05,
+   "start": 0.5,
+   "text": "Before we close, let us test what stuck."
+  },
+  {
+   "end": 2.0,
+   "start": 1.45,
+   "text": "Here is the first one. Think about it."
+  },
+  {
+   "end": 2.95,
+   "start": 2.4,
+   "text": "Here is what happens."
+  },
+  {
+   "end": 3.9,
+   "start": 3.35,
+   "text": "Now a harder one."
+  },
+  {
+   "end": 4.85,
+   "start": 4.3,
+   "text": "Take your time with that."
+  },
+  {
+   "end": 5.8,
+   "start": 5.25,
+   "text": "Last, say them out loud."
+  },
+  {
+   "end": 6.75,
+   "start": 6.2,
+   "text": "That was the first big idea."
+  },
+  {
+   "end": 7.7,
+   "start": 7.15,
+   "text": "That was the second."
+  },
+  {
+   "end": 8.65,
+   "start": 8.1,
+   "text": "And that was the third."
+  }
+ ],
+ "chapters": [
+  {
+   "start": 0.0,
+   "title": "Retrieval check"
+  }
+ ],
+ "concept_map": [],
+ "estimated": false,
+ "fps": 30,
+ "height": 1080,
+ "intro": null,
+ "language": "en-IN",
+ "learning_objectives": [],
+ "meta": {
+  "session_number": "Session 3",
+  "session_title": "Circuits",
+  "subject_name": "Basic Electrical Engineering",
+  "unit_name": "Unit 2: DC Circuits"
+ },
+ "presentation": {
+  "caption_style": "clean_pill",
+  "captions_burn": true,
+  "content": {
+   "entity:0": "#0FE3FE",
+   "entity:1": "#C4A4FE",
+   "entity:2": "#FEACE3",
+   "focus": "#F2D935",
+   "ink": "#F3F5F9",
+   "ink2": "#B9BEC7",
+   "mark": "#F2D935",
+   "ok": "#5DD8AA",
+   "warn": "#F8A87F"
+  },
+  "content_alt": {
+   "entity:0": "#0267C7",
+   "entity:1": "#80369E",
+   "entity:2": "#870C62",
+   "focus": "#141822",
+   "ink": "#141822",
+   "ink2": "#484D58",
+   "mark": "#F2D935",
+   "ok": "#016F50",
+   "warn": "#9F4503"
+  },
+  "cue_term_style": "marker",
+  "engine_version": 3,
+  "family": "deep_teal",
+  "fonts": {
+   "body": "inter",
+   "display": "outfit",
+   "indic": "noto_sans",
+   "mono": "jetbrains_mono"
+  },
+  "format": "landscape",
+  "generated_seconds": 9.85,
+  "mode": "dark",
+  "motion": "standard",
+  "motion_scale": 0.85,
+  "personality": "crisp",
+  "safe_zone": "universal",
+  "sfx": false,
+  "style": "dynamic",
+  "text_entrance": "baseline_reveal"
+ },
+ "scenes": [
+  {
+   "audio_asset_key": null,
+   "audio_duration": 8.55,
+   "audio_offset": 0.5,
+   "audio_url": null,
+   "beats": [
+    {
+     "beat_id": "rr-l-full-0",
+     "board_item_id": "h1",
+     "captions": [
+      {
+       "end": 1.05,
+       "start": 0.5,
+       "text": "Before we close, let us test what stuck."
+      }
+     ],
+     "end": 1.45,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 0,
+     "narration": "Before we close, let us test what stuck.",
+     "phase": "main",
+     "speech_end": 1.05,
+     "start": 0.5,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "rr-l-full-1",
+     "board_item_id": "q1",
+     "captions": [
+      {
+       "end": 2.0,
+       "start": 1.45,
+       "text": "Here is the first one. Think about it."
+      }
+     ],
+     "end": 2.4,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 1,
+     "narration": "Here is the first one. Think about it.",
+     "phase": "main",
+     "speech_end": 2.0,
+     "start": 1.45,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "rr-l-full-2",
+     "board_item_id": null,
+     "captions": [
+      {
+       "end": 2.95,
+       "start": 2.4,
+       "text": "Here is what happens."
+      }
+     ],
+     "end": 3.35,
+     "estimated": false,
+     "fill_item_id": "q1",
+     "highlight_item_ids": [],
+     "index": 2,
+     "narration": "Here is what happens.",
+     "phase": "main",
+     "speech_end": 2.95,
+     "start": 2.4,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "rr-l-full-3",
+     "board_item_id": "q2",
+     "captions": [
+      {
+       "end": 3.9,
+       "start": 3.35,
+       "text": "Now a harder one."
+      }
+     ],
+     "end": 4.3,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 3,
+     "narration": "Now a harder one.",
+     "phase": "main",
+     "speech_end": 3.9,
+     "start": 3.35,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "rr-l-full-4",
+     "board_item_id": null,
+     "captions": [
+      {
+       "end": 4.85,
+       "start": 4.3,
+       "text": "Take your time with that."
+      }
+     ],
+     "end": 5.25,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 4,
+     "narration": "Take your time with that.",
+     "phase": "main",
+     "speech_end": 4.85,
+     "start": 4.3,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "rr-l-full-5",
+     "board_item_id": "r1",
+     "captions": [
+      {
+       "end": 5.8,
+       "start": 5.25,
+       "text": "Last, say them out loud."
+      }
+     ],
+     "end": 6.2,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 5,
+     "narration": "Last, say them out loud.",
+     "phase": "main",
+     "speech_end": 5.8,
+     "start": 5.25,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "rr-l-full-6",
+     "board_item_id": "t1",
+     "captions": [
+      {
+       "end": 6.75,
+       "start": 6.2,
+       "text": "That was the first big idea."
+      }
+     ],
+     "end": 7.15,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 6,
+     "narration": "That was the first big idea.",
+     "phase": "main",
+     "speech_end": 6.75,
+     "start": 6.2,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "rr-l-full-7",
+     "board_item_id": "t2",
+     "captions": [
+      {
+       "end": 7.7,
+       "start": 7.15,
+       "text": "That was the second."
+      }
+     ],
+     "end": 8.1,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 7,
+     "narration": "That was the second.",
+     "phase": "main",
+     "speech_end": 7.7,
+     "start": 7.15,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "rr-l-full-8",
+     "board_item_id": "t3",
+     "captions": [
+      {
+       "end": 8.65,
+       "start": 8.1,
+       "text": "And that was the third."
+      }
+     ],
+     "end": 9.05,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 8,
+     "narration": "And that was the third.",
+     "phase": "main",
+     "speech_end": 8.65,
+     "start": 8.1,
+     "visual_cue": null,
+     "words": []
+    }
+   ],
+   "board": [
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "h1",
+     "justification": null,
+     "kind": "heading",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "Retrieval check",
+     "variables": []
+    },
+    {
+     "blank": true,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "q1",
+     "justification": "More voltage pushes more current through the same resistance.",
+     "kind": "question",
+     "language": null,
+     "latex": null,
+     "level": "apply",
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "Why does a bulb glow brighter on a [[higher voltage]]?",
+     "variables": []
+    },
+    {
+     "blank": true,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "q2",
+     "justification": "The current halves, so the heat it gives out falls.",
+     "kind": "question",
+     "language": null,
+     "latex": null,
+     "level": "transfer",
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "A heater draws $I = V / R$. What if $R$ doubles?",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "r1",
+     "justification": null,
+     "kind": "question",
+     "language": null,
+     "latex": null,
+     "level": "recall",
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "Name the big ideas of this session.",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "icon_hint": "battery",
+     "id": "t1",
+     "justification": null,
+     "kind": "takeaway",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "[[Voltage]] pushes charge round a closed loop",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "icon_hint": "shield",
+     "id": "t2",
+     "justification": null,
+     "kind": "takeaway",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "Resistance limits the current a loop carries",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "icon_hint": "lightbulb",
+     "id": "t3",
+     "justification": null,
+     "kind": "takeaway",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "Power is the energy a load turns into work",
+     "variables": []
+    }
+   ],
+   "chapter_id": null,
+   "chapter_label": null,
+   "concept_id": null,
+   "duration": 9.85,
+   "events": [
+    {
+     "anchored": true,
+     "dur": 1.2,
+     "kind": "cue_term",
+     "sfx": null,
+     "t": 1.4,
+     "target": "q1:term:0",
+     "words": ""
+    },
+    {
+     "anchored": true,
+     "dur": null,
+     "kind": "answer",
+     "sfx": null,
+     "t": 4.3,
+     "target": "q2",
+     "words": ""
+    },
+    {
+     "anchored": true,
+     "dur": 1.0,
+     "kind": "cue_term",
+     "sfx": null,
+     "t": 7.4,
+     "target": "t1",
+     "words": ""
+    }
+   ],
+   "figures": {},
+   "index": 0,
+   "layout": {
+    "fullscreen_media": false,
+    "mascot_position": "left",
+    "show_side_panel": true
+   },
+   "look": {
+    "background": {
+     "frozen_at": null,
+     "params": {
+      "tone": "bg"
+     },
+     "preset": "mesh_drift",
+     "seed": 7000
+    },
+    "hold_reason": null,
+    "icons": {
+     "t1": {
+      "filled": false,
+      "name": "battery",
+      "paths": [
+       "M22 14L22 10",
+       "M4 6H16A2 2 0 0 1 18 8V16A2 2 0 0 1 16 18H4A2 2 0 0 1 2 16V8A2 2 0 0 1 4 6Z"
+      ],
+      "set": "lucide",
+      "stroke_width": 2.0,
+      "version": "1.48.0",
+      "viewBox": [
+       0.0,
+       0.0,
+       24.0,
+       24.0
+      ]
+     },
+     "t2": {
+      "filled": false,
+      "name": "shield",
+      "paths": [
+       "M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+      ],
+      "set": "lucide",
+      "stroke_width": 2.0,
+      "version": "1.48.0",
+      "viewBox": [
+       0.0,
+       0.0,
+       24.0,
+       24.0
+      ]
+     },
+     "t3": {
+      "filled": false,
+      "name": "lightbulb",
+      "paths": [
+       "M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5 .7 .7 1.3 1.5 1.5 2.5",
+       "M9 18h6",
+       "M10 22h4"
+      ],
+      "set": "lucide",
+      "stroke_width": 2.0,
+      "version": "1.48.0",
+      "viewBox": [
+       0.0,
+       0.0,
+       24.0,
+       24.0
+      ]
+     }
+    },
+    "presenter": null,
+    "template": "recap_retrieval",
+    "text_fit": {},
+    "tokens": {
+     "bg": "#001B1C",
+     "bg-alt": "#002527",
+     "bg-tint": "#251118",
+     "block.base": "#7B64A8",
+     "block.highlight": "#A970B6",
+     "block.ink": "#FFFFFF",
+     "block.ink2": "#F1EFF7",
+     "scrim": "#001B1CC7",
+     "struct.accent": "#FF89B0",
+     "surface": "#0E3133"
+    },
+    "transition_in": {
+     "kind": "cut",
+     "seconds": 0.0
+    },
+    "variant": null
+   },
+   "media": null,
+   "objective_ids": [],
+   "p5_code": null,
+   "poster": null,
+   "quiz": null,
+   "scene_id": "rr-l-full",
+   "side_panel": null,
+   "start": 0.0,
+   "subtitle": null,
+   "title": "Retrieval check",
+   "type": "recap"
+  }
+ ],
+ "schema_version": 3,
+ "screenplay_revision": null,
+ "total_duration": 9.85,
+ "transition_seconds": 0.4,
+ "version_id": null,
+ "width": 1920
+}

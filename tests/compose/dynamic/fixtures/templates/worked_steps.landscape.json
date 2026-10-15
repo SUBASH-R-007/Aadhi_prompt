@@ -1,0 +1,424 @@
+{
+ "board_language": "en-IN",
+ "branding": {
+  "bgm_url": null,
+  "bgm_volume": 0.06,
+  "ding_url": null,
+  "mascot_clips": {},
+  "mascot_rig_url": null,
+  "static_background_url": null,
+  "tick_url": null
+ },
+ "captions": [
+  {
+   "end": 1.8,
+   "start": 0.5,
+   "text": "We know the voltage and the resistance."
+  },
+  {
+   "end": 3.5,
+   "start": 2.2,
+   "text": "So we put both numbers into the law."
+  },
+  {
+   "end": 5.2,
+   "start": 3.9,
+   "text": "That division gives the current."
+  },
+  {
+   "end": 6.9,
+   "start": 5.6,
+   "text": "Now work out the power yourself. Pause here."
+  },
+  {
+   "end": 8.6,
+   "start": 7.3,
+   "text": "The answer appears once you have tried it."
+  }
+ ],
+ "chapters": [
+  {
+   "start": 0.0,
+   "title": "Current through a resistor"
+  }
+ ],
+ "concept_map": [],
+ "estimated": false,
+ "fps": 30,
+ "height": 1080,
+ "intro": null,
+ "language": "en-IN",
+ "learning_objectives": [],
+ "meta": {
+  "session_number": "Session 3",
+  "session_title": "Circuits",
+  "subject_name": "Basic Electrical Engineering",
+  "unit_name": "Unit 2: DC Circuits"
+ },
+ "presentation": {
+  "caption_style": "clean_pill",
+  "captions_burn": true,
+  "content": {
+   "entity:0": "#0FE3FE",
+   "entity:1": "#C4A4FE",
+   "entity:2": "#FEACE3",
+   "focus": "#F2D935",
+   "ink": "#F3F5F9",
+   "ink2": "#B9BEC7",
+   "mark": "#F2D935",
+   "ok": "#5DD8AA",
+   "warn": "#F8A87F"
+  },
+  "content_alt": {
+   "entity:0": "#0267C7",
+   "entity:1": "#80369E",
+   "entity:2": "#870C62",
+   "focus": "#141822",
+   "ink": "#141822",
+   "ink2": "#484D58",
+   "mark": "#F2D935",
+   "ok": "#016F50",
+   "warn": "#9F4503"
+  },
+  "cue_term_style": "marker",
+  "engine_version": 3,
+  "entity_colors": {
+   "I": 2,
+   "R": 1,
+   "V": 0
+  },
+  "family": "deep_teal",
+  "fonts": {
+   "body": "inter",
+   "display": "outfit",
+   "indic": "noto_sans",
+   "mono": "jetbrains_mono"
+  },
+  "format": "landscape",
+  "generated_seconds": 9.8,
+  "mode": "dark",
+  "motion": "standard",
+  "motion_scale": 0.85,
+  "personality": "crisp",
+  "safe_zone": "universal",
+  "sfx": false,
+  "style": "dynamic",
+  "text_entrance": "baseline_reveal"
+ },
+ "scenes": [
+  {
+   "audio_asset_key": null,
+   "audio_duration": 8.5,
+   "audio_offset": 0.5,
+   "audio_url": null,
+   "beats": [
+    {
+     "beat_id": "ws-l-split-0",
+     "board_item_id": null,
+     "captions": [
+      {
+       "end": 1.8,
+       "start": 0.5,
+       "text": "We know the voltage and the resistance."
+      }
+     ],
+     "end": 2.2,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 0,
+     "narration": "We know the voltage and the resistance.",
+     "phase": "main",
+     "speech_end": 1.8,
+     "start": 0.5,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "ws-l-split-1",
+     "board_item_id": "s1",
+     "captions": [
+      {
+       "end": 3.5,
+       "start": 2.2,
+       "text": "So we put both numbers into the law."
+      }
+     ],
+     "end": 3.9,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 1,
+     "narration": "So we put both numbers into the law.",
+     "phase": "main",
+     "speech_end": 3.5,
+     "start": 2.2,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "ws-l-split-2",
+     "board_item_id": "s2",
+     "captions": [
+      {
+       "end": 5.2,
+       "start": 3.9,
+       "text": "That division gives the current."
+      }
+     ],
+     "end": 5.6,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 2,
+     "narration": "That division gives the current.",
+     "phase": "main",
+     "speech_end": 5.2,
+     "start": 3.9,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "ws-l-split-3",
+     "board_item_id": "s3",
+     "captions": [
+      {
+       "end": 6.9,
+       "start": 5.6,
+       "text": "Now work out the power yourself. Pause here."
+      }
+     ],
+     "end": 7.3,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 3,
+     "narration": "Now work out the power yourself. Pause here.",
+     "phase": "main",
+     "speech_end": 6.9,
+     "start": 5.6,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "ws-l-split-4",
+     "board_item_id": null,
+     "captions": [
+      {
+       "end": 8.6,
+       "start": 7.3,
+       "text": "The answer appears once you have tried it."
+      }
+     ],
+     "end": 9.0,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 4,
+     "narration": "The answer appears once you have tried it.",
+     "phase": "main",
+     "speech_end": 8.6,
+     "start": 7.3,
+     "visual_cue": null,
+     "words": []
+    }
+   ],
+   "board": [
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "x1",
+     "justification": null,
+     "kind": "callout_info",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "Example: a 12 V source across a 4 ohm resistor",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "f1",
+     "justification": null,
+     "kind": "formula",
+     "language": null,
+     "latex": "I = \\frac{V}{R}",
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "Ohm's law gives the current.",
+     "variables": [
+      {
+       "meaning": "voltage across the resistor",
+       "symbol_latex": "V",
+       "unit": "V"
+      },
+      {
+       "meaning": "resistance",
+       "symbol_latex": "R",
+       "unit": "ohm"
+      },
+      {
+       "meaning": "current through it",
+       "symbol_latex": "I",
+       "unit": "A"
+      }
+     ]
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "s1",
+     "justification": "from Ohm's law",
+     "kind": "example_step",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "$I = 12 / 4$",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "s2",
+     "justification": "divide the voltage by the resistance",
+     "kind": "example_step",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "$I = 3\\ \\mathrm{A}$",
+     "variables": []
+    },
+    {
+     "blank": true,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "s3",
+     "justification": "power is voltage times current",
+     "kind": "example_step",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "$P = V I = 36\\ \\mathrm{W}$",
+     "variables": []
+    }
+   ],
+   "chapter_id": null,
+   "chapter_label": null,
+   "concept_id": null,
+   "duration": 9.8,
+   "events": [
+    {
+     "anchored": true,
+     "dur": 1.4,
+     "kind": "countdown",
+     "sfx": null,
+     "t": 5.68,
+     "target": "s3",
+     "words": ""
+    },
+    {
+     "anchored": true,
+     "dur": null,
+     "kind": "fill",
+     "sfx": null,
+     "t": 7.18,
+     "target": "s3",
+     "words": ""
+    },
+    {
+     "anchored": true,
+     "dur": 1.0,
+     "kind": "look_here",
+     "sfx": null,
+     "t": 4.3,
+     "target": "x1:step:2",
+     "words": ""
+    }
+   ],
+   "figures": {},
+   "index": 0,
+   "layout": {
+    "fullscreen_media": false,
+    "mascot_position": "left",
+    "show_side_panel": true
+   },
+   "look": {
+    "background": {
+     "frozen_at": 0.0,
+     "params": {
+      "tone": "bg"
+     },
+     "preset": "mesh_drift",
+     "seed": 7000
+    },
+    "hold_reason": null,
+    "presenter": null,
+    "template": "worked_steps",
+    "text_fit": {},
+    "tokens": {
+     "bg": "#001B1C",
+     "bg-alt": "#002527",
+     "bg-tint": "#251118",
+     "block.base": "#7B64A8",
+     "block.highlight": "#A970B6",
+     "block.ink": "#FFFFFF",
+     "block.ink2": "#F1EFF7",
+     "scrim": "#001B1CC7",
+     "struct.accent": "#FF89B0",
+     "surface": "#0E3133"
+    },
+    "transition_in": {
+     "kind": "cut",
+     "seconds": 0.0
+    },
+    "variant": null
+   },
+   "media": null,
+   "objective_ids": [],
+   "p5_code": null,
+   "poster": null,
+   "quiz": null,
+   "scene_id": "ws-l-split",
+   "side_panel": null,
+   "start": 0.0,
+   "subtitle": null,
+   "title": "Current through a resistor",
+   "type": "content"
+  }
+ ],
+ "schema_version": 3,
+ "screenplay_revision": null,
+ "total_duration": 9.8,
+ "transition_seconds": 0.4,
+ "version_id": null,
+ "width": 1920
+}

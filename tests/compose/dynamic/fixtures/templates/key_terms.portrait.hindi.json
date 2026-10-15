@@ -1,0 +1,537 @@
+{
+ "board_language": "hi-IN",
+ "branding": {
+  "bgm_url": null,
+  "bgm_volume": 0.06,
+  "ding_url": null,
+  "mascot_clips": {},
+  "mascot_rig_url": null,
+  "static_background_url": null,
+  "tick_url": null
+ },
+ "captions": [
+  {
+   "end": 1.7,
+   "start": 0.5,
+   "text": "पहले धक्का।"
+  },
+  {
+   "end": 3.3,
+   "start": 2.1,
+   "text": "फिर बहाव।"
+  },
+  {
+   "end": 4.9,
+   "start": 3.7,
+   "text": "और विरोध।"
+  },
+  {
+   "end": 7.6,
+   "start": 6.6,
+   "text": "Work gets done."
+  },
+  {
+   "end": 9.0,
+   "start": 8.0,
+   "text": "And how fast."
+  }
+ ],
+ "chapters": [
+  {
+   "start": 0.0,
+   "title": "पहले ये शब्द"
+  },
+  {
+   "start": 6.1,
+   "title": "Two more words"
+  }
+ ],
+ "concept_map": [],
+ "estimated": false,
+ "fps": 30,
+ "height": 1920,
+ "intro": null,
+ "language": "hi-IN",
+ "learning_objectives": [],
+ "meta": {
+  "session_number": "Session 3",
+  "session_title": "Circuits",
+  "subject_name": "Basic Electrical Engineering",
+  "unit_name": "Unit 2: DC Circuits"
+ },
+ "presentation": {
+  "caption_style": "clean_pill",
+  "captions_burn": true,
+  "content": {
+   "entity:0": "#0267C7",
+   "entity:1": "#80369E",
+   "entity:2": "#870C62",
+   "focus": "#141822",
+   "ink": "#141822",
+   "ink2": "#484D58",
+   "mark": "#F2D935",
+   "ok": "#016F50",
+   "warn": "#9F4503"
+  },
+  "content_alt": {
+   "entity:0": "#0FE3FE",
+   "entity:1": "#C4A4FE",
+   "entity:2": "#FEACE3",
+   "focus": "#F2D935",
+   "ink": "#F3F5F9",
+   "ink2": "#B9BEC7",
+   "mark": "#F2D935",
+   "ok": "#5DD8AA",
+   "warn": "#F8A87F"
+  },
+  "cue_term_style": "marker",
+  "engine_version": 3,
+  "family": "mint_studio",
+  "fonts": {
+   "body": "inter",
+   "display": "outfit",
+   "indic": "noto_sans",
+   "mono": "jetbrains_mono"
+  },
+  "format": "portrait",
+  "generated_seconds": 10.2,
+  "mode": "light",
+  "motion": "standard",
+  "motion_scale": 1.15,
+  "personality": "soft",
+  "safe_zone": "universal",
+  "sfx": false,
+  "style": "dynamic",
+  "text_entrance": "fade_rise"
+ },
+ "scenes": [
+  {
+   "audio_asset_key": null,
+   "audio_duration": 4.8,
+   "audio_offset": 0.5,
+   "audio_url": null,
+   "beats": [
+    {
+     "beat_id": "kt-hi-stack-0",
+     "board_item_id": "k1",
+     "captions": [
+      {
+       "end": 1.7,
+       "start": 0.5,
+       "text": "पहले धक्का।"
+      }
+     ],
+     "end": 2.1,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 0,
+     "narration": "पहले धक्का।",
+     "phase": "main",
+     "speech_end": 1.7,
+     "start": 0.5,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "kt-hi-stack-1",
+     "board_item_id": "k2",
+     "captions": [
+      {
+       "end": 3.3,
+       "start": 2.1,
+       "text": "फिर बहाव।"
+      }
+     ],
+     "end": 3.7,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 1,
+     "narration": "फिर बहाव।",
+     "phase": "main",
+     "speech_end": 3.3,
+     "start": 2.1,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "kt-hi-stack-2",
+     "board_item_id": "k3",
+     "captions": [
+      {
+       "end": 4.9,
+       "start": 3.7,
+       "text": "और विरोध।"
+      }
+     ],
+     "end": 5.3,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 2,
+     "narration": "और विरोध।",
+     "phase": "main",
+     "speech_end": 4.9,
+     "start": 3.7,
+     "visual_cue": null,
+     "words": []
+    }
+   ],
+   "board": [
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "h1",
+     "justification": null,
+     "kind": "heading",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "पहले ये शब्द",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "icon_hint": "zap",
+     "id": "k1",
+     "justification": null,
+     "kind": "definition",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": "[[वोल्टेज]]",
+     "text": "आवेश को धकेलने वाला बल",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "k2",
+     "justification": null,
+     "kind": "definition",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": "धारा",
+     "text": "आवेश का [[बहाव]]",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "icon_hint": "shield",
+     "id": "k3",
+     "justification": null,
+     "kind": "definition",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": "प्रतिरोध",
+     "text": "बहाव का विरोध",
+     "variables": []
+    }
+   ],
+   "chapter_id": null,
+   "chapter_label": null,
+   "concept_id": null,
+   "duration": 6.1,
+   "events": [
+    {
+     "anchored": true,
+     "dur": 1.2,
+     "kind": "cue_term",
+     "sfx": null,
+     "t": 0.9,
+     "target": "k1",
+     "words": ""
+    }
+   ],
+   "figures": {},
+   "index": 0,
+   "layout": {
+    "fullscreen_media": false,
+    "mascot_position": "left",
+    "show_side_panel": true
+   },
+   "look": {
+    "background": {
+     "frozen_at": null,
+     "params": {
+      "tone": "bg"
+     },
+     "preset": "mesh_drift",
+     "seed": 7000
+    },
+    "hold_reason": null,
+    "icons": {
+     "k1": {
+      "filled": false,
+      "name": "zap",
+      "paths": [
+       "M15.914 4a1.5 1.5 0 0 0-2.474-1.561l-9 9A1.5 1.5 0 0 0 5.5 14h4.002a.5 .5 0 0 1 .471 .666L8.086 20a1.5 1.5 0 0 0 2.475 1.56l9-9A1.5 1.5 0 0 0 18.5 10h-3.997a.5 .5 0 0 1-.472-.667z"
+      ],
+      "set": "lucide",
+      "stroke_width": 2.0,
+      "version": "1.48.0",
+      "viewBox": [
+       0.0,
+       0.0,
+       24.0,
+       24.0
+      ]
+     },
+     "k3": {
+      "filled": false,
+      "name": "shield",
+      "paths": [
+       "M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+      ],
+      "set": "lucide",
+      "stroke_width": 2.0,
+      "version": "1.48.0",
+      "viewBox": [
+       0.0,
+       0.0,
+       24.0,
+       24.0
+      ]
+     }
+    },
+    "presenter": null,
+    "template": "key_terms",
+    "text_fit": {},
+    "tokens": {
+     "bg": "#E4F9F1",
+     "bg-alt": "#DAEFE7",
+     "bg-tint": "#EAF0FF",
+     "block.base": "#4F69D7",
+     "block.highlight": "#5E79DC",
+     "block.ink": "#FFFFFF",
+     "block.ink2": "#D9E1FA",
+     "scrim": "#E4F9F1C7",
+     "struct.accent": "#4F69D7",
+     "surface": "#FBFEFD"
+    },
+    "transition_in": {
+     "kind": "cut",
+     "seconds": 0.0
+    },
+    "variant": null
+   },
+   "media": null,
+   "objective_ids": [],
+   "p5_code": null,
+   "poster": null,
+   "quiz": null,
+   "scene_id": "kt-hi-stack",
+   "side_panel": null,
+   "start": 0.0,
+   "subtitle": null,
+   "title": "पहले ये शब्द",
+   "type": "content"
+  },
+  {
+   "audio_asset_key": null,
+   "audio_duration": 2.8,
+   "audio_offset": 0.5,
+   "audio_url": null,
+   "beats": [
+    {
+     "beat_id": "kt-hi-minimal-0",
+     "board_item_id": "n1",
+     "captions": [
+      {
+       "end": 1.5,
+       "start": 0.5,
+       "text": "Work gets done."
+      }
+     ],
+     "end": 1.9,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 0,
+     "narration": "Work gets done.",
+     "phase": "main",
+     "speech_end": 1.5,
+     "start": 0.5,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "kt-hi-minimal-1",
+     "board_item_id": "n2",
+     "captions": [
+      {
+       "end": 2.9,
+       "start": 1.9,
+       "text": "And how fast."
+      }
+     ],
+     "end": 3.3,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 1,
+     "narration": "And how fast.",
+     "phase": "main",
+     "speech_end": 2.9,
+     "start": 1.9,
+     "visual_cue": null,
+     "words": []
+    }
+   ],
+   "board": [
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "icon_hint": "battery",
+     "id": "n1",
+     "justification": null,
+     "kind": "definition",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": "Energy",
+     "text": "Work the loop does",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "n2",
+     "justification": null,
+     "kind": "definition",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": "[[Power]]",
+     "text": "Energy each second",
+     "variables": []
+    }
+   ],
+   "chapter_id": null,
+   "chapter_label": null,
+   "concept_id": null,
+   "duration": 4.1,
+   "events": [
+    {
+     "anchored": true,
+     "dur": 1.0,
+     "kind": "cue_term",
+     "sfx": null,
+     "t": 2.0,
+     "target": "n2",
+     "words": ""
+    }
+   ],
+   "figures": {},
+   "index": 1,
+   "layout": {
+    "fullscreen_media": false,
+    "mascot_position": "left",
+    "show_side_panel": true
+   },
+   "look": {
+    "background": {
+     "frozen_at": null,
+     "params": {
+      "tone": "bg"
+     },
+     "preset": "mesh_drift",
+     "seed": 7001
+    },
+    "hold_reason": null,
+    "icons": {
+     "n1": {
+      "filled": false,
+      "name": "battery",
+      "paths": [
+       "M22 14L22 10",
+       "M4 6H16A2 2 0 0 1 18 8V16A2 2 0 0 1 16 18H4A2 2 0 0 1 2 16V8A2 2 0 0 1 4 6Z"
+      ],
+      "set": "lucide",
+      "stroke_width": 2.0,
+      "version": "1.48.0",
+      "viewBox": [
+       0.0,
+       0.0,
+       24.0,
+       24.0
+      ]
+     }
+    },
+    "presenter": null,
+    "template": "key_terms",
+    "text_fit": {},
+    "tokens": {
+     "bg": "#E4F9F1",
+     "bg-alt": "#DAEFE7",
+     "bg-tint": "#FEE9F6",
+     "block.base": "#B24393",
+     "block.highlight": "#BB589E",
+     "block.ink": "#FFFFFF",
+     "block.ink2": "#F3DAE9",
+     "scrim": "#E4F9F1C7",
+     "struct.accent": "#B24393",
+     "surface": "#FBFEFD"
+    },
+    "transition_in": {
+     "kind": "crossfade",
+     "seconds": 0.45
+    },
+    "variant": null
+   },
+   "media": null,
+   "objective_ids": [],
+   "p5_code": null,
+   "poster": null,
+   "quiz": null,
+   "scene_id": "kt-hi-minimal",
+   "side_panel": null,
+   "start": 6.1,
+   "subtitle": null,
+   "title": "Two more words",
+   "type": "content"
+  }
+ ],
+ "schema_version": 3,
+ "screenplay_revision": null,
+ "total_duration": 10.2,
+ "transition_seconds": 0.4,
+ "version_id": null,
+ "width": 1080
+}

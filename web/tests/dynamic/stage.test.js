@@ -1426,14 +1426,14 @@ test('static tex: every TeX string the template renders for a scene, in render o
 });
 
 test('a timeline of a newer look engine is refused (timeline_invalid); B1\'s, B2\'s and an unversioned one are drawn', () => {
-  for (const v of [3, 12]) {
+  for (const v of [4, 12]) {
     const tl = dynamicTimeline();
     tl.presentation.engine_version = v;
     const root = document.createElement('div');
     assert.throws(() => createDynamicStage(root, tl, { mode: 'render' }), (/** @type {any} */ e) => e.code === 'timeline_invalid' && /look engine/.test(e.message));
     assert.equal(root.childElementCount, 0, 'nothing built');
   }
-  for (const v of [1, 2, undefined]) {
+  for (const v of [1, 2, 3, undefined]) {
     const tl = dynamicTimeline();
     tl.presentation.engine_version = v;
     const root = document.createElement('div');

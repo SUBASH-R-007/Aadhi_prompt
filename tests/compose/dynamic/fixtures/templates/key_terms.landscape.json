@@ -1,0 +1,665 @@
+{
+ "board_language": "en-IN",
+ "branding": {
+  "bgm_url": null,
+  "bgm_volume": 0.06,
+  "ding_url": null,
+  "mascot_clips": {},
+  "mascot_rig_url": null,
+  "static_background_url": null,
+  "tick_url": null
+ },
+ "captions": [
+  {
+   "end": 1.7,
+   "start": 0.5,
+   "text": "First, the push itself."
+  },
+  {
+   "end": 3.3,
+   "start": 2.1,
+   "text": "Then what the push sets moving."
+  },
+  {
+   "end": 4.9,
+   "start": 3.7,
+   "text": "And what holds it back."
+  },
+  {
+   "end": 6.9,
+   "start": 6.6,
+   "text": "The longest meaning a lint allows."
+  },
+  {
+   "end": 7.6,
+   "start": 7.3,
+   "text": "One word longer than a card."
+  },
+  {
+   "end": 8.3,
+   "start": 8.0,
+   "text": "A formula inside the text."
+  },
+  {
+   "end": 9.0,
+   "start": 8.7,
+   "text": "And a unit symbol."
+  }
+ ],
+ "chapters": [
+  {
+   "start": 0.0,
+   "title": "Three words to know first"
+  },
+  {
+   "start": 6.1,
+   "title": "Stress terms"
+  }
+ ],
+ "concept_map": [],
+ "estimated": false,
+ "fps": 30,
+ "height": 1080,
+ "intro": null,
+ "language": "en-IN",
+ "learning_objectives": [],
+ "meta": {
+  "session_number": "Session 3",
+  "session_title": "Circuits",
+  "subject_name": "Basic Electrical Engineering",
+  "unit_name": "Unit 2: DC Circuits"
+ },
+ "presentation": {
+  "caption_style": "clean_pill",
+  "captions_burn": true,
+  "content": {
+   "entity:0": "#0FE3FE",
+   "entity:1": "#C4A4FE",
+   "entity:2": "#FEACE3",
+   "focus": "#F2D935",
+   "ink": "#F3F5F9",
+   "ink2": "#B9BEC7",
+   "mark": "#F2D935",
+   "ok": "#5DD8AA",
+   "warn": "#F8A87F"
+  },
+  "content_alt": {
+   "entity:0": "#0267C7",
+   "entity:1": "#80369E",
+   "entity:2": "#870C62",
+   "focus": "#141822",
+   "ink": "#141822",
+   "ink2": "#484D58",
+   "mark": "#F2D935",
+   "ok": "#016F50",
+   "warn": "#9F4503"
+  },
+  "cue_term_style": "marker",
+  "engine_version": 3,
+  "family": "deep_teal",
+  "fonts": {
+   "body": "inter",
+   "display": "outfit",
+   "indic": "noto_sans",
+   "mono": "jetbrains_mono"
+  },
+  "format": "landscape",
+  "generated_seconds": 10.2,
+  "mode": "dark",
+  "motion": "standard",
+  "motion_scale": 0.85,
+  "personality": "crisp",
+  "safe_zone": "universal",
+  "sfx": false,
+  "style": "dynamic",
+  "text_entrance": "baseline_reveal"
+ },
+ "scenes": [
+  {
+   "audio_asset_key": null,
+   "audio_duration": 4.8,
+   "audio_offset": 0.5,
+   "audio_url": null,
+   "beats": [
+    {
+     "beat_id": "kt-l-typical-0",
+     "board_item_id": "d1",
+     "captions": [
+      {
+       "end": 1.7,
+       "start": 0.5,
+       "text": "First, the push itself."
+      }
+     ],
+     "end": 2.1,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 0,
+     "narration": "First, the push itself.",
+     "phase": "main",
+     "speech_end": 1.7,
+     "start": 0.5,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "kt-l-typical-1",
+     "board_item_id": "d2",
+     "captions": [
+      {
+       "end": 3.3,
+       "start": 2.1,
+       "text": "Then what the push sets moving."
+      }
+     ],
+     "end": 3.7,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 1,
+     "narration": "Then what the push sets moving.",
+     "phase": "main",
+     "speech_end": 3.3,
+     "start": 2.1,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "kt-l-typical-2",
+     "board_item_id": "d3",
+     "captions": [
+      {
+       "end": 4.9,
+       "start": 3.7,
+       "text": "And what holds it back."
+      }
+     ],
+     "end": 5.3,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 2,
+     "narration": "And what holds it back.",
+     "phase": "main",
+     "speech_end": 4.9,
+     "start": 3.7,
+     "visual_cue": null,
+     "words": []
+    }
+   ],
+   "board": [
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "h1",
+     "justification": null,
+     "kind": "heading",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "Three words to know first",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "icon_hint": "zap",
+     "id": "d1",
+     "justification": null,
+     "kind": "definition",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": "[[Voltage]]",
+     "text": "The push that moves charge",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "icon_hint": "activity",
+     "id": "d2",
+     "justification": null,
+     "kind": "definition",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": "Current",
+     "text": "The [[flow]] of charge each second",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "icon_hint": "shield",
+     "id": "d3",
+     "justification": null,
+     "kind": "definition",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": "Resistance",
+     "text": "How much a path resists flow",
+     "variables": []
+    }
+   ],
+   "chapter_id": null,
+   "chapter_label": null,
+   "concept_id": null,
+   "duration": 6.1,
+   "events": [
+    {
+     "anchored": true,
+     "dur": 1.2,
+     "kind": "cue_term",
+     "sfx": null,
+     "t": 1.0,
+     "target": "d1",
+     "words": ""
+    },
+    {
+     "anchored": true,
+     "dur": 1.2,
+     "kind": "cue_term",
+     "sfx": null,
+     "t": 2.6,
+     "target": "d2",
+     "words": ""
+    },
+    {
+     "anchored": true,
+     "dur": null,
+     "kind": "draw",
+     "sfx": null,
+     "t": 5.0,
+     "target": "d3",
+     "words": ""
+    }
+   ],
+   "figures": {},
+   "index": 0,
+   "layout": {
+    "fullscreen_media": false,
+    "mascot_position": "left",
+    "show_side_panel": true
+   },
+   "look": {
+    "background": {
+     "frozen_at": null,
+     "params": {
+      "tone": "bg"
+     },
+     "preset": "mesh_drift",
+     "seed": 7000
+    },
+    "hold_reason": null,
+    "icons": {
+     "d1": {
+      "filled": false,
+      "name": "zap",
+      "paths": [
+       "M15.914 4a1.5 1.5 0 0 0-2.474-1.561l-9 9A1.5 1.5 0 0 0 5.5 14h4.002a.5 .5 0 0 1 .471 .666L8.086 20a1.5 1.5 0 0 0 2.475 1.56l9-9A1.5 1.5 0 0 0 18.5 10h-3.997a.5 .5 0 0 1-.472-.667z"
+      ],
+      "set": "lucide",
+      "stroke_width": 2.0,
+      "version": "1.48.0",
+      "viewBox": [
+       0.0,
+       0.0,
+       24.0,
+       24.0
+      ]
+     },
+     "d2": {
+      "filled": false,
+      "name": "activity",
+      "paths": [
+       "M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25 .25 0 0 1-.48 0L9.24 2.18a.25 .25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"
+      ],
+      "set": "lucide",
+      "stroke_width": 2.0,
+      "version": "1.48.0",
+      "viewBox": [
+       0.0,
+       0.0,
+       24.0,
+       24.0
+      ]
+     },
+     "d3": {
+      "filled": false,
+      "name": "shield",
+      "paths": [
+       "M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+      ],
+      "set": "lucide",
+      "stroke_width": 2.0,
+      "version": "1.48.0",
+      "viewBox": [
+       0.0,
+       0.0,
+       24.0,
+       24.0
+      ]
+     }
+    },
+    "presenter": null,
+    "template": "key_terms",
+    "text_fit": {},
+    "tokens": {
+     "bg": "#001B1C",
+     "bg-alt": "#002527",
+     "bg-tint": "#251118",
+     "block.base": "#7B64A8",
+     "block.highlight": "#A970B6",
+     "block.ink": "#FFFFFF",
+     "block.ink2": "#F1EFF7",
+     "scrim": "#001B1CC7",
+     "struct.accent": "#FF89B0",
+     "surface": "#0E3133"
+    },
+    "transition_in": {
+     "kind": "cut",
+     "seconds": 0.0
+    },
+    "variant": null
+   },
+   "media": null,
+   "objective_ids": [],
+   "p5_code": null,
+   "poster": null,
+   "quiz": null,
+   "scene_id": "kt-l-typical",
+   "side_panel": null,
+   "start": 0.0,
+   "subtitle": null,
+   "title": "Three words to know first",
+   "type": "content"
+  },
+  {
+   "audio_asset_key": null,
+   "audio_duration": 2.8,
+   "audio_offset": 0.5,
+   "audio_url": null,
+   "beats": [
+    {
+     "beat_id": "kt-l-stress-0",
+     "board_item_id": "s1",
+     "captions": [
+      {
+       "end": 0.8,
+       "start": 0.5,
+       "text": "The longest meaning a lint allows."
+      }
+     ],
+     "end": 1.2,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 0,
+     "narration": "The longest meaning a lint allows.",
+     "phase": "main",
+     "speech_end": 0.8,
+     "start": 0.5,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "kt-l-stress-1",
+     "board_item_id": "s2",
+     "captions": [
+      {
+       "end": 1.5,
+       "start": 1.2,
+       "text": "One word longer than a card."
+      }
+     ],
+     "end": 1.9,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 1,
+     "narration": "One word longer than a card.",
+     "phase": "main",
+     "speech_end": 1.5,
+     "start": 1.2,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "kt-l-stress-2",
+     "board_item_id": "s3",
+     "captions": [
+      {
+       "end": 2.2,
+       "start": 1.9,
+       "text": "A formula inside the text."
+      }
+     ],
+     "end": 2.6,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 2,
+     "narration": "A formula inside the text.",
+     "phase": "main",
+     "speech_end": 2.2,
+     "start": 1.9,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "kt-l-stress-3",
+     "board_item_id": "s4",
+     "captions": [
+      {
+       "end": 2.9,
+       "start": 2.6,
+       "text": "And a unit symbol."
+      }
+     ],
+     "end": 3.3,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 3,
+     "narration": "And a unit symbol.",
+     "phase": "main",
+     "speech_end": 2.9,
+     "start": 2.6,
+     "visual_cue": null,
+     "words": []
+    }
+   ],
+   "board": [
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "icon_hint": "ruler",
+     "id": "s1",
+     "justification": null,
+     "kind": "definition",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": "WIDE WATTAGE WORDS",
+     "text": "MAXIMUM WATTAGE WHEN WARM MOTORS MEET HEAVY LOADS",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "s2",
+     "justification": null,
+     "kind": "definition",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": "Long word",
+     "text": "Pneumonoultramicroscopicsilicovolcanoconiosis is one word",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "s3",
+     "justification": null,
+     "kind": "definition",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": "[[Ohm's law]]",
+     "text": "It says $V = I R$ holds",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "s4",
+     "justification": null,
+     "kind": "definition",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": "Unit",
+     "text": "Resistance is measured in ohm $\\Omega$",
+     "variables": []
+    }
+   ],
+   "chapter_id": null,
+   "chapter_label": null,
+   "concept_id": null,
+   "duration": 4.1,
+   "events": [
+    {
+     "anchored": true,
+     "dur": 1.0,
+     "kind": "cue_term",
+     "sfx": null,
+     "t": 2.3,
+     "target": "s3",
+     "words": ""
+    }
+   ],
+   "figures": {},
+   "index": 1,
+   "layout": {
+    "fullscreen_media": false,
+    "mascot_position": "left",
+    "show_side_panel": true
+   },
+   "look": {
+    "background": {
+     "frozen_at": null,
+     "params": {
+      "tone": "bg"
+     },
+     "preset": "mesh_drift",
+     "seed": 7001
+    },
+    "hold_reason": null,
+    "icons": {
+     "s1": {
+      "filled": false,
+      "name": "ruler",
+      "paths": [
+       "M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z",
+       "m14.5 12.5 2-2",
+       "m11.5 9.5 2-2",
+       "m8.5 6.5 2-2",
+       "m17.5 15.5 2-2"
+      ],
+      "set": "lucide",
+      "stroke_width": 2.0,
+      "version": "1.48.0",
+      "viewBox": [
+       0.0,
+       0.0,
+       24.0,
+       24.0
+      ]
+     }
+    },
+    "presenter": null,
+    "template": "key_terms",
+    "text_fit": {},
+    "tokens": {
+     "bg": "#001B1C",
+     "bg-alt": "#002527",
+     "bg-tint": "#221505",
+     "block.base": "#6C7B23",
+     "block.highlight": "#998A0A",
+     "block.ink": "#14161C",
+     "block.ink2": "#162E3B",
+     "scrim": "#001B1CC7",
+     "struct.accent": "#F49F1E",
+     "surface": "#0E3133"
+    },
+    "transition_in": {
+     "kind": "crossfade",
+     "seconds": 0.45
+    },
+    "variant": null
+   },
+   "media": null,
+   "objective_ids": [],
+   "p5_code": null,
+   "poster": null,
+   "quiz": null,
+   "scene_id": "kt-l-stress",
+   "side_panel": null,
+   "start": 6.1,
+   "subtitle": null,
+   "title": "Stress terms",
+   "type": "content"
+  }
+ ],
+ "schema_version": 3,
+ "screenplay_revision": null,
+ "total_duration": 10.2,
+ "transition_seconds": 0.4,
+ "version_id": null,
+ "width": 1920
+}

@@ -509,6 +509,25 @@ def _media_board(scene: SceneBase) -> bool:
     return texts <= 3 and (_panel(scene) in MEDIA_PANELS or counts.get("figure", 0) == 1)
 
 
+# The one top line ``worked_steps.js`` draws above the steps (its TOP_KINDS: a heading, or the setup line the
+# generator writes as a ``callout_info`` or a ``paragraph``), and with an optional formula the only non-step items a
+# worked example may carry.
+WORKED_TOP: Final = ("heading", "callout_info", "paragraph")
+WORKED_EXTRA: Final[Mapping[str, int]] = MappingProxyType({**{k: 1 for k in WORKED_TOP}, "formula": 1})
+
+
+def _worked_shape(scene: SceneBase) -> bool:
+    """The board shape ``worked_steps`` draws: ``example_step`` items, at most one top line and at most one formula.
+
+    The §4.4 ``example`` row and :func:`_fit_worked_steps` both ask this one question, so neither can accept a shape
+    the other refuses: ``fit`` is ``min(best, data)``, so a shape only one of them takes scores 0 and the template is
+    unreachable (B2-demo review D1, where the data fit was widened and the row was not)."""
+    if not _shape(scene, {"example_step": (1, None)}, WORKED_EXTRA):
+        return False
+    counts = _kinds(scene)
+    return sum(counts.get(k, 0) for k in WORKED_TOP) <= 1
+
+
 def signals(scene: SceneBase, *, last: bool = False, chapter_end: bool = False) -> tuple[Signal, ...]:
     """Every §4.4 row ``scene`` (a screenplay scene) matches, in the table's order. A scene type that forces a template
     matches that row alone. A board scene may match several rows (a takeaway beside a picture: ``statement`` and
@@ -571,7 +590,7 @@ def signals(scene: SceneBase, *, last: bool = False, chapter_end: bool = False) 
         out.append(Signal("graph", "quantity", "function_plot"))
     if _shape(scene, {"formula": (1, 1)}):
         out.append(Signal("formula", "formula", "formula_focus"))
-    if _shape(scene, {"example_step": (1, None)}, {"heading": 1, "formula": 1}):
+    if _worked_shape(scene):
         out.append(Signal("example", "procedure", "worked_steps"))
     if _shape(scene, {"code": (1, 1)}):
         out.append(Signal("code", "code", "code_walkthrough"))
@@ -616,14 +635,21 @@ def _fit_aadhi_recap(scene: SceneBase, fmt: Format) -> float:
 
 
 def _fit_hook_question(scene: SceneBase, fmt: Format) -> float:
-    # one question item (<= 12 words; <= 8 in 9:16), and the opening scene's title heading
+    # one question item (<= 12 words; <= 8 in 9:16), and the opening scene's title heading. The page draws no side
+    # panel (hook_question.js drawsScene hands such a scene to board_generic whole), so a scene with one is not this
+    # template's (B2c review CG-2: the fit and the page agree, or the director picks a template that then falls back)
+    if _panel(scene) is not None:
+        return FIT_NONE
     if not _shape(scene, {"question": (1, 1)}):
         return FIT_NONE
     return _ok(_words(_of(scene, "question")[0].text) <= (12 if fmt == "landscape" else 8))
 
 
 def _fit_key_terms(scene: SceneBase, fmt: Format) -> float:
-    # 2-4 definition items: term <= 3 words, meaning <= 8 words
+    # 2-4 definition items: term <= 3 words, meaning <= 8 words. key_terms.js draws no medium (drawsScene hands a
+    # scene with a panel to board_generic whole), so such a scene is not this template's (B2c review CG-2).
+    if _panel(scene) is not None:
+        return FIT_NONE
     if not _shape(scene, {"definition": (2, 4)}):
         return FIT_NONE
     return _ok(all(_words(d.term) <= 3 and _words(d.text) <= 8 for d in _of(scene, "definition")))
@@ -634,7 +660,12 @@ def _fit_chapter_bumper(scene: SceneBase, fmt: Format) -> float:
 
 
 def _fit_recap_retrieval(scene: SceneBase, fmt: Format) -> float:
-    # a recap BoardScene: question items (2 in 16:9, 1 in 9:16) and a free-recall prompt, then 3 takeaway tiles
+    # a recap BoardScene: question items (2 in 16:9, 1 in 9:16) and a free-recall prompt, then 3 takeaway tiles.
+    # §4.3 gives the recap no picture and recap_retrieval.js draws none (its ``mediaBox`` returns null), so a recap
+    # carrying a side panel is board_generic's: without this guard the director picked this template and the panel's
+    # medium was never planned, fetched or drawn (B2c review CG-2, B2-demo review D5)
+    if _panel(scene) is not None:
+        return FIT_NONE
     if not (isinstance(scene, BoardScene) and scene.type == "recap" and _of(scene, "question")):
         return FIT_NONE
     counts = _kinds(scene)
@@ -653,7 +684,13 @@ def _fit_outro_next(scene: SceneBase, fmt: Format) -> float:
 
 
 def _fit_definition_card(scene: SceneBase, fmt: Format) -> float:
-    # a definition item plus an optional bullet example
+    # a definition item plus an optional bullet example; a side panel only where the page draws one
+    # (definition_card.js drawsScene: 16:9 a picture or clip beside the card, 9:16 nothing - the column holds the card
+    # alone). Such a scene is board_generic's, and direct.py, which builds on this score, never sends it here (B2c
+    # review CG-2). DEFINITION_PANELS is defined with the slot table below.
+    panel = _panel(scene)
+    if panel is not None and (fmt == "portrait" or panel not in ("figure", "image", "manim", "gif")):
+        return FIT_NONE
     return FIT_PREFERRED if _shape(scene, {"definition": (1, 1)}, {"bullet": 1}) else FIT_NONE
 
 
@@ -763,8 +800,15 @@ def _fit_formula_focus(scene: SceneBase, fmt: Format) -> float:
 
 
 def _fit_worked_steps(scene: SceneBase, fmt: Format) -> float:
-    # example_step items (blank steps plus fill beats) and an optional formula
-    return FIT_PREFERRED if _shape(scene, {"example_step": (1, None)}, {"heading": 1, "formula": 1}) else FIT_NONE
+    # example_step items (blank steps plus fill beats) and an optional formula, plus the one top line the page draws
+    # (worked_steps.js: heading | callout_info | paragraph - the generator writes a worked example's setup as a
+    # ``callout_info``, so without this the demo's worked examples would all fall back to board_generic). At most one
+    # of the three: two such items send the scene to board_generic (B2 reading, pending the owner's review).
+    # ``_worked_shape`` is the §4.4 ``example`` row's own question, so the row and this fit never drift apart (D1).
+    # the page draws no side panel either (worked_steps.js drawsScene), so such a scene is board_generic's (CG-2)
+    if _panel(scene) is not None:
+        return FIT_NONE
+    return FIT_PREFERRED if _worked_shape(scene) else FIT_NONE
 
 
 # §4.3 code_walkthrough with deviation 13 (R-29 wins: 36 px in 16:9): <= 17 lines of <= 60 chars; 9:16 <= 10 lines of
@@ -1086,6 +1130,272 @@ def _list_build_slots() -> SlotTable:
     return MappingProxyType({slot: MappingProxyType({f: MappingProxyType(v) for f, v in per.items()})
                              for slot, per in out.items()})
 
+# --- chapter_bumper's slots (B2 demo): web/js/dynamic/templates/chapter_bumper.js LAYOUT / LINE_HEIGHT (§4.3;
+# deviation 14 "the bumper numeral is a decorative outline role outside R-29"): the bumper sets its text in the `full`
+# region (16:9) and in the upper critical box `text-above` (9:16). The title is the chapter's name (critical); the
+# kicker (the label's non-digit words) and the numeral are decoration. chapter_bumper.test.js pins the catalogue's rows
+# to the template's own ``slotRows``. Every size is a B2 proposal pending the owner's review.
+def _chapter_bumper_slots() -> SlotTable:
+    wide = zn.REGIONS["landscape"]["full"].w            # 1728
+    narrow = zn.REGIONS["portrait"]["text-above"].w     # 696
+
+    def title(w: int, size: tuple[float, float]) -> SlotSpec:
+        return SlotSpec(w=w, max_lines=2, size=size, role="title", face="display", weight=700, line_height=1.06,
+                        prefer_lines=1)
+
+    def kicker(w: int, size: float) -> SlotSpec:
+        return SlotSpec(w=w, max_lines=1, size=(size, size), role="label", face="body", weight=600,
+                        line_height=1.2, critical=False)
+
+    def numeral(w: int, size: float) -> SlotSpec:
+        return SlotSpec(w=w, max_lines=1, size=(size, size), role="label", face="display", weight=700,
+                        line_height=1.0, critical=False, tabular_nums=True)
+
+    out = {
+        "kicker": {"landscape": {"default": kicker(wide, 40)}, "portrait": {"default": kicker(narrow, 44)}},
+        "numeral": {"landscape": {"default": numeral(wide, 320)}, "portrait": {"default": numeral(narrow, 240)}},
+        "title": {"landscape": {"default": title(wide, (84, 96))}, "portrait": {"default": title(narrow, (56, 88))}},
+    }
+    return MappingProxyType({slot: MappingProxyType({f: MappingProxyType(v) for f, v in per.items()})
+                             for slot, per in out.items()})
+
+
+# --- definition_card's slots (B2 demo): web/js/dynamic/templates/definition_card.js LAYOUT, boxes() and slotRows()
+# (definition_card.test.js pins the catalogue's rows to slotRows). The 16:9 "default" variant is the narrowest of the
+# three (card_image_left), so a size stored without knowing the variant is an upper bound for all of them; 9:16 has one
+# column (the text column, which the card's padding grows around), so one "default". The meaning and the example rows
+# have no line cap: their height, not a line count, has to fit the card (the B2c pilots' rule). Line heights are the
+# type scale's Latin values; the page sets Indic text at the Indic floors (1.25 / 1.45). B2 proposals, pending the
+# owner's review.
+DEFINITION_CARD_PAD: Final[Mapping[Format, int]] = MappingProxyType({"landscape": 48, "portrait": 32})
+DEFINITION_CARD_MARKER: Final = 36   # the example rows' marker column
+DEFINITION_CARD_GUTTER: Final = 24   # what the 16:9 card keeps from the picture beside it
+# definition_card.js PICTURE_PANELS: the panels it shows beside the card, in 16:9 only (9:16 holds the card alone)
+DEFINITION_PANELS: Final = ("figure", "image", "manim", "gif")
+
+
+def _definition_card_slots() -> SlotTable:
+    def term(w: int, size: tuple[float, float]) -> SlotSpec:
+        return SlotSpec(w=w, max_lines=2, size=size, role="title", face="display", weight=700, line_height=1.05,
+                        tracking_em=-0.015, prefer_lines=1)
+
+    def body(w: int, size: tuple[float, float], weight: int) -> SlotSpec:
+        return SlotSpec(w=w, max_lines=None, size=size, role="body", face="body", weight=weight, line_height=1.35)
+
+    regions = zn.REGIONS["landscape"]
+    pad_l = DEFINITION_CARD_PAD["landscape"]
+    icon_col = int(zn.LAYOUT.icon["feature_px"]) + pad_l            # the 16:9 icon column and its gap
+    widths = {
+        "card_icon_right": regions["full"].w - 2 * pad_l - icon_col,                     # 1264
+        "card_image_left": regions["right-45"].w - DEFINITION_CARD_GUTTER - 2 * pad_l,   # 646
+        "centred": regions["centre-60"].w - 2 * pad_l,                                   # 940
+    }
+    widths = {"default": widths["card_image_left"], **widths}
+    port = zn.ZONES["portrait"].text_column.w                       # 588
+    out = {
+        "term": {"landscape": {v: term(w, (84, 120)) for v, w in widths.items()},
+                 "portrait": {"default": term(port, (56, 88))}},
+        "meaning": {"landscape": {v: body(w, (48, 56), 400) for v, w in widths.items()},
+                    "portrait": {"default": body(port, (56, 64), 600)}},
+        "example": {"landscape": {v: body(w - DEFINITION_CARD_MARKER, (48, 52), 400) for v, w in widths.items()},
+                    "portrait": {"default": body(port - DEFINITION_CARD_MARKER, (56, 60), 600)}},
+    }
+    return MappingProxyType({slot: MappingProxyType({f: MappingProxyType(v) for f, v in per.items()})
+                             for slot, per in out.items()})
+
+
+# --- hook_question's slots (B2 demo): web/js/dynamic/templates/hook_question.js LAYOUT, LINE_HEIGHT, TRACKING_EM,
+# boxes() and slotRows() (hook_question.test.js pins the two against each other). The stack's width is the box the hook
+# is set in: 16:9 the centre 60% (1036 px), 9:16 the hook band (696 px, §2.5 / §3.3). The `true_false` variant's pill
+# costs the 9:16 hook one of its four lines; the page's own cap is the box's height (hook_question.js fitInBox), so a
+# scene with an eyebrow needs no variant of its own.
+HOOK_QUESTION_SIZE: Final[Mapping[Format, tuple[int, int]]] = MappingProxyType(
+    {"landscape": (112, 140), "portrait": (88, 104)})          # §4.3 16:9; R-29's 9:16 `hook` range
+HOOK_QUESTION_LINES: Final[Mapping[Format, tuple[int, int]]] = MappingProxyType(  # default, true_false
+    {"landscape": (3, 3), "portrait": (4, 3)})
+HOOK_QUESTION_LABELS: Final[Mapping[Format, tuple[int, int]]] = MappingProxyType(  # pill, eyebrow
+    {"landscape": (48, 40), "portrait": (44, 44)})
+HOOK_QUESTION_REGION: Final[Mapping[Format, str]] = MappingProxyType(
+    {"landscape": "centre-60", "portrait": "hook"})
+
+
+def _hook_question_slots() -> SlotTable:
+    """hook_question's slots: the hook (``question``, per variant), the "True or false?" ``pill`` and the scene
+    heading's ``eyebrow`` (one-line labels at R-29's label floor)."""
+    out: dict[str, dict[Format, dict[str, SlotSpec]]] = {"question": {}, "pill": {}, "eyebrow": {}}
+    for fmt in FORMATS:
+        width = zn.REGIONS[fmt][HOOK_QUESTION_REGION[fmt]].w
+        size = HOOK_QUESTION_SIZE[fmt]
+        lines, pill_lines = HOOK_QUESTION_LINES[fmt]
+        pill, eyebrow = HOOK_QUESTION_LABELS[fmt]
+
+        def question(max_lines: int, *, w: int = width, px: tuple[int, int] = size) -> SlotSpec:
+            return SlotSpec(w=w, max_lines=max_lines, size=px, role="title", face="display", weight=700,
+                            line_height=1.05, tracking_em=-0.015)
+
+        def label(px: int, weight: int, *, w: int = width) -> SlotSpec:
+            return SlotSpec(w=w, max_lines=1, size=(px, px), role="label", face="body", weight=weight,
+                            line_height=1.35)
+
+        out["question"][fmt] = {"default": question(lines), "true_false": question(pill_lines)}
+        out["pill"][fmt] = {"default": label(pill, 700)}
+        out["eyebrow"][fmt] = {"default": label(eyebrow, 600)}
+    return MappingProxyType({slot: MappingProxyType({f: MappingProxyType(v) for f, v in per.items()})
+                             for slot, per in out.items()})
+
+
+# --- key_terms' slots (B2 demo): web/js/dynamic/templates/key_terms.js LAYOUT, cardWidth() and slotRows();
+# key_terms.test.js pins the catalogue's rows to slotRows. The 16:9 term and meaning widths are the NARROWEST card's
+# (four cards on the 12-column grid, less its padding), so a size fitted there is an upper bound for a two- or
+# three-term scene too (list_build's rule). 9:16 draws rows, not cards (no padding): the 588 px text column would
+# otherwise go on chrome. The size ranges are a B2-demo proposal pending the owner's review, on deviation 31's
+# precedent: below R-29's nominal ranges, above its floors.
+KEY_TERMS_PAD: Final[Mapping[Format, int]] = MappingProxyType({"landscape": 32, "portrait": 0})
+KEY_TERMS_CARDS_MAX: Final = 4  # §4.3: 2-4 cards in a row
+KEY_TERMS_MEANING_WEIGHT: Final[Mapping[Format, int]] = MappingProxyType({"landscape": 400, "portrait": 600})
+
+
+def _key_terms_slots() -> SlotTable:
+    def heading(w: int, size: tuple[float, float]) -> SlotSpec:
+        return SlotSpec(w=w, max_lines=2, size=size, role="title", face="display", weight=700, line_height=1.15,
+                        prefer_lines=1)
+
+    def term(w: int, size: tuple[float, float]) -> SlotSpec:
+        return SlotSpec(w=w, max_lines=2, size=size, role="title", face="display", weight=700, line_height=1.15)
+
+    def meaning(w: int, size: tuple[float, float], weight: int) -> SlotSpec:
+        return SlotSpec(w=w, max_lines=None, size=size, role="body", face="body", weight=weight, line_height=1.35)
+
+    narrow = (zn.GRID.box.w - zn.GRID.gutter * (KEY_TERMS_CARDS_MAX - 1)) // KEY_TERMS_CARDS_MAX   # 414
+    land = narrow - 2 * KEY_TERMS_PAD["landscape"]                                                 # 350
+    port = zn.ZONES["portrait"].text_column.w - 2 * KEY_TERMS_PAD["portrait"]                      # 588
+    out = {
+        "heading": {"landscape": {"default": heading(zn.REGIONS["landscape"]["top-band"].w, (84, 96))},
+                    "portrait": {"default": heading(zn.ZONES["portrait"].title.w, (56, 88))}},
+        "term": {"landscape": {"default": term(land, (48, 64))},
+                 "portrait": {"default": term(port, (44, 64))}},
+        "meaning": {"landscape": {"default": meaning(land, (40, 48), KEY_TERMS_MEANING_WEIGHT["landscape"])},
+                    "portrait": {"default": meaning(port, (40, 48), KEY_TERMS_MEANING_WEIGHT["portrait"])}},
+    }
+    return MappingProxyType({slot: MappingProxyType({f: MappingProxyType(v) for f, v in per.items()})
+                             for slot, per in out.items()})
+
+
+# --- recap_retrieval's slots (B2 demo): web/js/dynamic/templates/recap_retrieval.js LAYOUT. A card's padding, the gap
+# between a card's parts, the think ring's box and its number's size, the 16:9 tile (three columns of the 12-column
+# grid: 4 columns of 122 px plus 3 of its 24 px gutters) and the card icon size the template draws a tile's icon at.
+RECAP_PAD: Final[Mapping[Format, int]] = MappingProxyType({"landscape": 32, "portrait": 24})
+RECAP_GAP: Final[Mapping[Format, int]] = MappingProxyType({"landscape": 24, "portrait": 24})
+RECAP_RING: Final[Mapping[Format, tuple[int, int]]] = MappingProxyType({"landscape": (120, 40), "portrait": (96, 44)})
+RECAP_TILE_W: Final = 560
+RECAP_ICON_PX: Final = 96
+
+
+def _recap_retrieval_slots() -> SlotTable:
+    """recap_retrieval's slots, variant ``default`` (§4.3 gives the template no look variant, and how many tiles sit
+    side by side never changes a tile's width). ``label`` sits on the background above the card; ``prompt`` and
+    ``answer`` share the card's text box; ``tile`` is a tile less its padding and, in 9:16, the icon column beside it
+    (kept whether or not icons are drawn, so the stored width is the one the page lays out); ``ring`` is the
+    countdown's number in the think ring's box, never critical (R-07: the think time is the ring itself).
+    recap_retrieval.test.js pins this table to the template's own ``slotRows``."""
+    def table(fmt: Format) -> dict[str, SlotSpec]:
+        pad, gap = RECAP_PAD[fmt], RECAP_GAP[fmt]
+        ring_px, ring_num = RECAP_RING[fmt]
+        if fmt == "landscape":
+            card_w = zn.REGIONS["landscape"]["centre-60"].w                     # 1036
+            tile_text = RECAP_TILE_W - 2 * pad                                  # 496
+            label, prompt = (40, 40, 1, 1, 600), (84, 96, 3, 2, 700)
+            answer, tile = (40, 48, 3, None, 400), (40, 48, 3, None, 600)
+        else:
+            card_w = zn.ZONES["portrait"].text_column.w                         # 588
+            tile_text = card_w - 2 * pad - RECAP_ICON_PX - gap                  # 420
+            label, prompt = (44, 44, 1, 1, 600), (56, 64, 3, 2, 700)
+            answer, tile = (40, 44, 3, None, 600), (40, 44, 2, None, 600)
+        card_text = card_w - 2 * pad
+
+        def spec(s: tuple[int, int, int, int | None, int], w: int, role: str, face: FaceRole, lh: float, *,
+                 critical: bool = True, tabular: bool = False) -> SlotSpec:
+            return SlotSpec(w=w, max_lines=s[2], size=(s[0], s[1]), role=role, face=face, weight=s[4],
+                            line_height=lh, prefer_lines=s[3], critical=critical, tabular_nums=tabular)
+
+        return {
+            "label": spec(label, card_w, "label", "body", 1.3),
+            "prompt": spec(prompt, card_text, "title", "display", 1.15),
+            "answer": spec(answer, card_text, "body", "body", 1.35),
+            "tile": spec(tile, tile_text, "body", "body", 1.35),
+            "ring": spec((ring_num, ring_num, 1, 1, 700), ring_px, "label", "body", 1.3,
+                         critical=False, tabular=True),
+        }
+
+    land, port = table("landscape"), table("portrait")
+    return MappingProxyType({slot: MappingProxyType({
+        "landscape": MappingProxyType({"default": land[slot]}),
+        "portrait": MappingProxyType({"default": port[slot]}),
+    }) for slot in land})
+
+
+# --- worked_steps' slots (B2 demo): web/js/dynamic/templates/worked_steps.js LAYOUT, PAD, boxes() and slotRows();
+# worked_steps.test.js pins the catalogue's rows to slotRows. The 16:9 "default" variant is the split layout (the steps
+# beside the formula's card: the narrower column, so a size fitted there is an upper bound for the centred one too).
+# The formula and its meaning exist in the split layout and in 9:16 only.
+WORKED_PAD: Final = 12  # worked_steps.js PAD (cues.js FOCUS_OUTSET + FOCUS_PX)
+WORKED_NUMBER: Final[Mapping[Format, tuple[int, int]]] = MappingProxyType(
+    {"landscape": (64, 16), "portrait": (56, 12)})      # the step-number column and its gap
+WORKED_CARD_PAD: Final[Mapping[Format, int]] = MappingProxyType({"landscape": 40, "portrait": 28})
+WORKED_HEADING: Final[Mapping[Format, tuple[float, float]]] = MappingProxyType(
+    {"landscape": (84, 96), "portrait": (56, 88)})
+WORKED_STEP: Final[Mapping[Format, tuple[float, float]]] = MappingProxyType(
+    {"landscape": (40, 52), "portrait": (56, 64)})      # a step's text (R-29 body, down to the text floor)
+WORKED_WHY: Final[Mapping[Format, tuple[float, float]]] = MappingProxyType(
+    {"landscape": (40, 40), "portrait": (44, 44)})      # the justification, at R-29's label floor
+WORKED_FORMULA: Final[Mapping[Format, tuple[float, float]]] = MappingProxyType(
+    {"landscape": (64, 96), "portrait": (68, 88)})      # the TeX size in the card (9:16 above R-29's 64 px rule)
+WORKED_WEIGHT: Final[Mapping[Format, int]] = MappingProxyType({"landscape": 400, "portrait": 600})
+
+
+def _worked_steps_slots() -> SlotTable:
+    def heading(w: int, fmt: Format) -> SlotSpec:
+        return SlotSpec(w=w, max_lines=2, size=WORKED_HEADING[fmt], role="title", face="display", weight=700,
+                        line_height=1.15, prefer_lines=1)
+
+    def body(w: int, size: tuple[float, float], weight: int, role: str = "body", lines: int | None = None,
+             line_height: float = 1.35) -> SlotSpec:
+        return SlotSpec(w=w, max_lines=lines, size=size, role=role, face="body", weight=weight,
+                        line_height=line_height)
+
+    regions = zn.REGIONS["landscape"]
+    portrait = zn.ZONES["portrait"]
+    num_l, gap_l = WORKED_NUMBER["landscape"]
+    num_p, gap_p = WORKED_NUMBER["portrait"]
+    split_w = regions["left-55"].w - 2 * WORKED_PAD - num_l - gap_l        # 834
+    centred_w = regions["centre-60"].w - 2 * WORKED_PAD - num_l - gap_l    # 932
+    step_p = portrait.text_column.w - 2 * WORKED_PAD - num_p - gap_p       # 496
+    card_l = regions["right-45"].w - 2 * WORKED_CARD_PAD["landscape"]      # 686
+    card_p = portrait.text_column.w - 2 * WORKED_CARD_PAD["portrait"]      # 532
+    out = {
+        "heading": {"landscape": {"default": heading(regions["top-band"].w, "landscape"),
+                                  "centred": heading(regions["centre-60"].w, "landscape")},
+                    "portrait": {"default": heading(portrait.title.w, "portrait")}},
+        "step": {"landscape": {"default": body(split_w, WORKED_STEP["landscape"], 700),
+                               "centred": body(centred_w, WORKED_STEP["landscape"], 700)},
+                 "portrait": {"default": body(step_p, WORKED_STEP["portrait"], 700)}},
+        "row": {"portrait": {"default": body(step_p, (40, 40), WORKED_WEIGHT["portrait"])}},
+        "why": {"landscape": {"default": body(split_w, WORKED_WHY["landscape"], WORKED_WEIGHT["landscape"],
+                                              "label", 2),
+                              "centred": body(centred_w, WORKED_WHY["landscape"], WORKED_WEIGHT["landscape"],
+                                              "label", 2)},
+                "portrait": {"default": body(step_p, WORKED_WHY["portrait"], WORKED_WEIGHT["portrait"], "label", 2)}},
+        # the formula is a TeX picture: textfit does not measure it (max_lines None, line height 1), and it is
+        # reported as body text at its TeX size (formula_focus's FORMULA_SLOT)
+        "formula": {"landscape": {"default": body(card_l, WORKED_FORMULA["landscape"], 400, "body", None, 1.0)},
+                    "portrait": {"default": body(card_p, WORKED_FORMULA["portrait"], 400, "body", None, 1.0)}},
+        "meaning": {"landscape": {"default": body(card_l, WORKED_WHY["landscape"], WORKED_WEIGHT["landscape"],
+                                                  "label", 2)},
+                    "portrait": {"default": body(card_p, WORKED_WHY["portrait"], WORKED_WEIGHT["portrait"],
+                                                 "label", 2)}},
+    }
+    return MappingProxyType({slot: MappingProxyType({f: MappingProxyType(v) for f, v in per.items()})
+                             for slot, per in out.items()})
 
 # --- the registry (§4.3) -------------------------------------------------------------------------------------------
 
@@ -1130,18 +1440,29 @@ _SPECS: Final[tuple[TemplateSpec, ...]] = (
     TemplateSpec("aadhi_intro", "structure", False, "R1", _d((5.0, 8.0)), _c(("reveal", "cue_term", "exit")),
                  _fit_aadhi_intro, variants=_v(("fullframe", "card_left", "pip", "split"), ("card",))),
     TemplateSpec("aadhi_recap", "structure", False, "R1", _d((5.0, 8.0)), _c(("reveal", "exit")), _fit_aadhi_recap),
-    TemplateSpec("hook_question", "prompt", False, "R1", _d((4.0, 10.0), (3.0, 6.0)), _c(("reveal", "cue_term")),
-                 _fit_hook_question, variants=_v(("question", "true_false", "stakes", "mystery", "challenge"))),
+    # the cue_term reaches a single term of the hook (``<item>:term:<n>``) as well as all of them; a reveal is the
+    # whole item (B2c review CG-5: the forms are per kind). ``mystery`` stays in the variants (deviation 16: the page
+    # draws it as a plain question until B4's blurred asset).
+    TemplateSpec("hook_question", "prompt", False, "R1", _d((4.0, 10.0), (3.0, 6.0)),
+                 _c(("reveal", "cue_term"), ("item", "item:term"), {"reveal": ("item",)}),
+                 _fit_hook_question, implemented=True,
+                 variants=_v(("question", "true_false", "stakes", "mystery", "challenge")),
+                 slots=_hook_question_slots()),
     TemplateSpec("roadmap", "structure", False, "W2", _R19, _c(("reveal",)), _never),
     # §4.3 times key terms in 16:9 only ("3–4 s per term (16:9), optional in 9:16"): "optional" is about using the
     # template in 9:16, not its length, so a 9:16 key-terms scene keeps the same per-term range (A2 reading, pending
     # owner review)
     TemplateSpec("key_terms", "definition", False, "R1", _d((3.0, 4.0), per_item=True),
-                 _c(("reveal", "draw", "cue_term")), _fit_key_terms),
+                 _c(("reveal", "draw", "cue_term"), ("item", "item:term"),
+                    {"reveal": ("item",), "draw": ("item",)}),
+                 _fit_key_terms, implemented=True, slots=_key_terms_slots()),
     TemplateSpec("chapter_bumper", "structure", False, "R1", _d((2.0, 3.0), (1.2, 1.8)), _c(()), _fit_chapter_bumper,
-                 forced_for=("chapter_card",)),
+                 forced_for=("chapter_card",), implemented=True, slots=_chapter_bumper_slots()),
     TemplateSpec("recap_retrieval", "prompt", False, "R1", _d((25.0, 40.0), (14.0, 20.0)),
-                 _c(("reveal", "fill", "countdown", "answer", "cue_term")), _fit_recap_retrieval, holds=_THINK),
+                 _c(("reveal", "fill", "countdown", "answer", "cue_term"), ("item", "item:term"),
+                    {"reveal": ("item",), "fill": ("item",), "countdown": ("item",), "answer": ("item",),
+                     "cue_term": ("item", "item:term")}),
+                 _fit_recap_retrieval, implemented=True, holds=_THINK, slots=_recap_retrieval_slots()),
     # §4.3 "6–10 s or 15 s (16:9)", R-11 "or 15 s with end-screen space": two lengths, not 6-15 s; 9:16 has no
     # end-screen space (§2.5)
     TemplateSpec("outro_next", "structure", False, "R1",
@@ -1151,8 +1472,11 @@ _SPECS: Final[tuple[TemplateSpec, ...]] = (
                  _never, formats=("landscape",), variants=MappingProxyType({"landscape": ()})),
     # B. Explanation
     TemplateSpec("definition_card", "definition", False, "R1", _d((6.0, 12.0), (4.0, 8.0)),
-                 _c(("reveal", "cue_term")), _fit_definition_card,
-                 variants=_v(("card_icon_right", "card_image_left", "centred"))),
+                 _c(("reveal", "cue_term", "look_here"), ("item", "item:term", "panel"),
+                    {"reveal": ("item",), "cue_term": ("item", "item:term")}),
+                 _fit_definition_card, implemented=True,
+                 variants=_v(("card_icon_right", "card_image_left", "centred")),
+                 slots=_definition_card_slots()),
     TemplateSpec("kinetic_statement", "statement", False, "R1", _d((3.0, 7.0), (2.0, 5.0)),
                  _c(("reveal", "cue_term")), _fit_kinetic_statement),
     TemplateSpec("list_build", "enumeration", False, "R1", _d((3.0, 5.0), per_item=True),
@@ -1192,8 +1516,10 @@ _SPECS: Final[tuple[TemplateSpec, ...]] = (
                     {"reveal": ("item",), "var": ("item:var",), "draw": ("item",)}), _fit_formula_focus,
                  implemented=True, holds=("formula",), dense=True, slots=_formula_focus_slots()),
     TemplateSpec("worked_steps", "procedure", True, "R1", _d((15.0, 45.0), (10.0, 30.0)),
-                 _c(("reveal", "fill", "countdown", "look_here"), ("item", "item:var")), _fit_worked_steps,
-                 holds=("formula", "think"), dense=True),
+                 _c(("reveal", "fill", "countdown", "look_here"), ("item", "item:var", "item:step"),
+                    {"reveal": ("item",), "fill": ("item",), "countdown": ("item",),
+                     "look_here": ("item", "item:var", "item:step")}), _fit_worked_steps,
+                 implemented=True, holds=("formula", "think"), dense=True, slots=_worked_steps_slots()),
     TemplateSpec("code_walkthrough", "code", True, "R1", _d((10.0, 30.0), (8.0, 20.0)),
                  _c(("reveal", "look_here", "output"), ("item", "item:line", "panel")), _fit_code_walkthrough,
                  holds=("code",), dense=True),

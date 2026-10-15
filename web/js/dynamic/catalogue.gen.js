@@ -1217,6 +1217,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "body",
               "size": [39.0, 52],
+              "tabular_nums": false,
               "tracking_em": 0.0,
               "w": 1728,
               "weight": 400
@@ -1231,6 +1232,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "body",
               "size": [39.0, 52],
+              "tabular_nums": false,
               "tracking_em": 0.0,
               "w": 950,
               "weight": 400
@@ -1247,6 +1249,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "body",
               "size": [40.32, 56],
+              "tabular_nums": false,
               "tracking_em": 0.0,
               "w": 636,
               "weight": 600
@@ -1261,6 +1264,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "body",
               "size": [40.32, 56],
+              "tabular_nums": false,
               "tracking_em": 0.0,
               "w": 636,
               "weight": 600
@@ -1279,6 +1283,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "chip",
               "size": [40, 40],
+              "tabular_nums": false,
               "tracking_em": 0.0,
               "w": null,
               "weight": 600
@@ -1295,6 +1300,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "chip",
               "size": [44, 44],
+              "tabular_nums": false,
               "tracking_em": 0.0,
               "w": null,
               "weight": 600
@@ -1313,6 +1319,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "label",
               "size": [40, 40],
+              "tabular_nums": false,
               "tracking_em": 0.02,
               "w": 1536,
               "weight": 600
@@ -1327,6 +1334,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "label",
               "size": [40, 40],
+              "tabular_nums": false,
               "tracking_em": 0.02,
               "w": 1728,
               "weight": 600
@@ -1341,6 +1349,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "label",
               "size": [40, 40],
+              "tabular_nums": false,
               "tracking_em": 0.02,
               "w": 1608,
               "weight": 600
@@ -1357,6 +1366,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "label",
               "size": [44, 44],
+              "tabular_nums": false,
               "tracking_em": 0.02,
               "w": 696,
               "weight": 600
@@ -1371,6 +1381,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "label",
               "size": [44, 44],
+              "tabular_nums": false,
               "tracking_em": 0.02,
               "w": 696,
               "weight": 600
@@ -1385,6 +1396,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "label",
               "size": [44, 44],
+              "tabular_nums": false,
               "tracking_em": 0.02,
               "w": 696,
               "weight": 600
@@ -1403,6 +1415,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "label",
               "size": [40, 40],
+              "tabular_nums": true,
               "tracking_em": 0.0,
               "w": 96,
               "weight": 700
@@ -1419,6 +1432,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "label",
               "size": [44, 44],
+              "tabular_nums": true,
               "tracking_em": 0.0,
               "w": 96,
               "weight": 700
@@ -1437,6 +1451,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "subtitle",
               "size": [52, 52],
+              "tabular_nums": false,
               "tracking_em": 0.0,
               "w": 1400,
               "weight": 400
@@ -1453,6 +1468,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "subtitle",
               "size": [48, 48],
+              "tabular_nums": false,
               "tracking_em": 0.0,
               "w": 696,
               "weight": 600
@@ -1471,6 +1487,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "title",
               "size": [96, 148],
+              "tabular_nums": false,
               "tracking_em": -0.015,
               "w": 1536,
               "weight": 700
@@ -1485,6 +1502,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "title",
               "size": [72, 96],
+              "tabular_nums": false,
               "tracking_em": -0.015,
               "w": 1728,
               "weight": 700
@@ -1499,6 +1517,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "title",
               "size": [56, 76],
+              "tabular_nums": false,
               "tracking_em": -0.015,
               "w": 1608,
               "weight": 700
@@ -1515,6 +1534,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "title",
               "size": [72, 112],
+              "tabular_nums": false,
               "tracking_em": -0.015,
               "w": 696,
               "weight": 700
@@ -1529,6 +1549,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": 1,
               "role": "title",
               "size": [56, 88],
+              "tabular_nums": false,
               "tracking_em": -0.015,
               "w": 696,
               "weight": 700
@@ -1543,6 +1564,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "title",
               "size": [50, 68],
+              "tabular_nums": false,
               "tracking_em": -0.015,
               "w": 696,
               "weight": 700
@@ -1585,11 +1607,120 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "forced_for": ["chapter_card"],
       "formats": ["landscape", "portrait"],
       "holds": [],
-      "implemented": false,
+      "implemented": true,
       "push_ok": false,
       "release": "R1",
       "representational": false,
-      "slots": {},
+      "slots": {
+        "kicker": {
+          "landscape": {
+            "default": {
+              "critical": false,
+              "face": "body",
+              "line_height": 1.2,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [40, 40],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 1728,
+              "weight": 600
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": false,
+              "face": "body",
+              "line_height": 1.2,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [44, 44],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 696,
+              "weight": 600
+            }
+          }
+        },
+        "numeral": {
+          "landscape": {
+            "default": {
+              "critical": false,
+              "face": "display",
+              "line_height": 1.0,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [320, 320],
+              "tabular_nums": true,
+              "tracking_em": 0.0,
+              "w": 1728,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": false,
+              "face": "display",
+              "line_height": 1.0,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [240, 240],
+              "tabular_nums": true,
+              "tracking_em": 0.0,
+              "w": 696,
+              "weight": 700
+            }
+          }
+        },
+        "title": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.06,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [84, 96],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 1728,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.06,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [56, 88],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 696,
+              "weight": 700
+            }
+          }
+        }
+      },
       "variants": {"landscape": [], "portrait": []}
     },
     "chart_build": {
@@ -1752,9 +1883,9 @@ export const CATALOGUE = Object.freeze(freezeInside({
     "definition_card": {
       "class": "definition",
       "consumes": {
-        "forms": {"cue_term": ["item"], "reveal": ["item"]},
-        "kinds": ["reveal", "cue_term"],
-        "targets": ["item"]
+        "forms": {"cue_term": ["item", "item:term"], "look_here": ["item", "item:term", "panel"], "reveal": ["item"]},
+        "kinds": ["reveal", "cue_term", "look_here"],
+        "targets": ["item", "item:term", "panel"]
       },
       "dense": false,
       "duration": {
@@ -1764,11 +1895,255 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "forced_for": [],
       "formats": ["landscape", "portrait"],
       "holds": [],
-      "implemented": false,
+      "implemented": true,
       "push_ok": false,
       "release": "R1",
       "representational": false,
-      "slots": {},
+      "slots": {
+        "example": {
+          "landscape": {
+            "card_icon_right": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [48, 52],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 1228,
+              "weight": 400
+            },
+            "card_image_left": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [48, 52],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 610,
+              "weight": 400
+            },
+            "centred": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [48, 52],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 904,
+              "weight": 400
+            },
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [48, 52],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 610,
+              "weight": 400
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [56, 60],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 552,
+              "weight": 600
+            }
+          }
+        },
+        "meaning": {
+          "landscape": {
+            "card_icon_right": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [48, 56],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 1264,
+              "weight": 400
+            },
+            "card_image_left": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [48, 56],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 646,
+              "weight": 400
+            },
+            "centred": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [48, 56],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 940,
+              "weight": 400
+            },
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [48, 56],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 646,
+              "weight": 400
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [56, 64],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 588,
+              "weight": 600
+            }
+          }
+        },
+        "term": {
+          "landscape": {
+            "card_icon_right": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [84, 120],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 1264,
+              "weight": 700
+            },
+            "card_image_left": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [84, 120],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 646,
+              "weight": 700
+            },
+            "centred": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [84, 120],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 940,
+              "weight": 700
+            },
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [84, 120],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 646,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [56, 88],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 588,
+              "weight": 700
+            }
+          }
+        }
+      },
       "variants": {
         "landscape": ["card_icon_right", "card_image_left", "centred"],
         "portrait": ["card_icon_right", "card_image_left", "centred"]
@@ -1828,6 +2203,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "body",
               "size": [64, 104],
+              "tabular_nums": false,
               "tracking_em": 0.0,
               "w": 1616,
               "weight": 400
@@ -1844,6 +2220,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "body",
               "size": [68, 96],
+              "tabular_nums": false,
               "tracking_em": 0.0,
               "w": 696,
               "weight": 400
@@ -1862,6 +2239,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "label",
               "size": [40, 48],
+              "tabular_nums": false,
               "tracking_em": 0.0,
               "w": 840,
               "weight": 400
@@ -1878,6 +2256,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "label",
               "size": [44, 52],
+              "tabular_nums": false,
               "tracking_em": 0.0,
               "w": 588,
               "weight": 600
@@ -1896,6 +2275,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "body",
               "size": [48, 52],
+              "tabular_nums": false,
               "tracking_em": 0.0,
               "w": 1616,
               "weight": 400
@@ -1912,6 +2292,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "body",
               "size": [56, 60],
+              "tabular_nums": false,
               "tracking_em": 0.0,
               "w": 588,
               "weight": 600
@@ -1930,6 +2311,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "title",
               "size": [72, 96],
+              "tabular_nums": false,
               "tracking_em": -0.015,
               "w": 1728,
               "weight": 700
@@ -1946,6 +2328,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": 1,
               "role": "title",
               "size": [56, 88],
+              "tabular_nums": false,
               "tracking_em": -0.015,
               "w": 696,
               "weight": 700
@@ -1998,9 +2381,9 @@ export const CATALOGUE = Object.freeze(freezeInside({
     "hook_question": {
       "class": "prompt",
       "consumes": {
-        "forms": {"cue_term": ["item"], "reveal": ["item"]},
+        "forms": {"cue_term": ["item", "item:term"], "reveal": ["item"]},
         "kinds": ["reveal", "cue_term"],
-        "targets": ["item"]
+        "targets": ["item", "item:term"]
       },
       "dense": false,
       "duration": {
@@ -2010,11 +2393,150 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "forced_for": [],
       "formats": ["landscape", "portrait"],
       "holds": [],
-      "implemented": false,
+      "implemented": true,
       "push_ok": false,
       "release": "R1",
       "representational": false,
-      "slots": {},
+      "slots": {
+        "eyebrow": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [40, 40],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 1036,
+              "weight": 600
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [44, 44],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 696,
+              "weight": 600
+            }
+          }
+        },
+        "pill": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [48, 48],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 1036,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [44, 44],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 696,
+              "weight": 700
+            }
+          }
+        },
+        "question": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 3,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [112, 140],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 1036,
+              "weight": 700
+            },
+            "true_false": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 3,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [112, 140],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 1036,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 4,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [88, 104],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 696,
+              "weight": 700
+            },
+            "true_false": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 3,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [88, 104],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 696,
+              "weight": 700
+            }
+          }
+        }
+      },
       "variants": {
         "landscape": ["question", "true_false", "stakes", "mystery", "challenge"],
         "portrait": ["question", "true_false", "stakes", "mystery", "challenge"]
@@ -2041,9 +2563,9 @@ export const CATALOGUE = Object.freeze(freezeInside({
     "key_terms": {
       "class": "definition",
       "consumes": {
-        "forms": {"cue_term": ["item"], "draw": ["item"], "reveal": ["item"]},
+        "forms": {"cue_term": ["item", "item:term"], "draw": ["item"], "reveal": ["item"]},
         "kinds": ["reveal", "draw", "cue_term"],
-        "targets": ["item"]
+        "targets": ["item", "item:term"]
       },
       "dense": false,
       "duration": {
@@ -2053,11 +2575,120 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "forced_for": [],
       "formats": ["landscape", "portrait"],
       "holds": [],
-      "implemented": false,
+      "implemented": true,
       "push_ok": false,
       "release": "R1",
       "representational": false,
-      "slots": {},
+      "slots": {
+        "heading": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.15,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [84, 96],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 1728,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.15,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [56, 88],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 696,
+              "weight": 700
+            }
+          }
+        },
+        "meaning": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [40, 48],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 350,
+              "weight": 400
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [40, 48],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 588,
+              "weight": 600
+            }
+          }
+        },
+        "term": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.15,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [48, 64],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 350,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.15,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [44, 64],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 588,
+              "weight": 700
+            }
+          }
+        }
+      },
       "variants": {"landscape": [], "portrait": []}
     },
     "kinetic_statement": {
@@ -2114,6 +2745,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": 1,
               "role": "title",
               "size": [84, 96],
+              "tabular_nums": false,
               "tracking_em": 0.0,
               "w": 1036,
               "weight": 700
@@ -2128,6 +2760,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": 1,
               "role": "title",
               "size": [84, 96],
+              "tabular_nums": false,
               "tracking_em": 0.0,
               "w": 1728,
               "weight": 700
@@ -2144,6 +2777,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": 1,
               "role": "title",
               "size": [56, 88],
+              "tabular_nums": false,
               "tracking_em": 0.0,
               "w": 696,
               "weight": 700
@@ -2162,6 +2796,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "body",
               "size": [40, 52],
+              "tabular_nums": false,
               "tracking_em": 0.0,
               "w": 932,
               "weight": 700
@@ -2176,6 +2811,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "body",
               "size": [40, 52],
+              "tabular_nums": false,
               "tracking_em": 0.0,
               "w": 834,
               "weight": 700
@@ -2192,6 +2828,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "body",
               "size": [56, 64],
+              "tabular_nums": false,
               "tracking_em": 0.0,
               "w": 496,
               "weight": 700
@@ -2210,6 +2847,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "body",
               "size": [40, 40],
+              "tabular_nums": false,
               "tracking_em": 0.0,
               "w": 496,
               "weight": 600
@@ -2256,6 +2894,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "body",
               "size": [44, 52],
+              "tabular_nums": false,
               "tracking_em": 0.0,
               "w": 706,
               "weight": 400
@@ -2270,6 +2909,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "body",
               "size": [44, 52],
+              "tabular_nums": false,
               "tracking_em": 0.0,
               "w": 706,
               "weight": 400
@@ -2286,6 +2926,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "body",
               "size": [48, 64],
+              "tabular_nums": false,
               "tracking_em": 0.0,
               "w": 588,
               "weight": 700
@@ -2304,6 +2945,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "body",
               "size": [36, 44],
+              "tabular_nums": false,
               "tracking_em": 0.0,
               "w": 874,
               "weight": 400
@@ -2318,6 +2960,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "body",
               "size": [36, 44],
+              "tabular_nums": false,
               "tracking_em": 0.0,
               "w": 874,
               "weight": 400
@@ -2334,6 +2977,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "body",
               "size": [40, 44],
+              "tabular_nums": false,
               "tracking_em": 0.0,
               "w": 904,
               "weight": 700
@@ -2352,6 +2996,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "title",
               "size": [64, 88],
+              "tabular_nums": false,
               "tracking_em": -0.015,
               "w": 742,
               "weight": 700
@@ -2366,6 +3011,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": null,
               "role": "title",
               "size": [64, 88],
+              "tabular_nums": false,
               "tracking_em": -0.015,
               "w": 742,
               "weight": 700
@@ -2382,6 +3028,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "prefer_lines": 1,
               "role": "title",
               "size": [56, 88],
+              "tabular_nums": false,
               "tracking_em": -0.015,
               "w": 696,
               "weight": 700
@@ -2517,12 +3164,12 @@ export const CATALOGUE = Object.freeze(freezeInside({
         "forms": {
           "answer": ["item"],
           "countdown": ["item"],
-          "cue_term": ["item"],
+          "cue_term": ["item", "item:term"],
           "fill": ["item"],
           "reveal": ["item"]
         },
         "kinds": ["reveal", "fill", "countdown", "answer", "cue_term"],
-        "targets": ["item"]
+        "targets": ["item", "item:term"]
       },
       "dense": false,
       "duration": {
@@ -2532,11 +3179,192 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "forced_for": [],
       "formats": ["landscape", "portrait"],
       "holds": ["think"],
-      "implemented": false,
+      "implemented": true,
       "push_ok": false,
       "release": "R1",
       "representational": false,
-      "slots": {},
+      "slots": {
+        "answer": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 3,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [40, 48],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 972,
+              "weight": 400
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 3,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [40, 44],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 540,
+              "weight": 600
+            }
+          }
+        },
+        "label": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.3,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "label",
+              "size": [40, 40],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 1036,
+              "weight": 600
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.3,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "label",
+              "size": [44, 44],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 588,
+              "weight": 600
+            }
+          }
+        },
+        "prompt": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.15,
+              "max_chars": null,
+              "max_lines": 3,
+              "max_words": null,
+              "prefer_lines": 2,
+              "role": "title",
+              "size": [84, 96],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 972,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.15,
+              "max_chars": null,
+              "max_lines": 3,
+              "max_words": null,
+              "prefer_lines": 2,
+              "role": "title",
+              "size": [56, 64],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 540,
+              "weight": 700
+            }
+          }
+        },
+        "ring": {
+          "landscape": {
+            "default": {
+              "critical": false,
+              "face": "body",
+              "line_height": 1.3,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "label",
+              "size": [40, 40],
+              "tabular_nums": true,
+              "tracking_em": 0.0,
+              "w": 120,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": false,
+              "face": "body",
+              "line_height": 1.3,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "label",
+              "size": [44, 44],
+              "tabular_nums": true,
+              "tracking_em": 0.0,
+              "w": 96,
+              "weight": 700
+            }
+          }
+        },
+        "tile": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 3,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [40, 48],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 496,
+              "weight": 600
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [40, 44],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 420,
+              "weight": 600
+            }
+          }
+        }
+      },
       "variants": {"landscape": [], "portrait": []}
     },
     "roadmap": {
@@ -2700,13 +3528,13 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "class": "procedure",
       "consumes": {
         "forms": {
-          "countdown": ["item", "item:var"],
-          "fill": ["item", "item:var"],
-          "look_here": ["item", "item:var"],
-          "reveal": ["item", "item:var"]
+          "countdown": ["item"],
+          "fill": ["item"],
+          "look_here": ["item", "item:var", "item:step"],
+          "reveal": ["item"]
         },
         "kinds": ["reveal", "fill", "countdown", "look_here"],
-        "targets": ["item", "item:var"]
+        "targets": ["item", "item:var", "item:step"]
       },
       "dense": true,
       "duration": {
@@ -2716,11 +3544,256 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "forced_for": [],
       "formats": ["landscape", "portrait"],
       "holds": ["formula", "think"],
-      "implemented": false,
+      "implemented": true,
       "push_ok": false,
       "release": "R1",
       "representational": true,
-      "slots": {},
+      "slots": {
+        "formula": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.0,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [64, 96],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 686,
+              "weight": 400
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.0,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [68, 88],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 532,
+              "weight": 400
+            }
+          }
+        },
+        "heading": {
+          "landscape": {
+            "centred": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.15,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [84, 96],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 1036,
+              "weight": 700
+            },
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.15,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [84, 96],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 1728,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.15,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [56, 88],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 696,
+              "weight": 700
+            }
+          }
+        },
+        "meaning": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [40, 40],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 686,
+              "weight": 400
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [44, 44],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 532,
+              "weight": 600
+            }
+          }
+        },
+        "row": {
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [40, 40],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 496,
+              "weight": 600
+            }
+          }
+        },
+        "step": {
+          "landscape": {
+            "centred": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [40, 52],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 932,
+              "weight": 700
+            },
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [40, 52],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 834,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [56, 64],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 496,
+              "weight": 700
+            }
+          }
+        },
+        "why": {
+          "landscape": {
+            "centred": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [40, 40],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 932,
+              "weight": 400
+            },
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [40, 40],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 834,
+              "weight": 400
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [44, 44],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 496,
+              "weight": 600
+            }
+          }
+        }
+      },
       "variants": {"landscape": [], "portrait": []}
     }
   },

@@ -959,7 +959,8 @@ served like the other media) fit the existing string column, and new asset keys 
 existing `asset_refs` table. Follow the deploy order above all the same.
 
 Dynamic video batch B2a adds no migration or setting. Its timelines are a new look-engine generation
-(`presentation.engine_version` 2; the B1 ones are 1), which has three one-time effects after the deploy:
+(`presentation.engine_version` 3 since B2's demo phase; B2a's are 2 and the B1 ones 1), which has three one-time
+effects after the deploy:
 
 * **Timelines are refreshed once.** The timeline ETag carries the engine generation, so every player's cached
   timeline is fetched again (one 200 instead of a 304). A stored Dynamic timeline of the current revision built by B1

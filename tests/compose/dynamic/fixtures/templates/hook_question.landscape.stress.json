@@ -1,0 +1,724 @@
+{
+  "board_language": "en-IN",
+  "branding": {
+    "bgm_url": "/branding/bgm.mp3",
+    "bgm_volume": 0.06,
+    "ding_url": null,
+    "mascot_clips": {
+      "center": "/branding/aadhi_center_clean.mp4",
+      "hidden": "/branding/no_aadhi_clean.mp4",
+      "left": "/branding/aadhi_left_clean.mp4",
+      "popup_bottom_left": "/branding/aadhi_popup_clean.mp4",
+      "popup_bottom_right": "/branding/aadhi_popup_clean.mp4",
+      "right": "/branding/aadhi_right_clean.mp4"
+    },
+    "mascot_rig_url": null,
+    "static_background_url": "/branding/static_background.png",
+    "tick_url": null
+  },
+  "captions": [
+    {
+      "end": 1.9,
+      "start": 0.5,
+      "text": "Why warm wires waste whole watts."
+    },
+    {
+      "end": 6.0,
+      "start": 4.6,
+      "text": "Can you say this word?"
+    },
+    {
+      "end": 10.1,
+      "start": 8.7,
+      "text": "மின்சாரம் எப்படி வீட்டை அடைகிறது?"
+    },
+    {
+      "end": 14.2,
+      "start": 12.8,
+      "text": "बिजली घर तक कैसे पहुँचती है?"
+    }
+  ],
+  "chapters": [
+    {
+      "start": 0.0,
+      "title": "Ohm's Law"
+    }
+  ],
+  "concept_map": [
+    {
+      "depends_on": [],
+      "id": "basics",
+      "kind": "core",
+      "summary": "",
+      "title": "Charge and Current"
+    },
+    {
+      "depends_on": [
+        "basics"
+      ],
+      "id": "ohm",
+      "kind": "core",
+      "summary": "",
+      "title": "Ohm's Law"
+    }
+  ],
+  "estimated": false,
+  "fps": 30,
+  "height": 1080,
+  "intro": null,
+  "language": "en-IN",
+  "learning_objectives": [],
+  "meta": {
+    "asset_storage_keys": {
+      "scene_audio-hq-hindi": "assets/scene_audio/scene_audio-hq-hindi/x.mp3",
+      "scene_audio-hq-lint": "assets/scene_audio/scene_audio-hq-lint/x.mp3",
+      "scene_audio-hq-longword": "assets/scene_audio/scene_audio-hq-longword/x.mp3",
+      "scene_audio-hq-tamil": "assets/scene_audio/scene_audio-hq-tamil/x.mp3"
+    },
+    "session_number": "Session 3",
+    "session_title": "Ohm's Law",
+    "subject_name": "Basic Electrical Engineering",
+    "unit_name": "Unit 2: DC Circuits"
+  },
+  "presentation": {
+    "caption_style": "clean_pill",
+    "captions_burn": true,
+    "content": {
+      "entity:0": "#0FE3FE",
+      "entity:1": "#C4A4FE",
+      "entity:2": "#FEACE3",
+      "focus": "#F2D935",
+      "ink": "#F3F5F9",
+      "ink2": "#B9BEC7",
+      "mark": "#F2D935",
+      "ok": "#5DD8AA",
+      "warn": "#F8A87F"
+    },
+    "content_alt": {
+      "entity:0": "#0267C7",
+      "entity:1": "#80369E",
+      "entity:2": "#870C62",
+      "focus": "#141822",
+      "ink": "#141822",
+      "ink2": "#484D58",
+      "mark": "#F2D935",
+      "ok": "#016F50",
+      "warn": "#9F4503"
+    },
+    "cue_term_style": "underline",
+    "engine_version": 3,
+    "entity_colors": {
+      "I": 1,
+      "R": 2,
+      "V": 0
+    },
+    "family": "deep_teal",
+    "fonts": {
+      "body": "inter",
+      "display": "outfit",
+      "indic": "noto_sans",
+      "mono": "jetbrains_mono"
+    },
+    "format": "landscape",
+    "generated_seconds": 16.4,
+    "mode": "dark",
+    "motion": "calm",
+    "motion_scale": 0.85,
+    "personality": "crisp",
+    "safe_zone": "universal",
+    "sfx": false,
+    "style": "dynamic",
+    "text_entrance": "baseline_reveal"
+  },
+  "scenes": [
+    {
+      "audio_asset_key": "scene_audio-hq-lint",
+      "audio_duration": 2.8,
+      "audio_offset": 0.5,
+      "audio_url": null,
+      "beats": [
+        {
+          "beat_id": "hq-lint-b1",
+          "board_item_id": "q",
+          "captions": [
+            {
+              "end": 1.9,
+              "start": 0.5,
+              "text": "Why warm wires waste whole watts."
+            }
+          ],
+          "end": 3.3,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 0,
+          "narration": "Why warm wires waste whole watts.",
+          "phase": "main",
+          "speech_end": 1.5,
+          "start": 0.5,
+          "visual_cue": null,
+          "words": [
+            {
+              "end": 0.667,
+              "start": 0.5,
+              "text": "Why"
+            },
+            {
+              "end": 0.833,
+              "start": 0.667,
+              "text": "warm"
+            },
+            {
+              "end": 1.0,
+              "start": 0.833,
+              "text": "wires"
+            },
+            {
+              "end": 1.167,
+              "start": 1.0,
+              "text": "waste"
+            },
+            {
+              "end": 1.333,
+              "start": 1.167,
+              "text": "whole"
+            },
+            {
+              "end": 1.5,
+              "start": 1.333,
+              "text": "watts."
+            }
+          ]
+        }
+      ],
+      "board": [
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "h",
+          "justification": null,
+          "kind": "heading",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "Stakes",
+          "variables": []
+        },
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "q",
+          "justification": null,
+          "kind": "question",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "WHY WARM WIRES WASTE WHOLE WATTS",
+          "variables": []
+        }
+      ],
+      "chapter_id": null,
+      "chapter_label": null,
+      "concept_id": "ohm",
+      "duration": 4.1,
+      "events": [
+        {
+          "anchored": true,
+          "dur": null,
+          "kind": "reveal",
+          "sfx": null,
+          "t": 0.38,
+          "target": "q",
+          "words": ""
+        }
+      ],
+      "figures": {},
+      "index": 0,
+      "layout": {
+        "fullscreen_media": false,
+        "mascot_position": "left",
+        "show_side_panel": false
+      },
+      "look": {
+        "background": {
+          "frozen_at": null,
+          "params": {
+            "tone": "bg"
+          },
+          "preset": "mesh_drift",
+          "seed": 1700593180
+        },
+        "hold_reason": null,
+        "presenter": null,
+        "template": "hook_question",
+        "text_fit": {},
+        "tokens": {
+          "bg": "#001B1C",
+          "bg-alt": "#002527",
+          "bg-tint": "#251118",
+          "block.base": "#7B64A8",
+          "block.highlight": "#A970B6",
+          "block.ink": "#FFFFFF",
+          "block.ink2": "#F1EFF7",
+          "scrim": "#001B1CC7",
+          "struct.accent": "#FF89B0",
+          "surface": "#0E3133"
+        },
+        "transition_in": {
+          "kind": "cut",
+          "seconds": 0.0
+        },
+        "variant": "stakes"
+      },
+      "media": null,
+      "objective_ids": [],
+      "p5_code": null,
+      "poster": null,
+      "quiz": null,
+      "scene_id": "hq-lint",
+      "side_panel": null,
+      "start": 0.0,
+      "subtitle": null,
+      "title": "What warm wires cost",
+      "type": "content"
+    },
+    {
+      "audio_asset_key": "scene_audio-hq-longword",
+      "audio_duration": 2.8,
+      "audio_offset": 0.5,
+      "audio_url": null,
+      "beats": [
+        {
+          "beat_id": "hq-longword-b1",
+          "board_item_id": "q",
+          "captions": [
+            {
+              "end": 1.9,
+              "start": 0.5,
+              "text": "Can you say this word?"
+            }
+          ],
+          "end": 3.3,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 0,
+          "narration": "Can you say this word?",
+          "phase": "main",
+          "speech_end": 1.5,
+          "start": 0.5,
+          "visual_cue": null,
+          "words": [
+            {
+              "end": 0.7,
+              "start": 0.5,
+              "text": "Can"
+            },
+            {
+              "end": 0.9,
+              "start": 0.7,
+              "text": "you"
+            },
+            {
+              "end": 1.1,
+              "start": 0.9,
+              "text": "say"
+            },
+            {
+              "end": 1.3,
+              "start": 1.1,
+              "text": "this"
+            },
+            {
+              "end": 1.5,
+              "start": 1.3,
+              "text": "word?"
+            }
+          ]
+        }
+      ],
+      "board": [
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "q",
+          "justification": null,
+          "kind": "question",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "Supercalifragilisticexpialidocious?",
+          "variables": []
+        }
+      ],
+      "chapter_id": null,
+      "chapter_label": null,
+      "concept_id": "ohm",
+      "duration": 4.1,
+      "events": [
+        {
+          "anchored": true,
+          "dur": null,
+          "kind": "reveal",
+          "sfx": null,
+          "t": 0.38,
+          "target": "q",
+          "words": ""
+        }
+      ],
+      "figures": {},
+      "index": 1,
+      "layout": {
+        "fullscreen_media": false,
+        "mascot_position": "left",
+        "show_side_panel": false
+      },
+      "look": {
+        "background": {
+          "frozen_at": null,
+          "params": {
+            "tone": "bg-alt"
+          },
+          "preset": "mesh_drift",
+          "seed": 1375240973
+        },
+        "hold_reason": null,
+        "presenter": null,
+        "template": "hook_question",
+        "text_fit": {},
+        "tokens": {
+          "bg": "#001B1C",
+          "bg-alt": "#002527",
+          "bg-tint": "#251118",
+          "block.base": "#7B64A8",
+          "block.highlight": "#A970B6",
+          "block.ink": "#FFFFFF",
+          "block.ink2": "#F1EFF7",
+          "scrim": "#001B1CC7",
+          "struct.accent": "#FF89B0",
+          "surface": "#0E3133"
+        },
+        "transition_in": {
+          "kind": "cut",
+          "seconds": 0.0
+        },
+        "variant": "challenge"
+      },
+      "media": null,
+      "objective_ids": [],
+      "p5_code": null,
+      "poster": null,
+      "quiz": null,
+      "scene_id": "hq-longword",
+      "side_panel": null,
+      "start": 4.1,
+      "subtitle": null,
+      "title": "One long word",
+      "type": "content"
+    },
+    {
+      "audio_asset_key": "scene_audio-hq-tamil",
+      "audio_duration": 2.8,
+      "audio_offset": 0.5,
+      "audio_url": null,
+      "beats": [
+        {
+          "beat_id": "hq-tamil-b1",
+          "board_item_id": "q",
+          "captions": [
+            {
+              "end": 1.9,
+              "start": 0.5,
+              "text": "மின்சாரம் எப்படி வீட்டை அடைகிறது?"
+            }
+          ],
+          "end": 3.3,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 0,
+          "narration": "மின்சாரம் எப்படி வீட்டை அடைகிறது?",
+          "phase": "main",
+          "speech_end": 1.5,
+          "start": 0.5,
+          "visual_cue": null,
+          "words": [
+            {
+              "end": 0.75,
+              "start": 0.5,
+              "text": "மின்சாரம்"
+            },
+            {
+              "end": 1.0,
+              "start": 0.75,
+              "text": "எப்படி"
+            },
+            {
+              "end": 1.25,
+              "start": 1.0,
+              "text": "வீட்டை"
+            },
+            {
+              "end": 1.5,
+              "start": 1.25,
+              "text": "அடைகிறது?"
+            }
+          ]
+        }
+      ],
+      "board": [
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "q",
+          "justification": null,
+          "kind": "question",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "மின்சாரம் எப்படி வீட்டை அடைகிறது?",
+          "variables": []
+        }
+      ],
+      "chapter_id": null,
+      "chapter_label": null,
+      "concept_id": "ohm",
+      "duration": 4.1,
+      "events": [
+        {
+          "anchored": true,
+          "dur": null,
+          "kind": "reveal",
+          "sfx": null,
+          "t": 0.38,
+          "target": "q",
+          "words": ""
+        }
+      ],
+      "figures": {},
+      "index": 2,
+      "layout": {
+        "fullscreen_media": false,
+        "mascot_position": "left",
+        "show_side_panel": false
+      },
+      "look": {
+        "background": {
+          "frozen_at": null,
+          "params": {
+            "tone": "bg-tint"
+          },
+          "preset": "mesh_drift",
+          "seed": 1180757568
+        },
+        "hold_reason": null,
+        "presenter": null,
+        "template": "hook_question",
+        "text_fit": {},
+        "tokens": {
+          "bg": "#001B1C",
+          "bg-alt": "#002527",
+          "bg-tint": "#251118",
+          "block.base": "#7B64A8",
+          "block.highlight": "#A970B6",
+          "block.ink": "#FFFFFF",
+          "block.ink2": "#F1EFF7",
+          "scrim": "#001B1CC7",
+          "struct.accent": "#FF89B0",
+          "surface": "#0E3133"
+        },
+        "transition_in": {
+          "kind": "cut",
+          "seconds": 0.0
+        },
+        "variant": "mystery"
+      },
+      "media": null,
+      "objective_ids": [],
+      "p5_code": null,
+      "poster": null,
+      "quiz": null,
+      "scene_id": "hq-tamil",
+      "side_panel": null,
+      "start": 8.2,
+      "subtitle": null,
+      "title": "மின்சாரப் பாதை",
+      "type": "content"
+    },
+    {
+      "audio_asset_key": "scene_audio-hq-hindi",
+      "audio_duration": 2.8,
+      "audio_offset": 0.5,
+      "audio_url": null,
+      "beats": [
+        {
+          "beat_id": "hq-hindi-b1",
+          "board_item_id": "q",
+          "captions": [
+            {
+              "end": 1.9,
+              "start": 0.5,
+              "text": "बिजली घर तक कैसे पहुँचती है?"
+            }
+          ],
+          "end": 3.3,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 0,
+          "narration": "बिजली घर तक कैसे पहुँचती है?",
+          "phase": "main",
+          "speech_end": 1.5,
+          "start": 0.5,
+          "visual_cue": null,
+          "words": [
+            {
+              "end": 0.667,
+              "start": 0.5,
+              "text": "बिजली"
+            },
+            {
+              "end": 0.833,
+              "start": 0.667,
+              "text": "घर"
+            },
+            {
+              "end": 1.0,
+              "start": 0.833,
+              "text": "तक"
+            },
+            {
+              "end": 1.167,
+              "start": 1.0,
+              "text": "कैसे"
+            },
+            {
+              "end": 1.333,
+              "start": 1.167,
+              "text": "पहुँचती"
+            },
+            {
+              "end": 1.5,
+              "start": 1.333,
+              "text": "है?"
+            }
+          ]
+        }
+      ],
+      "board": [
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "q",
+          "justification": null,
+          "kind": "question",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "बिजली घर तक कैसे पहुँचती है?",
+          "variables": []
+        }
+      ],
+      "chapter_id": null,
+      "chapter_label": null,
+      "concept_id": "ohm",
+      "duration": 4.1,
+      "events": [
+        {
+          "anchored": true,
+          "dur": null,
+          "kind": "reveal",
+          "sfx": null,
+          "t": 0.38,
+          "target": "q",
+          "words": ""
+        }
+      ],
+      "figures": {},
+      "index": 3,
+      "layout": {
+        "fullscreen_media": false,
+        "mascot_position": "left",
+        "show_side_panel": false
+      },
+      "look": {
+        "background": {
+          "frozen_at": null,
+          "params": {
+            "tone": "bg"
+          },
+          "preset": "mesh_drift",
+          "seed": 810858469
+        },
+        "hold_reason": null,
+        "presenter": null,
+        "template": "hook_question",
+        "text_fit": {},
+        "tokens": {
+          "bg": "#001B1C",
+          "bg-alt": "#002527",
+          "bg-tint": "#251118",
+          "block.base": "#7B64A8",
+          "block.highlight": "#A970B6",
+          "block.ink": "#FFFFFF",
+          "block.ink2": "#F1EFF7",
+          "scrim": "#001B1CC7",
+          "struct.accent": "#FF89B0",
+          "surface": "#0E3133"
+        },
+        "transition_in": {
+          "kind": "cut",
+          "seconds": 0.0
+        },
+        "variant": "question"
+      },
+      "media": null,
+      "objective_ids": [],
+      "p5_code": null,
+      "poster": null,
+      "quiz": null,
+      "scene_id": "hq-hindi",
+      "side_panel": null,
+      "start": 12.3,
+      "subtitle": null,
+      "title": "बिजली का सफ़र",
+      "type": "content"
+    }
+  ],
+  "schema_version": 3,
+  "screenplay_revision": null,
+  "total_duration": 16.4,
+  "transition_seconds": 0.4,
+  "version_id": null,
+  "width": 1920
+}

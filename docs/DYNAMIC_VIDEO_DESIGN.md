@@ -653,7 +653,7 @@ A **scene template** is a typed layout plus choreography. It renders one scene f
 
 **`chapter_bumper`** (R1, structure) — boundary marker and the only place the structure accent changes (R-18, R-52).
 - **Data:** a `ChapterCardScene` (`chapter_label`, `title`; may be silent).
-- **16:9:** a full-bleed colour-block wipe in the new accent; outline numeral "02" at 320 px; title at 96 px; mini-roadmap of all chapters along the bottom (past chapters ticked, the current one lit). **9:16:** numeral 240 px, title centred.
+- **16:9:** a full-bleed colour-block wipe in the new accent; outline numeral "02" at 320 px (*as built: a tint of the block ink, not a stroked outline — §10.3 B2, review D4*); title at 96 px; mini-roadmap of all chapters along the bottom (past chapters ticked, the current one lit). **9:16:** numeral 240 px, title centred.
 - **Shared anchor** [RV L-12]. When the chapter is `builds_on` the previous one (planner field, default true), the previous chapter's anchor visual (its formula, key figure or last takeaway, chosen by `direct.py`) morphs into a ≤ 160 px "from last chapter" chip that stays at the top left through the next scene.
 - **Choreography:** wipe 450 ms `ease.hero`; numeral slides 40 px (500 ms), title 120 ms later; the node lights; hard cut out; one whoosh (R-49); the music changes arrangement.
 - **Timing:** 2–3 s (16:9), 1.2–1.8 s (9:16; only at act boundaries in the Learning profile).
@@ -3046,6 +3046,75 @@ every later template follows**).
   review of the reference frames; `textfit` is still not wired into rendering (B2d/B2e); `anchor()` is still null (the
   morph, B2f); the remaining R1 templates, `direct.py` and `events.py` are the demo phase
   (`docs/plans/b2/demo_workflow.js`).
+
+
+**Status (B2 demo phase, 2026-10-15): the director wired in, six more templates registered, engine generation 3.**
+The demo phase is `docs/plans/b2/demo_workflow.js`: six template builders and the Director in parallel, then one
+integrator. It is what makes a real lecture use the new templates instead of drawing `board_generic` everywhere.
+- **The Director.** `aadhi/compose/dynamic/direct.py` (`plan(screenplay, scenes, fmt, chapters)` -> one `ScenePlan`
+  per scene: template, variant, events, fit, class, forced/locked) implements §4.4 gated to what the stage can draw
+  (`direct.candidate`: `implemented`, release R1, the lecture's format - the only gate, so a template becomes
+  eligible the moment its `implemented` flag flips). `aadhi/compose/dynamic/events.py` writes the scene's
+  `VisualEvent`s (`reveal` 120 ms before its beat at exactly `state.js itemTimings`' time, `fill`, `var`, `draw`,
+  `cue_term` on the first two narrated mentions of a `[[term]]` lesson-wide, `look_here` from focus/emphasis cues and
+  the R-16 hold walk), all inside R-26's cue budget.
+- **Wired into the build.** `compose/presentation.py resolve_looks` takes the template and the variant from the plan
+  (`plans` argument, computed lazily when not given so a classic build still loads no Dynamic module) and
+  `compose/timeline.py` puts each plan's events on the timed scene. `presentation.TEMPLATES` is now the implemented
+  R1 set, not `("board_generic",)`.
+  - **Behaviour change:** a scene with `look.template` and `lock="auto"` may now be re-directed (§4.4 "auto may be
+    re-directed on save"); `pinned` and `settled` are honoured, and a lock naming a template the stage has not got is
+    ignored instead of drawing nothing.
+  - **Every Dynamic scene now carries `events`**, `board_generic` ones included. Their reveal and fill times are
+    exactly the ones `state.js itemTimings` already computes from the beats, so no pixel moves; the stored timeline
+    grows and a rebuilt project's chunk-cache keys change (cache misses only).
+- **Look-engine generation 3** (`presentation.ENGINE_VERSION`, `web/js/dynamic/engine.js`): a stored generation-2
+  timeline draws `board_generic` everywhere where a rebuild would now draw a real template, so `aadhi/api/timelines.py`
+  rebuilds it at serve time and every cached copy is refreshed by the ETag.
+- **Six more templates built and registered** (`stage.js TEMPLATES`, `templates.py` `implemented=True` + `slots` +
+  `consumes`, catalogue regenerated), each with its own jsdom contract test, fixture generator and fixtures in both
+  formats and both families: `chapter_bumper` (tinted numeral, kicker, title, 16:9 mini-roadmap),
+  `definition_card` (term + meaning on a card, three variants), `hook_question` (one large question, the 9:16
+  frame0 cover rule, the "True or false?" pill), `key_terms` (2-4 cards in 16:9, rows in 9:16),
+  `recap_retrieval` (prompt card, think ring, answer, takeaway tiles) and `worked_steps` (steps with their states,
+  a blank typing in, the think ring, the formula card). The catalogue's `SlotSpec` gained `tabular_nums`, which it
+  had not carried.
+- **Data-fit parity (B2c review CG-2) extended.** A template's Python `fit` must refuse what its JS `drawsScene`
+  refuses, or the Director picks it and the page silently draws `board_generic`. The demo render found exactly that
+  on `worked_steps`, so `_fit_hook_question`, `_fit_worked_steps`, `_fit_key_terms`, `_fit_definition_card` and
+  `_fit_recap_retrieval` carry the same side-panel guards their pages do. `_fit_worked_steps` also accepts the one
+  top line the page draws (`heading | callout_info | paragraph`), because the generator writes a worked example's
+  setup as a `callout_info`.
+- **Review fixes (B2-demo review, 2026-10-15).** The §4.4 `example` row and `_fit_worked_steps` now ask one shared
+  question (`_worked_shape`): while only the fit was widened, every shape the row did not claim scored
+  `min(best, data) = 0` and `worked_steps` was unreachable for a generated worked example (D1). `fake_content`
+  therefore speaks an example's closing takeaway instead of writing it to the board, which is the example scene's
+  only item of a kind `worked_steps` does not draw. `recap_retrieval` refuses a scene with a side panel on both
+  sides (D5: it plans no media box, so the panel's picture was fetched by no one and vanished). `direct.variant_for`
+  mirrors `definition_card.js variantOf` exactly, which means `centred` until B2e writes `look.icons` (D7: a stored
+  `card_icon_right` the page draws as `centred` would fit text to a slot 324 px too wide). In `key_terms` the 9:16
+  icon is a square of the term's own fitted size on the term's line (D2: it was ~16 px on a line of its own,
+  because an `em` on the icon resolved against the inherited base size and the term was block-level), and its icons
+  are all-or-nothing like `recap_retrieval`'s and `list_build`'s (D6). The `chapter_bumper` numeral is a tint of the
+  block ink with no `-webkit-text-stroke` (D4): in HTML that stroke is painted over the fill, so the internal joins
+  of a glyph whose outline self-overlaps - the "1" of "01" in the display face - were drawn too and the numeral
+  read as a grid of boxes at 320 px. §4.3's "outline numeral" is a deviation from here on. The owner's contact
+  sheet is built from the captures instead of a hard-coded list of B2c's three pilots (D3), so all nine implemented
+  templates are in it: 304 frames, re-captured after these fixes.
+- **The demo.** The showcase lecture (`tests/core/fixtures/showcase_ohms_law.json`) was built four times (16:9 and
+  9:16, one dark and one light R1 family) and rendered to MP4 by the real engine; the files, the per-scene template
+  table and the reasons the remaining scenes still fall back are in `final_videos/demo_b2/README.md` (git-ignored).
+  Reference frames for every implemented template, both formats, dark and light, are
+  `docs/plans/b2/demo_frames/index.html` (`python -m tests.compose.dynamic.make_reference_frames`);
+  `docs/plans/b2/b2c_frames/` keeps the earlier B2c-only sheet.
+- **Open.** The scenes the demo still draws with `board_generic` need the remaining R1 templates
+  (`full_bleed_media` for `ai_video`, `animation_stage` for `simulation`, `check` for a quiz checkpoint,
+  `aadhi_intro` / `outro_next` / `myth_fact` / `predict` / `code_walkthrough` / `chart_build` /
+  `kinetic_statement`); §4.4's bounded-variety post-pass, the energy parameter and B2e's resolver work
+  (`palette_slot`, accents and `accent_fade`, `refs`, `icons`, `text_fit`, display-face rotation) are not built;
+  every size of the six new templates is a proposal awaiting the owner's review of the reference frames. A template
+  that draws no medium now refuses such a scene in both its `fit` and its `drawsScene`, so the scene keeps its panel
+  under `board_generic`; the parity is kept guard by guard, not by a test that walks every template.
 
 
 #### B3. Audio system (in parallel with B1–B2)

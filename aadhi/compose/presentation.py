@@ -62,10 +62,11 @@ if TYPE_CHECKING:
 
 # What the stage renders (web/js/dynamic; the catalogue's ``implemented`` entries, pinned equal by a test): anything
 # else falls back to these defaults. Static tuples, so importing this module loads no Dynamic module.
-# The resolver draws only ``board_generic`` until B2e's direct.py chooses templates (B2c: the pilot templates are
-# implemented, but reached only by timelines that name them, so no timeline built today changes): a subset of the
-# catalogue's ``implemented`` entries (pinned by a test).
-TEMPLATES = ("board_generic",)
+# The resolver asks ``dynamic.direct`` which template draws each scene (plan §A step 5). This tuple is the set it may
+# answer with (``templates.IMPLEMENTED`` of release R1; pinned equal by a test); ``direct.candidate`` is the gate, so a
+# template joins it by flipping ``implemented`` in ``compose/dynamic/templates.py``.
+TEMPLATES = ("board_generic", "chapter_bumper", "definition_card", "formula_focus", "hook_question", "key_terms",
+             "list_build", "media_split", "recap_retrieval", "worked_steps")
 # The dense templates (templates.py ``dense``; pinned equal by a test): their background is frozen from the scene start
 # throughout (R-55), as a hold freezes it.
 DENSE_TEMPLATES = ("formula_focus", "worked_steps", "code_walkthrough")
@@ -78,10 +79,12 @@ CROSSFADE_SECONDS = 0.45
 CROSSFADE_MIN_SECONDS = 0.3
 CROSSFADE_MAX_SECONDS = 0.5
 TONES = ("bg", "bg-alt", "bg-tint")  # §4.5: the per-scene tone step of the background
-# The look-engine generation (TimelinePresentation.engine_version; plan §1.3, deviation 21): 1 = B1, 2 = B2a (see the
-# module docstring). The stage contract stays aadhiStage v3. aadhi.api.timelines rebuilds a stored Dynamic timeline of
-# the current revision built by an older generation, and hashes this into the served timeline's ETag.
-ENGINE_VERSION = 2
+# The look-engine generation (TimelinePresentation.engine_version; plan §1.3, deviation 21): 1 = B1, 2 = B2a, 3 = the
+# demo phase's director (``dynamic.direct`` picks a template, a variant and the scene's visual events, so a stored
+# generation-2 timeline draws board_generic everywhere where a rebuild would now draw a real template). The stage
+# contract stays aadhiStage v3. aadhi.api.timelines rebuilds a stored Dynamic timeline of the current revision built by
+# an older generation, and hashes this into the served timeline's ETag.
+ENGINE_VERSION = 3
 CHAPTER_START_EPS = 1e-3  # a chapter starting within 1 ms of a scene is its chapter (board_generic.kickerOf)
 # Portrait captions: phrase chunks of <= 32 characters in <= 2 lines (R-32), until kinetic.py (B2) measures them.
 PORTRAIT_CAPTION_LINE_CHARS = 16
@@ -227,7 +230,8 @@ def _background_preset(requested: str | None, scene_type: str) -> str:
 
 
 def resolve_looks(screenplay: Screenplay, scenes: Sequence[TimedScene],
-                  chapters: Sequence[Chapter] | None = None) -> list[ResolvedLook]:
+                  chapters: Sequence[Chapter] | None = None,
+                  plans: Sequence[Any] | None = None) -> list[ResolvedLook]:
     """The resolved look of each timed scene (``TimedScene.look``), in order.
 
     ``chapters``: ``Timeline.chapters`` (``compose.timeline.build_chapters(screenplay, scenes)``, computed here when
@@ -240,7 +244,12 @@ def resolve_looks(screenplay: Screenplay, scenes: Sequence[TimedScene],
     crossfade lasts :func:`crossfade_seconds`; a scene too short for one gets a cut. The crossfade at a palette-slot
     change inside a chapter is interim (A2 proposal, pending owner review; not in the design): R-52 cross-fades an
     accent change over 600-1000 ms, which B2e's ``accent_fade`` brings. ``continues_from`` is kept when it
-    names the scene just before (a split's part B continues its part A, §8.3); any other value is dropped."""
+    names the scene just before (a split's part B continues its part A, §8.3); any other value is dropped.
+
+    ``plans``: ``dynamic.direct.plan``'s :class:`~aadhi.compose.dynamic.direct.ScenePlan` per scene, which decides the
+    template and its variant (computed here when not given). A scene with ``look.template`` and ``lock="auto"`` may
+    therefore be re-directed (§4.4 "auto may be re-directed on save"); ``pinned`` and ``settled`` locks are honoured by
+    the director, and a lock naming a template the stage has not got is ignored instead of drawing nothing."""
     from .dynamic import themes
 
     presentation = screenplay.presentation
@@ -250,6 +259,11 @@ def resolve_looks(screenplay: Screenplay, scenes: Sequence[TimedScene],
         from .timeline import build_chapters  # compose.timeline imports this module: resolved at call time
 
         chapters = build_chapters(screenplay, scenes)
+    if plans is None:
+        from .dynamic.direct import plan as direct_plan  # lazy: a classic build loads no Dynamic module
+
+        plans = direct_plan(screenplay, scenes, presentation.format, chapters)
+    chosen = {p.scene_id: p for p in plans}
     family = family_for(presentation.theme_family)
     source = {s.id: s for s in screenplay.scenes}
     numbers = chapter_indices(scenes, chapters)
@@ -259,7 +273,9 @@ def resolve_looks(screenplay: Screenplay, scenes: Sequence[TimedScene],
     tone_step = 0
     for i, timed in enumerate(scenes):
         look = getattr(source.get(timed.scene_id), "look", None)
-        template = look.template if look is not None and look.template in TEMPLATES else DEFAULT_TEMPLATE
+        decided = chosen.get(timed.scene_id)
+        template = decided.template if decided is not None else DEFAULT_TEMPLATE
+        variant = decided.variant if decided is not None else None
         preset = _background_preset(look.background if look is not None else None, timed.type)
         new_chapter = i > 0 and numbers[i] != numbers[i - 1]
         tone_step = 0 if (i == 0 or new_chapter) else tone_step + 1
@@ -286,7 +302,7 @@ def resolve_looks(screenplay: Screenplay, scenes: Sequence[TimedScene],
         follows = look.continues_from if look is not None else None
         looks.append(ResolvedLook(
             template=template,
-            variant=None,
+            variant=variant,
             tokens=tokens,
             background={"preset": preset, "params": {"tone": TONES[tone_step % len(TONES)]},
                         "seed": seed_for(presentation, timed.scene_id, "background"),

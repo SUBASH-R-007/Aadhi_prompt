@@ -1,0 +1,278 @@
+{
+  "board_language": "en-IN",
+  "branding": {
+    "bgm_url": null,
+    "bgm_volume": 0.06,
+    "ding_url": null,
+    "mascot_clips": {},
+    "mascot_rig_url": null,
+    "static_background_url": null,
+    "tick_url": null
+  },
+  "captions": [
+    {
+      "end": 4.7,
+      "start": 0.6,
+      "text": "Maximum wattage is reached when warm motors meet heavy loads."
+    },
+    {
+      "end": 9.3,
+      "start": 5.0,
+      "text": "And here is one very long word."
+    }
+  ],
+  "chapters": [
+    {
+      "start": 0.0,
+      "title": "Maximum wattage"
+    }
+  ],
+  "concept_map": [],
+  "estimated": false,
+  "fps": 30,
+  "height": 1080,
+  "intro": null,
+  "language": "en-IN",
+  "learning_objectives": [],
+  "meta": {},
+  "presentation": {
+    "caption_style": "clean_pill",
+    "captions_burn": true,
+    "content": {
+      "entity:0": "#0267C7",
+      "entity:1": "#80369E",
+      "entity:2": "#870C62",
+      "focus": "#141822",
+      "ink": "#141822",
+      "ink2": "#484D58",
+      "mark": "#F2D935",
+      "ok": "#016F50",
+      "warn": "#9F4503"
+    },
+    "content_alt": {
+      "entity:0": "#0FE3FE",
+      "entity:1": "#C4A4FE",
+      "entity:2": "#FEACE3",
+      "focus": "#F2D935",
+      "ink": "#F3F5F9",
+      "ink2": "#B9BEC7",
+      "mark": "#F2D935",
+      "ok": "#5DD8AA",
+      "warn": "#F8A87F"
+    },
+    "cue_term_style": "underline",
+    "engine_version": 3,
+    "family": "paper_ink",
+    "fonts": {
+      "body": "inter",
+      "display": "outfit",
+      "indic": "noto_sans",
+      "mono": "jetbrains_mono"
+    },
+    "format": "landscape",
+    "generated_seconds": 10.0,
+    "mode": "light",
+    "motion": "standard",
+    "motion_scale": 0.85,
+    "personality": "crisp",
+    "safe_zone": "universal",
+    "sfx": false,
+    "style": "dynamic",
+    "text_entrance": "baseline_reveal"
+  },
+  "scenes": [
+    {
+      "audio_asset_key": null,
+      "audio_duration": 9.2,
+      "audio_offset": 0.4,
+      "audio_url": null,
+      "beats": [
+        {
+          "beat_id": "dc-l-stress-1",
+          "board_item_id": "d1",
+          "captions": [
+            {
+              "end": 4.7,
+              "start": 0.6,
+              "text": "Maximum wattage is reached when warm motors meet heavy loads."
+            }
+          ],
+          "end": 5.0,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 0,
+          "narration": "Maximum wattage is reached when warm motors meet heavy loads.",
+          "phase": "main",
+          "speech_end": 4.7,
+          "start": 0.6,
+          "visual_cue": null,
+          "words": []
+        },
+        {
+          "beat_id": "dc-l-stress-2",
+          "board_item_id": "b1",
+          "captions": [
+            {
+              "end": 9.3,
+              "start": 5.0,
+              "text": "And here is one very long word."
+            }
+          ],
+          "end": 9.6,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 1,
+          "narration": "And here is one very long word.",
+          "phase": "main",
+          "speech_end": 9.3,
+          "start": 5.0,
+          "visual_cue": null,
+          "words": []
+        }
+      ],
+      "board": [
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "d1",
+          "justification": null,
+          "kind": "definition",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": "MAXIMUM WATTAGE",
+          "text": "WARM MOTORS MEET HEAVY LOADS at $P = VI$",
+          "variables": []
+        },
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "b1",
+          "justification": null,
+          "kind": "bullet",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "Pneumonoultramicroscopicsilicovolcanoconiosis is [[unrelated]]",
+          "variables": []
+        }
+      ],
+      "chapter_id": null,
+      "chapter_label": null,
+      "concept_id": null,
+      "duration": 10.0,
+      "events": [
+        {
+          "anchored": true,
+          "dur": 1.4,
+          "kind": "cue_term",
+          "sfx": null,
+          "t": 5.6,
+          "target": "b1",
+          "words": ""
+        }
+      ],
+      "figures": {},
+      "index": 0,
+      "layout": {
+        "fullscreen_media": false,
+        "mascot_position": "left",
+        "show_side_panel": true
+      },
+      "look": {
+        "background": {
+          "frozen_at": null,
+          "params": {
+            "tone": "bg"
+          },
+          "preset": "mesh_drift",
+          "seed": 7202
+        },
+        "hold_reason": null,
+        "presenter": null,
+        "template": "definition_card",
+        "text_fit": {},
+        "tokens": {
+          "bg": "#FDF2DD",
+          "bg-alt": "#F3E8D3",
+          "bg-tint": "#FFEAEF",
+          "block.base": "#BE3D70",
+          "block.highlight": "#C7537D",
+          "block.ink": "#FFFFFF",
+          "block.ink2": "#F6D9E1",
+          "scrim": "#FDF2DDC7",
+          "struct.accent": "#BE3D70",
+          "surface": "#FFFDFA"
+        },
+        "transition_in": {
+          "kind": "cut",
+          "seconds": 0.0
+        },
+        "variant": "card_image_left"
+      },
+      "media": null,
+      "objective_ids": [],
+      "p5_code": null,
+      "poster": null,
+      "quiz": null,
+      "scene_id": "dc-l-stress",
+      "side_panel": {
+        "media": {
+          "asset_key": "img-definition",
+          "attribution": null,
+          "duration": null,
+          "end_behavior": "loop",
+          "fit": "contain",
+          "height": 900,
+          "ken_burns": null,
+          "kind": "image",
+          "link_url": null,
+          "mime": null,
+          "render_in_mp4": true,
+          "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABkAAAAOECAIAAAB2L2r1AAAW9ElEQVR42u3asYkCYRhF0atMFYaGxmJgAWJVBlvTRpYgxpZhJIZiB4Lg4jqeU8Kb5OfON5nN1wEAAADAfzU1AQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAAAIWAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAAAAAhYAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAAACFgAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAAAACVgAAAAAfITBBAD8hdPOP5JHFj8329rHPvbxCQAgF1gAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAA8JTBBO91POyNAIzT79YGAJ64AGOyXG2MkAssAAAAAEjAAgAAACABCwAAAAASsAAAAABIwAIAAACABCwAAAAASMACAAAAIAELAAAAABKwAAAAAEjAAgAAAIAELAAAAABIwAIAAAAgAQsAAAAAErAAAAAA+DaDCd5rudoYARil084/EgBPXADIBRYAAAAACVgAAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAAlIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAABAAhYAAAAACVgAAAAA8EKT2XxtBQAAAABygQUAAAAACVgAAAAAJGABAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAJGABAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAAAkYAEAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAACRgAQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAEACFgAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAABAAhYAAAAACVgAAAAAkIAFAAAAwNcarpezFQAAAADIBRYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAQAIWAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAABAAhYAAAAAH+EOQigi1aRvN5wAAAAASUVORK5CYII=",
+          "width": 1600
+        },
+        "panel": {
+          "chart": null,
+          "figure_id": null,
+          "gif_query": null,
+          "graph": null,
+          "image_prompt": "A resistor in a circuit, drawn flat",
+          "kind": "image",
+          "manim": null,
+          "model_3d": null,
+          "override_asset_key": null,
+          "quiz": null,
+          "rationale": "Shows the component.",
+          "show_from_beat_id": null,
+          "terminal": null,
+          "title": "A resistor"
+        },
+        "show_at": 0.0
+      },
+      "start": 0.0,
+      "subtitle": null,
+      "title": "Maximum wattage",
+      "type": "content"
+    }
+  ],
+  "schema_version": 3,
+  "screenplay_revision": null,
+  "total_duration": 10.0,
+  "transition_seconds": 0.4,
+  "version_id": null,
+  "width": 1920
+}

@@ -11,6 +11,7 @@ from typing import Any
 
 import pytest
 
+from aadhi.compose import presentation as pr
 from aadhi.compose.dynamic import preflight as pf
 from aadhi.compose.dynamic.preflight import (
     PREFLIGHT_SCHEMA,
@@ -706,7 +707,7 @@ async def test_a_remedied_b2_timeline_never_carries_the_safe_variant(monkeypatch
     variant and text_fit exactly as built; through run_preflight too (the remedied timeline the capture uses)."""
     tl = _b2_timeline()
     built = tl.model_dump(mode="json")
-    assert built["presentation"]["engine_version"] == 2
+    assert built["presentation"]["engine_version"] == pr.ENGINE_VERSION
     every = [r for n in range(len(built["scenes"]))
              for r in (Remedy("safe_variant", n), Remedy("shrink", n, "title", 40.0), Remedy("scrim", n, "kicker"))]
     out = apply_remedies(built, every)

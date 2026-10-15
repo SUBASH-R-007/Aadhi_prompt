@@ -124,12 +124,45 @@ def test_every_fixture_file_is_its_generator_s_current_output() -> None:
     (``python -m tests.compose.dynamic.<generator>``; each also has ``--check``): a fixture edited by hand, a stale one
     after a pipeline change, or a stray file fails here."""
     from tests.compose.dynamic import list_build_fixtures as lbf
+    from tests.compose.dynamic import make_chapter_bumper_fixtures as cbf
+    from tests.compose.dynamic import make_definition_card_fixtures as dcf
     from tests.compose.dynamic import make_formula_focus_fixtures as fff
+    from tests.compose.dynamic import make_hook_question_fixtures as hqf
+    from tests.compose.dynamic import make_key_terms_fixtures as ktf
     from tests.compose.dynamic import make_media_split_fixtures as msf
+    from tests.compose.dynamic import make_recap_retrieval_fixtures as rrf
+    from tests.compose.dynamic import worked_steps_fixtures as wsf
 
     generated: dict[str, str] = {p.name: text for p, text in fff.fixtures().items()}
     generated |= {p.name: text for p, text in msf.files().items()}
     generated |= {name: lbf.render(tl) for name, tl in lbf.fixtures().items()}
+    generated |= {name: cbf.render(tl) for name, tl in cbf.fixtures().items()}
+    generated |= {p.name: text for p, text in dcf.files().items()}
+    generated |= {p.name: text for p, text in hqf.fixtures().items()}
+    generated |= {p.name: text for p, text in ktf.files().items()}
+    generated |= {name: rrf.render(tl) for name, tl in rrf.fixtures().items()}
+    generated |= {name: wsf.render(tl) for name, tl in wsf.fixtures().items()}
     assert sorted(generated) == sorted(p.name for p in PATHS)
     stale = [p.name for p in PATHS if p.read_text("utf-8") != generated[p.name]]
     assert stale == [], f"stale fixtures: {stale}"
+
+
+def test_the_reference_contact_sheet_lists_every_template_it_captured() -> None:
+    """``make_reference_frames.contact_sheet`` builds its sections from the captures, not from a fixed list of
+    templates: the sheet is what the owner reviews the sizes in, and while the list was hard-coded to B2c's three
+    pilots the demo phase's six templates were captured into the same folder and shown nowhere (review D3)."""
+    from tests.compose.dynamic.make_reference_frames import CHOSEN, Shot, contact_sheet
+
+    def shot(name: str) -> Shot:
+        return Shot(name, 0, "s1", "settled", 1.2, 36, f"{name.removesuffix('+clip')}__0__0036__settled.jpg")
+
+    groups = {key: [("dark (midnight_indigo, crisp)", names[0], [shot(names[0])])] for key, names in CHOSEN.items()}
+    sheet = contact_sheet(groups)
+    names = sorted({t for t, _ in CHOSEN})
+    assert len(names) == 9
+    for template in names:
+        assert f"<h2>{template}</h2>" in sheet, template
+    assert sheet.count('src="') == len(groups)
+    # one template captured alone (``--only``) gives a sheet of that template alone
+    one = contact_sheet({k: v for k, v in groups.items() if k[0] == "key_terms"})
+    assert "<h2>key_terms</h2>" in one and "<h2>list_build</h2>" not in one

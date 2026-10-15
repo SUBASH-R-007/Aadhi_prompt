@@ -940,7 +940,8 @@ test check it).
 
 * **Timeline** (`compose/timeline.py`, `compose/presentation.py`). With the flag on, a screenplay with a
   `presentation` gets `Timeline.presentation` (`TimelinePresentation`: format, resolved content colours, fonts,
-  caption style, `captions_burn`, `engine_version`) and one `ResolvedLook` per scene: template `board_generic`;
+  caption style, `captions_burn`, `engine_version`) and one `ResolvedLook` per scene: the template and variant
+  `compose/dynamic/direct.py` chose (`board_generic` as the fallback);
   background `colour_block` for chapter cards and `mesh_drift` elsewhere, toned `bg` / `bg-alt` / `bg-tint` within a
   chapter; `crossfade` (0.45 s) into a new chapter and into or out of a colour block (R-54), hard cuts inside a
   chapter (R-23); the structure colours of the four R1 theme families; seeds are SHA-256 of `(look_seed, look_epoch,
