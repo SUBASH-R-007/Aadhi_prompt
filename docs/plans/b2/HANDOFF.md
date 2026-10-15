@@ -1,53 +1,51 @@
 # Session handoff — Batch B2 (Dynamic video visual system)
 
-Updated 2026-10-15, after the B2b-H review (three audited fix rounds) and its docs pass. To continue, paste the
+Updated 2026-10-15 (deadline mode), after B2b-H landed and while B2c was being finished. To continue, paste the
 "Prompt for the next session" block below into a new session.
 
-## Where things are
+## Where things are (2026-10-15, end of the first account's session)
 
-- **Branch:** `overhaul/v2` (local). It is 14 commits ahead of `origin/overhaul/v2` at `87fa371` and not pushed. It
-  contains the cloud session's branch `origin/overhaul/v2-el9z66`. Never `main` without asking.
-- **Commits since B1:**
-  - 3226e20 B1 complete
-  - 54c72c5 rollback point
-  - 7687c4e WIP B2a A1 (colour_math.py, themes.py + validator, colour vectors; B2 plan docs)
-  - 0031984 test_tooling platform-neutral fix
-  - 52094f1 A1 review notes
-  - cb81a42 this handoff (first version)
-  - 56ed3e9 B2a A1: the seven review findings fixed; hybrid block-ink rule (owner decision)
-  - 6489b2d B2a A2: zones, template registry, generated catalogue, schema, fixes channel, resolver tokens
-  - ad7a07c B2a A2: the agents' reports (`reports/a2.json`, `reports/b.json`)
-  - 6de3ddf B2a B: the stage reads the catalogue, stored tokens and the fixes channel
-  - fe6bc2f B2a review fixes (both rounds, plus the three source-scan gaps the last audit found, closed by the lead)
-  - c3a1e9b B2a docs pass (`docs/DYNAMIC_VIDEO_DESIGN.md`, `OPERATIONS.md`, `INTERFACES.md`, `API.md`,
-    `ARCHITECTURE.md`, `docs/plans/b2/`)
-  - d93226d WIP B2b: fonts (face table, vendored faces, notices), icons (Lucide + Tabler, offline index), `textfit.py`
-  - 0e14281 WIP B2b review fix round 1 (partial)
-  - f923487 B2b review: every surviving finding fixed (two audited rounds)
-  - d63ff94 B2b docs pass
-  - 87fa371 WIP B2b-H: HarfBuzz-shaped text fit for all scripts; kerning table retired; review done; fix round 1
-    (most of it)
-- **Uncommitted in the working tree** (as of this handoff):
-  - B2b-H fix rounds 2 and 3, and round 1's last assertion: `aadhi/compose/dynamic/textfit.py`,
-    `tests/compose/dynamic/test_textfit.py`, `tests/determinism/test_textfit_parity.py`;
-  - this docs pass: `docs/DYNAMIC_VIDEO_DESIGN.md`, `OPERATIONS.md`, `INTERFACES.md`, `docs/plans/b2/README.md`,
-    `HANDOFF.md`, `b2_plan_v2.md`, `b2b_review.md`, and `b2b_h_review.md` (untracked).
+**DEADLINE MODE (owner, 2026-10-15): about 2 days left (target ~2026-10-17). The owner chose a WORKING DEMO over the
+full B2 scope:** end-to-end Dynamic videos that use the new templates, built with a lighter process (one build agent
+per step, parallel agents writing only their own files plus one integrator, ONE review pass, at most ONE fix round, no
+skeptic loops). Push `overhaul/v2` to origin after each landed phase. The rest of this file's heavier review rules are
+superseded where they conflict.
 
-  All gates pass on this tree (below). **Do not commit it as final yet:** the third audit left two open problems
-  (below), which must be fixed first. A WIP commit as a rollback point is fine.
-- **Another session's B2c work** is on the branch `b2c` (`17121d2` "WIP B2c: shared template infra, cues.js,
-  formula_focus/media_split/list_build; integration partial"), based on `d63ff94`, in the worktree `C:/t/b2c`. It has
-  not been reviewed in this session. Check its state before starting B2c, and rebase it onto the final B2b-H rather
-  than starting over.
-- **Done:** B0, B1, B2-0 (transform policy, plan §P), **B2a**, **B2b** (fonts with the face table, icons, `textfit.py`,
-  `THIRD_PARTY_NOTICES`, the review; committed), and **B2b-H** (built and reviewed; two audit findings open; not
-  committed as final). What each step built and every deviation it realised is in `docs/DYNAMIC_VIDEO_DESIGN.md`
-  §10.3 B2, "Status (B2a)", "(B2b)" and "(B2b-H)", and the as-built notes they name. The reviews are
-  `b2a_review.md`, `b2b_review.md` and `b2b_h_review.md`.
-- **Not done:** the two B2b-H findings, B2c .. B2g, and the open items below. **Never run:** the slow suite beyond the
-  Chromium files in the gate list, the Docker image build, the container benchmark and the CI container job.
+- **Branch:** `overhaul/v2`. Never `main` without asking.
+- **Landed on `overhaul/v2`:** B0, B1, B2-0, **B2a** (`c3a1e9b`), **B2b** fonts/icons/textfit (`d63ff94`), **B2b-H**
+  HarfBuzz-shaped text fit for every script, kerning table retired (`65e6f1d`). B2b-H's two rare open edge cases
+  (ZWSP-joined flow text; an over-wide word starting with a hyphen) are recorded in `b2b_h_review.md` and accepted
+  for the deadline: `textfit` is not wired into rendering yet.
+- **B2c (vertical slice)** was built in the git worktree `C:/t/b2c` on the branch `b2c` (from `d63ff94`):
+  `templates/_shared.js`, `cues.js`, `state.js` additions, and the templates `formula_focus`, `media_split`,
+  `list_build` (registered in `stage.js` and the catalogue; `presentation.TEMPLATES` still `("board_generic",)`, so
+  no existing timeline changes). Commits on `b2c`: `17121d2` (build + partial integration), `4829875` (review fix
+  round 1, partial). Its review ran (3 lenses + skeptics); the workflow was capped at ONE fix/audit round and was
+  being resumed when this handoff was written. **Check `git -C C:/t/b2c log --oneline -5` and `git status`:**
+  - if the branch has a final "B2c" commit and `overhaul/v2` contains it (`git branch --contains`), B2c is done;
+  - otherwise finish B2c yourself (see the prompt below), quickly: fix what the last audit reports, write
+    `docs/plans/b2/b2c_review.md` + `b2c_design_notes.md` in the worktree, commit, merge.
+- **Worktree hygiene:** `C:/t/b2c/node_modules` is a JUNCTION to the main repo's `node_modules`; `C:/t/b2c/web/vendor`
+  is a real copy. Before `git worktree remove --force C:/t/b2c`, run `cmd /c rmdir C:\t\b2c\node_modules` (never let
+  a junction be deleted recursively). The merged tree needs no worktree.
+- **The next phase is prepared, not started:** `docs/plans/b2/demo_workflow.js` is a ready Workflow script (pass
+  `args: {base: <HEAD after the B2c merge>}`): direct.py + events.py wire the built templates into real lectures
+  (template chosen by `TemplateSpec.fit` among implemented R1 templates; events generated from the screenplay),
+  six more templates built in parallel (definition_card, chapter_bumper, hook_question, key_terms, worked_steps,
+  recap_retrieval), an integrator that registers them, bumps ENGINE_VERSION, runs the gates and renders DEMO MP4s of
+  the showcase lecture (dark + light family, 16:9 + 9:16) into `final_videos/demo_b2/`, then one review and one fix.
+- **Session restarts kill background workflows and watchers.** Before a long run, make a WIP commit. To resume a run
+  in a new session, copy its folder `~/.claude/projects/<proj>/<old-session>/subagents/workflows/<run-id>` into the
+  new session's `subagents/workflows/`, add a "continue from WIP commit X" note to the interrupted agent's prompt in
+  the script, and call Workflow with `resumeFromRunId`.
+- **Never run:** the Docker image build, the container benchmark, the CI container job, the slow suite beyond the
+  Chromium files in the gate list.
 
 ## Owner decisions
+
+**2026-10-15, deadline:** about 2 days remain; build a WORKING DEMO (new templates in real rendered lectures) with the
+lighter process described in "Where things are". Push `overhaul/v2` after each landed phase.
+
 
 **2026-10-14/15, text fit (B2b-H; carried out):**
 - **2026-10-14:** text fit uses HarfBuzz shaping, with three pinned Python dependencies: `uharfbuzz`, `fontTools`
@@ -242,26 +240,31 @@ Environment notes:
 
 ## Prompt for the next session
 
-> Continue Batch B2 of the Dynamic video mode. Read docs/plans/b2/HANDOFF.md first, then the binding docs it lists.
-> Use Workflow orchestration for every substantive step.
+> Continue the Dynamic video mode (Aadhi EduEngine), repository `C:/Users/SUBASH/OneDrive/Documents/GitHub/Aadhi_prompt`,
+> branch `overhaul/v2`. Read `docs/plans/b2/HANDOFF.md` first ("Where things are" and "Owner decisions"), then
+> `docs/plans/b2/README.md`, `b2_plan_v2.md` §A/§1/§2, and `b2c_review.md` / `b2c_design_notes.md` if they exist.
 >
-> Start by checking `git status`. If the B2b-H fix rounds 2-3 and their docs are still uncommitted, make a WIP commit
-> of them as the rollback point. Otherwise make a rollback commit. Then:
-> 1. Close B2b-H. Fix the two open audit findings, ZWSP-BREAK and HYPHEN-LEAD (HANDOFF open item 1;
->    `b2b_h_review.md`; design §4.6 "Known gaps").
->    - Mirror the page; never widen the margins to hide them.
->    - Add page line-break cases for both to the slow parity suite, and fast tests.
->    - Audit the fix adversarially in real Chromium. Run every gate, including the extended parity probe
->      (`AADHI_TEXTFIT_PARITY_FULL=1`).
->    - Update the B2b-H docs (design §4.6 and §10.3 B2 "Status (B2b-H)", `b2b_h_review.md`, this handoff), then commit
->      B2b-H as final.
-> 2. B2c, the vertical slice, exactly as plan §A step 3 says: `_shared.js` with the icon helper, `state.js`,
->    stage-driven `cues.js`, `formula_focus`, `media_split` and `list_build`. Another session left a WIP B2c on the
->    branch `b2c` (`17121d2`, based on `d63ff94`, worktree `C:/t/b2c`, "integration partial"). Review it, rebase it onto
->    the final B2b-H, and finish it rather than starting over.
-> 3. B2d..B2g per the plan. B2d and B2e treat certified text fits in any script as certified, and `fits=None` as
->    advisory.
+> DEADLINE MODE: about 2 days remain (target ~2026-10-17). The owner chose a WORKING DEMO: real generated lectures must
+> render with the new Dynamic templates. Use the lighter process: parallel build agents that write only their own
+> files plus one integrator, ONE review pass, at most ONE fix round, no skeptic loops. Do not stall; push
+> `overhaul/v2` to origin after each landed phase and report briefly.
 >
-> Each step gets its adversarial review. When the stage changes, also run a frame-hash differential proving existing
-> timelines unchanged. Put the owner-review lists in front of the owner: the "A2 proposal" values, the B2b icon lists
-> and the Python notices gap. They do not block the next steps.
+> 1. `git fetch`; `git status`; `git log --oneline -5` on `overhaul/v2` and `git -C C:/t/b2c log --oneline -5`.
+>    Make a WIP rollback commit of anything uncommitted.
+> 2. If B2c is not merged yet: in the worktree `C:/t/b2c` (branch `b2c`), make sure the review fixes are complete
+>    (run `npm test`, `npx tsc -p tsconfig.json`, ruff, the generated-file checks and the B2c slow tests
+>    `tests/determinism/test_template_pages.py test_template_fixtures.py test_template_clips.py`), fix what fails,
+>    write `docs/plans/b2/b2c_review.md` and `b2c_design_notes.md` if missing, commit "B2c: ...", then in the main repo
+>    `git merge b2c` into `overhaul/v2` (resolve conflicts; the main tree has the B2b-H HarfBuzz commit `65e6f1d`),
+>    paste the B2c design notes into `docs/DYNAMIC_VIDEO_DESIGN.md`, run the full gates on the merged tree (fast suite
+>    in the background, npm test, tsc, ruff, generated-file checks, the slow template/stage tests), commit, push. Remove
+>    the worktree (first `cmd /c rmdir C:\t\b2c\node_modules`, then `git worktree remove --force C:/t/b2c`).
+> 3. Launch the demo phase: Workflow with `scriptPath: docs/plans/b2/demo_workflow.js`,
+>    `args: {base: "<HEAD after step 2>"}`. When it returns: check the demo MP4s in `final_videos/demo_b2/` (extract a
+>    few stills with ffmpeg and look at them), fix any blocker yourself, run the gates, commit, push, report.
+> 4. Then, as time allows, in priority order: the remaining R1 templates the demo needs (aadhi_intro, outro_next,
+>    myth_fact, check/predict, code_walkthrough, chart_build), kinetic captions (B2d), backgrounds/transitions (B2f).
+>    Keep classic (Aadhi presenter) output unchanged (tests/invariance) and every frame deterministic.
+>
+> Environment: use `.venv/Scripts/python.exe` (pytest-xdist is not installed; `--basetemp=C:/t/<label>`); never read
+> `.env`; never call paid APIs in tests; no many-minute checks in CI.

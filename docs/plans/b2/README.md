@@ -66,3 +66,7 @@ committed as final.**
   final. textfit is not wired into rendering yet, so nothing drawn changed.
 - **Next:** close those two, commit B2b-H, then B2c (the vertical slice, plan §A step 3). A WIP B2c from another
   session is on the branch `b2c` (`HANDOFF.md`).
+
+Status (2026-10-15, deadline mode): B2a, B2b and B2b-H (HarfBuzz text fit) landed on overhaul/v2; B2c (three pilot
+templates, cues.js) built on branch `b2c` and being finished; the demo phase is prepared in `demo_workflow.js`. See
+HANDOFF.md.
