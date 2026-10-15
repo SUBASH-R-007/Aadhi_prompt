@@ -32,8 +32,10 @@ face and weight the stage uses against the real render page):
 * **Fail closed.** A face that cannot be read, or whose variable axes are not the table's (``faces.Family.axes``), is
   a :class:`FaceError`: never a silent fallback to another face or a guess.
 * **Words.** The page's word units (``web/js/motion/text.js`` ``splitWords``): runs between whitespace (JS ``\\s`` and
-  the zero-width space), no-break spaces glued inside a word. A run of collapsible whitespace (space, tab, line breaks)
-  is one space wide (CSS ``white-space: normal``); a zero-width space is a break of no width. The title draws each word
+  the zero-width space), no-break spaces glued inside a word. A maximal run of collapsible whitespace (space, tab,
+  line breaks) is one space wide (CSS ``white-space: normal``; :func:`collapse`: a zero-width or other space between
+  two spaces keeps both, a line feed next to a zero-width space draws nothing); a zero-width space is a break of no
+  width. The title draws each word
   as an inline-block (board_generic ``wordSpans``), shaped on its own: it never breaks inside unless it is wider than
   the column even at the slot's minimum size (``overflow-wrap: anywhere``; board_generic's "unavoidable" break), and
   then it takes whole lines of its own, broken after a hyphen where one fits, else between grapheme clusters (never
@@ -41,7 +43,13 @@ face and weight the stage uses against the real render page):
   a word. Text in normal flow (the kicker, a subtitle, card text) is shaped as one text on the page: across a space a
   face may kern (Atkinson draws ``y W`` 3.8 px narrower than its words and the space apart at 100 px; measured, never
   wider), so measuring its words apart over-estimates its lines, which only makes Python's line count conservative; it
-  may also break after a hyphen inside a word, which only gives the page fewer lines than Python counts. Its script
+  may also break after a hyphen inside a word, which only gives the page fewer lines than Python counts. Between two
+  words joined by only zero-width spaces (:func:`joins`) HarfBuzz skips the default-ignorable U+200B, so the page
+  shapes the two as one word, wider or narrower (Atkinson 400 draws ``q`` U+200B ``j`` 13 px wider than ``q`` and
+  ``j`` apart at 100 px): what the pair draws across the zero-width spaces is added to the conservative whitespace
+  between them (``Word.join_em``), and a chain of three or more is certified only when no part of it draws wider
+  than its pairs add up to (:func:`measure`; Inter's ``A`` U+200B ``-`` U+200B ``*`` does: its asterisk takes its
+  case form across two zero-width spaces). Its script
   runs are the whole text's, so a word's can resolve otherwise than on its own: every word is measured both ways
   (``Word.readings``), the conservative width is the wider, the optimistic the narrower, and ``raw`` is the word on its
   own (a title word, which the parity probe measures).
@@ -75,14 +83,18 @@ decides that the page certainly breaks an over-wide word) takes the slack off an
 * ``False``: Python's conservative layout overflows at the minimum size; the page overflows too, or fits only within
   Python's margins (its own words, made as much wider as the slack and the layout unit make a word, would not fit: the
   plan's "within 4% slack", now within 0.5%; the same test).
-* ``None``: the text holds a cluster or a separator between words that no vendored face of the stack draws (the page
-  draws it with a system font, which differs between machines: Greek and maths symbols, U+3000 IDEOGRAPHIC SPACE,
-  U+2028 LINE SEPARATOR, U+0600 ARABIC NUMBER SIGN are in no vendored subset), a word that starts with a combining
-  mark (HarfBuzz draws a dotted circle before it where the mark starts the page's text, and none where it follows a
-  space of the same text: the width depends on the slot's markup), or a word holding a character that can change the
-  bidi embedding level (U+200F RIGHT-TO-LEFT MARK, an embedding, override or isolate: the page shapes each level on
-  its own, which text fit does not model; :func:`splits_bidi`). ``size`` / ``lines`` / ``estimate`` are still given
-  (:data:`UNCOVERED_EM` per uncovered cluster) as an estimate for a start size; a lint must not block on it.
+* ``None``: the text holds a cluster (or a part of one: a grapheme cluster HarfBuzz shapes as several) or a separator
+  between words that no vendored face of the stack draws (the page draws it with a system font, which differs between
+  machines: Greek and maths symbols, U+3000 IDEOGRAPHIC SPACE, U+2028 LINE SEPARATOR, U+0600 ARABIC NUMBER SIGN, the
+  form feed are in no vendored subset), whitespace the page does not break a line at as the line model does (an en,
+  em, thin or other space, a space before a zero-width space, around the words or between them:
+  :func:`plain_separator`), a chain of words joined by zero-width spaces that a part of draws wider than its pairs add
+  up to (or longer than :data:`JOIN_WORDS` words: ``Measured.joins_bounded``), a word that starts with a combining mark (HarfBuzz draws a dotted circle before it where
+  the mark starts the page's text, and none where it follows a space of the same text: the width depends on the
+  slot's markup), or a word holding a character that can change the bidi embedding level (U+200F RIGHT-TO-LEFT MARK,
+  an embedding, override or isolate: the page shapes each level on its own, which text fit does not model;
+  :func:`splits_bidi`). ``size`` / ``lines`` / ``estimate`` are still given (:data:`UNCOVERED_EM` per uncovered
+  cluster) as an estimate for a start size; a lint must not block on it.
 
 Latin, Indic and mixed text, combining sequences a vendored face draws, and the Latin runs B2b left uncertified
 (Inter's ``step-by-step``, ``f(x)``, ``10x10``, Outfit's ``ffiw``) are certified.
@@ -94,7 +106,7 @@ Not wired into direct.py or preflight here (B2d/B2e). Imported only inside the D
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Literal
@@ -116,6 +128,7 @@ SLACK: Final = 0.005  # relative, on a shaped advance (module docstring: re-deri
 BOX_PX: Final = 1 / 64  # Chromium's layout unit: an inline box's width is rounded up to it
 SIZE_STEP: Final = 4.0  # board_generic fitLines: 4 px steps from max down, the minimum itself last
 UNCOVERED_EM: Final = 1.0  # estimate for a cluster no vendored face draws (system font; never certified)
+JOIN_WORDS: Final = 24  # the longest chain of words joined by zero-width spaces text fit bounds (:func:`measure`)
 JOINERS: Final = frozenset("\u200c\u200d")  # ZWNJ, ZWJ
 ZWJ: Final = "\u200d"
 # web/js/motion/text.js: SPACE_RE = /^[\s\u200b]+$/u (JS \s) minus GLUE_RE (no-break spaces stay inside a word)
@@ -123,7 +136,11 @@ _GLUE: Final = frozenset("\u00a0\u2007\u202f")
 _JS_SPACE: Final = frozenset("\t\n\v\f\r \u00a0\u1680\u2028\u2029\u202f\u205f\u3000\ufeff"
                              + "".join(chr(c) for c in range(0x2000, 0x200B)))
 SEPARATORS: Final = frozenset((_JS_SPACE - _GLUE) | {"\u200b"})
-_COLLAPSIBLE: Final = frozenset(" \t\n\r\f\v")  # CSS white-space: normal collapses a run of them into one space
+# CSS white-space: normal collapses a run of these into one space (CSS Text 3 §4.1.1: space, tab, segment break; a
+# carriage return is treated as a space). Measured on the page: the form feed and the vertical tab are not collapsed
+# (Chromium draws them, about 0.9 em wide at 100 px; no vendored face does, so they are uncovered)
+_COLLAPSIBLE: Final = frozenset(" \t\n\r")
+ZWSP: Final = "\u200b"
 # a break opportunity after these inside an over-wide word (UAX #14 HY / BA), preferred to a break between clusters
 _HYPHENS: Final = frozenset("-\u2010\u2012\u2013")
 # bidi classes that can raise text above the page's left-to-right embedding level (:func:`splits_bidi`)
@@ -374,7 +391,12 @@ class Word:
     Latin after ``about``); ``sep_em`` the width of the whitespace after it (0 for the last word), ``sep_units`` /
     ``sep_flow_units`` how many characters the page letter-spaces in it (a collapsed run of spaces is one; a
     zero-width space none), ``sep_uncovered`` the characters of it no vendored face draws; ``at`` its offset in the
-    text."""
+    text; ``sep_plain`` whether the page breaks a line at that whitespace as the line model does
+    (:func:`plain_separator`; the whitespace after the last word too, which the page draws at the end of the text);
+    ``flow_uncovered`` the clusters no vendored face draws when the word is shaped inside the whole text;
+    ``join_em`` / ``join_spacings`` what the whole text draws across the whitespace after it when that is only
+    zero-width spaces (:func:`joins`): the advance (em) and letter-spacing count of the word, those zero-width spaces
+    and the next word shaped as one, less the two words' readings inside the whole text (0 otherwise)."""
 
     text: str
     clusters: tuple[Cluster, ...]
@@ -387,15 +409,21 @@ class Word:
     sep_flow_units: int | None = None
     sep_uncovered: tuple[str, ...] = ()
     at: int = 0
+    sep_plain: bool = True
+    flow_uncovered: tuple[str, ...] = ()
+    join_em: float = 0.0
+    join_spacings: int = 0
 
     @property
     def reliable(self) -> bool:
-        """Certifiable: every cluster is drawn by a vendored face, and so is the whitespace after it; the word does not
-        start with a combining mark that is not default-ignorable (a variation selector is one; the module docstring:
-        its width would depend on the slot's markup); and it holds no character that can change the bidi embedding
-        level (:func:`splits_bidi`)."""
+        """Certifiable: every cluster is drawn by a vendored face (as its own text node and inside the whole text), and
+        so is the whitespace after it, at which the line model breaks a line as the page does (``sep_plain``); the
+        word does not start with a combining mark that is not default-ignorable (a variation selector is one; the
+        module docstring: its width would depend on the slot's markup); and it holds no character that can change the
+        bidi embedding level (:func:`splits_bidi`)."""
         lead = self.text[:1]
-        return (all(c.reliable for c in self.clusters) and not self.sep_uncovered
+        return (all(c.reliable for c in self.clusters) and not self.flow_uncovered and not self.sep_uncovered
+                and self.sep_plain
                 and not (lead and is_mark(lead) and not ignorable(lead))
                 and not any(splits_bidi(ch) for ch in self.text))
 
@@ -412,7 +440,9 @@ class Word:
 
 def _measure_word(text: str, segments: Sequence[Segment]) -> tuple[tuple[Cluster, ...], float, int]:
     """The word's clusters (grapheme by grapheme, each with the face of the HarfBuzz cluster it starts in), its shaped
-    advance (em) and its letter-spacing count."""
+    advance (em) and its letter-spacing count. A grapheme is uncovered when any HarfBuzz cluster over it is: a grapheme
+    can span several (``T`` U+093F U+0301, a Latin letter and a Devanagari vowel sign in two script runs; a ZWNJ
+    before a mark; ``x`` ZWJ ``中``), and the part a system font draws makes its width the page's machine's."""
     out: list[Cluster] = []
     at = 0
     seg = list(segments)
@@ -421,7 +451,7 @@ def _measure_word(text: str, segments: Sequence[Segment]) -> tuple[tuple[Cluster
         inside = [s for s in seg if at <= s.start < end]
         holder = next((s for s in seg if s.start <= at < s.end), None)
         key = holder.key if holder is not None else None
-        uncovered = holder is not None and holder.uncovered
+        uncovered = any(s.uncovered for s in seg if s.start < end and s.end > at)
         em = sum(s.units for s in inside) / sh.UNITS_PER_EM
         out.append(Cluster(g, key, em, _indic(key), uncovered, at))
         at = end
@@ -436,11 +466,17 @@ def _spacings(segments: Sequence[Segment]) -> int:
     return sum(1 for s in segments if s.spaced)
 
 
+def _units(segments: Sequence[Segment]) -> int:
+    return sum(s.units for s in segments)
+
+
 @dataclass(frozen=True)
 class Measured:
     """A text measured for one slot role: its words, the role's stack (family ids), weight, letter-spacing, the page's
     ``lang``, the faces' folder, ``tabular`` (``font-variant-numeric: tabular-nums``) and the text's script runs as one
-    text node (a piece of a broken word is shaped again with them)."""
+    text node (a piece of a broken word is shaped again with them); ``joins_bounded`` whether the words joined by
+    zero-width spaces draw no wider on a line, however many of them the line holds, than their readings and what each
+    zero-width space adds (``Word.join_em``) add up to (:func:`measure`)."""
 
     text: str
     words: tuple[Word, ...]
@@ -451,16 +487,21 @@ class Measured:
     web_dir: str | None = None
     tabular: bool = False
     flow_runs: Runs | None = None
+    lead_plain: bool = True
+    joins_bounded: bool = True
 
     @property
     def reliable(self) -> bool:
-        return all(w.reliable for w in self.words)
+        """Every word is (:attr:`Word.reliable`), the whitespace before the first word draws nothing on the page
+        (``lead_plain``: :func:`plain_separator`), and the words joined by zero-width spaces are bounded
+        (``joins_bounded``)."""
+        return self.lead_plain and self.joins_bounded and all(w.reliable for w in self.words)
 
     @property
     def uncovered(self) -> tuple[str, ...]:
         """The clusters (and the separator characters) no vendored face of the stack draws, in order, each once."""
         return tuple(dict.fromkeys(t for w in self.words for t in (*(c.text for c in w.clusters if c.uncovered),
-                                                                   *w.sep_uncovered)))
+                                                                   *w.flow_uncovered, *w.sep_uncovered)))
 
     def shaped(self, text: str, runs: Runs | None = None) -> tuple[float, int]:
         """``text`` shaped as one text node (a word or a piece of one; ``runs``: the script runs it takes from the
@@ -501,41 +542,122 @@ class Measured:
         """The whitespace after ``word`` in px at ``size``: ``raw`` its advance and the letter-spacing the page adds
         after its characters (as a title draws it, between inline-blocks); ``conservative`` + :data:`SLACK` of the
         advance and :data:`BOX_PX`, the largest letter-spacing either reading adds, a negative one left out (never
-        under-estimated); ``optimistic`` - :data:`SLACK` of the advance, the smallest letter-spacing."""
-        if not word.sep_em and not word.sep_units and not word.sep_flow_units:
-            return 0.0
+        under-estimated), and when the whitespace is only zero-width spaces (:func:`joins`) what the whole text draws
+        wider across it (``Word.join_em``, ``join_spacings``: a positive kerning, a ligature or contextual form across
+        it; with the slack, and the layout unit when it adds anything; never less than nothing); ``optimistic`` -
+        :data:`SLACK` of the advance, the smallest letter-spacing (across zero-width spaces the page may draw a pair
+        narrower still: flow text drawn narrower than its words apart only makes Python's line count conservative)."""
         t = self.tracking_em
+        across = 0.0
+        if bias == "conservative" and (word.join_em > 0 or t * word.join_spacings > 0):
+            across = size * (max(0.0, word.join_em) * (1 + SLACK) + max(0.0, t * word.join_spacings)) + BOX_PX
+        if not word.sep_em and not word.sep_units and not word.sep_flow_units:
+            return across
         units = (word.sep_units, word.sep_units if word.sep_flow_units is None else word.sep_flow_units)
         if bias == "conservative":
-            return size * (word.sep_em * (1 + SLACK) + max(0.0, *(t * u for u in units))) + BOX_PX
+            return size * (word.sep_em * (1 + SLACK) + max(0.0, *(t * u for u in units))) + BOX_PX + across
         if bias == "optimistic":
             return max(0.0, size * (word.sep_em * (1 - SLACK) + min(t * u for u in units)))
         return size * (word.sep_em + t * word.sep_units)
+
+
+def collapse(sep: str) -> tuple[tuple[int, str], ...]:
+    """Whitespace between (or around) words as the page lays it out (CSS Text 3 §4.1.1, ``white-space: normal``, as
+    Chromium does it; measured on the render page): ``(offset in sep, character)`` per character drawn, a run of
+    collapsible whitespace (:data:`_COLLAPSIBLE`) given as one space at its first offset. A run is a maximal one:
+    another character between two (a zero-width space, an en space, the BOM) keeps both, and the page draws both
+    (``x`` space U+200B space ``y`` is 28.1 px wider than ``x y`` in Inter 400 at 100 px). A run holding a line feed
+    next to a zero-width space draws nothing (Chromium removes the segment break there, and the spaces around it with
+    it: ``x`` U+200B LF ``y`` is as wide as ``xy``; a carriage return is a space even there: ``x`` U+200B CR ``y`` is as
+    wide as ``x y``). Chromium also removes a segment break between two East Asian wide (or fullwidth) characters, which
+    no vendored face draws (the text is not certified then: such a character is uncovered; test_textfit checks that no
+    vendored face draws one); text fit keeps its space there (an over-estimate)."""
+    out: list[tuple[int, str]] = []
+    i, n = 0, len(sep)
+    while i < n:
+        if sep[i] not in _COLLAPSIBLE:
+            out.append((i, sep[i]))
+            i += 1
+            continue
+        j = i
+        while j < n and sep[j] in _COLLAPSIBLE:
+            j += 1
+        if not ("\n" in sep[i:j] and ((i > 0 and sep[i - 1] == ZWSP) or (j < n and sep[j] == ZWSP))):
+            out.append((i, " "))
+        i = j
+    return tuple(out)
+
+
+def plain_separator(sep: str, leading: bool = False) -> bool:
+    """Whether the page breaks a line at ``sep`` (whitespace between words, or after the last word) as the line model
+    does: the whole of it vanishes at a break and nothing of it shows at a line's end or start. True when it lays out
+    (:func:`collapse`) as zero-width spaces, then at most one space; ``leading`` (the whitespace before the first word,
+    which a title drops and flow text draws): a space, then only zero-width spaces (a space at a line's start is
+    removed). Anything else is not modelled (measured on the render page, in flow text and between a title's
+    inline-blocks): an en, em, thin or other space is not hung at a line's end (``xxxx`` U+2002 overflows its line by
+    the en space's 50 px; between a title's words it takes a line of its own), and a space before a zero-width space
+    can take a line of its own (``xxxx`` space U+200B before an over-wide word: three lines, not two), as can a
+    space after one at a line's start."""
+    chars = [ch for _, ch in collapse(sep)]
+    if leading and chars[:1] == [" "]:
+        chars = chars[1:]
+    if not leading and chars[-1:] == [" "]:
+        chars = chars[:-1]
+    return all(ch == ZWSP for ch in chars)
+
+
+def joins(sep: str) -> bool:
+    """Whether the whitespace between two words lays out (:func:`collapse`) as only zero-width spaces: the page's text
+    node then holds the two words with nothing between them but default-ignorable characters, which HarfBuzz skips when
+    it matches the font's lookups, so the words kern, ligate and take contextual forms across it as one word would
+    (measured, 100 px: Atkinson 400 draws ``q`` U+200B ``j`` 13 px wider than ``q`` and ``j`` apart, Lexend 700
+    ``f`` U+200B ``T`` 5.5 px; HarfBuzz shaping the two as one text reproduces the page). A title draws each word as an
+    inline-block, so nothing is shaped across its whitespace."""
+    chars = [ch for _, ch in collapse(sep)]
+    return bool(chars) and all(ch == ZWSP for ch in chars)
+
+
+def _joined(text: str, scripts: Sequence[str], spans: Sequence[tuple[int, int, int]], p: int,
+            q: int) -> tuple[str, Runs]:
+    """Words ``p`` to ``q`` of ``text`` (:func:`_spans`) with the zero-width spaces between them, as the page's text
+    node holds them once its whitespace is collapsed (:func:`collapse`: a line feed next to a zero-width space is
+    removed), and their script runs there (``scripts``: the script of each character of ``text`` in the whole text's
+    runs; adjacent equal scripts are one run, as the page itemizes the text)."""
+    at: list[int] = []
+    for r in range(p, q + 1):
+        a, b, c = spans[r]
+        at += range(a, b)
+        if r < q:
+            at += [b + i for i, _ in collapse(text[b:c])]
+    runs: list[tuple[int, int, str]] = []
+    for k, i in enumerate(at):
+        if runs and runs[-1][2] == scripts[i]:
+            runs[-1] = (runs[-1][0], k + 1, scripts[i])
+        else:
+            runs.append((k, k + 1, scripts[i]))
+    return "".join(text[i] for i in at), tuple(runs)
 
 
 def _separator(sep: str, flow: Runs, stack: tuple[str, ...], weight: int, language: str, spaced: bool,
                web_dir: str | None) -> tuple[float, int, int, tuple[str, ...]]:
     """The whitespace between two words: its width (em), how many of its characters the page letter-spaces as a
     title draws it (its own text node) and inside the whole text (``flow``: its script runs there), and the characters
-    of it no vendored face draws. A run of collapsible whitespace is one space (CSS ``white-space: normal``; Chromium
-    letter-spaces a space even in a cursive run); other spaces (en space, ideographic space, ...) keep their own width;
-    the zero-width space and the BOM have none and take no letter-spacing (``shaping.zero_width``)."""
+    of it no vendored face draws. It is laid out as the page does (:func:`collapse`): a run of collapsible whitespace
+    is one space (Chromium letter-spaces a space even in a cursive run); other spaces (en space, ideographic space,
+    ...) keep their own width; the zero-width space and the BOM have none and take no letter-spacing
+    (``shaping.zero_width``)."""
     total, units, flow_units = 0.0, 0, 0
     uncovered: list[str] = []
-    if any(ch in _COLLAPSIBLE for ch in sep):
-        segments = shape_text(" ", stack, weight, language, spaced, web_dir)
-        total += _em(segments)
-        units += 1
-        flow_units += 1
-        uncovered += [" "] if any(s.uncovered for s in segments) else []
     scripts = [s for a, b, s in flow for _ in range(a, b)]
-    for i, ch in enumerate(sep):
-        if ch in _COLLAPSIBLE:
-            continue
+    for i, ch in collapse(sep):
         segments = shape_text(ch, stack, weight, language, spaced, web_dir)
         total += _em(segments)
-        units += _spacings(segments)
-        flow_units += 1 if sh.takes_letter_spacing(ch, scripts[i]) else 0
+        if sep[i] in _COLLAPSIBLE:  # a collapsed run: one space
+            units += 1
+            flow_units += 1
+        else:
+            units += _spacings(segments)
+            flow_units += 1 if sh.takes_letter_spacing(ch, scripts[i]) else 0
         uncovered += [ch] if any(s.uncovered for s in segments) else []
     return total, units, flow_units, tuple(dict.fromkeys(uncovered))
 
@@ -552,7 +674,15 @@ def measure(text: str, *, fonts: fc.Fonts, role: str, weight: int, language: str
     """Measure ``text`` for a slot of type ``role`` at ``weight`` (``presentation.fonts`` in either form; ``language``
     the lecture's board language, which orders the Indic families as the stage does and is the page's ``lang``;
     ``tabular``: the slot is drawn with ``font-variant-numeric: tabular-nums``). Each word is measured as its own text
-    node (a title word's inline-block) and inside the whole text as one text node (flow text: :class:`Word`)."""
+    node (a title word's inline-block) and inside the whole text as one text node (flow text: :class:`Word`).
+
+    Words joined by only zero-width spaces (:func:`joins`) are shaped together too, as the whole text shapes them:
+    what a pair draws across its zero-width spaces is the first word's ``join_em`` / ``join_spacings``, which the
+    conservative whitespace adds when the two share a line (:meth:`Measured.sep`). On a line holding three or more of
+    one chain, a lookup could reach across two zero-width spaces (a ligature of three one-letter words): every such
+    part of a chain (of at most :data:`JOIN_WORDS` words) is shaped as one, and the text is certified only when none
+    draws wider than its words' readings and the pairs' positive ``join_em`` / letter-spacing add up to
+    (``Measured.joins_bounded``; a longer chain is not certified)."""
     text = str(text)
     stack = stack_for(fonts, role, language)
     lang = sh.language_tag(language)
@@ -561,24 +691,66 @@ def measure(text: str, *, fonts: fc.Fonts, role: str, weight: int, language: str
     weight = int(weight)
     flow = sh.script_runs(text)
     out: list[Word] = []
+    flow_readings: list[tuple[int, int]] = []  # each word's (units, spacings) inside the whole text
     spans = _spans(text)
     for i, (a, b, c) in enumerate(spans):
         word = text[a:b]
-        clusters, em, spacings = _measure_word(word, shape_text(word, stack, weight, lang, spaced, where, None,
-                                                                tabular))
+        own = shape_text(word, stack, weight, lang, spaced, where, None, tabular)
+        clusters, em, spacings = _measure_word(word, own)
         runs = slice_runs(flow, a, b)
-        flow_em, flow_spacings = em, spacings
+        flow_segments = own
+        flow_uncovered: tuple[str, ...] = ()
         if runs != sh.script_runs(word):
-            segments = shape_text(word, stack, weight, lang, spaced, where, runs, tabular)
-            flow_em, flow_spacings = _em(segments), _spacings(segments)
+            flow_segments = shape_text(word, stack, weight, lang, spaced, where, runs, tabular)
+            flow_uncovered = tuple(cl.text for cl in _measure_word(word, flow_segments)[0] if cl.uncovered)
+        flow_readings.append((_units(flow_segments), _spacings(flow_segments)))
         if i + 1 < len(spans):
             sep_em, units, flow_units, sep_uncovered = _separator(text[b:c], slice_runs(flow, b, c), stack, weight,
                                                                   lang, spaced, where)
-        else:
+        else:  # the whitespace after the last word ends the text: drawn at its end (sep_plain), never between words
             sep_em, units, flow_units, sep_uncovered = 0.0, 0, 0, ()
-        out.append(Word(word, clusters, em, sep_em, units, spacings, flow_em, flow_spacings, flow_units,
-                        sep_uncovered, a))
-    return Measured(text, tuple(out), stack, weight, float(tracking_em), lang, where, bool(tabular), flow)
+        out.append(Word(word, clusters, em, sep_em, units, spacings, _em(flow_segments), _spacings(flow_segments),
+                        flow_units, sep_uncovered, a, plain_separator(text[b:c]), flow_uncovered))
+    joined = [i + 1 < len(spans) and joins(text[spans[i][1]:spans[i][2]]) for i in range(len(spans))]
+    scripts = [s for a, b, s in flow for _ in range(a, b)]
+    t = float(tracking_em)
+
+    def across(p: int, q: int) -> tuple[int, int, bool]:  # words p..q shaped as one, with the zero-width spaces
+        joint, runs = _joined(text, scripts, spans, p, q)
+        segments = shape_text(joint, stack, weight, lang, spaced, where, runs, tabular)
+        return _units(segments), _spacings(segments), any(seg.uncovered for seg in segments)
+
+    bounded = True
+    gain: dict[int, tuple[int, int]] = {}  # word -> (units, spacings) drawn across the zero-width spaces after it
+    for i, join in enumerate(joined):
+        if join:
+            units, n, uncovered = across(i, i + 1)
+            gain[i] = (units - flow_readings[i][0] - flow_readings[i + 1][0],
+                       n - flow_readings[i][1] - flow_readings[i + 1][1])
+            bounded = bounded and not uncovered
+    i = 0
+    while i < len(spans):  # each chain of words i..j joined by zero-width spaces
+        j = i
+        while joined[j]:
+            j += 1
+        if j - i + 1 > JOIN_WORDS:
+            bounded = False
+        elif j - i >= 2:
+            for p in range(i, j - 1):
+                for q in range(p + 2, j + 1):
+                    units, n, uncovered = across(p, q)
+                    words_units = sum(flow_readings[r][0] for r in range(p, q + 1))
+                    words_n = sum(flow_readings[r][1] for r in range(p, q + 1))
+                    gains = range(p, q)
+                    bounded = (bounded and not uncovered
+                               and units <= words_units + sum(max(0, gain[r][0]) for r in gains)
+                               and t * n <= t * words_n + sum(max(0.0, t * gain[r][1]) for r in gains))
+        i = j + 1
+    out = [replace(w, join_em=gain[k][0] / sh.UNITS_PER_EM, join_spacings=gain[k][1]) if k in gain else w
+           for k, w in enumerate(out)]
+    lead = text[:spans[0][0]] if spans else text
+    return Measured(text, tuple(out), stack, weight, float(tracking_em), lang, where, bool(tabular), flow,
+                    plain_separator(lead, leading=True), bounded)
 
 
 # --- fitting ----------------------------------------------------------------------------------------------------------

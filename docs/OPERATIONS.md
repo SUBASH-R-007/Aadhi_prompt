@@ -101,15 +101,17 @@ line (CI's "Generated files are current" step runs it). The colour vectors are w
 colour code by `node scripts/gen_colour_vectors.mjs`; both test suites read them, and `npm test` fails when they are
 stale.
 
-Dynamic video batch B2b adds four generators (`DYNAMIC_VIDEO_DESIGN.md` §4.6, §4.12). The first three are
-checked in CI's "Generated files are current" step; the icons and notices checks run after `npm ci`, because they read
-`node_modules`. Each `--check` exits 1 when the committed file is stale; the icons, notices and kerning generators
-exit 2 when they cannot generate from what is installed (fail closed).
+Dynamic video batch B2b added three generators (`DYNAMIC_VIDEO_DESIGN.md` §4.6, §4.12). All three are checked in
+CI's "Generated files are current" step; the icons and notices checks run after `npm ci`, because they read
+`node_modules`. Each `--check` exits 1 when the committed file is stale; the icons and notices generators exit 2 when
+they cannot generate from what is installed (fail closed). B2b's fourth generator, the kerning table, was retired in
+B2b-H: text fit now shapes with HarfBuzz, and the text-fit parity probe below checks it.
 
 * **Face table** (`aadhi/compose/dynamic/faces.py` -> `web/css/dynamic-fonts.css` and
   `web/js/dynamic/faces.gen.js`). After changing `faces.py`, run `python -m aadhi.compose.dynamic.faces`, then
   `npm run vendor` (which copies the faces from the generated table), and commit both generated files. A new face
-  also needs its exact-pinned Fontsource package in `package.json`, then the notices and the kerning table below.
+  also needs its exact-pinned Fontsource package in `package.json`, then the notices below and the extended text-fit
+  parity probe (below), which measures every vendored face against the page.
 * **Icon index** (`aadhi/compose/dynamic/icon_index.json`, committed). After bumping `lucide-static` or
   `@tabler/icons` in `package.json`:
   1. `npm install`;
@@ -124,14 +126,31 @@ exit 2 when they cannot generate from what is installed (fail closed).
   matches its reviewed `VENDORED` entry. The entry fails on a new package version, a bundled component's evidence that
   is gone, a p5 module no component lists, or a copyright statement nobody acknowledged. Then review the new bundle,
   update the entry and the texts in `scripts/third_party_licences/`, and regenerate.
-* **Kerning table** (`aadhi/compose/dynamic/kerning.json`, committed; the text fit's measured kerning). Regenerate
-  it after a vendored Latin face changes: `python -m aadhi.compose.dynamic.kerning`. It needs Playwright's Chromium
-  and `web/vendor`, and takes 85-90 minutes. Its `--check` (as long) is not part of CI. The slow test
-  `tests/determinism/test_kerning_table.py` re-measures the faces and checks that the table still bounds them (about
-  8 minutes) only on demand: `AADHI_KERNING_REMEASURE=1 pytest -m slow tests/determinism/test_kerning_table.py`
-  (PowerShell: `$env:AADHI_KERNING_REMEASURE=1`). Without it, only its quick check of the review's runs (about 15 s)
-  runs, also in CI's slow job. Run the re-measurement after any change to a vendored Latin face, `kerning.py` or
-  `textfit.py`'s use of the table.
+* **Text-fit parity probe** (`tests/determinism/test_textfit_parity.py`, slow). Added in Dynamic video batch B2b-H,
+  replacing B2b's kerning table. The text fit (`aadhi/compose/dynamic/textfit.py`, `shaping.py`) shapes text with
+  HarfBuzz on the vendored faces. The probe runs the real `/render-dynamic` page in Playwright's Chromium, over every
+  vendored face and weight the stage draws, in Latin, the five Indic scripts and mixed text. It checks that each text
+  is drawn within 1/16 px + 0.05% of its shaped width, and within textfit's own margins (`DYNAMIC_VIDEO_DESIGN.md` §4.6
+  "As built (B2b-H)"). It needs `web/vendor` and Playwright's Chromium.
+  - **Default form** (about 2 minutes): runs in the slow suite, so in CI's slow job and the container job.
+  - **Extended form** (every 4 px size of each slot's range and 6,000 random runs per Latin style: about 3.9 million
+    word widths, 5.5-7.5 minutes): runs only on demand, because of the owner's rule of no many-minute measurement in
+    CI:
+
+    ```bash
+    AADHI_TEXTFIT_PARITY_FULL=1 .venv/Scripts/python.exe -m pytest -m slow tests/determinism/test_textfit_parity.py -s --basetemp=C:/t/parity
+    # PowerShell: $env:AADHI_TEXTFIT_PARITY_FULL=1; .venv/Scripts/python.exe -m pytest -m slow tests/determinism/test_textfit_parity.py -s --basetemp=C:/t/parity
+    ```
+
+    `-s` prints the max and median residual per style and size.
+
+  Run the extended form after any of these:
+  - a vendored face changes;
+  - a `uharfbuzz`, `fonttools` or `brotli` bump (this is why `requirements.txt` bounds `uharfbuzz` to `<0.57`);
+  - a Playwright (Chromium) bump;
+  - a change to how `textfit.py` or `shaping.py` shapes.
+
+  A failure means the page and HarfBuzz no longer agree. Read the printed residuals before touching the margins.
 
 **Classic invariance (from Dynamic video batch B0).** The classic (Aadhi presenter) output must not change while
 the Dynamic mode is built: `tests/invariance/` holds byte-for-byte goldens of the classic screenplay, scene hashes,
@@ -156,10 +175,13 @@ or bundle (ffmpeg / ffprobe, Playwright, its Chromium, the Dynamic stage bundle;
 also the live app of `tests/api/test_render_dynamic_route.py` and the tools of `tests/invariance/test_render_slow.py`)
 fails the B1 suites instead of skipping them, so the job cannot pass green by skipping; on a developer machine they
 skip as before. Make "Container suites (Docker test image)" a required check in the repository's branch protection.
-From B2b on, the fast suite there is also the Debian check of the text fit's font reading: `tests/compose/dynamic/
-test_textfit.py` loads every vendored WOFF2 face with Pillow and pins its advances, and `test_faces.py` opens each
-face. A failure there means Debian's FreeType reads the faces differently (pin per platform, or store TTF copies for
-measurement; `DYNAMIC_VIDEO_DESIGN.md` §4.6). The job has not run yet.
+From B2b-H on, the fast suite there runs these face checks:
+- `tests/compose/dynamic/test_textfit.py` pins the HarfBuzz-shaped widths of every vendored WOFF2 face. These do not
+  depend on the platform: fontTools decodes the files, and the pinned `uharfbuzz` wheel bundles its own HarfBuzz.
+- `test_faces.py` still opens each face with Pillow, as a readability check.
+
+The slow suite there also runs the text-fit parity probe (above), which will be its first run against Linux Chromium.
+The job has not run yet.
 Locally (needs a Docker daemon; in PowerShell write `${PWD}`, put the command on one line and leave out `--user`,
 which uses the POSIX `id`):
 
@@ -174,6 +196,27 @@ After changing `requirements.txt` / `requirements-dev.txt`: install, run the tes
 Windows (for example `uvloop` from `uvicorn[standard]`); they are pinned with environment markers in
 `PLATFORM_PINS`, and the script fails when the Linux dependency closure needs one that is missing.
 
+Dynamic video batch B2b-H added three runtime dependencies for the text fit (the "Dynamic video text fit" block of
+`requirements.txt`):
+
+| Package | Bound | Locked | Licence |
+|---|---|---|---|
+| `uharfbuzz` | `>=0.56.2,<0.57` | 0.56.2 | Apache-2.0; bundles HarfBuzz 14.5.0 under its "Old MIT" licence |
+| `fonttools` | `>=4.66,<5` | 4.66.1 | MIT |
+| `brotli` | `>=1.2,<2` | 1.2.0 | MIT |
+
+- **Wheels.** Each publishes CPython 3.11 wheels for `win_amd64` and manylinux x86_64 (`uharfbuzz` as cp310-abi3).
+  None has required dependencies, none needed a `PLATFORM_PINS` entry, and the Docker image installs them with the
+  rest of `requirements.txt`.
+- **The `uharfbuzz` bound.** It stays within the 0.56 series on purpose: a minor release can change shaping. Raise the
+  bound only after the extended text-fit parity probe passes with the new version.
+- **`brotli` and the HTTP clients.** Once `brotli` is installed, `httpx`, `urllib3` and `aiohttp` import it and
+  advertise `br` in `Accept-Encoding`; responses are decoded transparently.
+- **Classic isolation.** A classic build must still load none of `uharfbuzz`, `fontTools` or `brotli`
+  (`tests/compose/test_dynamic_isolation.py`). `brotli` is excused only beside an HTTP client that imports it.
+- **Notices.** Their licence notices are not in `THIRD_PARTY_NOTICES`, which covers npm packages and `web/vendor` only.
+  This is an open point for the owner (`DYNAMIC_VIDEO_DESIGN.md` §4.12).
+
 Tests always force fake providers and blank every API key (`tests/conftest.py`), even when your
 `.env` holds real keys. They also pin the motion engine's settings to their defaults (`DYNAMIC_ENABLED=false`,
 `RENDER_MOTION_WORKERS=0`, `RENDER_CPU_SLOTS=0`, `RENDER_SLOT_DIR` empty, `MOTION_X264_PRESET=veryfast`,
@@ -187,11 +230,12 @@ outside the Docker test image. `tests/web/test_player_controls_fit.py` (the cont
 Chromium) needs Playwright with its Chromium and the vendored fonts from `npm ci` (`web/vendor`, git-ignored); it
 skips without Playwright or `web/vendor`. On Windows, run the slow motion tests with a short `--basetemp` (for example
 `pytest -m slow --basetemp C:\t\pt`): their work files under pytest's default temp path can pass the 260-character
-`MAX_PATH`. B2b adds four slow Chromium files: `tests/determinism/test_stage_fonts.py`, `test_icon_pixels.py`,
-`test_textfit_page.py` and `test_kerning_table.py`, whose full re-measurement of the kerning table (about 8 minutes)
-runs only with `AADHI_KERNING_REMEASURE=1`.
+`MAX_PATH`. B2b added three slow Chromium files: `tests/determinism/test_stage_fonts.py`, `test_icon_pixels.py` and
+`test_textfit_page.py`. B2b-H adds `test_textfit_parity.py` (about 2 minutes); its extended form (5.5-7.5 minutes) runs
+only with `AADHI_TEXTFIT_PARITY_FULL=1`. B2b's `test_kerning_table.py` and `AADHI_KERNING_REMEASURE` are gone.
 The fast suite's face tests (`tests/compose/dynamic/test_faces.py`, `test_textfit.py`) read the vendored faces in
-`web/vendor`: run `npm ci` first. Without `web/vendor` they skip; inside the Docker test image `test_textfit.py`
+`web/vendor`: run `npm ci` first. `test_textfit.py` also needs `uharfbuzz`, `fonttools` and `brotli` from
+`requirements.txt`. Without `web/vendor` they skip; inside the Docker test image `test_textfit.py`
 fails instead (`tests/compose/dynamic/helpers.missing`).
 
 ## 3. Configuration
@@ -484,7 +528,8 @@ generated pictures and clips of unchanged scenes, are reused.
    non-root user `aadhi`, tini as PID 1). From Dynamic video batch B2b, the `web` stage also copies
    `scripts/vendor_faces.mjs` and `web/js/dynamic/faces.gen.js`, which `vendor.mjs` imports (`tests/evals/test_tooling.py`
    checks that the stage copies every local module it imports), and the runtime image carries `THIRD_PARTY_NOTICES` at
-   `/app`. The image build has not been run since B2b.
+   `/app`. B2b-H adds three Python packages (`uharfbuzz`, `fonttools`, `brotli`; section 2) to the venv stage. The image
+   build has not been run since B2b.
 3. `docker compose up -d`. The API runs `python -m aadhi.cli migrate` on start (`RUN_MIGRATIONS=1`,
    retried while Postgres starts) and workers wait for the API health check, so migrations always
    finish before any job runs. Only the API sets `RUN_MIGRATIONS`.

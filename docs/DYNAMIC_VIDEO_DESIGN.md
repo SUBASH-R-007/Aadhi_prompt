@@ -890,9 +890,9 @@ Backgrounds are pure, periodic functions of `t`, painted in the stage as CSS cus
 **Casing and numerals.** Sentence case everywhere, including every caption style [RV L-7, T-21]. All caps only for labels of ≤ 4 words and single stat units, with +4–6% tracking; all caps reads slower [SF §4.1]. Count-ups and tables use tabular numerals. At most two families plus mono per video.
 
 **Measured text fit** (`aadhi/compose/dynamic/textfit.py`) [RV T-4]. Every text slot (hook band, headline, card text, caption chunk) is fitted by **measured advance widths**, never by character counts:
-- Python measures with the vendored fonts through Pillow's FreeType binding at `direct.py` time, choosing the font size within the slot's range and the line breaks, so the lints `portrait.hook_overflow`, `text.overflow` and the caption chunker can fire **before TTS**. A 4% width slack covers kerning differences; Indic scripts get 8% because Pillow's basic layout does not shape them. *(B2b measured both premises false: a relative slack alone does not bound Latin kerning, and no slack bounds Indic shaping; see "As built (B2b): measured text fit" below.)*
+- Python measures with the vendored fonts through Pillow's FreeType binding at `direct.py` time, choosing the font size within the slot's range and the line breaks, so the lints `portrait.hook_overflow`, `text.overflow` and the caption chunker can fire **before TTS**. A 4% width slack covers kerning differences; Indic scripts get 8% because Pillow's basic layout does not shape them. *(B2b measured both premises false: a relative slack alone does not bound Latin kerning, and no slack bounds Indic shaping; see "As built (B2b): measured text fit" below. **Superseded by B2b-H:** Python now shapes every script with HarfBuzz on the vendored faces, as Chromium does, with a 0.5% + 1/64 px margin; see "As built (B2b-H)" below.)*
 - The page lays out with CSS and reports `overflow` per text box from `textBoxes()`; preflight shrinks an overflowing box down to its minimum size, then flags it (§7.12).
-- B2 verifies that Pillow in the Debian image reads WOFF2 (it does on the dev machine); if not, `scripts/vendor.mjs` also stores TTF copies for measurement.
+- B2 verifies that Pillow in the Debian image reads WOFF2 (it does on the dev machine); if not, `scripts/vendor.mjs` also stores TTF copies for measurement. *(Superseded by B2b-H: text fit no longer uses Pillow. fontTools decodes the WOFF2 files and HarfBuzz shapes them, the same code on every platform.)*
 
 **Loading.** WOFF2 files vendored through `scripts/vendor.mjs` with their LICENSE files; `document.fonts.load()` for every family, weight and script before `ready`; **emoji are images** (Fluent Emoji or Noto), never glyphs [MR §5].
 
@@ -911,7 +911,7 @@ Backgrounds are pure, periodic functions of `t`, painted in the stage as CSS cus
 - **Weight and range matching** that the text fit mirrors: `faces.match_weight` follows CSS Fonts 4 §5.2, and among overlapping `unicode-range`s the last-declared face wins (§4.5 of the same spec).
 - **Deviations from this section** (B2b): Anek is vendored for the five scripts the app supports, not all nine, and only its `wght` file, so the Indic "rotation varies Anek's axes" (`wdth`) waits for W2 (plan deviation 19). The R1 display weights are 400/600/700/900 (no 300). The display rotation itself is B2e's.
 
-*As built (B2b): measured text fit* (`aadhi/compose/dynamic/textfit.py`, `kerning.py`; not imported by any production path yet: `direct.py`, the lints and the caption chunker wire it in B2d/B2e):
+*As built (B2b): measured text fit* (`aadhi/compose/dynamic/textfit.py`, `kerning.py`; not imported by any production path yet: `direct.py`, the lints and the caption chunker wire it in B2d/B2e). **Superseded in part by B2b-H** (the next block). Its measurement (Pillow), margins (4% / 8%, the 0.06 em floor), kerning table, certification list, Indic rule and Pillow notes no longer hold, and `kerning.py` / `kerning.json` are deleted. They are kept here as the record of what B2b built and measured. Its face resolution, layout rules and page proofs carry over, as the B2b-H block says.
 - **Faces, as the page resolves them.** The stack of the slot's role comes from `presentation.fonts` (either form, as a dict or the schema's `TimelineFonts`; any other value raises `TypeError`) and the board language. Each grapheme cluster goes to the first family that has a face for it: CSS weight matching, the last-declared range first, and a cmap check. The check matters because a range can promise more than the file holds: Poppins' `latin-ext` file lacks ħ, and the page falls back to Inter, as textfit does.
 - **Measurement.** Pillow FreeType with `Layout.BASIC` (never raqm) on the vendored WOFF2 at 2048 px, scaled linearly; variable axes are always set; one process lock guards every Pillow call. It fails closed: a face that cannot be read, or whose axes differ from the table's, raises `FaceError`.
 - **Layout rules mirrored from the page:** `splitWords`' word units and CSS whitespace collapsing; letter-spacing per cluster (per code point when positive); `board_generic`'s `fitLines` (4 px steps from the maximum, the minimum last, `prefer_lines` first, the line limit). An over-wide word breaks only when the page's "unavoidable" rule applies, after a hyphen first, never inside a cluster.
@@ -931,9 +931,111 @@ Backgrounds are pure, periodic functions of `t`, painted in the stage as CSS cus
   - Every bounded corpus word in every vendored Latin face, at every slot weight and letter-spacing, is drawn within its conservative width.
   - On `board_generic`'s title, kicker and subtitle, in both formats and four font sets: when Python fits, the page overflow is 0 at a page size ≥ Python's. When Python overflows, the page overflows or fits only within Python's margins.
   - A word wider than the box at every size is read as broken, and Python's size is at most one 4 px step below the page's.
-- **Indic: the 8% premise does not hold.** Measured in Chromium against Pillow's basic layout, over every consonant × vowel sign and consonant + virama + consonant of the five scripts, in Noto Sans and Anek, the misses go both ways. Conjuncts are drawn up to 75% narrower (Kannada `ತ್ಝ`; the Devanagari median is −19%, Telugu and Kannada −42% to −59%). Some syllables are drawn far wider (Kannada `ಕೋ` 3.1×, Devanagari `रू` 1.9×, Tamil `டீ` 1.17–1.27×, Malayalam up to 2.2×). No slack bounds that. **Owner decision (2026-10-14):** Indic text fit will use HarfBuzz shaping (`uharfbuzz`, with `fontTools` and `brotli` to read WOFF2), built as the step after B2b. Until then Indic fits are estimates: advisory for B2d's chunker and B2e's lints, never blocking, and never stored as a size cap. The same step may replace the Latin kerning table with shaped measurement (a proposal, not decided).
-- **Pillow and WOFF2.** Pillow 12.3.0 with FreeType 2.14.3 (no raqm) reads all 77 vendored face files on the Windows development machine, Anek's variable axis included. The fast suite pins every face's sample advance (`tests/compose/dynamic/test_textfit.py`, and `test_faces.py` opens each face), and it runs in the CI Python job and in the container's fast suite. **The Debian image check is still open:** the container job has never run. If Debian's FreeType cannot read WOFF2 or gives other advances, that test fails; then pin per platform, or have `vendor.mjs` also store TTF copies for measurement.
-- **Deviations** (B2b): the 0.06 em per-word floor and the kerning table beyond the plan's 4%, which alone was not conservative; "within 4% slack" in plan §1.11 is read as "within Python's margins". Indic text, combining sequences, uncovered characters and unbounded Latin runs are not certified. `fit_slot` takes a `width` override where a template draws text narrower than its slot (`board_generic`'s kicker sits 30 px right of the header's left edge).
+- **Indic: the 8% premise does not hold.** Measured in Chromium against Pillow's basic layout, over every consonant × vowel sign and consonant + virama + consonant of the five scripts, in Noto Sans and Anek, the misses go both ways. Conjuncts are drawn up to 75% narrower (Kannada `ತ್ಝ`; the Devanagari median is −19%, Telugu and Kannada −42% to −59%). Some syllables are drawn far wider (Kannada `ಕೋ` 3.1×, Devanagari `रू` 1.9×, Tamil `டீ` 1.17–1.27×, Malayalam up to 2.2×). No slack bounds that. **Owner decision (2026-10-14):** Indic text fit will use HarfBuzz shaping (`uharfbuzz`, with `fontTools` and `brotli` to read WOFF2), built as the step after B2b. Until then Indic fits are estimates: advisory for B2d's chunker and B2e's lints, never blocking, and never stored as a size cap. The same step may replace the Latin kerning table with shaped measurement (a proposal, not decided). *(B2b-H: done for every script. The advisory rule is lifted for certified Indic fits, and the kerning table is retired.)*
+- **Pillow and WOFF2.** Pillow 12.3.0 with FreeType 2.14.3 (no raqm) reads all 77 vendored face files on the Windows development machine, Anek's variable axis included. The fast suite pins every face's sample advance (`tests/compose/dynamic/test_textfit.py`, and `test_faces.py` opens each face), and it runs in the CI Python job and in the container's fast suite. **The Debian image check is still open:** the container job has never run. If Debian's FreeType cannot read WOFF2 or gives other advances, that test fails; then pin per platform, or have `vendor.mjs` also store TTF copies for measurement. *(B2b-H: no longer applies to text fit, which reads no face through Pillow. `test_faces.py` still opens each face with Pillow, which is now only a readability check.)*
+- **Deviations** (B2b): the 0.06 em per-word floor and the kerning table beyond the plan's 4%, which alone was not conservative; "within 4% slack" in plan §1.11 is read as "within Python's margins". Indic text, combining sequences, uncovered characters and unbounded Latin runs are not certified. `fit_slot` takes a `width` override where a template draws text narrower than its slot (`board_generic`'s kicker sits 30 px right of the header's left edge). *(B2b-H: the floor and the table are retired, and the margin is now 0.5% + 1/64 px. The `width` override stays.)*
+
+*As built (B2b-H): text fit shaped with HarfBuzz* (`aadhi/compose/dynamic/shaping.py`, new; `textfit.py`, rewritten; `docs/plans/b2/b2b_h_review.md`). Still not imported by any production path: `direct.py`, the lints and the caption chunker wire it in B2d/B2e.
+- **Owner decisions.**
+  - 2026-10-14: text fit uses HarfBuzz shaping, with three pinned Python dependencies: `uharfbuzz`, `fontTools` (WOFF2 decoding) and `brotli`.
+  - 2026-10-15: shape every script, Latin too, provided a Chromium parity probe confirms that the shaped widths are what the page draws. If parity holds, retire the B2b kerning table. If it fails for a script or face, keep the closest correct design there and report the evidence.
+  - No many-minute measurement in CI; long re-measurements are opt-in through an environment variable.
+
+  Parity held for every vendored face, weight and script the stage draws, so every script is shaped and the kerning table is retired.
+- **Shaping** (`shaping.py`), mirroring Chromium; the parity probe measured each point:
+  - **Face files.** Each WOFF2 file is decoded once per process with fontTools (and brotli), using the steps of `fontTools.ttLib.woff2.decompress`, and kept in memory as sfnt.
+  - **`unicode-range`.** Each font is a HarfBuzz sub-font whose glyph lookup is the cmap restricted to the face's ranges, as Chromium's is. The subset files map more than their ranges: Outfit's `latin` file maps U+0301 and U+0102, and the Indic files map the space.
+  - **Variable axes.** The file's axes must be the face table's. `wght` is always set from the CSS weight (clamped to the face's range; Anek's file default is 500).
+  - **Features.** HarfBuzz's defaults, which are Chromium's, plus `kern`, `liga` and `clig` from `dynamic.css`. When the letter-spacing is not 0, Chromium drops `liga`, `clig` and `calt` (measured), and so does textfit. A slot drawn with `font-variant-numeric: tabular-nums` (`board_generic`'s countdown ring; `SlotSpec.tabular_nums`) is shaped with `tnum`.
+  - **Shaper.** HarfBuzz's OpenType shaper `ot` is always named. Without that, `HB_SHAPER_LIST` could select `fallback` (no GSUB or GPOS) or, on Windows, `uniscribe` or `directwrite`. A refusal is a `FaceError`.
+  - **Script runs.** Runs are split as Chromium's `ScriptRunIterator` splits them (ported): Script_Extensions in ICU's preference order, paired brackets, and Common and Inherited characters taking the run's script. So a word made only of digits and U+202F NARROW NO-BREAK SPACE (`1 000`, `5 %`, `₹ 100` written with it) is a Mongolian run on its own.
+  - **Language.** The page's `lang`: the board language, else `en`, as BCP 47. Marathi's `locl` forms are reproduced: ल is 0.678 em in `hi-IN` and 0.699 em in `mr-IN` in Noto Sans Devanagari.
+  - **Direction.** Left to right.
+  - **One Unicode database** for the text model. Python 3.11's `unicodedata` is Unicode 14.0, so `NEWER_UCD` adds the characters the vendored faces draw that it does not know: U+0CF3, a combining mark since Unicode 15, and U+11B00–11B09. A test checks that every character a vendored face draws has a known category.
+  - **Units.** 65,536 units per em, so widths scale linearly with the font size, as the page draws them unhinted.
+  - **Fail closed.** Each of these raises, never falls back silently: a file fontTools cannot decode, a face in which HarfBuzz finds no glyphs or no cmap, axes other than the table's, a variable face given no weight, a refused shaper, a missing `brotli` (a `FaceError` naming it), and a missing `uharfbuzz` or `fontTools` (`ImportError`).
+- **Chromium's font fallback** (`textfit.shape_text`). Each script run is shaped with the stack's faces in order. A face keeps the HarfBuzz clusters it draws with no missing glyph, as it shaped them, and leaves the rest to the next face. What no face draws is drawn by a system font (`uncovered`). Kept as shaped includes a face's kerning against a glyph it lacks: Atkinson 700 draws `ŶA` 3 px narrower than `Ŷ` and `A` apart at 100 px. Before this was mirrored, residuals reached 10 px (`Ă`) and 5 px (Atkinson mixed `latin` / `latin-ext` words).
+- **Letter-spacing.**
+  - It is added after every HarfBuzz cluster that draws something, as Chromium's `ShapeResultSpacing` does. A Tamil consonant + virama + consonant takes it twice; a cluster that is only a ZWNJ takes none.
+  - Inside a run of a cursive script, only a space takes it. So the U+202F number words above are drawn without it: at −0.015 em, `1 000` is 7.5 px wider at 100 px than with it.
+  - The spaces between words take it when it is positive, and leave it out when it is negative (never under-estimated).
+- **Words, whitespace and lines.** These are kept from B2b, with these changes:
+  - **Collapsing.** `collapse()` makes each *maximal* run of collapsible whitespace one space. A zero-width or other space between two spaces keeps both: `x` space U+200B space `y` is 28.1 px wider than `x y` in Inter 400 at 100 px. A line feed next to a zero-width space draws nothing, together with the spaces around it. A form feed or vertical tab is drawn (about 0.9 em), not collapsed.
+  - **Flow text** (kicker, subtitle, card and body text) is one text node on the page. Every word is measured both as its own text node and inside the whole text (`Word.readings`, because the script runs can resolve differently). The conservative width takes the wider reading and the optimistic width the narrower.
+  - **Words joined by only zero-width spaces** (`joins()`) are shaped together too, because HarfBuzz skips U+200B: Atkinson 400 draws `q` U+200B `j` 13 px wider than apart. The conservative whitespace between two such words that share a line adds what the pair draws wider across it (`Word.join_em`). A chain of three or more is certified only when no part of it draws wider than its pairs add up to (`Measured.joins_bounded`; Inter's `A` U+200B `-` U+200B `*` does). Chains longer than `JOIN_WORDS` (24) are not certified.
+  - **Over-wide words.** A title word is its own inline-block. A word wider than the column at the minimum size breaks after a hyphen first, else between grapheme clusters. Each piece is shaped on its own with its word's script runs, as the page shapes a line's part of a word.
+- **Margins, re-derived from the probe.** The B2b slack (4% Latin, 8% Indic), the 0.06 em per-word floor and the kerning table are replaced by `SLACK` = 0.5% of the shaped advance plus `BOX_PX` = 1/64 px (Chromium's layout unit: an inline box's width is rounded up to it).
+  - Conservative width: `size · (em · 1.005 + tracking · spacings) + 1/64`, taking the wider reading.
+  - Optimistic width (used to decide that an over-wide word certainly breaks): `max(0, size · (em · 0.995 + tracking · spacings))`, taking the narrower reading.
+
+  Over every probe run, the page drew a word at most 0.0531 px from its shaped width. Beyond the layout unit, that is at most 5.28e-4 of the width (0.053%), so 0.5% is about 9 times what the development machine needs. The rest is kept for what that machine cannot show: Linux Chromium's glyph advances, and a Chromium or HarfBuzz release whose shaping moves. The slow probe re-measures both, and runs in the container.
+- **The parity probe** (`tests/determinism/test_textfit_parity.py`, slow).
+  - **Setup.** The real `/render-dynamic` page with the stage's own CSS, font stacks and `lang`; Playwright 1.63 Chromium on Windows 11. Each text is an inline-block under `white-space: nowrap`, which shapes as the stage's `normal` does. `pre` breaks the kerning across a ZWNJ, and the stage never draws it.
+  - **What it asserts.** For every certified word, the page width lies between the optimistic and conservative widths, and `|page − shaped| ≤ 1/16 px + 5e-4 × width`.
+  - **What it measures:**
+    - every vendored face and weight the stage draws, with each slot's letter-spacing: the display families at 700 and 900 and also at 400 and 600 (a quote's text, a stat's unit), the body families, JetBrains Mono, and Anek at the `wght` 800 a 900 bold run is clamped to;
+    - the B2b review's runs and 1,500 random runs per Latin style;
+    - every consonant × vowel sign and consonant + virama + consonant of the five Indic scripts in Noto Sans and Anek: 9,487 syllables, Devanagari as `hi-IN` and `mr-IN`;
+    - `test_textfit_page`'s strings (typical, longest, very long word, Tamil, Hindi, mixed Tamil + English);
+    - tabular numerals;
+    - whitespace widths and line breaks;
+    - flow lines;
+    - words joined by zero-width spaces.
+  - **Results (residual = page − shaped, px):**
+
+    | Run | Latin max / median | Indic max / median | Other |
+    |---|---|---|---|
+    | Build, default (each style at its smallest and largest slot size) | 0.0510 / 0.0067 over 82,260 widths | 0.0321 / 0.0076 over 252,660 | — |
+    | Build, extended (every 4 px size, 6,000 random runs per style; 192 s) | 0.0531 / 0.0086 over 1,953,627 | 0.0322 / 0.0077 over 1,010,640 | — |
+    | Fix round 1, default (styles added) | 0.0500 / 0.0070 over 109,118 | 0.0321 over 303,192 | tabular 0.0130 over 210; beyond the layout unit ≤ 3.65e-4 of the width |
+    | Fix round 2, extended (456 s) | 0.0522 over 2,203,799 | 0.0324 over 1,667,556 | 3.87 M widths in all |
+    | Fix round 3, default | 0.0510 | 0.0321 | flow lines: Python − page 0.93–124.8 px, never negative; zero-width-space joins: 8,227 certified, 9 not, 0 violations |
+
+    Per style, the maximum is 0.011–0.051 px; medians are 0.001–0.010 px everywhere. Every Indic syllable is drawn by its vendored face.
+  - **Run times.** The default probe takes about 2 minutes (Latin 35 s, Indic 50 s) and runs in the slow suite, so in CI's slow and container jobs. The extended probe (`AADHI_TEXTFIT_PARITY_FULL=1`, 5.5–7.5 minutes) runs on demand only (`docs/OPERATIONS.md`).
+- **What is certified** (`FitResult.fits`):
+  - **True or False:** Latin, Indic and mixed text, combining sequences a vendored face draws, and the runs B2b left uncertified (`step-by-step`, `f(x)`, `10x10`, `ffiw`). True means the page fits too; False means the page overflows, or fits only within Python's 0.5% + 1/64 px. B2b's Indic rule ("advisory, never store an Indic size") is lifted: B2d and B2e may treat a certified Indic fit like a Latin one, and B2e may store its `stored()`.
+  - **None (an estimate; a lint must not block on it):**
+    - a cluster, or part of a grapheme cluster, that no vendored face draws (Greek and maths symbols such as π, Ω, √);
+    - whitespace no vendored face draws (U+3000, U+1680, U+2028, U+2029, form feed, vertical tab);
+    - whitespace the page does not break at as the line model does (`plain_separator()`): an en, em, thin or other typographic space, the BOM, or a space before a zero-width space, between, before or after the words. So `5 %` written with a thin space (U+2009) is not certified;
+    - a word that starts with a combining mark that is not default-ignorable;
+    - a word holding a character that can change the bidi embedding level (`splits_bidi()`: classes R, AL and the embeddings, overrides and isolates with their terminators). This is uncertified, not modelled; the left-to-right mark U+200E stays certified;
+    - a chain of words joined by zero-width spaces that is unbounded or longer than 24 words.
+- **Known gaps: open after the review** (`b2b_h_review.md`). After the third fix round, the audit found two remaining ways text can be certified as fitting while the page draws more lines (it rated both as blockers):
+  - **A zero-width-space pair at a line break in flow text.** The join gain is counted only when both words share a line. Chromium measures a line that ends at the zero-width space with the joined shaping, so it breaks one word earlier. Example: Atkinson 700 at −0.015 em, `xx q` U+200B `j xx` at 200 px: Python certifies 2 lines and the page draws 3.
+  - **An over-wide word that starts with a hyphen.** The break after a leading hyphen (UAX #14 HY) is never taken in `_pieces`, so the page draws one more line than Python certifies. Example: Inter 700, `go -abcdefgh` at 300 px. The textfit docstring's claim that a break after a hyphen "only gives the page fewer lines" is wrong for a leading hyphen.
+
+  Both must be fixed, with an audit, before B2b-H is committed as final. Also open:
+  - Flow text is measured word by word. That keeps Python's line count conservative: up to 125 px on a long 148 px line, while the real slots are 40–56 px.
+  - For an over-wide word, Python's stored size can still be one 4 px step below the page's.
+  - Linux Chromium is unmeasured.
+- **Retired:**
+  - `kerning.py`, `kerning.json` (2.88 MB; 85–90 minutes to regenerate), `tests/compose/dynamic/test_kerning.py`, and `tests/determinism/test_kerning_table.py` with its `AADHI_KERNING_REMEASURE`. The review's measured page widths moved into the fast suite as parity cases.
+  - Inside textfit: the Pillow measurement (`load_face`, the `.notdef` probe, the FreeType lock, `REF_PX`, `PROBE_PX`), `SLACK_LATIN`, `SLACK_INDIC`, `KERN_FLOOR_EM`, `tracking_count`, `advance_em`, `kern_bounds` and `Word.kern_*`.
+
+  textfit no longer imports Pillow. Pillow stays a dependency, because other code uses it.
+- **Dependencies** (`requirements.txt`, "Dynamic video text fit" block; `requirements.lock` regenerated by `scripts/lock_requirements.py`, which reported no Linux gaps and needs no `PLATFORM_PINS` entry):
+
+  | Package | Bound | Locked | Licence | Wheels (CPython 3.11) |
+  |---|---|---|---|---|
+  | `uharfbuzz` | `>=0.56.2,<0.57` | 0.56.2 (2026-09-21) | Apache-2.0; bundles HarfBuzz 14.5.0 ("Old MIT"), whose COPYING the wheel does not include | cp310-abi3, `win_amd64` and manylinux2014 / _2_17 / _2_28 x86_64 |
+  | `fonttools` | `>=4.66,<5` | 4.66.1 (2026-09-29) | MIT, "Copyright (c) 2017 Just van Rossum" (also ships `LICENSE.external`, the OFL text of its test fonts) | cp311 `win_amd64` and manylinux2014 x86_64, plus `py3-none-any` |
+  | `brotli` | `>=1.2,<2` | 1.2.0 (2025-11-05) | MIT, "Copyright (c) 2009, 2010, 2013-2016 by the Brotli Authors" | cp311 `win_amd64` and manylinux2014 x86_64 |
+
+  - **Requirements.** None of the three has required dependencies. `uharfbuzz` is bounded to the 0.56 series because a minor bump can change shaping. Re-run the extended parity probe before raising it, or after a Playwright (Chromium) bump.
+  - **Docker.** The image's pydeps stage installs `-c requirements.lock -r requirements.txt`, so it picks up all three. The image was not built.
+  - **Side effect.** Installing `brotli` makes `httpx`, `urllib3` and `aiohttp` import it eagerly, advertise `br` in `Accept-Encoding` and decode brotli responses transparently (nothing in `aadhi` reads a raw body).
+  - **Notices.** The Python dependencies' notices are a gap for the owner (§4.12).
+- **No visible change.** Nothing outside `textfit` and `shaping` imports either module. The diff touches no `web/` file, `direct.py`, preflight, `presentation.py` or schema. `SlotSpec.tabular_nums` is Python-only: the catalogue `--check` passes. Classic isolation (`tests/compose/test_dynamic_isolation.py`, fresh interpreter):
+  - A classic build loads none of `uharfbuzz`, `fontTools` or `brotli`. `brotli` is excused only beside an HTTP client that imports it.
+  - A Dynamic build loads neither `textfit` nor `shaping` yet.
+- **Deviations** (B2b-H):
+  - Plan §1.11's "within 4% / 8% slack" now reads "within 0.5% + 1/64 px".
+  - Plan §2 "Fonts": "Layout.BASIC … pin advance widths" is now HarfBuzz shaping, with the shaped widths of all 77 face files pinned in the fast suite. These are the same on every platform: no Debian FreeType dependency.
+  - The new field `SlotSpec.tabular_nums`.
+  - Bidi controls and non-plain whitespace are uncertified rather than modelled.
+  - Chromium's East Asian segment-break removal is not modelled. A test pins that no vendored face draws an East Asian wide character, so text it affects is uncertified anyway.
 
 ### 4.7 Colour system
 
@@ -1172,6 +1274,12 @@ All are vendored (CSP `script-src 'self'`), pinned with SRI in `web/vendor/manif
   Generation fails closed when a reviewed version drifts, a component's evidence disappears from its bundle, p5's module table names a package no component accounts for, or a copyright statement appears that the table does not acknowledge. A comment that only credits an algorithm or a book is recorded as a credit, not as licensed code.
 - **Obligations to note:** p5 1.11.11 is LGPL-2.1 (vendored before B2b); `libtess` requires its SGI notice with every copy, and `p5.min.js` strips it, so the notices file is where it ships.
 - **Open:** three of the committed component texts (omggif, stacktrace.js, the Node `path` notice), and libtess, are checked by a test against p5's own source comments. The others were read and look right, but no one in the review compared them with the published packages (the round-1 fixer did not download them, because a download needs the user's permission). The generator's docstring says each was checked against its source; that claim comes from the interrupted first fix attempt and has not been re-verified.
+- **Python runtime dependencies (B2b-H): a gap for the owner.** `scripts/gen_third_party_notices.py` covers the npm packages and the files under `web/vendor` only. The Python packages the image installs have never been in `THIRD_PARTY_NOTICES`; this was true before B2b-H for the image's other Python packages too. B2b-H adds three:
+  - `uharfbuzz` 0.56.2 (Apache-2.0). It statically bundles HarfBuzz 14.5.0, under the "Old MIT" licence, but its wheel ships only its own `LICENSE`, not HarfBuzz's `COPYING`.
+  - `fonttools` 4.66.1 (MIT, "Copyright (c) 2017 Just van Rossum"; plus `LICENSE.external`, the OFL text of its test fonts).
+  - `brotli` 1.2.0 (MIT, "Copyright (c) 2009, 2010, 2013-2016 by the Brotli Authors").
+
+  Whether and how the notices should cover Python packages (and where HarfBuzz's own text comes from) is the owner's decision. The licences are recorded in §4.6 "As built (B2b-H)" and §7.13.
 
 ---
 
@@ -1812,7 +1920,7 @@ MediaRef += trim_in: float = 0, audio: bool = False, volume_db: float = 0, focus
 **As built in B2b** (`aadhi/schemas/timeline.py`, `compose/presentation.py`; §4.6):
 - `TimelinePresentation.fonts` is a typed `TimelineFonts {display?, body?, mono?, indic?}` (it was `dict[str, str]`). Each value is a `CatalogueId` naming a family of `compose/dynamic/faces.py`, never CSS text, and each key is left out when unset, so a stored B1 or B2a `{display, body, mono}` reads and writes back byte for byte (tested on 5 shapes, and on 39 timelines built by B1, B2a and B2b). Like every schema model it ignores unknown keys: a stored fonts dict with other keys would lose them on rewrite (the B1 and B2a resolvers wrote only those three).
 - `indic` (`noto_sans` or `anek`) marks the **B2 form**, which the stage feature-detects (§7.3). The B2b resolver fills it: `fonts = faces.resolver_fonts(display_font)`, which names exactly the faces the B1 stage drew. A display id the B1 stage did not draw is stored as `outfit`. `ENGINE_VERSION` stays 2, so B2a-built engine-2 timelines are not rebuilt and keep their B1 form; both forms draw the same frames (§10.3 B2).
-- `ResolvedLook.icons` and its A2 caps are unchanged. `icons.scene_icons` produces valid entries, and every indexed icon fits the caps (at most 32 paths). `ResolvedLook.text_fit` is still unwritten; `textfit.FitResult.stored()` gives the proposed entry `{size, lines}` (the line count) for B2e to write for certified fits only. The stage reads `text_fit[slot].size` as a size cap (`core.js` `fixesOf`), so an Indic estimate must never be stored.
+- `ResolvedLook.icons` and its A2 caps are unchanged. `icons.scene_icons` produces valid entries, and every indexed icon fits the caps (at most 32 paths). `ResolvedLook.text_fit` is still unwritten; `textfit.FitResult.stored()` gives the proposed entry `{size, lines}` (the line count) for B2e to write for certified fits only. The stage reads `text_fit[slot].size` as a size cap (`core.js` `fixesOf`), so an Indic estimate must never be stored. *(B2b-H: Indic text is shaped with HarfBuzz and certified like Latin text, so a certified Indic `stored()` may be written. The rule is now the general one: write only certified results (`fits` True or False), never an estimate (`fits` None), whatever the script. The schema is unchanged.)*
 
 **Timeline invariants.** `width` and `height` follow the format; `intro` is `None` for Dynamic; the existing time-base validator is unchanged; new checks keep events, kinetic chunks and overlays inside their scene. Resolved tokens are **stored** in the timeline, so old timelines keep their look if the catalogue changes [CB §2 #23].
 
@@ -2200,6 +2308,9 @@ The video chunks carry no audio. The master track is built from the whole edited
 | `tus-js-client` | — | MIT | Adopt in B6 (§8.4) |
 | `faster-whisper` | — | MIT | Optional (clip captions, alignment) |
 | `soundfile` | — | BSD wrapper, bundles LGPL libsndfile | **Not added**: WAV via the standard `wave` module (§5.11) |
+| `uharfbuzz` (Python) | 0.56.2, bounded `<0.57` | Apache-2.0; bundles HarfBuzz 14.5.0 ("Old MIT") | **Adopted in B2b-H** for text fit (§4.6); Dynamic gate only |
+| `fonttools` (Python) | 4.66.1 | MIT | **Adopted in B2b-H**: decodes the vendored WOFF2 faces for shaping; Dynamic gate only |
+| `brotli` (Python) | 1.2.0 | MIT | **Adopted in B2b-H**: WOFF2's compression. Once installed, `httpx`, `urllib3` and `aiohttp` also import it and accept `br` responses |
 | Mediabunny, ffmpeg.wasm, WebCodecs stacks | — | MPL-2.0 / — | Not needed: the server renders |
 
 Every vendored library is pinned with SRI in `web/vendor/manifest.json` through `scripts/vendor.mjs`; `THIRD_PARTY_NOTICES` is generated and includes the Apache NOTICE files [MR §8.16]. *As built (B2b):* generated by `scripts/gen_third_party_notices.py` (`--check` in CI), with the runtime packages' licence and NOTICE texts and the third-party code inside the vendored bundles (§4.12); B1 had no notices file.
@@ -2776,7 +2887,7 @@ classic render's options as they were. Details: `ARCHITECTURE.md` §14, `INTERFA
 - `compose/dynamic/themes.py` → `web/dynamic/themes.json`: the fixed content palette (§4.7), the 4 R1 families, structure accents, the validator (contrast, hue separation, colour-vision distance), the role API.
 - Fonts vendored with verified licence files: Inter, Outfit, Poppins, Lexend, Atkinson Hyperlegible Next, Anek, JetBrains Mono. Icons: Lucide and Tabler with the offline index.
 - The 6 R1 backgrounds with the hold freeze; cut, crossfade, push, colour wipe and shared-element morph; the Crisp and Soft personalities; `cues.js`.
-- `textfit.py` (including the Pillow WOFF2 check in the container) and `zones.py` with the safe-zone overlay.
+- `textfit.py` (including the Pillow WOFF2 check in the container; *B2b-H: text fit shapes with HarfBuzz and no longer reads faces through Pillow, §4.6*) and `zones.py` with the safe-zone overlay.
 - `kinetic.py` (phrase chunks, measured widths, blanking, the key-term rule) and the `clean_pill` and `bold_outline` caption styles.
 - **The 23 R1 template modules** (§4.3) in both formats, including the four 16:9 intro layouts, the 9:16 card and the Aadhi frame-extraction cache. A template that draws a side-panel kind B1 leaves out removes that kind from `aadhi/compose/motion/job.py` `UNDRAWN_PANEL_KINDS` (`chart_build`: `"chart"`), so its `panel_not_drawn` render warning goes with it.
 - `direct.py` (classes, locks, bounded post-pass, entity mapping, accents, backgrounds) and `events.py` (anchoring, cue limits, R-49 SFX policy).
@@ -2798,7 +2909,7 @@ classic render's options as they were. Details: `ARCHITECTURE.md` §14, `INTERFA
 - **Review** (`docs/plans/b2/b2a_review.md`): four lenses (the plan, Python, JS, and a real-Chromium differential), one skeptic per finding, two fix rounds, each audited. 16 findings: 4 refuted, 11 fixed, 1 deferred to B2c (the split 9:16 misconception, §4.2); the second audit found 3 more gaps in the source scan's guards, closed by the lead after the workflow (§7.4). Gates after the fixes: ruff, the six generated-file checks, `tsc`, `npm test` (1,235 pass, 1 skipped), the fast suite (4,874 passed, 5 skipped) and the slow Chromium tests touched by B2a (28) pass.
 - **Open.** The three scan gaps (§7.4); the split misconception's target (B2c); the owner's review of the values above; `ctx.motion` / `ctx.outgoing` (B2c); `accent_fade`, `refs`, `icons`, `fonts.indic` and the 9:16 act slots (B2b/B2e); the code-editor surface token (B2f); `board_generic`'s `mediaBox` ignores the fixes, so when a title is capped below its minimum a clip can be shown up to about 3% larger than it was extracted (B1 behaviour; `media_split` sizes its box from the fixes, B2c); a figure that is a video, or a video poster, still has no planned frames in render mode (B1 gap); `anchor()` is null (the morph, B2f); `stage_page.py` does not assert `texConversions()` yet (B2g); the live watch page shows its generic "could not be played" message for a newer-engine timeline (a "reload" message would fit better); the R-55 luminance-ratio advisories on `mesh_drift` (B2f); the classic player now loads `engine.js` (one module without imports; classic output unchanged). Not run for B2a: the slow suite beyond the Chromium tests it touches, the Linux container run and the B1 container benchmark.
 
-**Status (B2b, 2026-10-15): assets built and reviewed; not yet committed as final.** B2b is plan §A step 2: fonts (with the face table), icons and `textfit.py`. Its build is the commit `d93226d` ("WIP B2b"); the review's first fix round is partly in `0e14281` (that fixer was cut off by a network error, and a second fixer reviewed, kept and completed its changes); the rest of the fixes are in the working tree. Details: §4.6, §4.12, §6.7, §7.3, §7.4, §7.13, `docs/INTERFACES.md`, `docs/OPERATIONS.md`, `docs/plans/b2/b2b_review.md`.
+**Status (B2b, 2026-10-15): assets built, reviewed and committed.** B2b is plan §A step 2: fonts (with the face table), icons and `textfit.py`. Its build is the commit `d93226d` ("WIP B2b"). The review's first fix round is partly in `0e14281`: that fixer was cut off by a network error, and a second fixer reviewed, kept and completed its changes. The rest of the fixes are in `f923487`, and the docs in `d63ff94`. **The text-fit parts below (Pillow measurement, the kerning table, the 4% / 8% margins, the Indic advisory rule, the Debian WOFF2 check) are superseded by B2b-H** ("Status (B2b-H)" below; §4.6). Details: §4.6, §4.12, §6.7, §7.3, §7.4, §7.13, `docs/INTERFACES.md`, `docs/OPERATIONS.md`, `docs/plans/b2/b2b_review.md`.
 - **Built.**
   - **Fonts:** Poppins, Lexend, Atkinson Hyperlegible Next and Anek (five scripts) vendored under `web/vendor/fonts/dynamic/` with verified OFL 1.1 licences. One face table, `faces.py`, generates `web/css/dynamic-fonts.css` and `web/js/dynamic/faces.gen.js` (`--check` in CI), and `vendor.mjs` copies the faces from it (`vendor_faces.mjs`, fail closed). `presentation.fonts {display, body, mono, indic}` is typed and filled by the resolver with B1's faces. The stage's `fontStacks` and `stageFontRequests` (`fonts.js`) feature-detect the B2 form.
   - **Icons:** Lucide 1.48.0 and Tabler 3.48.0 pinned; the committed offline index (`icon_index.json`, `--check` in CI); `icons.py` (normalisation to canonical path `d`, sanitising, matching, `scene_icons`).
@@ -2827,16 +2938,53 @@ classic render's options as they were. Details: `ARCHITECTURE.md` §14, `INTERFA
 - **Gates after the fixes:** ruff; the nine generated-file checks (the six of B2a plus `faces`, `icons` and `gen_third_party_notices`); `tsc`; `npm test` (1,252 tests: 1,251 pass, 1 skipped); the fast suite (5,289 passed, 5 skipped); the slow Chromium tests (56 passed: B2a's four files plus `test_stage_fonts`, `test_icon_pixels`, `test_textfit_page` and `test_kerning_table`). The kerning table was regenerated (85 min); its own `--check` was not re-run, but the second audit re-measured 5 faces and matched the committed rows byte for byte.
 - **Open.**
   - The Debian WOFF2 check and the Linux runs of the slow probes: the container job has never run (§4.6).
-  - The HarfBuzz step (owner decision).
+  - The HarfBuzz step (owner decision). *Done: B2b-H.*
   - The B2c icon helper in `_shared.js`. `look.icons` and the display rotation are B2e's; so is the live player's `stageFontRequests` preload (§7.3). B2e must also decide whether `RefAnchor.icon` (a `CatalogueId`) names an icon that is also put in `look.icons`.
   - The owner's review of the icon lists.
   - Slot geometry for B2c: `board_generic`'s kicker box is 30 px narrower than its slot's `w`; an over-long kicker is cut with an ellipsis and reported as no overflow; the card text slot's `w` is the card's outer width; `.dyn-subtitle` has no `overflow-wrap`; `SlotSpec` has no size step.
   - Greek and maths symbols (π, Ω, √, →) are in no vendored Latin subset, so Chromium draws them with a system font that differs between Windows and Debian (a determinism risk B1 already had); vendoring Inter's Greek and symbol subsets would fix it.
   - For an over-wide word, Python's stored size can be one 4 px step below the page's.
-  - A few glyphs are drawn wider than Pillow's advance outside the slot weights (Lexend 900 `″` +5.7%), which textfit does not measure today.
+  - A few glyphs are drawn wider than Pillow's advance outside the slot weights (Lexend 900 `″` +5.7%), which textfit does not measure today. *(B2b-H: no longer applies; textfit measures shaped widths, weight 900 included.)*
   - The bundled-component licence texts not compared with their packages (§4.12).
-  - Cost: `lucide-static` unpacks to about 51 MB in `npm ci` and `@tabler/icons` to about 11 MB (neither reaches the image); `icon_index.json` is 1.37 MB and `kerning.json` 2.9 MB in the repository.
-  - Not run: the Docker image build, the container job, and the kerning generator's `--check`.
+  - Cost: `lucide-static` unpacks to about 51 MB in `npm ci` and `@tabler/icons` to about 11 MB (neither reaches the image); `icon_index.json` is 1.37 MB and `kerning.json` 2.9 MB in the repository (*B2b-H deleted `kerning.json`*).
+  - Not run: the Docker image build, the container job, and the kerning generator's `--check` (*the generator is deleted in B2b-H*).
+
+**Status (B2b-H, 2026-10-15): HarfBuzz text fit built and reviewed; two audit findings open; not yet committed as final.** B2b-H is the step the owner added after B2b. It rebuilt the text fit on HarfBuzz shaping for every script and retired the kerning table. The build and most of the review's first fix round are the commit `87fa371` ("WIP B2b-H"). The rest of round 1 (one test assertion), rounds 2 and 3 (`textfit.py`, `test_textfit.py`, `test_textfit_parity.py`) and this docs pass are in the working tree. Details: §4.6 "As built (B2b-H)", §4.12, §6.7, §7.13, `docs/INTERFACES.md`, `docs/OPERATIONS.md`, `docs/plans/b2/b2b_h_review.md`.
+- **Built.**
+  - **Shaping:** `aadhi/compose/dynamic/shaping.py` decodes WOFF2 with fontTools and brotli, then shapes with uharfbuzz using the stage's `unicode-range` filter, axes, features, script runs (a port of Chromium's `ScriptRunIterator`) and language.
+  - **Text fit:** `textfit.py` adds Chromium's font fallback, letter-spacing per cluster, the cursive-script rule and `tnum` for the ring (`SlotSpec.tabular_nums`). It also adds whitespace collapsing as the page does it, flow readings, zero-width-space joins, and the margins 0.5% + 1/64 px.
+  - **Probe:** the slow parity probe `tests/determinism/test_textfit_parity.py`, with the opt-in extended form `AADHI_TEXTFIT_PARITY_FULL=1`.
+  - **Dependencies:** `uharfbuzz` 0.56.2, `fonttools` 4.66.1 and `brotli` 1.2.0 in `requirements.txt` and `requirements.lock`.
+  - **Retired:** `kerning.py`, `kerning.json` and their two test files.
+- **No visible change.** textfit is still unwired. No `web/` file, `direct.py`, preflight, the resolver or the schema changed. Classic isolation now also forbids the three shaping libraries; `brotli` is excused only beside an HTTP client that imports it.
+- **Owner decisions (2026-10-14/15).** Text fit uses HarfBuzz (2026-10-14). Shape every script if a Chromium parity probe confirms parity, then retire the kerning table (2026-10-15). Parity held for every face, weight and script, so both were done. Icon order is unchanged. No many-minute check runs in CI: the extended probe is opt-in.
+- **Deviations realised:**
+  - Plan §1.11's margin is 0.5% + 1/64 px instead of 4% / 8%.
+  - Plan §2 "Fonts" uses HarfBuzz shaped widths instead of `Layout.BASIC` advances.
+  - `SlotSpec.tabular_nums` is a new field (Python only).
+  - Bidi controls and non-plain whitespace are left uncertified rather than modelled (§4.6).
+- **Review** (`docs/plans/b2/b2b_h_review.md`): three lenses (accuracy in real Chromium, dependencies, code). Every finding had one or two skeptics; three fix rounds followed, each audited.
+  - 12 findings, none refuted: 1 blocker, 3 major and 8 minor after the skeptics. DEP-1, the `HB_SHAPER_LIST` dependence, was rated major by its lens and lowered to minor by both skeptics.
+  - Round 1 fixed 10 and left the 2 documentation findings to this docs pass.
+  - The audits found 4 more: 2 fixed in round 2; 1 fixed in round 3 for words on the same line only; 1 pre-existing and untouched.
+  - **Open after round 3, both rated blockers by the audit:** the break before a zero-width-space-joined word in flow text, and an over-wide word that starts with a hyphen (§4.6 "Known gaps"). Both must be fixed and audited before B2b-H is committed as final.
+- **Gates on the final tree** (round 3; the third audit reproduced them on a scratch worktree):
+  - ruff clean; all ten generated-file checks pass (B2b's nine plus `lock_requirements --check`); `tsc` clean.
+  - `npm test`: 1,252 tests, 1,251 pass, 1 skipped.
+  - Fast suite: 5,399 passed, 5 skipped, 0 failed.
+  - Slow Chromium gate: 58 passed in 5 min 8 s. It ran `test_textfit_page`, `test_textfit_parity`, `test_stage_fonts`, `test_board_real_page`, `test_stage_layout`, `test_live_css` and `test_preflight_stage`.
+  - Extended probe: last run after round 2, 5 passed in 456 s. Round 3's new test has no extended mode.
+  - Mutations: 31 in the build (2 of them in real Chromium), 9 in round 1 (1 in real Chromium), 18 in round 2 and 7 in round 3, all killed. Round 3 could not exercise the `join_spacings` term of the chain bound.
+- **Open.**
+  - The two audit findings above.
+  - Linux Chromium is unmeasured (the container job has never run), and the Docker image was not built.
+  - The Python notices gap (§4.12, owner).
+  - Re-run the extended probe before a `uharfbuzz` minor bump, or after a Playwright bump.
+  - Characters in no vendored subset stay uncertified (Greek, maths symbols).
+  - Flow text is measured word by word (conservative).
+  - For an over-wide word, Python's stored size can be one 4 px step below the page's (owner or B2e).
+  - `test_faces.py` still opens every face with Pillow, which is now only a readability check.
+  - Wiring textfit into `direct.py`, preflight and the chunker (B2d/B2e).
 
 #### B3. Audio system (in parallel with B1–B2)
 
@@ -3236,7 +3384,7 @@ The reviewers' web-search budgets ran out during their runs, and this revision a
 | 10 | YouTube, Chrome/Firefox, LMS and WhatsApp/Drive handling of in-band `mov_text` captions; where students actually watch | Unverified | B4 delivery check (§10.3) and Q10 |
 | 11 | `-movflags negative_cts_offsets` on Debian's ffmpeg 5.1 | Measured on 8.1 only | B0 ffmpeg feature checks in the Docker test image |
 | 12 | Render time, memory and the best x264 preset in the production container; whether `--disable-frame-rate-limit` helps safely | Not measured on the production path | B1 benchmark (§7.10) |
-| 13 | Pillow reads WOFF2 in the Debian image; Python text fit matches Chrome within 4% (8% for Indic) | B2b: Pillow 12.3.0 / FreeType 2.14.3 reads every vendored WOFF2 on the Windows dev machine; Latin is bounded only with a measured kerning table plus a 0.06 em floor (4% alone was not conservative), verified on the real page on Windows (`tests/determinism/test_textfit_page.py`); **Indic refuted**: Pillow's basic layout misses Chromium by −75% to +210% per cluster, so HarfBuzz shaping was decided (§4.6) | The container fast suite's pinned advances (never run yet); the Linux runs of the slow page tests; the HarfBuzz step for Indic; the B2g gallery comparison |
+| 13 | Pillow reads WOFF2 in the Debian image; Python text fit matches Chrome within 4% (8% for Indic) | B2b: Pillow 12.3.0 / FreeType 2.14.3 reads every vendored WOFF2 on the Windows dev machine; Latin is bounded only with a measured kerning table plus a 0.06 em floor (4% alone was not conservative), verified on the real page on Windows (`tests/determinism/test_textfit_page.py`); **Indic refuted**: Pillow's basic layout misses Chromium by −75% to +210% per cluster, so HarfBuzz shaping was decided (§4.6). **B2b-H:** Python shapes every script with HarfBuzz on the vendored faces (no Pillow), and the Chromium parity probe (`tests/determinism/test_textfit_parity.py`) finds every face, weight and script within 0.054 px of the shaped width in every run (the extended runs measured 2.96 M and 3.87 M word widths; max 0.0531 px Latin, 0.0324 px Indic), with a 0.5% + 1/64 px margin. The kerning table is retired. Two line-breaking gaps found by the B2b-H audit are open (§4.6) | The Linux runs of the slow page tests and of the parity probe (container job never run); the two B2b-H audit findings; the B2g gallery comparison |
 | 14 | Azure Speech SDK licence terms and Linux dependencies | Not reviewed | B3 decision between SDK and batch REST |
 | 15 | ElevenLabs API list price (the stale $300/M row) | Reviewer-fetched page, not re-checked here | B0 pricing update |
 | 16 | Procedural music quality when exposed | Prototype judgement only [AU §3.3] | B3 blind listening test |

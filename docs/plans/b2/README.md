@@ -14,6 +14,8 @@ here from a local scratchpad so any session can continue it.
   `b2a_review.md` is the B2a review (four lenses, every finding and its outcome, the differential numbers, the gates).
 - `b2b_review.md` is the B2b review (the same shape; it also summarises what the three B2b build agents reported, whose
   reports were not kept as files).
+- `b2b_h_review.md` is the B2b-H review (HarfBuzz text fit: three lenses, every finding with its skeptics' verdicts
+  and outcome, three audited fix rounds, the parity probe numbers, the gates and the two findings still open).
 - `HANDOFF.md` is the session handoff: where things stand, the gates and the next steps.
 
 These files still refer to their old location (`.../scratchpad/b2_plan_v2.md`, `.../scratchpad/reads/`); read those
@@ -48,3 +50,19 @@ real-Chromium differential found 0 of 11,031 frame pairs changed. Owner decision
 HarfBuzz shaping in the next step; icon matching is exact name (either set), then Lucide tags, then Tabler tags. As-built
 notes: `docs/DYNAMIC_VIDEO_DESIGN.md` §10.3 B2 "Status (B2b)" and the sections it names. Next: commit B2b, then the
 HarfBuzz text-fit step, then B2c (the vertical slice) (`HANDOFF.md`).
+
+Status (2026-10-15): **B2b committed** (`f923487` fixes, `d63ff94` docs). **B2b-H built and reviewed, but not yet
+committed as final.**
+- **What B2b-H did:** applied the owner decisions of 2026-10-14/15. Text fit shapes every script with HarfBuzz
+  (`uharfbuzz` + `fontTools` + `brotli`, new pinned dependencies) on the vendored faces, as Chromium does. A slow parity
+  probe against the real render page showed parity for every face, weight and script, within 0.054 px. So Indic,
+  Latin and mixed text are certified, the margins are 0.5% + 1/64 px instead of 4% / 8%, and the kerning table is
+  retired.
+- **Where it is:** the build and most of fix round 1 are in `87fa371` ("WIP B2b-H"). Fix rounds 2 and 3 and this docs
+  pass are in the working tree.
+- **The review** (`b2b_h_review.md`): 12 findings, none refuted, all fixed (the two documentation findings by this docs pass). The audits found 4 more, of which 2 are
+  still open: a line break before a zero-width-space-joined word in flow text, and an over-wide word that starts with
+  a hyphen. Both can certify fewer lines than the page draws, and they must be fixed before B2b-H is committed as
+  final. textfit is not wired into rendering yet, so nothing drawn changed.
+- **Next:** close those two, commit B2b-H, then B2c (the vertical slice, plan §A step 3). A WIP B2c from another
+  session is on the branch `b2c` (`HANDOFF.md`).

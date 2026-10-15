@@ -379,3 +379,26 @@ So the differential above still stands for the fixed tree.
   `cmd /c rmdir` before `git worktree remove --force`.
 - Large leftovers under `C:/t` from earlier agents (`rv_fast`, `pq`, and others) can be deleted once they are no longer
   needed.
+
+## After this review: B2b-H (2026-10-15)
+
+The text-fit part of this review was followed by B2b-H. It applies the owner decisions of 2026-10-14 (HarfBuzz) and
+2026-10-15 (shape every script if a Chromium parity probe confirms parity, then retire the kerning table). Its review
+record is `b2b_h_review.md`; its as-built note is design §4.6 "As built (B2b-H)".
+
+For the items above:
+- **Retired.** The kerning table, its generator and its tests (`test_kerning.py`, `test_kerning_table.py` and
+  `AADHI_KERNING_REMEASURE`). Also retired: the Pillow measurement, the 4% / 8% slack and the 0.06 em floor. The page
+  widths this review measured are now fast-suite parity cases, and its `REVIEW_RUNS` are part of the parity probe.
+- **"Open after the review / Text fit": resolved, except one item.**
+  - Indic text is certified.
+  - The Latin runs this review left uncertified are no longer excluded, because the kerning-table bound that left them
+    out is gone. `step-by-step`, `f(x)`, `10x10` and Outfit's `ffiw` are tested as certified. The rest are certified
+    under the same rule, unless they hit one of the B2b-H exclusions in design §4.6.
+  - Glyphs wider than Pillow's advance no longer matter, because text fit measures shaped widths.
+  - **Still open:** for an over-wide word, Python's stored size can be one 4 px step below the page's.
+- **"Open after the review / Platform": partly resolved.** The Debian WOFF2 check no longer applies to text fit:
+  fontTools and HarfBuzz read the faces the same way everywhere. The Linux runs of the slow probes, now including the
+  parity probe, are still open.
+- **"Not run": partly resolved.** The kerning generator's `--check` no longer exists. The Docker image build and the
+  container job are still open.

@@ -127,6 +127,9 @@ struct.border, struct.pip) + roles.on(mode) for content_alt + inkOn(bg) + block 
 ### 1.10 SceneLook.lock semantics exactly §4.4 l.835. palette_slot written by direct.py; resolver derives the accent from it.
 ### 1.11 Slots/type: the PAGE decides pixels; text_fit.size is a start/upper bound; Python biased conservative; test:
 Python fits => page overflow 0 on every gallery slot; Python overflow => page overflow > 0 or within 4% / 8% slack.
+*(B2b-H, owner decisions 2026-10-14/15: Python shapes every script with HarfBuzz, so the slack is now 0.5% of the
+shaped width + 1/64 px, re-derived from the Chromium parity probe; read "within 4% / 8% slack" as "within 0.5% +
+1/64 px". Design §4.6 "As built (B2b-H)".)*
 ### 1.12 mediaPlan 'aadhi' entries gain optional crop [x,y,w,h]; key a-<hash(clip|crop)>-WxH; extract_args crops before
 scaling; additive stage-contract-v3 extension (INTERFACES). Logical clip id -> current file at serve/extract time.
 
@@ -170,6 +173,9 @@ scaling; additive stage-contract-v3 extension (INTERFACES). Logical clip id -> c
   Python copy; textfit resolves faces per grapheme run with the stage's stack order, Layout.BASIC, variable axes set,
   fail closed; CI tests load every face and pin advance widths (ubuntu job + container); fontRequests from
   presentation.fonts; THIRD_PARTY_NOTICES generated.
+  *(B2b-H: Layout.BASIC is replaced by HarfBuzz shaping (uharfbuzz; fontTools + brotli decode the WOFF2 files) with
+  Chromium's font fallback, unicode-range filter, features, script runs and lang; the fast suite pins every face's
+  shaped widths, which are the same on every platform; the slow parity probe holds them to the real page. Design §4.6.)*
 - Chart.js: marks + gridlines only in canvas; every text is DOM, positioned by scale pixels, in texts(); built in layout();
   'chart' leaves UNDRAWN_PANEL_KINDS when chart_build lands.
 - MathJax: template static tex() unioned into render.js preconversion; render-mode TeX cache unbounded; post-ready

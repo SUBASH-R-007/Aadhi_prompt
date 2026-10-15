@@ -1,13 +1,13 @@
 # Session handoff — Batch B2 (Dynamic video visual system)
 
-Updated 2026-10-15, after the B2b review and docs pass. Paste the "Prompt for the next session" block below into a new
-session to continue.
+Updated 2026-10-15, after the B2b-H review (three audited fix rounds) and its docs pass. To continue, paste the
+"Prompt for the next session" block below into a new session.
 
 ## Where things are
 
-- Branch: `overhaul/v2` (local; it contains the cloud session's branch `origin/overhaul/v2-el9z66` and is 7 commits
-  ahead of `origin/overhaul/v2` by 11 commits at 0e14281, not pushed). Never `main` without asking.
-- Commits since B1:
+- **Branch:** `overhaul/v2` (local). It is 14 commits ahead of `origin/overhaul/v2` at `87fa371` and not pushed. It
+  contains the cloud session's branch `origin/overhaul/v2-el9z66`. Never `main` without asking.
+- **Commits since B1:**
   - 3226e20 B1 complete
   - 54c72c5 rollback point
   - 7687c4e WIP B2a A1 (colour_math.py, themes.py + validator, colour vectors; B2 plan docs)
@@ -22,61 +22,90 @@ session to continue.
   - c3a1e9b B2a docs pass (`docs/DYNAMIC_VIDEO_DESIGN.md`, `OPERATIONS.md`, `INTERFACES.md`, `API.md`,
     `ARCHITECTURE.md`, `docs/plans/b2/`)
   - d93226d WIP B2b: fonts (face table, vendored faces, notices), icons (Lucide + Tabler, offline index), `textfit.py`
-  - 0e14281 WIP B2b review fix round 1 (partial: its fixer was cut off by a network error; a second fixer reviewed it
-    and completed the round in the working tree)
+  - 0e14281 WIP B2b review fix round 1 (partial)
+  - f923487 B2b review: every surviving finding fixed (two audited rounds)
+  - d63ff94 B2b docs pass
+  - 87fa371 WIP B2b-H: HarfBuzz-shaped text fit for all scripts; kerning table retired; review done; fix round 1
+    (most of it)
 - **Uncommitted in the working tree** (as of this handoff):
-  - the rest of round 1 and all of round 2 of the B2b review fixes: `kerning.py` / `kerning.json` version 3,
-    `textfit.py`, `gen_third_party_notices.py`, `THIRD_PARTY_NOTICES`, their tests, and the libtess notice
-    `scripts/third_party_licences/libtess-p5.txt` (untracked), which replaces the deleted `libtess-1.2.2.txt`;
+  - B2b-H fix rounds 2 and 3, and round 1's last assertion: `aadhi/compose/dynamic/textfit.py`,
+    `tests/compose/dynamic/test_textfit.py`, `tests/determinism/test_textfit_parity.py`;
   - this docs pass: `docs/DYNAMIC_VIDEO_DESIGN.md`, `OPERATIONS.md`, `INTERFACES.md`, `docs/plans/b2/README.md`,
-    `HANDOFF.md` and `b2b_review.md` (untracked).
+    `HANDOFF.md`, `b2_plan_v2.md`, `b2b_review.md`, and `b2b_h_review.md` (untracked).
 
-  All gates pass on this tree (below). Commit it next, as one B2b commit or as the fixes and the docs separately.
-- Done: B0, B1, B2-0 (transform policy, plan §P), **B2a** (A1, A2, B, the review), and **B2b** (fonts with the face
-  table, icons, `textfit.py`, `THIRD_PARTY_NOTICES`, the review; not yet committed as final). What each built and every
-  deviation it realised: `docs/DYNAMIC_VIDEO_DESIGN.md` §10.3 B2 "Status (B2a)" and "Status (B2b)" and the as-built
-  notes they name. The reviews: `b2a_review.md`, `b2b_review.md`.
-- Not done: the HarfBuzz text-fit step (owner decision, next), B2c .. B2g, and the open items below. Never run: the
-  slow suite beyond the Chromium files in the gate list, the Docker image build, the container benchmark and the CI
-  container job.
+  All gates pass on this tree (below). **Do not commit it as final yet:** the third audit left two open problems
+  (below), which must be fixed first. A WIP commit as a rollback point is fine.
+- **Another session's B2c work** is on the branch `b2c` (`17121d2` "WIP B2c: shared template infra, cues.js,
+  formula_focus/media_split/list_build; integration partial"), based on `d63ff94`, in the worktree `C:/t/b2c`. It has
+  not been reviewed in this session. Check its state before starting B2c, and rebase it onto the final B2b-H rather
+  than starting over.
+- **Done:** B0, B1, B2-0 (transform policy, plan §P), **B2a**, **B2b** (fonts with the face table, icons, `textfit.py`,
+  `THIRD_PARTY_NOTICES`, the review; committed), and **B2b-H** (built and reviewed; two audit findings open; not
+  committed as final). What each step built and every deviation it realised is in `docs/DYNAMIC_VIDEO_DESIGN.md`
+  §10.3 B2, "Status (B2a)", "(B2b)" and "(B2b-H)", and the as-built notes they name. The reviews are
+  `b2a_review.md`, `b2b_review.md` and `b2b_h_review.md`.
+- **Not done:** the two B2b-H findings, B2c .. B2g, and the open items below. **Never run:** the slow suite beyond the
+  Chromium files in the gate list, the Docker image build, the container benchmark and the CI container job.
 
-## Owner decisions (2026-10-14, recorded in B2b)
+## Owner decisions
 
-- **Indic text fit uses HarfBuzz shaping** (`uharfbuzz` + `fontTools` + `brotli`: three new Python dependencies), done
-  as the step after B2b.
-  - Until then `textfit` gives Indic text `fits=None`, an estimate. B2d's caption chunker and B2e's lints must treat
-    Indic fits as advisory, never blocking.
-  - B2e must never store an Indic size in `text_fit`, because the stage reads it as a size cap.
-  - The same step may replace the Latin kerning table (`kerning.json`) with shaped measurement. That is a proposal,
-    not a decision.
+**2026-10-14/15, text fit (B2b-H; carried out):**
+- **2026-10-14:** text fit uses HarfBuzz shaping, with three pinned Python dependencies: `uharfbuzz`, `fontTools`
+  (WOFF2 decoding) and `brotli`.
+- **2026-10-15:** shape every script, Latin too, if a Chromium parity probe confirms the shaped widths match what the
+  page draws, and then retire the kerning table.
+  - Parity held for every face, weight and script: Latin, all five Indic scripts and mixed text, within 0.054 px.
+  - So all scripts are shaped and certified, and `kerning.py` / `kerning.json` and their tests are deleted.
+  - B2b's Indic rule ("advisory, never store an Indic size") is **lifted**. B2d and B2e treat a certified Indic fit
+    like a Latin one. B2e writes `text_fit` from certified `FitResult.stored()` only, in any script.
+- **No many-minute check in CI.** The extended parity probe is opt-in (`AADHI_TEXTFIT_PARITY_FULL=1`, 5.5–7.5 minutes).
+
+**2026-10-14:**
 - **Icon matching:** exact name first (either set), then Lucide tags, then Tabler tags. This is `icons.TIERS` as built.
 
 ## Open items carried forward
 
-From the B2b review (`b2b_review.md`; design §10.3 B2 "Status (B2b)"):
-1. **Debian WOFF2 check.** Pillow reads every vendored WOFF2 on Windows (Pillow 12.3.0, FreeType 2.14.3).
-   - The pinned advances in `tests/compose/dynamic/test_textfit.py` run in the container's fast suite, which has never
-     run. If they fail, pin per platform, or have `vendor.mjs` store TTF copies for measurement.
-   - The slow probes (`test_textfit_page`, `test_kerning_table`, `test_icon_pixels`) have not run on Linux either, and
-     `kerning.json` holds Windows Chromium measurements.
-2. **Not certified until HarfBuzz:** Indic text, combining sequences, characters no vendored face draws, and Latin
-   runs the kerning table does not bound (Inter: `step-by-step`, `f(x)`, `[1-3]`, `(a+b)`, `10x10`; Outfit: `ffiw`).
-3. **Stored size of an over-wide word** can be one 4 px step below the page's, never above. For the owner or B2e:
-   should only the line count be stored for broken words?
-4. **Glyphs wider than Pillow's advance** outside the slot weights: Lexend 900 `″` +5.7%, Lexend 700 `″` +3.8%, Inter
-   latin-ext 700 `Ƀ` +3.2%. textfit does not measure weight 900 today.
-5. **Uncovered characters.** Greek and maths symbols (π, Ω, √, →) are in no vendored subset, so Chromium draws them
-   with a system font that differs between Windows and Debian, a determinism risk carried over from B1. Vendoring
-   Inter's Greek and symbol subsets would fix both (owner or B2f).
-6. **Licence texts.** Those in `scripts/third_party_licences/` other than omggif, stacktrace.js, the Node `path`
-   notice and libtess were read, but never compared with their published packages. That comparison needs a download,
-   so it needs the user's permission.
-7. **Kerning table cost.** 2.88 MB committed, and regeneration takes 85-90 min in Chromium. Its `--check` is not in
-   CI; the slow `test_kerning_table.py` re-measures instead.
-8. **Housekeeping.**
-   - Stale worktrees `C:/t/b2b_vis_base` and `C:/t/nvc_base` are still registered with git. `b2b_vis_base` has a
-     `node_modules` junction into the repo, so run `cmd /c rmdir` on the junctions before `git worktree remove --force`.
-   - Large leftovers under `C:/t` (`rv_fast` about 239 MB, `pq` about 129 MB, and others) can be deleted.
+From the B2b-H review (`b2b_h_review.md`; design §4.6 "As built (B2b-H)", §10.3 B2 "Status (B2b-H)"):
+1. **Blocks the B2b-H commit.** The third audit found two cases where text is certified with fewer lines than the
+   page draws. The audit rated both blockers. textfit is unwired, so nothing drawn is affected.
+   - **ZWSP-BREAK.** Flow text with a zero-width space between two words. The join gain is counted only when both
+     words share a line, but Chromium also counts it for a line that ends at the ZWSP and breaks one word earlier.
+     Atkinson 700 `xx q`+ZWSP+`j xx` at 200 px: Python 2 lines, the page 3. Fix: count the positive gain at a line end
+     too, and add a page line-break case to the parity suite.
+   - **HYPHEN-LEAD.** An over-wide word whose piece starts with a hyphen. `_pieces` never takes the break after a
+     leading hyphen (UAX #14 HY), so the page draws one more line. Inter 700 `go -abcdefgh` at 300 px: Python 3 lines,
+     the title 4. Also fix the textfit docstring's claim that a break after a hyphen "only gives the page fewer lines".
+2. **Linux unmeasured.** The parity probe and every Chromium measurement ran on Windows only. The container job has
+   never run, and the Docker image was not built. The 0.5% slack is meant to cover Linux advance rounding, but this is
+   not measured.
+3. **Python notices gap (owner).** `THIRD_PARTY_NOTICES` covers npm and `web/vendor` only. `uharfbuzz` (Apache-2.0;
+   HarfBuzz's "Old MIT" text is missing from its wheel), `fontTools` (MIT), `brotli` (MIT) and the image's other
+   Python packages have no notices (design §4.12).
+4. **Pins to watch.** `uharfbuzz` is bounded `<0.57`. Re-run the extended probe before raising it, and after a
+   Playwright (Chromium) bump.
+5. **Not certified, by design.** A lint must treat these as estimates:
+   - characters in no vendored subset (Greek, maths symbols such as π, Ω, √; vendoring Inter's Greek and symbol subsets
+     would fix this and the Windows/Debian system-font difference: owner or B2f);
+   - words starting with a non-ignorable combining mark;
+   - words holding bidi controls;
+   - non-plain whitespace (en, em or thin spaces, the BOM, a space before a ZWSP);
+   - ZWSP chains that are unbounded or longer than 24 words.
+6. **Flow text is measured word by word.** That is conservative: up to 125 px on a long 148 px line, while the real
+   slots are 40–56 px. B2d's chunker may want exact line shaping.
+7. **Stored size of an over-wide word** can be one 4 px step below the page's, never above. For the owner or B2e:
+   store only the line count for broken words?
+8. **Licence texts (from B2b).** The bundled-component texts in `scripts/third_party_licences/` other than omggif,
+   stacktrace.js, the Node `path` notice and libtess were never compared with their published packages. That needs a
+   download, so it needs the user's permission.
+9. **Housekeeping.**
+   - `test_faces.py` still opens every face with Pillow, which is now only a readability check.
+   - Large leftovers under `C:/t` from earlier agents (`full`, `pq`, `rv_*`, logs and others) can be deleted. Keep
+     `C:/t/b2c` (the other session's worktree).
+
+Closed since the B2b handoff:
+- B2b's item 1: the Debian WOFF2 check no longer applies to text fit (HarfBuzz pins are platform-independent).
+- B2b's items 2, 4 and 7: everything is shaped, and the kerning table is retired.
+- The stale worktrees `b2b_vis_base` and `nvc_base` are no longer registered.
 
 For later B2 steps, from B2b:
 - **B2c:**
@@ -90,11 +119,12 @@ For later B2 steps, from B2b:
     - The card text slot's `w` is the card's outer width; its text box is w - 1.52 em - 6 px.
     - `.dyn-subtitle` has no `overflow-wrap`.
     - `SlotSpec` has no size step.
-- **B2d:** wire `textfit` into the caption chunker and preflight, with Indic fits advisory.
+- **B2d:** wire `textfit` into the caption chunker and preflight. Certified fits (any script) may block; `fits=None`
+  is advisory. B2b-H lifted the Indic-only rule.
 - **B2e:**
   - `direct.py` fills `look.icons` with `icons.scene_icons(board_items)`.
   - It rotates the display face; until then the resolver stores B1's faces.
-  - It writes `text_fit` from certified `FitResult.stored()` only.
+  - It writes `text_fit` from certified `FitResult.stored()` only: Indic included since B2b-H, never an estimate.
   - It decides whether `RefAnchor.icon` (a `CatalogueId`) names an icon that is also put in `look.icons`.
   - The live player (`web/js/player/fonts.js` `ensureFonts`) must preload `stageFontRequests` for Dynamic timelines
     once a non-B1 face is named.
@@ -136,11 +166,11 @@ For later B2 steps (from `reports/a2.json` and `reports/b.json`):
 ## Binding docs (read in this order)
 
 1. `docs/plans/b2/README.md` (paths ".../scratchpad/X" in the plan files mean `docs/plans/b2/X`)
-2. `docs/DYNAMIC_VIDEO_DESIGN.md` §10.3 B2 (the B2a and B2b status blocks and the as-built notes they name) + the
-   sections the plan cites
+2. `docs/DYNAMIC_VIDEO_DESIGN.md` §10.3 B2 (the B2a, B2b and B2b-H status blocks and the as-built notes they name) +
+   the sections the plan cites
 3. `docs/plans/b2/b2_plan_v2.md` (binding: sequence §A, policy §P, contracts §1.1-1.12, rules §2, gallery §G,
    deviations §D)
-4. `docs/plans/b2/b2b_review.md`, `docs/plans/b2/b2a_review.md` and `docs/plans/b2/a1_review.md` (what was found and
+4. `docs/plans/b2/b2b_h_review.md`, `b2b_review.md`, `b2a_review.md` and `a1_review.md` (what was found and
    decided)
 5. `docs/plans/b2/reports/*.json` (exact contracts of A2 and B), `docs/plans/b2/b2a_workflow.js` (the step-prompt style
    to reuse for B2b..)
@@ -155,6 +185,8 @@ For later B2 steps (from `reports/a2.json` and `reports/b.json`):
 - B1 timelines (engine_version 1) must keep drawing exactly as before; prove it with a frame-hash differential when the
   stage changes (`b2a_review.md` has the harness description).
 - Never read `.env` or secrets. Never call paid APIs in tests (fakes only).
+- No many-minute measurement in CI: hour- or many-minute re-measurements are opt-in through an environment variable
+  and documented in `docs/OPERATIONS.md` (today: `AADHI_TEXTFIT_PARITY_FULL`).
 - If subagents fail with "organization has disabled Claude subscription access", report it; don't retry blindly.
 
 ## Open owner decisions outside B2
@@ -165,11 +197,11 @@ For later B2 steps (from `reports/a2.json` and `reports/b.json`):
 ## Gates (run all before each commit)
 
 ```
-pytest -m "not slow and not network" -q --basetemp=C:/t/<label>   # ~10-12 min; run in the background
+pytest -m "not slow and not network" -q --basetemp=C:/t/<label>   # ~13-18 min; run in the background
 pytest -m slow tests/determinism/test_board_real_page.py tests/determinism/test_stage_layout.py \
   tests/determinism/test_live_css.py tests/compose/dynamic/test_preflight_stage.py \
   tests/determinism/test_stage_fonts.py tests/determinism/test_icon_pixels.py \
-  tests/determinism/test_textfit_page.py tests/determinism/test_kerning_table.py   # when the stage, fonts or textfit change
+  tests/determinism/test_textfit_page.py tests/determinism/test_textfit_parity.py   # when the stage, fonts or textfit change
 npm test                                   # includes web/tests/dynamic/catalogue.test.js and the source scan
 npx tsc -p tsconfig.json
 ruff check aadhi tests scripts evals docker
@@ -182,16 +214,20 @@ python -m aadhi.compose.dynamic.faces --check         # regenerate after faces.p
 python -m aadhi.compose.dynamic.icons --check         # needs node_modules; regenerate after an icon-set bump
 python scripts/gen_third_party_notices.py --check     # needs node_modules; regenerate after any npm dependency change
 node scripts/gen_colour_vectors.mjs --check
-# not in CI (85-90 min, Chromium): python -m aadhi.compose.dynamic.kerning [--check], after a vendored Latin face changes
+python scripts/lock_requirements.py --check           # after a requirements change
+# not in CI (5.5-7.5 min, Chromium): AADHI_TEXTFIT_PARITY_FULL=1 pytest -m slow tests/determinism/test_textfit_parity.py -s
+#   after a change to a vendored face, uharfbuzz/fonttools/brotli, Playwright, or textfit/shaping
 ```
 
-Results on the B2b tree with both review rounds (HEAD 0e14281 plus the working tree):
-- ruff clean; all nine generated-file checks pass; tsc clean.
+Results on the B2b-H tree after fix round 3 (HEAD `87fa371` plus the working tree; the third audit reproduced them):
+- ruff is clean, all ten generated-file checks above pass, and tsc is clean.
 - `npm test`: 1252 tests, 1251 pass, 1 skipped.
-- Fast suite: 5289 passed, 5 skipped, 0 failed.
-- The eight slow Chromium files: 56 passed.
-- The kerning table was regenerated from the final code. Its own `--check` was not re-run; the second audit
-  re-measured five faces and matched the committed rows byte for byte.
+- Fast suite: 5399 passed, 5 skipped, 0 failed (16-18 min).
+- Slow Chromium gate: 58 passed in about 5 min. It covered `test_textfit_page`, `test_textfit_parity`,
+  `test_stage_fonts`, `test_board_real_page`, `test_stage_layout`, `test_live_css` and `test_preflight_stage`.
+  `test_icon_pixels` was not re-run, because the icons have not changed since B2b.
+- Extended parity probe: last run after round 2, 5 passed in 456 s (3.87 M widths; Latin max 0.0522 px, Indic
+  0.0324 px).
 
 Environment notes:
 - Windows uses `.venv/Scripts/...` (the global Python lacks the dependencies); Linux uses `.venv/bin/...`.
@@ -207,16 +243,25 @@ Environment notes:
 ## Prompt for the next session
 
 > Continue Batch B2 of the Dynamic video mode. Read docs/plans/b2/HANDOFF.md first, then the binding docs it lists.
-> Use Workflow orchestration for every substantive step. Start by checking `git status`: if the B2b review fixes and
-> docs are still uncommitted, run the gates and commit them (B2b); that commit is also the rollback point. Otherwise
-> make a rollback commit. Then:
-> 1. The HarfBuzz text-fit step (owner decision 2026-10-14: `uharfbuzz` + `fontTools` + `brotli`). Measure Indic text
->    shaped, so Indic fits can be certified, and decide whether shaped measurement replaces the Latin kerning table.
->    It gets its own review.
-> 2. B2c, the vertical slice (`_shared.js` with the icon helper, `state.js`, stage-driven `cues.js`, `formula_focus`,
->    `media_split`, `list_build`), exactly as plan §A step 3 says.
-> 3. B2d..B2g per the plan.
+> Use Workflow orchestration for every substantive step.
 >
-> Each step gets its adversarial review and, when the stage changes, a frame-hash differential proving existing
-> timelines unchanged. Put the owner-review lists in front of the owner (the "A2 proposal" values and the B2b icon
-> lists); they do not block the next steps.
+> Start by checking `git status`. If the B2b-H fix rounds 2-3 and their docs are still uncommitted, make a WIP commit
+> of them as the rollback point. Otherwise make a rollback commit. Then:
+> 1. Close B2b-H. Fix the two open audit findings, ZWSP-BREAK and HYPHEN-LEAD (HANDOFF open item 1;
+>    `b2b_h_review.md`; design §4.6 "Known gaps").
+>    - Mirror the page; never widen the margins to hide them.
+>    - Add page line-break cases for both to the slow parity suite, and fast tests.
+>    - Audit the fix adversarially in real Chromium. Run every gate, including the extended parity probe
+>      (`AADHI_TEXTFIT_PARITY_FULL=1`).
+>    - Update the B2b-H docs (design §4.6 and §10.3 B2 "Status (B2b-H)", `b2b_h_review.md`, this handoff), then commit
+>      B2b-H as final.
+> 2. B2c, the vertical slice, exactly as plan §A step 3 says: `_shared.js` with the icon helper, `state.js`,
+>    stage-driven `cues.js`, `formula_focus`, `media_split` and `list_build`. Another session left a WIP B2c on the
+>    branch `b2c` (`17121d2`, based on `d63ff94`, worktree `C:/t/b2c`, "integration partial"). Review it, rebase it onto
+>    the final B2b-H, and finish it rather than starting over.
+> 3. B2d..B2g per the plan. B2d and B2e treat certified text fits in any script as certified, and `fits=None` as
+>    advisory.
+>
+> Each step gets its adversarial review. When the stage changes, also run a frame-hash differential proving existing
+> timelines unchanged. Put the owner-review lists in front of the owner: the "A2 proposal" values, the B2b icon lists
+> and the Python notices gap. They do not block the next steps.

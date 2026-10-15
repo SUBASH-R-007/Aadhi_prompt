@@ -26,6 +26,9 @@ Python measures it with :func:`textfit.measure`.
   English, Tamil, Hindi and mixed, and lines whose scripts resolve across their words (``about 1 000 km`` with U+202F:
   Latin there, Mongolian alone), drawn on one line, are never wider than Python's conservative line, nor than its
   reading of the words inside the whole text (``Word.readings``: the page only kerns a space narrower).
+* **Words joined by only zero-width spaces** (flow text, one text node; the B2b-H review, round 3): the page shapes
+  them as one (HarfBuzz skips U+200B), and draws them as HarfBuzz shapes the text as one, never wider than Python's
+  conservative line when certified (``Word.join_em``; a chain a lookup reaches across is not certified).
 
 Asserted per word Python certifies (``Word.reliable``): the page's width is within ``textfit``'s conservative and
 optimistic widths, and within :data:`TOLERANCE_PX` plus :data:`TOLERANCE_REL` of the shaped width (parity, not just a
@@ -33,9 +36,10 @@ bound: a drift of Chromium's or HarfBuzz's shaping fails here, on the platform t
 (page - shaped, px) are printed per style and size (``pytest -s``): max and median of their absolute values.
 
 What runs in the slow suite (CI's slow job, the container): every style at its smallest and largest slot size, 1,500
-random runs per Latin style and every Indic syllable (about 50 s on the development machine). The extended probe (6,000
-random runs per Latin style, every size of each slot's range in 4 px steps: about 3 minutes, 2.96 million word widths)
-runs only on demand: ``AADHI_TEXTFIT_PARITY_FULL=1`` (owner's rule: no many-minute measurement in CI; docs/OPERATIONS.md).
+random runs per Latin style and every Indic syllable (on the development machine: Latin 35 s, Indic 50 s, the file
+under 2 minutes). The extended probe (6,000 random runs per Latin style, every size of each slot's range in 4 px
+steps: 3.87 million word widths, 5.5 to 7.5 minutes on the development machine: 328 s and 456 s measured) runs only
+on demand: ``AADHI_TEXTFIT_PARITY_FULL=1`` (owner's rule: no many-minute measurement in CI; docs/OPERATIONS.md).
 """
 
 from __future__ import annotations
@@ -50,6 +54,7 @@ from typing import Any
 import pytest
 
 from aadhi.compose.dynamic import faces as fc
+from aadhi.compose.dynamic import shaping as sh
 from aadhi.compose.dynamic import textfit as tf
 from aadhi.compose.dynamic.stage_page import open_stage
 
@@ -115,6 +120,13 @@ SCRIPT_RUNS = ("1\u202f000", "5\u202f%", "100\u202f%", "(1\u202f000)", "₹\u202
 SCRIPT_RUNS_INDIC = ("a।", "1।", "क।", "(க)a", "a(க)", "क\u202f१",
                      "१\u202f०००", "1\u1cf5")  # U+1CF5: Common, a preferred script (Bengali)
 NOT_EVERY_STACK = frozenset({"₹\u202f100", "x˗", "1˗"})
+# The B2b-H review (round 2): words of one grapheme cluster HarfBuzz shapes as several, one of them drawn by a system
+# font (a Latin letter and a Devanagari vowel sign in two script runs, the sign's a broken Indic cluster whose dotted
+# circle no face's range holds; a ZWNJ before a mark; a ZWJ or a virama before a character no vendored face draws):
+# drawn up to 43 px wider than B2b-H's certified width, or 99 px narrower than its optimistic one; never certified,
+# in any stack (test_textfit's GRAPHEME_PARTS)
+GRAPHEME_PARTS = ("T\u093f\u0301", "a\u093f\u0301", "A\u200c\u0301", "e\u200c\u0300", "x\u200d\u4e2d",
+                  "\u0915\u094d\u4e2d", "T\u093f\u0301x", "T\u093f\u093f\u0301\u0967")
 LINES = (tp.TYPICAL, tp.WIDE, tp.PLAIN, tp.LONG_WORD, tp.COMPOUND, *tp.KICKERS, tp.SUBTITLE,
          # scripts resolved across words: 1 000 is Latin after "about", 23 Mongolian after 1 000 (U+202F)
          "about 1\u202f000 km", "1\u202f000 23", "Chapter 1\u202f000: the 5\u202f% rule", "(1\u202f000) 300 000",
@@ -172,7 +184,8 @@ def _latin_corpus(role: str, family: str, weight: int, rng: random.Random) -> li
     while len(runs) < RANDOM_RUNS:
         runs.add("".join(rng.choice(chars) for _ in range(rng.randint(2, 12))))
     indic = SCRIPT_RUNS_INDIC if role != "mono" else ()
-    return list(dict.fromkeys([*REVIEW_RUNS, *tp.CORPUS, *COMBINING, *TWO_FACES, *SCRIPT_RUNS, *indic, *sorted(runs)]))
+    return list(dict.fromkeys([*REVIEW_RUNS, *tp.CORPUS, *COMBINING, *TWO_FACES, *SCRIPT_RUNS, *indic, *GRAPHEME_PARTS,
+                               *sorted(runs)]))
 
 
 def _syllables(script: str) -> list[str]:
@@ -266,12 +279,16 @@ async def test_latin_shaped_widths_are_the_pages(real_app) -> None:
     print("\n" + res.report("Latin"))
     assert res.problems == [], res.problems[:20]
     # what is not certified is only what no vendored face of the stack draws (Ω and √ are in no vendored subset, nor
-    # U+0302 / U+0301 after an ô: the system font differs by machine; NOT_EVERY_STACK, Indic in the mono stack)
+    # U+0302 / U+0301 after an ô: the system font differs by machine; NOT_EVERY_STACK, Indic in the mono stack), and
+    # the GRAPHEME_PARTS (each character has a glyph in a face of the stack, but a part of the cluster is drawn by a
+    # system font)
     for (label, m, _), _page in zip(meta, jobs, strict=True):
         faces = tf.fallback_faces(m.stack, m.weight)
         for text in res.uncertified.get(label, []):
-            assert any(not any(tf.has_glyph(k, ch) for k in faces) for ch in text), (label, text)
-    allowed = {"Ω", "√2", "o\u0302\u0301", *NOT_EVERY_STACK, *SCRIPT_RUNS_INDIC}
+            drawn_nowhere = any(not any(tf.has_glyph(k, ch) for k in faces) for ch in text)
+            assert text in GRAPHEME_PARTS or drawn_nowhere, (label, text)
+        assert set(GRAPHEME_PARTS) <= set(res.uncertified.get(label, [])), label
+    allowed = {"Ω", "√2", "o\u0302\u0301", *NOT_EVERY_STACK, *SCRIPT_RUNS_INDIC, *GRAPHEME_PARTS}
     assert {t for ts in res.uncertified.values() for t in ts} <= allowed, res.uncertified
     # this round's script runs are certified, and so compared, in every stack that draws them
     for label, _m, _ in meta:
@@ -329,16 +346,189 @@ async def test_lines_of_flow_text_are_never_wider_than_pythons(real_app) -> None
     narrower: list[float] = []
     for (label, m, size, line), (page,) in zip(meta, await _widths(real_app, jobs), strict=True):
         python = sum(m.width(w, size) + m.sep(w, size) for w in m.words)
-        assert m.reliable, (label, line, m.uncovered)
+        # certified, but for an en or em space between words (drawn as measured: its width is compared here; not
+        # certified because the page does not hang it at a line's end: textfit.plain_separator)
+        assert m.reliable or (m.uncovered == () and not all(w.sep_plain for w in m.words)), (label, line, m.uncovered)
         assert page <= python, (label, line, page, python)
         t = m.tracking_em
         flow = sum(size * (w.readings()[-1][0] + t * w.readings()[-1][1]) for w in m.words)
-        flow += sum(size * (w.sep_em + t * (w.sep_units if w.sep_flow_units is None else w.sep_flow_units))
-                    for w in m.words)
+        flow += sum(size * (w.sep_em + t * (w.sep_units if w.sep_flow_units is None else w.sep_flow_units)
+                            + w.join_em + t * w.join_spacings) for w in m.words)
         assert page <= flow + TOLERANCE_PX + TOLERANCE_REL * flow, (label, line, page, flow)
         narrower.append(python - page)
     print(f"\nflow lines: Python's conservative line - the page's (px): min {min(narrower):.3f}, "
           f"max {max(narrower):.3f}, median {statistics.median(narrower):.3f}, n={len(narrower)}")
+
+
+# Whitespace between words (the B2b-H review, round 2). Widths: ``H`` + whitespace + ``H`` as one text node, in every
+# Latin style at its largest slot size, is as wide as Python's words and whitespace, raw (no face kerns ``H`` against a
+# space or across a zero-width space), whether certified or not: a maximal run of collapsible whitespace is one space,
+# a space on each side of a zero-width or other space is two (B2b-H counted one: 17-28 px narrow at 100 px), a line
+# feed next to a zero-width space draws nothing. Line breaks: in a box 1 px or 20 px wider than ``xxxx``, before a word
+# that fits a line and one that does not, in flow text and between a title's inline-blocks, the whitespace
+# ``textfit.plain_separator`` accepts gives the two lines the line model gives, and every other whitespace gives the
+# page another line, or overflows the box sideways, in at least one of them (so it is never certified).
+SEPARATOR_WIDTHS = (" ", "  ", " \u200b ", "\u200b", " \u200b", "\u200b ", " \u2009 ", "\u2009", " \u2002 ", "\u2002 ",
+                    "\u2003 \u2003", " \u2003\u2003 ", "\u200b \u200b", " \u200b\n ", "\n\u200b", " \n\u200b ",
+                    "\u200b\n", "\u200b \n", "\n \u200b", "\u200b\r\n", "\u200b\t\n", "\u200b\r", "\r", " \r\n ",
+                    "\n\n", " \u2002\n ", "\t\u200b\t", " \ufeff ", "\ufeff\n", " \u205f ", "\u2002\r\u2002",
+                    "\t\n\u200b\n ")
+PLAIN_SEPARATORS = (" ", "  ", "\t", "\n", "\u200b", "\u200b ", "\u200b\u200b", "\u200b\u200b ", "\n\u200b",
+                    "\u200b\n", "\u200b \n", "\u200b\t", "\t\n\u200b\n ")
+OTHER_SEPARATORS = (" \u200b", " \u200b ", " \u2002 ", "\u2002", " \u2002", "\u2002 ", "\u2009", "\ufeff", " \ufeff ",
+                    " \u3000 ")
+# (whitespace after the last word or before the first, whether the line model's reading of it holds)
+TRAILING = ((" ", True), ("\u200b", True), ("\u200b ", True), (" \u200b", False), ("\u2002", False))
+LEADING = ((" ", True), ("\u200b", True), (" \u200b", True), ("\u200b\n", True), ("\u2002", False), ("\u200b ", False))
+
+# lines and overflow of words in a box (white-space: normal, the stage's CSS): ``blocks`` draws each word as an
+# inline-block with the whitespace as text nodes between them (board_generic wordSpans), else one text node
+_BOX_JS = """async ([css, weight, size, spacing, width, cases]) => {
+  const out = [];
+  for (const [lead, parts, blocks] of cases) {
+    const host = document.createElement('div');
+    Object.assign(host.style, { position: 'absolute', left: '0', top: '0', fontFamily: css,
+      fontWeight: String(weight), fontSize: `${size}px`, letterSpacing: `${spacing}em`, whiteSpace: 'normal',
+      width: `${width}px`, lineHeight: '1', visibility: 'hidden' });
+    document.querySelector('.dyn-stage').appendChild(host);
+    await document.fonts.load(`${weight} ${size}px ${css}`, parts.flat().join(''));
+    if (!blocks) host.appendChild(document.createTextNode(lead + parts.flat().join('')));
+    else for (const [w, ws] of parts) { const e = document.createElement('span'); e.style.display = 'inline-block';
+      e.textContent = w; host.appendChild(e); if (ws) host.appendChild(document.createTextNode(ws)); }
+    out.push([Math.round(host.getBoundingClientRect().height / size), host.scrollWidth > host.clientWidth]);
+    host.remove();
+  }
+  return out;
+}"""
+
+
+async def test_whitespace_is_as_wide_and_breaks_as_the_page_lays_it_out(real_app) -> None:
+    jobs, meta = [], []
+    for role, family, weight, tracking, slot_sizes in LATIN_STYLES:
+        fonts = _fonts(role, family)
+        texts = [f"H{sep}H" for sep in SEPARATOR_WIDTHS]
+        css = fc.css_stack(fonts, role, "en-IN")  # type: ignore[arg-type]
+        jobs.append((css, weight, slot_sizes[1], tracking, "en-IN", texts))
+        meta.append((f"{family} {weight} {tracking:+}", fonts, role, weight, tracking, slot_sizes[1], texts))
+    problems = []
+    for (label, fonts, role, weight, tracking, size, texts), page in zip(meta, await _widths(real_app, jobs),
+                                                                          strict=True):
+        for text, w in zip(texts, page, strict=True):
+            m = tf.measure(text, fonts=fonts, role=role, weight=weight, language="en-IN", tracking_em=tracking)
+            assert [x.text for x in m.words] == ["H", "H"] and m.uncovered == (), (label, text)
+            raw = sum(m.width(x, size, "raw") + m.sep(x, size, "raw") for x in m.words)
+            if abs(w - raw) > TOLERANCE_PX + TOLERANCE_REL * raw:
+                problems.append(("width", label, text, round(w, 3), round(raw, 3)))
+            if m.reliable and w > sum(m.width(x, size) + m.sep(x, size) for x in m.words):
+                problems.append(("conservative", label, text, w))
+    assert problems == [], problems[:20]
+
+    served = tp._timeline("landscape", {"display": "outfit", "body": "inter", "mono": "jetbrains_mono"}, "en-IN",
+                          [("default", tp.TYPICAL, "Basics", "")])
+    seen: dict[tuple[str, str, str, bool], list[bool]] = {}  # (style, where, whitespace, plain): laid out as modelled
+    async with open_stage(real_app.settings, size=(1920, 1080), token=TOKEN, base_url=real_app.base,
+                          served_timeline=served) as page:
+        await page.seek(0)
+        for role, family, weight, tracking in (("body", "inter", 400, 0.0), ("display", "outfit", 700, -0.015),
+                                               ("body", "atkinson_hyperlegible_next", 600, 0.02)):
+            fonts = _fonts(role, family)
+            css = fc.css_stack(fonts, role, "en-IN")  # type: ignore[arg-type]
+            m = tf.measure("xxxx yy yyyyyy", fonts=fonts, role=role, weight=weight, tracking_em=tracking)
+            assert m.width(m.words[1], 100, "raw") + 25 < m.width(m.words[0], 100, "raw")  # yy fits the box
+            assert m.width(m.words[2], 100, "raw") > m.width(m.words[0], 100, "raw") + 25  # yyyyyy does not
+            for extra in (1.0, 20.0):
+                width = m.width(m.words[0], 100, "raw") + extra
+                cases: list[tuple[Any, ...]] = []
+                for sep in (*PLAIN_SEPARATORS, *OTHER_SEPARATORS):
+                    cases += [("", [["xxxx", sep], [nxt, ""]], blocks) for blocks in (False, True)
+                              for nxt in ("yy", "yyyyyy")]
+                cases += [("", [["xxxx", trail]], blocks) for trail, _ in TRAILING for blocks in (False, True)]
+                cases += [(lead, [["xxxx", ""]], False) for lead, _ in LEADING]  # a title drops it (splitWords)
+                got = await page.page.evaluate(_BOX_JS, [css, weight, 100, tracking, width, cases])
+                k = 0
+                for sep in (*PLAIN_SEPARATORS, *OTHER_SEPARATORS):
+                    # (lines, overflow) for (flow yy, flow yyyyyy, title yy, title yyyyyy): the model's is two lines,
+                    # overflowing only beside the over-wide word
+                    as_model = got[k:k + 4] == [[2, False], [2, True], [2, False], [2, True]]
+                    seen.setdefault((family, "between", sep, sep in PLAIN_SEPARATORS), []).append(as_model)
+                    k += 4
+                for (trail, plain), outcome in zip([t for t in TRAILING for _ in (0, 1)], got[k:k + 2 * len(TRAILING)],
+                                                   strict=True):
+                    seen.setdefault((family, "after", trail, plain), []).append(outcome == [1, False])
+                k += 2 * len(TRAILING)
+                for (lead, plain), outcome in zip(LEADING, got[k:], strict=True):
+                    seen.setdefault((family, "before", lead, plain), []).append(outcome == [1, False])
+        assert page.errors == [] and page.guard_trips == [], (page.errors, page.guard_trips)
+    # the whitespace plain_separator accepts is laid out as the model has it in every case; any other whitespace is
+    # not, in at least one case of each style
+    wrong = []
+    for (family, where, sep, plain), as_model in seen.items():
+        assert tf.plain_separator(sep, leading=where == "before") is plain, (where, repr(sep))
+        if all(as_model) is not plain:
+            wrong.append((family, where, repr(sep), plain, as_model))
+    assert wrong == [], wrong
+
+
+# Words joined by only zero-width spaces (the B2b-H review, round 3): the page's text node holds them with nothing
+# between them but U+200B, which HarfBuzz skips when it matches the font's lookups, so it kerns, ligates and takes
+# contextual forms across it (B2b-H measured the words apart and certified ``q`` U+200B ``j`` 12.6 px narrower than
+# Atkinson 400 draws it at 100 px). The review's pairs, chains Inter's case forms reach across, and random pairs and
+# chains of ASCII words (a line feed next to the zero-width space is removed), in every Latin style at its largest
+# slot size: the page draws each as HarfBuzz shapes the text as one (within the parity tolerance), and never wider than
+# Python's conservative line when it is certified
+JOINED = ("q\u200bj", "q\u200b\nj", "q\u200b \nj", "(\u200bj", "f\u200bT", "r\u200bt", "x\u200bt", "f\u200b'",
+          "\u1e7e\u200b\u012b", "Y\u200bo", "A\u200bV", "A\u200b-\u200b*", "V\u200b-\u200b*", "*\u200b*\u200bA",
+          "A\u200bb\u200bc", "f\u200bf\u200bi", "q\u200b\u200bj")
+JOINED_RANDOM = 300  # random pairs and chains per style
+
+
+def _joined_corpus(rng: random.Random) -> list[str]:
+    chars = [chr(c) for c in range(0x21, 0x7F)]
+    out = list(JOINED)
+    while len(out) < len(JOINED) + JOINED_RANDOM:
+        words = ["".join(rng.choice(chars) for _ in range(rng.randint(1, 3))) for _ in range(rng.choice((2, 2, 3)))]
+        seps = [rng.choice(("\u200b", "\u200b", "\u200b\n", "\n\u200b", "\u200b\u200b")) for _ in words[1:]]
+        out.append(words[0] + "".join(sep + w for sep, w in zip(seps, words[1:], strict=True)))
+    return list(dict.fromkeys(out))
+
+
+async def test_words_joined_by_zero_width_spaces_are_drawn_shaped_as_one(real_app) -> None:
+    rng = random.Random(SEED)
+    jobs, meta = [], []
+    for role, family, weight, tracking, slot_sizes in LATIN_STYLES:
+        fonts = _fonts(role, family)
+        texts = _joined_corpus(rng)
+        css = fc.css_stack(fonts, role, "en-IN")  # type: ignore[arg-type]
+        jobs.append((css, weight, slot_sizes[1], tracking, "en-IN", texts))
+        meta.append((f"{family} {weight} {tracking:+}", fonts, role, weight, tracking, slot_sizes[1], texts))
+    problems, wider_than_apart, certified, refused = [], 0, 0, 0
+    for (label, fonts, role, weight, tracking, size, texts), page in zip(meta, await _widths(real_app, jobs),
+                                                                          strict=True):
+        for text, w in zip(texts, page, strict=True):
+            m = tf.measure(text, fonts=fonts, role=role, weight=weight, language="en-IN", tracking_em=tracking)
+            assert all(tf.joins(text[a.at + len(a.text):b.at]) for a, b in zip(m.words, m.words[1:])), (label, text)
+            if m.uncovered:  # drawn by a system font (Atkinson has no glyph for U+1E7E): neither compared nor certified
+                assert not m.reliable and set(m.uncovered) <= set(JOINED[8]), (label, text)
+                continue
+            collapsed = text.replace("\n", "").replace(" ", "")
+            segments = tf.shape_text(collapsed, m.stack, weight, m.language, tracking != 0, None,
+                                     sh.script_runs(collapsed))
+            shaped = size * (tf._em(segments) + tracking * sum(1 for seg in segments if seg.spaced))
+            if abs(w - shaped) > TOLERANCE_PX + TOLERANCE_REL * shaped:
+                problems.append(("parity", label, text, round(w, 3), round(shaped, 3)))
+            apart = sum(m.width(x, size) for x in m.words)
+            wider_than_apart += w > apart
+            if not m.reliable:
+                refused += 1
+                continue
+            certified += 1
+            line = apart + sum(m.sep(x, size) for x in m.words)
+            if w > line:
+                problems.append(("conservative", label, text, round(w, 3), round(line, 3)))
+    print(f"\njoined by zero-width spaces: {certified} certified, {refused} not; {wider_than_apart} drawn wider than "
+          f"their words apart")
+    assert problems == [], problems[:20]
+    assert wider_than_apart > 0 and certified > 9 * refused > 0
 
 
 # board_generic's countdown ring: body 700 at the label size (40 px in 16:9, 44 px in 9:16), tabular numerals

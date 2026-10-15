@@ -21,7 +21,9 @@ decision 2026-10-14/15: HarfBuzz shaping for every script).
 * What is certified: Latin, Indic, mixed text and combining sequences a vendored face draws get ``fits`` True / False;
   a character no vendored face draws, or a word that starts with a combining mark, gets None (an estimate only).
 * No face kerns a space, or a character it has no glyph for, wider (what makes measuring flow text word by word
-  conservative); deterministic across processes, hash seeds, caches and threads.
+  conservative); across a zero-width space alone a face may (the page shapes the two words as one): what a pair draws
+  across it is added to its whitespace, and a chain a lookup reaches across is not certified; deterministic across
+  processes, hash seeds, caches and threads.
 """
 
 from __future__ import annotations
@@ -29,6 +31,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import random
 import subprocess
 import sys
 import threading
@@ -772,6 +775,111 @@ def test_a_space_takes_the_letter_spacing_when_it_is_positive() -> None:
     assert pos.sep(pos.words[-1], 100) == 0.0
 
 
+# Flow text whose words are joined by only zero-width spaces, measured on the render page at 100 px, en-IN, one text
+# node (the B2b-H review, round 3): HarfBuzz skips the default-ignorable U+200B when it matches the font's lookups, so
+# the page kerns the words across it; measured apart, B2b-H certified each of these narrower than the page drew it
+# (``q`` U+200B ``j`` by 12.6 px). Shaped as one, each is the page's width. A line feed next to the zero-width space is
+# removed (``collapse``), so ``q`` U+200B LF ``j`` is drawn as ``q`` U+200B ``j`` (tests/determinism/
+# test_textfit_parity.py measures it, with these and random pairs in every Latin style).
+_ATKINSON_BODY = {"display": "outfit", "body": "atkinson_hyperlegible_next", "mono": "jetbrains_mono",
+                  "indic": "noto_sans"}
+_JOINED = [(_ATKINSON_BODY, "body", 400, 0.0, "q\u200bj", 94.91), (_ATKINSON_BODY, "body", 400, 0.0, "q\u200b\nj", 94.91),
+           (_LEXEND, "display", 700, -0.015, "f\u200bT", 107.81), (B1, "body", 400, 0.0, "(\u200bj", 63.53),
+           (B1, "body", 400, 0.0, "\u1e7e\u200b\u012b", 101.72)]
+
+
+@pytest.mark.parametrize(("fonts", "role", "weight", "tracking", "text", "page"), _JOINED)
+def test_words_joined_by_a_zero_width_space_are_shaped_across_it(fonts: dict[str, str], role: str, weight: int,
+                                                                 tracking: float, text: str, page: float) -> None:
+    m = tf.measure(text, fonts=fonts, role=role, weight=weight, tracking_em=tracking, language="en-IN")
+    first, second = m.words
+    assert m.reliable and m.joins_bounded and tf.joins(text[len(first.text):-len(second.text)])
+    # the two words' readings inside the whole text and what they draw across the zero-width space: the page's width
+    shaped = sum(100 * (em + tracking * n) for em, n in (first.readings()[-1], second.readings()[-1]))
+    assert shaped + 100 * (first.join_em + tracking * first.join_spacings) == pytest.approx(page, abs=0.05)
+    apart = m.width(first, 100) + m.width(second, 100)  # B2b-H's conservative line: the words apart, 0 between
+    assert apart < page - 0.3
+    line = apart + m.sep(first, 100)
+    assert page <= line <= page + 0.01 * page
+    # a title draws each word as an inline-block: nothing is shaped across its whitespace
+    assert m.sep(first, 100, "raw") == m.sep(first, 100, "optimistic") == 0.0
+    for width, fits in ((apart + 0.5, False), (line, True)):
+        r = tf.fit(m, width=width, size=(100.0, 100.0), max_lines=1)
+        assert r.fits is fits and r.reliable, (width, r)
+    r = tf.fit_text(text, width=apart + 0.5, size=(100.0, 100.0), max_lines=1, role=role, weight=weight, fonts=fonts,
+                    language="en-IN", tracking_em=tracking)
+    assert r.fits is False
+
+
+def test_a_chain_of_words_joined_by_zero_width_spaces_is_certified_only_when_its_pairs_bound_it() -> None:
+    """Inter's contextual alternates reach across two zero-width spaces: in ``A`` U+200B ``-`` U+200B ``*`` the asterisk
+    takes its case form after the capital (8.1 px wider at 100 px than its pairs add up to), which no pair
+    shows; such a chain is not
+    certified. A chain whose parts its pairs bound is, and so is a pair."""
+    def m(text: str) -> tf.Measured:
+        return tf.measure(text, fonts=_INTER, role="display", weight=700)
+
+    chain = m("A\u200b-\u200b*")
+    joint = 100 * tf._em(tf.shape_text("A\u200b-\u200b*", chain.stack, 700, chain.language))
+    bound = sum(100 * w.em + 100 * max(0.0, w.join_em) for w in chain.words)
+    assert joint > bound + 8
+    assert not chain.joins_bounded and not chain.reliable and all(w.reliable for w in chain.words)
+    assert tf.fit(chain, width=1000.0, size=(100.0, 100.0), max_lines=1).fits is None
+    assert m("A\u200b-").reliable and m("-\u200b*").reliable and m("A-*").reliable  # one word: shaped as one
+    assert m("*\u200b*\u200bA").reliable is False and m("A\u200bb\u200bc").reliable
+    # a pair the page draws narrower bounds nothing (Python's whitespace never takes it off): V kerns the hyphen 3.7 px
+    # closer, and the asterisk's case form after it is 3.7 px wider at 100 px
+    vee = m("V\u200b-\u200b*")
+    assert vee.words[0].join_em < 0 and not vee.joins_bounded
+    # with spaces between, or a space beside the zero-width space, nothing is shaped across (never wider: measured)
+    assert m("A - *").reliable and m("A\u200b -\u200b *").reliable
+    assert m("A\u200b -\u200b *").words[0].join_em == 0.0
+    # a chain longer than JOIN_WORDS is not checked part by part, and not certified
+    letters = "abcdefghijklmnopqrstuvwxyz"
+    assert m("\u200b".join(letters[:tf.JOIN_WORDS])).reliable
+    assert not m("\u200b".join(letters[:tf.JOIN_WORDS + 1])).reliable
+    assert m(" ".join(letters)).reliable and m(" ".join("\u200b".join(letters[i:i + 3]) for i in (0, 3, 6))).reliable
+
+
+def test_a_certified_line_of_words_joined_by_zero_width_spaces_is_never_narrower_than_shaped_as_one() -> None:
+    """Every line the page can draw of a text whose words are joined by zero-width spaces (any run of its words) is
+    that run shaped as one text node (the line feeds next to a zero-width space removed); when the text is certified,
+    Python's conservative line is never narrower, in every Latin style the stage draws (random words of ASCII letters,
+    digits and punctuation; the case forms of Inter and the kerning of every face)."""
+    rng = random.Random(20261015)
+    chars = [chr(c) for c in range(0x21, 0x7F)]
+    styles = [("display", f, 700, -0.015) for f in ("outfit", "poppins", "lexend", "inter",
+                                                    "atkinson_hyperlegible_next")]
+    styles += [("body", f, w, t) for f in ("inter", "atkinson_hyperlegible_next") for w, t in ((400, 0.0),
+                                                                                              (600, 0.02))]
+    styles += [("mono", "jetbrains_mono", 400, 0.0)]
+    certified = refused = 0
+    for role, family, weight, tracking in styles:
+        fonts = {"display": "outfit", "body": "inter", "mono": "jetbrains_mono", "indic": "noto_sans", role: family}
+        for _ in range(250):
+            words = ["".join(rng.choice(chars) for _ in range(rng.randint(1, 3))) for _ in range(rng.randint(2, 4))]
+            seps = [rng.choice(("\u200b", "\u200b", "\u200b\n", "\n\u200b", "\u200b\u200b")) for _ in words[1:]]
+            text = words[0] + "".join(s + w for s, w in zip(seps, words[1:], strict=True))
+            m = tf.measure(text, fonts=fonts, role=role, weight=weight, tracking_em=tracking, language="en-IN")
+            assert [w.text for w in m.words] == words
+            if not m.reliable:
+                assert not m.joins_bounded and m.uncovered == (), text
+                refused += 1
+                continue
+            certified += 1
+            for p in range(len(words)):
+                for q in range(p, len(words)):
+                    run = words[p] + "".join(s.replace("\n", "") + w for s, w in zip(seps[p:q], words[p + 1:q + 1],
+                                                                                    strict=True))
+                    segments = tf.shape_text(run, m.stack, weight, m.language, tracking != 0, None,
+                                             sh.script_runs(run))
+                    page = 100 * (tf._em(segments) + tracking * sum(1 for s in segments if s.spaced))
+                    line = sum(m.width(w, 100) for w in m.words[p:q + 1]) + sum(m.sep(w, 100)
+                                                                               for w in m.words[p:q])
+                    assert page <= line, (family, weight, text, p, q, page, line)
+    assert certified > 9 * refused  # nearly all are certified (a chain Inter's case forms reach across is not)
+
+
 def test_an_empty_text_fits_with_no_lines() -> None:
     for text in ("", "   ", "\u200b"):
         r = tf.fit_text(text, width=600, size=(40, 56), max_lines=2, role="display", weight=700, fonts=B1)
@@ -1013,7 +1121,9 @@ def test_flow_text_takes_the_scripts_of_the_whole_text() -> None:
                                  # Chromium's TreatAsSpace)
                                  ("1\u202f000\u2002000 7", 0.02, 585.5), ("1\u202f000\u2002000 7", -0.015, 582.0)):
         m = tf.measure(line, fonts=fonts, role="body", weight=600, language="en-IN", tracking_em=tracking)
-        assert m.reliable
+        # an en space between words is drawn as wide as measured, but the page does not hang it at a line's end, which
+        # the line model does not follow (plain_separator): those words are an estimate
+        assert m.reliable is ("\u2002" not in line), line
         flow = sum(100 * (em + tracking * n) for w in m.words for em, n in w.readings()[-1:])
         flow += sum(100 * (w.sep_em + tracking * (w.sep_flow_units or 0)) for w in m.words)
         assert abs(flow - page) < 0.02, (line, tracking, flow, page)
@@ -1064,7 +1174,149 @@ def test_a_separator_no_vendored_face_draws_is_not_certified(sep: str) -> None:
     r = tf.fit_slot(f"Ohm{sep}law", spec, fonts=B1)
     assert r.fits is None and r.estimate is True and r.uncovered == (sep,)
     covered = tf.measure("a\u2002b", fonts=B1, role="body", weight=400)  # an en space a vendored face draws
-    assert covered.reliable and covered.words[0].sep_uncovered == ()
+    # drawn by a vendored face, but not certified either: the page does not hang it at a line's end (plain_separator)
+    assert covered.words[0].sep_uncovered == () and not covered.words[0].sep_plain and not covered.reliable
+    # in no stack: no vendored face draws it (the line and paragraph separators may also break the page's line, which
+    # text fit does not model, so a face that drew one would need that measured before it is certified)
+    assert not any(tf.has_glyph(tf.face_key(f, f.weight[0]), sep) for f in fc.FACES), hex(ord(sep))
+
+
+# Words of one grapheme cluster that HarfBuzz shapes as several clusters, one of them drawn by no vendored face (review
+# round 2: B2b-H took the grapheme's coverage from its first cluster only and certified them; on the real page, Poppins
+# 700 at -0.015 em and 100 px, ``T`` U+093F U+0301 is drawn 199.86 px wide against a certified conservative 156.91 px,
+# ``A`` ZWNJ U+0301 72.20 px against a certified optimistic 171.33 px): a Latin letter and a Devanagari vowel sign (two
+# script runs; the sign's run is a broken Indic cluster, whose dotted circle no face's range holds), a ZWNJ before a
+# mark, a ZWJ or a virama before a character no vendored face draws
+GRAPHEME_PARTS = ("T\u093f\u0301", "a\u093f\u0301", "A\u200c\u0301", "e\u200c\u0300", "x\u200d\u4e2d",
+                  "\u0915\u094d\u4e2d", "T\u093f\u0301x", "T\u093f\u093f\u0301\u0967")
+
+
+@pytest.mark.parametrize("word", GRAPHEME_PARTS)
+def test_a_grapheme_a_system_font_draws_part_of_is_not_certified(word: str) -> None:
+    fonts = {"display": "poppins", "body": "atkinson_hyperlegible_next", "indic": "anek"}
+    for f, language in ((fonts, "hi-IN"), ({**B1, "indic": "noto_sans"}, "en-IN")):
+        m = tf.measure(word, fonts=f, role="display", weight=700, language=language, tracking_em=-0.015)
+        segments = tf.shape_text(word, m.stack, 700, m.language, True)
+        starts = {c.at for c in m.words[0].clusters}
+        # the mechanism: an uncovered HarfBuzz cluster that starts inside a grapheme, not at it
+        assert any(s.uncovered and s.start not in starts for s in segments), (word, segments)
+        assert not m.words[0].reliable and not m.reliable and m.uncovered, (word, m.uncovered)
+        assert any(c.uncovered and not c.reliable for c in m.words[0].clusters)
+        spec = SLOTS["title"]["landscape"]["default"]
+        assert tf.fit_slot(f"Ohm {word}", spec, fonts=f, language=language).fits is None, word
+    # a grapheme drawn whole by vendored faces in two HarfBuzz clusters stays certified (a Latin letter and a combining
+    # mark the face composes or positions)
+    assert tf.measure("cafe\u0301", fonts=B1, role="display", weight=700).reliable
+
+
+def test_a_word_shaped_inside_the_whole_text_must_be_covered_too(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A word whose script runs inside the whole text differ from its own (``1`` U+202F ``000`` after ``about``) is
+    shaped both ways; a cluster no vendored face draws in either reading makes it an estimate (no such text is known
+    among the vendored faces: this pins the guard)."""
+    real = tf.shape_text
+
+    def shape(text: str, stack: tuple[str, ...], weight: int, language: str, spaced: bool = False,
+              web_dir: str | None = None, runs: tf.Runs | None = None, tabular: bool = False) -> tuple[tf.Segment, ...]:
+        out = real(text, stack, weight, language, spaced, web_dir, runs, tabular)
+        if runs is None:
+            return out
+        return (tf.Segment(out[0].start, out[0].end, None, out[0].units, out[0].spaced, True), *out[1:])
+
+    assert tf.measure("about 1\u202f000 km", fonts=B1, role="body", weight=600).reliable
+    monkeypatch.setattr(tf, "shape_text", shape)
+    m = tf.measure("about 1\u202f000 km", fonts=B1, role="body", weight=600)
+    assert [w.flow_uncovered for w in m.words] == [(), ("1",), ()]
+    assert not m.words[1].reliable and m.words[0].reliable and not m.reliable and m.uncovered == ("1",)
+
+
+# The width between two words as the page draws it (the render page, Inter 400 at 100 px, ``x`` + whitespace + ``y`` in
+# one text node, white-space: normal): a maximal run of collapsible whitespace is one space, so a space on each side of
+# another character is two (review round 2: B2b-H counted one and certified the line 28 px narrow); a line feed next to
+# a zero-width space is removed with the spaces around it; a carriage return is a space; a form feed or a vertical tab
+# is not collapsible at all (drawn by a system font)
+_SEPARATOR_WIDTHS = [("x y", 138.92), ("x  y", 138.92), ("x \u200b y", 167.05), ("x\u200by", 110.80),
+                     ("x \u200by", 138.92), ("x\u200b y", 138.92), ("x \u2009 y", 185.22), ("x\u2009y", 128.97),
+                     ("x \u2002 y", 217.05), ("x\u2002 y", 188.92), ("x\u2003 \u2003y", 338.92),
+                     ("x \u2003\u2003 y", 367.05), ("x\u200b \u200by", 138.92), ("x \u200b\n y", 138.92),
+                     ("x\n\u200by", 110.80), ("x \n\u200b y", 138.92), ("x\u200b\ny", 110.80),
+                     ("x\u200b \ny", 110.80), ("x\n \u200by", 110.80), ("x\u200b\r\ny", 110.80),
+                     ("x\u200b\t\ny", 110.80), ("x\u200b\ry", 138.92), ("x\r\u200by", 138.92), ("x\ry", 138.92),
+                     ("x \r\n y", 138.92), ("x\n\ny", 138.92), ("x \u2002\n y", 217.05), ("x\t\u200b\ty", 167.05),
+                     ("x \ufeff y", 167.05), ("x\ufeff\ny", 138.92), ("x \u205f y", 189.27), ("x\u2002\r\u2002y", 238.92)]
+
+
+@pytest.mark.parametrize(("text", "page"), _SEPARATOR_WIDTHS)
+def test_whitespace_collapses_as_the_page_collapses_it(text: str, page: float) -> None:
+    m = tf.measure(text, fonts=B1, role="body", weight=400, language="en-IN")
+    raw = sum(m.width(w, 100, "raw") + m.sep(w, 100, "raw") for w in m.words)
+    assert raw == pytest.approx(page, abs=0.05), (text, raw)
+    assert [w.text for w in m.words] == ["x", "y"]
+    assert m.reliable is tf.plain_separator(text[1:-1]), text  # every character of these is drawn by a vendored face
+    if m.reliable:
+        assert sum(m.width(w, 100) + m.sep(w, 100) for w in m.words) >= page
+
+
+@pytest.mark.parametrize("ch", ["\f", "\v"])
+def test_a_form_feed_or_vertical_tab_is_drawn_not_collapsed(ch: str) -> None:
+    """Chromium does not collapse them (CSS Text 3 collapses spaces, tabs and segment breaks only): ``x`` U+000C ``y``
+    is 196.94 px wide in Inter 400 at 100 px, against 138.92 px for ``x y``; no vendored face draws them."""
+    m = tf.measure(f"x{ch}y", fonts=B1, role="body", weight=400)
+    assert m.words[0].sep_uncovered == (ch,) and not m.reliable
+    assert tf.collapse(f" {ch} ") == ((0, " "), (1, ch), (2, " "))
+
+
+def test_no_vendored_face_draws_an_east_asian_wide_character() -> None:
+    """Chromium removes a line feed between two East Asian wide or fullwidth characters (not halfwidth: measured,
+    ``₩`` LF ``₩`` in Inter is as wide as ``₩ ₩``), which ``collapse`` keeps as a space: right
+    only while no vendored face draws such a character, so a text holding one is never certified. (Python 3.11's
+    Unicode 14.0 does not know the Unicode 15 characters of ``shaping.NEWER_UCD``, which are N, neutral.)"""
+    wide = []
+    for f in fc.FACES:
+        key = tf.face_key(f, f.weight[0])
+        for lo, hi in f.ranges:
+            for cp in range(lo, hi + 1):
+                if (cp not in sh.NEWER_UCD and unicodedata.east_asian_width(chr(cp)) in ("W", "F")
+                        and tf.has_glyph(key, chr(cp))):
+                    wide.append((f.family, hex(cp)))
+    assert wide == []
+
+
+# Whitespace measured on the render page in a box one px (and 20 px) wider than ``xxxx`` (Inter 400, 100 px), before a
+# word that fits a line and one that does not, in flow text and between a title's inline-blocks: these give the two
+# lines the line model gives (the whitespace vanishes at the break); the others do not (an en space at a line's end
+# overflows it by 50 px in flow text and takes a line of its own between a title's words; a space before a zero-width
+# space puts the zero-width space on a line of its own before an over-wide word; a space after one is not removed at a
+# line's start)
+_PLAIN = (" ", "  ", "\t", "\n", "\u200b", "\u200b ", "\u200b\u200b", "\u200b\u200b ", "\n\u200b", "\u200b\n",
+          "\u200b \n", "\u200b\t", "\t\n\u200b\n ")
+_NOT_PLAIN = (" \u200b", " \u200b ", " \u2002 ", "\u2002", " \u2002", "\u2002 ", " \u3000 ", "\u3000", "\u2009",
+              "\ufeff", " \ufeff ", "\f")
+
+
+def test_only_whitespace_the_line_model_breaks_as_the_page_is_certified() -> None:
+    for sep in _PLAIN:
+        assert tf.plain_separator(sep), repr(sep)
+        assert tf.measure(f"Ohm{sep}law", fonts=B1, role="body", weight=400).reliable, repr(sep)
+    for sep in _NOT_PLAIN:
+        assert not tf.plain_separator(sep), repr(sep)
+        m = tf.measure(f"Ohm{sep}law", fonts=B1, role="body", weight=400)
+        assert not m.words[0].sep_plain and not m.reliable, repr(sep)
+        assert tf.fit_slot(f"Ohm{sep}law", SLOTS["title"]["landscape"]["default"], fonts=B1).fits is None, repr(sep)
+    # at the end of the text (drawn there: a title appends it after its last word, flow text holds it): measured, a
+    # trailing en space overflows the line in flow text and takes a line of its own after a title's last word, and a
+    # space then a zero-width space takes a second line; a zero-width space then a space does not
+    for trail, plain in ((" ", True), ("\u200b", True), ("\u200b ", True), (" \u200b", False), ("\u2002", False)):
+        assert tf.plain_separator(trail) is plain
+        assert tf.measure(f"Ohm law{trail}", fonts=B1, role="body", weight=400).reliable is plain, repr(trail)
+    # before the first word (flow text draws it; a space at a line's start is removed, a zero-width space has no
+    # width): measured, a leading en space, or a zero-width space then a space, takes a line of its own
+    for lead, plain in (("", True), (" ", True), ("\u200b", True), (" \u200b", True), ("\u200b\n", True),
+                        ("\u2002", False), ("\u200b ", False)):
+        assert tf.plain_separator(lead, leading=True) is plain
+        m = tf.measure(f"{lead}Ohm law", fonts=B1, role="body", weight=400)
+        assert m.lead_plain is plain and m.reliable is plain, repr(lead)
+    assert tf.measure("\u2002", fonts=B1, role="body", weight=400).reliable is False  # only whitespace, drawn
+    assert tf.measure("  ", fonts=B1, role="body", weight=400).reliable
 
 
 # Inter 700 with font-variant-numeric: tabular-nums (board_generic's ring, .dyn-ring-num), measured on the real page

@@ -539,6 +539,10 @@ dynamic.templates     # TEMPLATES (41 TemplateSpec), IMPLEMENTED ('board_generic
 #   chapter_end=False) -> 0 | 0.2 | 0.5 | 0.8 | 1.0; .events(scene, timed, fmt) -> [] until B2d;
 #   SEMANTIC_CLASSES (19, frozen); signals(scene, *, last, chapter_end) -> (Signal(id, semantic_class, preferred,
 #   alternatives, forced), ...); CROSS_CLASS_ALTERNATIVES; ROLES (14), BLOCK_ROLES; BACKGROUNDS (15), TRANSITIONS (8)
+#   SlotSpec(w, max_lines, size (min, max), role, face, weight, line_height, tracking_em=0.0, max_words=None,
+#   max_chars=None, prefer_lines=None, critical=True, tabular_nums=False) (frozen; tabular_nums, B2b-H: the stage draws
+#   the slot with font-variant-numeric: tabular-nums, so textfit shapes it with tnum; set for board_generic's ring;
+#   Python only, not in the catalogue)
 #   target grammar: parse_target(text) -> Target(form, item, index, series, symbol) (ValueError outside the grammar),
 #   format_target(target), target_form(text), TARGET_FORMS (12), RESERVED_TARGET_WORDS {'panel', 'option'}
 dynamic.catalogue     # python -m aadhi.compose.dynamic.catalogue [--check] -> web/js/dynamic/catalogue.gen.js
@@ -600,44 +604,85 @@ dynamic.icons         # python -m aadhi.compose.dynamic.icons [--check] -> aadhi
 #   index (version 1): {version, generator, order, style, sets: {lucide | tabler: {package, version, licence,
 #   licence_text, icons {name: [d]}, aliases {deprecated name: icon}, tags {key: icon}, excluded {name: reason}}}};
 #   keys sorted, one entry per line, LF, UTF-8. Run-time use reads the JSON only (no XML parser imported; tested)
-dynamic.kerning       # the measured kerning of the vendored Latin faces (B2b review F1, F2); read at run time as JSON
-#   python -m aadhi.compose.dynamic.kerning [--check] -> aadhi/compose/dynamic/kerning.json (committed; measures in
-#   Chromium with web/vendor, 85-90 min; --check exits 1 when it differs, 2 when it cannot measure; NOT in CI)
-#   VERSION 3; MEASURE_PX 1000; EPSILON_MILLI 1; MARGIN_MILLI 0.1; CONTEXT_TOL_MILLI 0.05; OPEN_TOL_MILLI 0.05;
-#   COVER_MIN 2; LETTER_SPACING ('0px', '10px'); KerningError(RuntimeError) (missing, damaged, not the face table's)
-#   load(path=TABLE_PATH) -> {face file name: FaceKerning} (lru_cache, fails closed); FaceKerning(positive, negative,
-#   up, down, open, open4, chain): upper(a, b), lower(a, b) (+/- EPSILON for an unlisted pair), context(a, b, c) ->
-#   (above, below), bounds(run) -> (wider, lower) em, bounded(run) -> bool (a run of 4+ holding an open triple, an
-#   open 4-run or two chain characters among any four is never bounded); is_mark(ch); table_faces(); face_name(...);
-#   chain_characters(contexts); near_triples(contexts, chain, chars); cover(runs, minimum=COVER_MIN); measure(...)
-dynamic.textfit       # measured text fit; loads PIL.ImageFont (a classic build never imports it); not wired into
-#   direct.py / preflight / the chunker yet (B2d/B2e)
-#   REF_PX 2048, PROBE_PX 64, SLACK_LATIN 0.04, SLACK_INDIC 0.08, KERN_FLOOR_EM 0.06 (per word), SIZE_STEP 4.0,
-#   UNCOVERED_EM 1.0 (estimate only), NOTDEF_PROBE U+10FFFF, SEPARATORS (JS \s plus U+200B, minus the no-break spaces)
-#   errors: TextFitError(RuntimeError), FaceError(TextFitError) (a face cannot be read or its axes differ from the
-#   table's: never a fallback)
-#   text model: ignorable(ch); graphemes(text) (Indic conjuncts kept whole; coarser than ICU for Tamil and Kannada);
-#   words(text) -> ((word, separator), ...) (= motion/text.js splitWords); tracking_count(clusters, tracking_em)
-#   faces: FaceKey(path, wght, axes); load_face(key, size=REF_PX) (LRU; Layout.BASIC; axes checked and set);
-#   face_key(face, weight, web_dir=None) (wght clamped to the face's range); has_glyph(key, ch) (cmap presence via the
-#   .notdef signature); advance_em(key, text); every Pillow call holds one process RLock
-#   stack_for(fonts, role, language); measure(text, *, fonts: faces.Fonts, role 'display' | 'body' | 'mono', weight,
-#   language='', tracking_em=0, web_dir=None) -> Measured(text, words, stack, weight, tracking_em; .reliable,
-#   .uncovered, .width(word, size, bias='conservative' | 'raw' | 'optimistic', clusters=None), .sep(word, size))
-#   Word(text, clusters, em, sep_em, sep_units, kern_pos, kern_neg, kern_bounded; .reliable, .indic, .slack);
-#   Cluster(text, key, indic, uncovered; .drawn, .em, .reliable); kern_bounds(clusters) -> (wider, narrower, bounded)
-#   widths: raw = advance + letter-spacing; conservative = advance x (1 + slack) + KERN_FLOOR_EM + kern_pos +
-#   letter-spacing; optimistic = max(0, advance x (1 - slack) - kern_neg) + letter-spacing
+dynamic.shaping       # (B2b-H) HarfBuzz shaping of the vendored faces as the stage's Chromium shapes them; loads
+#   uharfbuzz + fontTools (brotli for WOFF2), which a classic build never imports; imported only by textfit
+#   errors: TextFitError(RuntimeError); FaceError(TextFitError): a file fontTools cannot decode (a missing brotli
+#   included, named in the message), a font HarfBuzz finds no glyphs or no cmap in, axes other than the face table's,
+#   a variable face given no weight, a font the 'ot' shaper refuses. A missing uharfbuzz / fontTools is an ImportError
+#   at import. Never a fallback to another face or shaper
+#   UNITS_PER_EM 65536 (1 em; an advance rounds to 1/65536 em); DEFAULT_LANGUAGE 'en'; COMMON 'Zyyy'; INHERITED
+#   'Zinh'; SPACED_OFF ('liga', 'clig', 'calt', 'dlig', 'hlig'); SHAPERS ('ot',) (never HB_SHAPER_LIST's choice);
+#   CURSIVE_SCRIPTS {Arab, Rohg, Mand, Mong, Nkoo, Phag, Syrc}; NEWER_UCD {cp: (category, ccc, bidi)} (U+0CF3,
+#   U+11B00..11B09: characters the faces draw that Python 3.11's Unicode 14.0 lacks)
+#   one Unicode database: category(ch), combining(ch), bidirectional(ch) (unicodedata + NEWER_UCD); ignorable(ch)
+#   (the default-ignorables HarfBuzz hides); zero_width(ch) (ICU's: no letter-spacing); takes_letter_spacing(ch, script)
+#   (False for a zero-width character, and inside a cursive script's run for anything but a space)
+#   faces: FaceKey(path, wght, axes=(), ranges=()) (frozen; .in_range(cp); empty ranges: the whole cmap);
+#   sfnt(path) -> bytes (cached; woff2.decompress's steps); hb_face(path); file_axes(path); cmap(path) -> frozenset;
+#   has_glyph(key, ch) (cmap maps it AND the unicode-range holds it); load_font(key) -> hb.Font (cached sub-font at
+#   UNITS_PER_EM, nominal-glyph lookup restricted to the range, axes checked, wght always set); web_file(face, web_dir)
+#   features(tracking_em, tabular=False) -> {kern, liga, clig: True} (SPACED_OFF False when tracking != 0; tnum when
+#   tabular); script_of(ch); script_set(ch) (Script_Extensions in Chromium's preference order); script_runs(text) ->
+#   ((start, end, ISO 15924), ...) (a port of Chromium's ScriptRunIterator: scx, paired brackets, Common/Inherited;
+#   cached); scripts(text); language_tag(language) -> BCP 47 (board language, else 'en')
+#   shape(key, text, script, language, spaced=False, tabular=False) -> hb.Buffer (LTR, SHAPERS only, features());
+#   advance(key, text, script, language, spaced=False, tabular=False) -> int units (cached); clear_caches()
+#   thread safety: decoded faces and fonts built under one RLock, never changed after; each call its own buffer
+dynamic.textfit       # measured text fit on HarfBuzz-shaped widths (B2b-H; no Pillow); loads shaping (uharfbuzz,
+#   fontTools), which a classic build never imports; not wired into direct.py / preflight / the chunker yet (B2d/B2e)
+#   re-exports FaceError, FaceKey, TextFitError, has_glyph, load_font from shaping
+#   SLACK 0.005 (relative, on a shaped advance); BOX_PX 1/64 (Chromium's layout unit); SIZE_STEP 4.0; UNCOVERED_EM 1.0
+#   (estimate for a system-font cluster, never certified); JOIN_WORDS 24; JOINERS {ZWNJ, ZWJ}; ZWJ; ZWSP; SEPARATORS
+#   (JS \s plus U+200B, minus the no-break spaces U+00A0, U+2007, U+202F, which glue a word)
+#   text model: ignorable(ch); is_mark(ch); splits_bidi(ch) (bidi class R, AL, LRE, RLE, LRO, RLO, LRI, RLI, FSI,
+#   PDF, PDI); graphemes(text) (Indic conjuncts kept whole; coarser than ICU for Tamil and Kannada); words(text) ->
+#   ((word, separator), ...) (= motion/text.js splitWords); collapse(sep) -> ((offset, char), ...) (one space per
+#   maximal collapsible run; nothing for a run holding LF next to a ZWSP; \f and \v drawn); plain_separator(sep,
+#   leading=False) (the page breaks there as the line model does: ZWSPs then at most one space; leading: a space then
+#   ZWSPs); joins(sep) (only ZWSPs: the words are shaped across it in flow text)
+#   faces: face_key(face, weight, web_dir=None) -> FaceKey (wght clamped to the face's range, the face's ranges);
+#   fallback_faces(stack, weight, web_dir=None) -> (FaceKey, ...) (cached; CSS weight matching, last-declared face
+#   first); stack_for(fonts, role, language)
+#   shaping: Segment(start, end, key | None, units, spaced, uncovered=False); runs_of(text, runs=None); slice_runs(runs,
+#   start, end); shape_text(text, stack, weight, language, spaced=False, web_dir=None, runs=None, tabular=False) ->
+#   (Segment, ...) (cached; Chromium's font fallback per script run: a face keeps the clusters it draws with no
+#   missing glyph, as shaped, kerning against a glyph it lacks included; the rest goes to the next face; a system font
+#   last, uncovered)
+#   measure(text, *, fonts: faces.Fonts, role 'display' | 'body' | 'mono', weight, language='', tracking_em=0,
+#   web_dir=None, tabular=False) -> Measured(text, words, stack, weight, tracking_em, language, web_dir, tabular,
+#   flow_runs, lead_plain, joins_bounded; .reliable, .uncovered, .shaped(text, runs=None) -> (em, spacings),
+#   .width(word, size, bias='conservative' | 'raw' | 'optimistic', clusters=None), .sep(word, size, bias))
+#   Word(text, clusters, em, sep_em, sep_units=0, spacings=0, flow_em=None, flow_spacings=None, sep_flow_units=None,
+#   sep_uncovered=(), at=0, sep_plain=True, flow_uncovered=(), join_em=0.0, join_spacings=0; .reliable, .indic,
+#   .readings() -> ((em, spacings) alone, then inside the whole text when different))
+#   Cluster(text, key, em=0.0, indic=False, uncovered=False, at=0; .reliable = not uncovered)
+#   widths (em: the shaped advance; n: letter-spacings, one per HarfBuzz cluster that draws, none inside a cursive
+#   run but after a space): raw = size x (em + tracking x n), the word alone; conservative = the wider reading of
+#   size x (em x (1 + SLACK) + tracking x n) + BOX_PX; optimistic = max(0, the narrower reading of size x (em x
+#   (1 - SLACK) + tracking x n)); a piece of a broken word (clusters=) is shaped on its own with its word's script runs.
+#   sep: raw exact; conservative + SLACK and BOX_PX, a negative letter-spacing left out, plus the positive join_em
+#   (with slack and BOX_PX) when the next word shares the line; optimistic - SLACK
 #   fitting: word_kinds(m, width, min_size, bias) -> ('break' | 'whole' | 'either', ...); layout(m, size, width,
 #   max_lines, min_size, bias) -> Layout(size, lines, widths, whole, fits); sizes(lo, hi, step=4) (hi down, lo last);
 #   fit(m, *, width, size, max_lines, prefer_lines=None, step=4, bias='conservative') -> FitResult; fit_text(text, *,
 #   width, size, max_lines, role, weight, fonts, language='', tracking_em=0, prefer_lines=None, step=4,
-#   web_dir=None); fit_slot(text, spec: templates.SlotSpec, *, fonts, language='', width=None (overrides spec.w where
-#   the template's text box is narrower: board_generic's kicker is w - 30), step=4, web_dir=None); clear_caches()
-#   FitResult(size, lines, widths, estimate, fits, reliable, uncovered, width): fits True | False when reliable (Latin
-#   text the kerning table bounds), None otherwise (Indic, combining sequences, uncovered characters, unbounded runs:
-#   an estimate, never blocking); .stored() -> {"size", "lines": line count} (the proposed §6.7 text_fit entry, for
-#   certified results only; the stage reads text_fit[slot].size as a size cap)
+#   web_dir=None, tabular=False); fit_slot(text, spec: templates.SlotSpec, *, fonts, language='', width=None
+#   (overrides spec.w where the template's text box is narrower: board_generic's kicker is w - 30), step=4,
+#   web_dir=None) (passes spec.tabular_nums: the countdown ring); clear_caches() (also shaping's)
+#   FitResult(size, lines, widths, estimate, fits, reliable, uncovered, width): fits True | False when reliable
+#   (Latin, Indic and mixed text a vendored face draws), None otherwise (an estimate, never blocking): a cluster or
+#   part of one no vendored face draws, whitespace no face draws or that is not plain_separator, a word starting with a
+#   non-ignorable combining mark, a word holding a splits_bidi character, a ZWSP chain not bounded or longer than
+#   JOIN_WORDS; .stored() -> {"size", "lines": line count} (the proposed §6.7 text_fit entry, for certified results
+#   only, any script; the stage reads text_fit[slot].size as a size cap)
+#   measurement contract: every width is HarfBuzz's shaped advance on the vendored face file the page loads, with the
+#   page's unicode-range, axes, features, script runs, lang and letter-spacing; the parity probe
+#   (tests/determinism/test_textfit_parity.py) holds it to the real page within 1/16 px + 0.05% of the width.
+#   Known gaps (B2b-H audit, open): a line ending before a ZWSP-joined word in flow text, and an over-wide word that
+#   starts with a hyphen, can be certified with fewer lines than the page draws (DYNAMIC_VIDEO_DESIGN §4.6)
+#   removed in B2b-H: REF_PX, PROBE_PX, SLACK_LATIN, SLACK_INDIC, KERN_FLOOR_EM, NOTDEF_PROBE, tracking_count,
+#   load_face, advance_em, kern_bounds, Word.kern_pos / kern_neg / kern_bounded / slack, Cluster.drawn; the module
+#   dynamic.kerning and kerning.json
 ```
 
 ## Repository scripts (B2b)
