@@ -46,3 +46,13 @@ manim==0.21.*  # keep in step with MANIM_VERSION in docker/manim-sandbox/Dockerf
 numpy>=2.0,<3
 playwright>=1.49,<2
 psutil>=6.0,<8
+
+# Dynamic video text fit (aadhi/compose/dynamic/textfit.py, shaping.py; DYNAMIC_VIDEO_DESIGN §4.6): text is shaped with
+# HarfBuzz on the vendored WOFF2 faces, which fontTools decodes (brotli: WOFF2's compression). uharfbuzz and fontTools
+# are imported only inside the Dynamic gate; brotli is also imported, eagerly, by httpx, urllib3 and aiohttp once it is
+# installed, which then advertise "br" in Accept-Encoding and decode brotli responses (transparently: nothing in aadhi
+# reads a raw, undecoded body). uharfbuzz bundles HarfBuzz (0.56.x: HarfBuzz 14.5.0); a minor bump can change shaping,
+# so it is bounded to the minor series the Chromium parity probe ran on (tests/determinism/test_textfit_parity.py).
+uharfbuzz>=0.56.2,<0.57  # Apache-2.0 (bundled HarfBuzz: the "Old MIT" licence)
+fonttools>=4.66,<5  # MIT
+brotli>=1.2,<2  # MIT

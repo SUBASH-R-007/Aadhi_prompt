@@ -45,8 +45,9 @@ What is here (data and pure functions; no I/O but the generator's own two files)
   ``web/tests/dynamic/fonts.test.js``.
 * **Character resolution for text fit** (:func:`face_for`, :func:`match_weight`): the CSS font matching a page does per
   family (the weight per CSS Fonts 4 §5.2, then the unicode-range among that weight's faces, last declared first), so
-  ``textfit.py`` (B2b) measures every grapheme run with the face Chromium draws it with. A variable face's ``wght``
-  axis default is the FILE's (Anek: 500, not Fontsource's CSS default 400), so a measurement must always set it.
+  ``textfit.py`` tries the faces in the order Chromium's font fallback tries them (``textfit.fallback_faces``) and
+  measures every run with the face Chromium draws it with. A variable face's ``wght`` axis default is the FILE's
+  (Anek: 500, not Fontsource's CSS default 400), so a measurement must always set it.
 
 Weights vendored for the B2b faces are the ones the stage asks for (``dynamic.css``: 400 body, 600 labels and 9:16
 text, 700 titles and emphasis, 900 a bold run in a title): display faces 400/600/700/900, the body option 400/600/700,
@@ -124,7 +125,8 @@ _FONTSOURCE_RANGES: Final[dict[str, str]] = {
 
 @dataclass(frozen=True)
 class Axis:
-    """A variable face's axis as the FILE defines it (``fvar``): what Pillow reports and what a measurement sets."""
+    """A variable face's axis as the FILE defines it (``fvar``): what ``shaping.file_axes`` reads; a measurement sets
+    it."""
 
     tag: str
     minimum: int

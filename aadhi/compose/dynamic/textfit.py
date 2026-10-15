@@ -1,120 +1,121 @@
 """Measured text fit (DYNAMIC_VIDEO_DESIGN §4.6 "Measured text fit" [RV T-4], R-29, R-59; B2 plan §1.2 ``text_fit``,
-§1.6 slots, §1.11, §2 "Fonts"; b2crit_engineering "Fonts: classic invariance, Pillow measurement fidelity").
+§1.6 slots, §1.11, §2 "Fonts"; owner decision 2026-10-14/15: HarfBuzz shaping for every script).
 
-Every text slot is fitted by **measured advance widths**, never by character counts: the font size within the slot's
+Every text slot is fitted by **measured widths**, never by character counts: the font size within the slot's
 ``(min, max)`` and the line breaks, so direct.py's lints (``text.overflow``, ``portrait.hook_overflow``) and the caption
 chunker can decide before TTS. **The page decides the pixels** (plan §1.11): it lays the text out with CSS and reports
 its own overflow (``textBoxes()``); Python's size is a start and an upper bound, biased **conservative**, so a text
 Python certifies as fitting fits on the page.
 
-How a text is measured (the page's own rules, mirrored):
+How a text is measured (the page's own rules, mirrored; tests/determinism/test_textfit_parity.py measures every vendored
+face and weight the stage uses against the real render page):
 
-* **Faces.** The stack of the slot's type role is the stage's (``faces.stack``: display = display face, body face, the
-  lecture's Indic family first, then the others; body = body face, Indic families; mono), from ``presentation.fonts``
-  in its B1 or B2 form and the lecture's ``board_language`` (``stage.js`` passes it to ``fontStacks``). Each grapheme
-  cluster is drawn by the first family of the stack that has a face for it: CSS font matching per family (the weight by
-  CSS Fonts 4 §5.2, ``faces.match_weight``; among that weight's faces whose ``unicode-range`` holds the cluster, the
-  LAST declared first, §4.5) and the face's cmap really holding every character of the cluster (a range can promise
-  more than the file has; a missing glyph would be .notdef, so the page would fall back to the next family). Runs of
-  clusters drawn by one face are measured together.
-* **Pillow FreeType, basic layout.** ``ImageFont.truetype(..., layout_engine=ImageFont.Layout.BASIC)`` on the vendored
-  WOFF2 file itself (FreeType reads WOFF2: Pillow 12.3 / FreeType 2.14.3 on the dev machine; tests/compose/dynamic/
-  test_textfit.py loads every face and pins its advances wherever the fast suite runs), never raqm: raqm needs FriBiDi
-  at run time, which some machines have and some lack, so the same timeline would measure differently in the Docker
-  image and on Windows (b2crit_engineering). A variable face's axes
-  are ALWAYS set (Anek's file default is ``wght`` 500, not the 400 a page asks for): the requested weight clamped to
-  the face's range, as CSS clamps it to the ``font-weight`` descriptor. Faces are measured at :data:`REF_PX` and
-  scaled linearly: the page draws with ``--font-render-hinting=none`` and ``text-rendering: geometricPrecision``
-  (unhinted, linear advances), and Pillow's hinted advances are whole pixels, which at 2048 px is < 0.0005 em.
+* **Shaping** (``shaping``): HarfBuzz on the vendored WOFF2 faces (decoded once per process with fontTools), with the
+  features, ``unicode-range`` filter, variable axes, script and language the page shapes with. Measured against
+  Chromium at every slot size (39-148 px), every face, weight and script draws a word within 0.054 px of its shaped
+  width (the extended probe, 2,964,267 word widths: max 0.0531 px Latin, 0.0322 px Indic; median 0.009 px): Latin text
+  with its kerning, ligatures
+  and contextual alternates (Inter's ``2x3`` drawn with ``×``, ``A*****``), and the Indic conjuncts and vowel signs B2b
+  could not bound (``ಕೋ`` drawn 3.1x its letters' Pillow advances, ``ತ್ಝ`` 75% narrower).
+* **Faces: Chromium's font fallback** (:func:`shape_text`). The stack of the slot's type role is the stage's
+  (``faces.stack``: display = display face, body face, the lecture's Indic family first, then the others; body = body
+  face, Indic families; mono), from ``presentation.fonts`` in its B1 or B2 form and the lecture's ``board_language``.
+  A text is split into Chromium's script runs (``shaping.script_runs``: its ``ScriptRunIterator``, Script_Extensions
+  and paired brackets included), and each run is shaped as Chromium's ``HarfBuzzShaper`` does:
+  with the faces of the stack in order (per family the weight by CSS Fonts 4 §5.2, ``faces.match_weight``, its faces
+  the LAST declared first, §4.5; a face whose ``unicode-range`` holds none of the characters still to draw is skipped),
+  each face shapes what is still to draw; the HarfBuzz clusters it draws with no missing glyph are kept as shaped, and
+  the clusters holding a missing glyph are left for the next face. What no face draws is drawn by a system font
+  (``uncovered``). Kept as shaped means with what the face's GPOS did beside a missing glyph: Atkinson draws ``ŶA``
+  3 px narrower than ``Ŷ`` and ``A`` apart (100 px), because its ``latin-ext`` face kerns ``Ŷ`` against the ``A`` it
+  has no glyph for before its ``latin`` face draws the ``A`` (measured in Chromium; the parity probe).
 * **Fail closed.** A face that cannot be read, or whose variable axes are not the table's (``faces.Family.axes``), is
   a :class:`FaceError`: never a silent fallback to another face or a guess.
 * **Words.** The page's word units (``web/js/motion/text.js`` ``splitWords``): runs between whitespace (JS ``\\s`` and
   the zero-width space), no-break spaces glued inside a word. A run of collapsible whitespace (space, tab, line breaks)
   is one space wide (CSS ``white-space: normal``); a zero-width space is a break of no width. The title draws each word
-  as an inline-block (board_generic ``wordSpans``): it never breaks inside unless it is wider than the column even at
-  the slot's minimum size (``overflow-wrap: anywhere``; board_generic's "unavoidable" break), and then it takes whole
-  lines of its own, broken after a hyphen where one fits, else between grapheme clusters (never inside one). Text in
-  normal flow (the kicker, a subtitle, card text) may also break after a hyphen inside a word, which only gives the
-  page fewer lines than Python counts.
-* **Letter-spacing** (``SlotSpec.tracking_em``) is added after every cluster, as Chromium does (measured: a
-  Devanagari consonant + vowel sign takes it once). It is counted conservatively: per code point when positive, per
-  (coarse) cluster when negative.
+  as an inline-block (board_generic ``wordSpans``), shaped on its own: it never breaks inside unless it is wider than
+  the column even at the slot's minimum size (``overflow-wrap: anywhere``; board_generic's "unavoidable" break), and
+  then it takes whole lines of its own, broken after a hyphen where one fits, else between grapheme clusters (never
+  inside one); each piece is shaped on its own with the script runs of its word, as the page shapes a line's part of
+  a word. Text in normal flow (the kicker, a subtitle, card text) is shaped as one text on the page: across a space a
+  face may kern (Atkinson draws ``y W`` 3.8 px narrower than its words and the space apart at 100 px; measured, never
+  wider), so measuring its words apart over-estimates its lines, which only makes Python's line count conservative; it
+  may also break after a hyphen inside a word, which only gives the page fewer lines than Python counts. Its script
+  runs are the whole text's, so a word's can resolve otherwise than on its own: every word is measured both ways
+  (``Word.readings``), the conservative width is the wider, the optimistic the narrower, and ``raw`` is the word on its
+  own (a title word, which the parity probe measures).
+* **Letter-spacing** (``SlotSpec.tracking_em``) is added after every HarfBuzz cluster that draws something, as
+  Chromium does (``ShapeResultSpacing``; measured: a Tamil consonant + virama + consonant takes it twice, a Telugu one
+  in Noto Sans once, a cluster that is only a ZWNJ not at all), except inside a run of a cursive script, where only a
+  space takes it (``shaping.takes_letter_spacing``; CSS Text 3 §8.2.1): a word of digits and U+202F NARROW NO-BREAK
+  SPACE (``1 000``, ``5 %``, ``₹ 100`` so written) is a Mongolian run on its own and is drawn without it (measured:
+  at -0.015 em, ``1 000`` is 7.5 px wider at 100 px than with it). The spaces between words take it when it is
+  positive (left out when it is negative: never under-estimated). With a letter-spacing other than 0 the page drops the
+  optional ligatures and the contextual alternates (``shaping.features``); ``tabular_nums`` (the countdown ring) shapes
+  with ``tnum``.
 * **Lines** are filled greedily (the line count CSS ``text-wrap: balance`` keeps), at sizes from ``max`` down in
   :data:`SIZE_STEP` px steps with ``min`` last, the slot's ``prefer_lines`` tried first: board_generic's ``fitLines``.
 
-**Conservative bias** (plan §1.11, design §4.6). Each word's width is Pillow's advance plus :data:`SLACK_LATIN` (4%,
-the design's kerning allowance) or :data:`SLACK_INDIC` (8%) of it, plus :data:`KERN_FLOOR_EM`, plus the most the page's
-kerning, ligatures and contextual alternates can add over the word's **pairs and triples** of neighbouring characters
-one face draws (:func:`kern_bounds`). Pillow's basic layout applies no GPOS kerning and no contextual substitution, and
-Chromium's kerning is mostly negative but positive for many pairs (``kerning``, measured in Chromium for every pair and
-triple of every vendored Latin face: Outfit ``(j`` +0.098 em, Atkinson ``qj`` +0.154 em, Inter ``ïï`` +0.166 em;
-Inter's ``x`` between digits is drawn as a wider ``×``), which add up per pair (``f'f'f'f'``) and per context
-(``2x3x4``): a relative slack or a per-word floor alone is not conservative (the B2b review F1 found ``f'f'f'f'``
-certified to fit and overflowing on the page). The bounds are the measured adjustments (a pair not listed:
-+/- :data:`kerning.EPSILON_MILLI`; a triple not listed: nothing beyond its pairs); the floor is kept from the first
-measurement (the plan's 4% alone was not conservative on short words: a deviation, recorded) as a margin beyond them.
-A word holding a context that reaches four or more characters, or may (``kerning``'s open runs and chain characters:
-Inter's ``*`` beside capitals and punctuation, whose alternates chain along the run, ``A*****`` drawn 0.24 em wider
-than its pairs and triples add up to, ``*:<H`` 0.144 em; ``10x10``, whose ``x`` is a ``×`` where ``0x1``'s is not;
-arrows such as ``<==>``; digits before a fraction slash; Outfit's ``ffiw``) is not bounded by them: it is not
-certified (below). The **optimistic** width (from which :func:`word_kinds` decides that the page certainly breaks an
-over-wide word) takes the slack off and adds the word's pairs' and triples' lower bounds, each its own (B2b review F2:
-a face-wide most negative adjustment per pair made the lower bound of every long Inter word negative, so no word was
-ever read as broken and the stored size was the minimum where the page took a larger one). A space is its own advance
-plus the letter-spacing the page adds after it when that is positive (no vendored face kerns the space wider or takes
-it into a context: ``kerning`` checks it).
+**Conservative bias** (plan §1.11, design §4.6), re-derived from the parity probe (B2b's 4% / 8% slack, its 0.06 em
+per-word floor and its Chromium-measured kerning table are retired: they bounded what Pillow did not shape). The page
+draws a word within 0.054 px of its shaped width: a layout unit (Chromium rounds an inline box's width up to 1/64 px)
+and float rounding, which beyond the layout unit is at most 0.053% of the width. A word's **conservative** width is
+its shaped advance plus :data:`SLACK` (0.5%) of it, its letter-spacing, and :data:`BOX_PX` (1/64 px, the layout
+unit); a space's likewise. The 0.5% is 9 times what the probe's machine needs; it is kept for what that machine cannot
+show: another platform's glyph advances (were they rounded to 1/64 px per glyph, as FreeType's hinted advances are, a
+glyph 1.6 px wide or wider would still be covered) and a Chromium or HarfBuzz release whose shaping moved (the slow
+parity probe re-measures both, and runs in the container). The **optimistic** width (from which :func:`word_kinds`
+decides that the page certainly breaks an over-wide word) takes the slack off and adds no layout unit.
 
 **What is certified** (``FitResult.fits``):
 
-* ``True``: the conservative layout fits; the page fits too (tests/determinism/test_textfit_page.py: every reliable
-  word's page width is within its conservative width, and Python fits => page overflow 0 on board_generic's slots).
+* ``True``: the conservative layout fits; the page fits too (tests/determinism/test_textfit_page.py: every word's page
+  width is within its conservative width, and Python fits => page overflow 0 on board_generic's slots).
 * ``False``: Python's conservative layout overflows at the minimum size; the page overflows too, or fits only within
-  Python's margins (its own words, made as much wider as the slack and the floor make a word, would not fit: the
-  plan's "within 4% slack"; the same test).
-* ``None``: the text holds a cluster or a run the measurement cannot bound (``FitResult.reliable`` is False): a
-  cluster drawn by an Indic face, a combining sequence, a character no vendored face of the stack draws (the page
-  draws it with a system font), or a run holding a context of its face that reaches four or more characters (above).
-  **The design's premise that 8% covers Indic shaping does not hold** (measured in Chromium against Pillow's basic
-  layout, every consonant x vowel sign and consonant + virama + consonant of the five scripts, Noto Sans
-  and Anek: a conjunct is drawn up to 75% narrower than its letters' advances, ``ಕೋ`` 3.1x, ``रू`` 1.9x, ``டீ`` 1.3x
-  wider, because the shaped glyphs are not the characters' own), so no slack makes it an upper or a lower
-  bound. ``size`` / ``lines`` / ``estimate`` are still given (the plan's 8%) as an estimate for a start size; a lint
-  must not block on it. The owner decided on shaping (HarfBuzz) for Indic text, in the step that follows B2b.
+  Python's margins (its own words, made as much wider as the slack and the layout unit make a word, would not fit: the
+  plan's "within 4% slack", now within 0.5%; the same test).
+* ``None``: the text holds a cluster or a separator between words that no vendored face of the stack draws (the page
+  draws it with a system font, which differs between machines: Greek and maths symbols, U+3000 IDEOGRAPHIC SPACE,
+  U+2028 LINE SEPARATOR, U+0600 ARABIC NUMBER SIGN are in no vendored subset), a word that starts with a combining
+  mark (HarfBuzz draws a dotted circle before it where the mark starts the page's text, and none where it follows a
+  space of the same text: the width depends on the slot's markup), or a word holding a character that can change the
+  bidi embedding level (U+200F RIGHT-TO-LEFT MARK, an embedding, override or isolate: the page shapes each level on
+  its own, which text fit does not model; :func:`splits_bidi`). ``size`` / ``lines`` / ``estimate`` are still given
+  (:data:`UNCOVERED_EM` per uncovered cluster) as an estimate for a start size; a lint must not block on it.
 
-Not wired into direct.py or preflight here (B2d/B2e). Imported only inside the Dynamic gate (it loads
-``PIL.ImageFont``, which a classic build never does: tests/compose/test_dynamic_isolation.py).
+Latin, Indic and mixed text, combining sequences a vendored face draws, and the Latin runs B2b left uncertified
+(Inter's ``step-by-step``, ``f(x)``, ``10x10``, Outfit's ``ffiw``) are certified.
+
+Not wired into direct.py or preflight here (B2d/B2e). Imported only inside the Dynamic gate (it loads ``uharfbuzz`` and
+``fontTools``, which a classic build never does: tests/compose/test_dynamic_isolation.py).
 """
 
 from __future__ import annotations
 
-import threading
-import unicodedata
 from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Literal
 
-from PIL import Image, ImageDraw, ImageFont
-
 from . import faces as fc
-from . import kerning as kn
+from . import shaping as sh
+from .shaping import FaceError, FaceKey, TextFitError, has_glyph, load_font
 
 if TYPE_CHECKING:  # pragma: no cover
     from .templates import SlotSpec
 
+__all__ = ["FaceError", "FaceKey", "TextFitError", "has_glyph", "load_font"]  # re-exported from ``shaping``
+
 StackRole = Literal["display", "body", "mono"]
-# a width reading: Pillow's advance (+ letter-spacing), with the safety margins added, or with the slack taken off
+# a width reading: the shaped advance (+ letter-spacing), with the safety margins added, or with the slack taken off
 Bias = Literal["conservative", "raw", "optimistic"]
 
-REF_PX: Final = 2048  # measuring size (px): Pillow's whole-pixel advances are < 0.0005 em off the linear ones here
-PROBE_PX: Final = 64  # the glyph-presence check's raster size (only when advance and box equal .notdef's)
-SLACK_LATIN: Final = 0.04  # §4.6: "a 4% width slack covers kerning differences"
-SLACK_INDIC: Final = 0.08  # §4.6: Indic 8% (an estimate only: see the module docstring)
-KERN_FLOOR_EM: Final = 0.06  # per word, beyond the measured pairs (module docstring: the B2b margin, kept)
+SLACK: Final = 0.005  # relative, on a shaped advance (module docstring: re-derived from the parity probe)
+BOX_PX: Final = 1 / 64  # Chromium's layout unit: an inline box's width is rounded up to it
 SIZE_STEP: Final = 4.0  # board_generic fitLines: 4 px steps from max down, the minimum itself last
 UNCOVERED_EM: Final = 1.0  # estimate for a cluster no vendored face draws (system font; never certified)
-NOTDEF_PROBE: Final = "\U0010ffff"  # a noncharacter: no cmap maps it, so it draws glyph 0 (.notdef)
 JOINERS: Final = frozenset("\u200c\u200d")  # ZWNJ, ZWJ
 ZWJ: Final = "\u200d"
 # web/js/motion/text.js: SPACE_RE = /^[\s\u200b]+$/u (JS \s) minus GLUE_RE (no-break spaces stay inside a word)
@@ -125,44 +126,46 @@ SEPARATORS: Final = frozenset((_JS_SPACE - _GLUE) | {"\u200b"})
 _COLLAPSIBLE: Final = frozenset(" \t\n\r\f\v")  # CSS white-space: normal collapses a run of them into one space
 # a break opportunity after these inside an over-wide word (UAX #14 HY / BA), preferred to a break between clusters
 _HYPHENS: Final = frozenset("-\u2010\u2012\u2013")
-
-
-# Pillow's FreeType faces are shared by every caller of this process (the API answers previews from a thread pool) and
-# a FreeType face is not safe to use from two threads at once: every Pillow call on a face holds this lock.
-_FT_LOCK: Final = threading.RLock()
-
-
-class TextFitError(RuntimeError):
-    """Text fit cannot measure (fail closed)."""
-
-
-class FaceError(TextFitError):
-    """A vendored face cannot be read, or is not what the face table says (its variable axes)."""
+# bidi classes that can raise text above the page's left-to-right embedding level (:func:`splits_bidi`)
+_BIDI_SPLITTING: Final = frozenset({"R", "AL", "RLE", "RLO", "LRE", "LRO", "RLI", "LRI", "FSI", "PDF", "PDI"})
 
 
 # --- characters and clusters ---------------------------------------------------------------------------------------
 
 
 def ignorable(ch: str) -> bool:
-    """A default-ignorable character the page draws with no width (format characters such as ZWJ, ZWNJ, the soft
-    hyphen and the BOM; variation selectors; Mongolian free variation selectors)."""
-    cp = ord(ch)
-    return (unicodedata.category(ch) == "Cf" or 0xFE00 <= cp <= 0xFE0F or 0xE0100 <= cp <= 0xE01EF
-            or 0x180B <= cp <= 0x180F or ch == "\u034f")
+    """A default-ignorable character HarfBuzz hides, drawing no glyph and no width (``shaping.ignorable``: ZWJ, ZWNJ,
+    the soft hyphen, the BOM, the bidi controls, variation selectors, Mongolian free variation selectors; not every
+    ``Cf``: U+0600 ARABIC NUMBER SIGN is drawn)."""
+    return sh.ignorable(ch)
+
+
+def is_mark(ch: str) -> bool:
+    """A combining mark (Unicode category M*; ``shaping.category``)."""
+    return sh.category(ch).startswith("M")
+
+
+def splits_bidi(ch: str) -> bool:
+    """A character whose bidi class can give text of a left-to-right page another embedding level (a strong
+    right-to-left character such as U+200F RIGHT-TO-LEFT MARK or U+061C ARABIC LETTER MARK, an embedding, override or
+    isolate, or their terminators): Chromium shapes each level's run on its own, losing the kerning across the
+    boundary (``A`` U+200F ``V`` is drawn 9 px wider than ``AV`` at 100 px), which text fit does not model: a word
+    holding one is not certified."""
+    return sh.bidirectional(ch) in _BIDI_SPLITTING
 
 
 def _extends(cluster: str, ch: str) -> bool:
     last = cluster[-1]
     cp = ord(ch)
-    if unicodedata.category(ch)[0] == "M" or ch in JOINERS or last == ZWJ:
+    if sh.category(ch)[0] == "M" or ch in JOINERS or last == ZWJ:
         return True  # Extend / SpacingMark (UAX #29 GB9, GB9a), ZWJ sequences (GB11)
     if 0xFE00 <= cp <= 0xFE0F or 0xE0100 <= cp <= 0xE01EF or 0x1F3FB <= cp <= 0x1F3FF or 0xE0020 <= cp <= 0xE007F:
         return True  # variation selectors, emoji modifiers, tag characters
     if last == "\r" and ch == "\n":
         return True  # GB3
     # an Indic conjunct: a letter after a virama (GB9c, applied to every script with a virama: coarser than ICU's for
-    # Tamil and Kannada, which only makes breaking and negative letter-spacing more conservative)
-    return unicodedata.combining(last) == 9 and unicodedata.category(ch) == "Lo"
+    # Tamil and Kannada, which only keeps a broken word's pieces from ending inside a conjunct)
+    return sh.combining(last) == 9 and sh.category(ch) == "Lo"
 
 
 def graphemes(text: str) -> tuple[str, ...]:
@@ -177,123 +180,166 @@ def graphemes(text: str) -> tuple[str, ...]:
     return tuple(out)
 
 
-def words(text: str) -> tuple[tuple[str, str], ...]:
-    """``(word, separator after it)`` pairs: the page's word units (``splitWords``: whitespace-separated, no-break
-    spaces inside a word, leading whitespace dropped); the last separator is ``""`` or trailing whitespace."""
-    out: list[tuple[str, str]] = []
-    word, sep = "", ""
-    for ch in text:
+def _spans(text: str) -> tuple[tuple[int, int, int], ...]:
+    """``(word start, word end = separator start, separator end)`` offsets of :func:`words`' pairs in ``text``."""
+    out: list[tuple[int, int, int]] = []
+    start = end = None
+    for i, ch in enumerate(text):
         if ch in SEPARATORS:
-            if word:
-                sep += ch
+            if start is not None and end is None:
+                end = i
             continue
-        if sep:
-            out.append((word, sep))
-            word, sep = "", ""
-        word += ch
-    if word:
-        out.append((word, sep))
+        if end is not None:
+            assert start is not None
+            out.append((start, end, i))
+            start, end = None, None
+        if start is None:
+            start = i
+    if start is not None:
+        out.append((start, len(text) if end is None else end, len(text)))
     return tuple(out)
 
 
-def tracking_count(clusters: Sequence[str], tracking_em: float) -> int:
-    """How many times the page adds letter-spacing to these clusters, counted so the width is never under-estimated:
-    once per drawn cluster (Chromium's rule) when the spacing is negative, once per drawn code point (never fewer)
-    when it is positive."""
-    if tracking_em > 0:
-        return sum(1 for c in clusters for ch in c if not ignorable(ch))
-    return sum(1 for c in clusters if any(not ignorable(ch) for ch in c))
+def words(text: str) -> tuple[tuple[str, str], ...]:
+    """``(word, separator after it)`` pairs: the page's word units (``splitWords``: whitespace-separated, no-break
+    spaces inside a word, leading whitespace dropped); the last separator is ``""`` or trailing whitespace."""
+    return tuple((text[a:b], text[b:c]) for a, b, c in _spans(text))
 
 
-# --- faces (Pillow, basic layout; fail closed) -----------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class FaceKey:
-    """One measurable face: its file and, for a variable face, the ``wght`` it is set to."""
-
-    path: str
-    wght: int | None
-    axes: tuple[fc.Axis, ...] = ()
-
-
-@lru_cache(maxsize=256)
-def load_face(key: FaceKey, size: int = REF_PX) -> ImageFont.FreeTypeFont:
-    """The face at ``size`` px with Pillow's basic layout, its variable axes checked against the table and set.
-    :class:`FaceError` when the file cannot be read or its axes are not the table's (fail closed)."""
-    with _FT_LOCK:
-        return _load(key, size)
-
-
-def _load(key: FaceKey, size: int) -> ImageFont.FreeTypeFont:
-    try:
-        font = ImageFont.truetype(key.path, size, layout_engine=ImageFont.Layout.BASIC)
-    except (OSError, ValueError) as exc:
-        raise FaceError(f"cannot read the face {key.path}: {exc}") from exc
-    if font.layout_engine != ImageFont.Layout.BASIC:  # pragma: no cover - Pillow honours the argument
-        raise FaceError(f"{key.path}: Pillow did not take the basic layout")
-    try:
-        found = font.get_variation_axes()
-    except OSError:
-        found = []
-    want = [{"minimum": a.minimum, "default": a.default, "maximum": a.maximum} for a in key.axes]
-    have = [{k: int(a[k]) for k in ("minimum", "default", "maximum")} for a in found]
-    if have != want:
-        raise FaceError(f"{key.path}: variable axes {have} are not the face table's {want}")
-    if key.axes:
-        if key.wght is None:
-            raise FaceError(f"{key.path}: a variable face is measured at a set weight, never its file default")
-        try:
-            font.set_variation_by_axes([key.wght])
-        except OSError as exc:  # pragma: no cover - the axes were just read
-            raise FaceError(f"{key.path}: cannot set wght {key.wght}: {exc}") from exc
-    return font
+# --- faces ------------------------------------------------------------------------------------------------------------
 
 
 def face_key(face: fc.Face, weight: int, web_dir: Path | str | None = None) -> FaceKey:
-    """The :class:`FaceKey` the page draws ``face`` with at ``weight`` (a variable face's ``wght`` clamped to its range,
-    as CSS clamps it to the face's ``font-weight`` descriptor)."""
+    """The :class:`FaceKey` the page draws ``face`` with at ``weight``: its file, its ``unicode-range`` and, for a
+    variable face, ``wght`` clamped to its range (as CSS clamps it to the face's ``font-weight`` descriptor)."""
     family = fc.FAMILIES[face.family]
-    path = str(fc.web_path(face, web_dir))
+    path = sh.web_file(face, web_dir)
     if not family.variable:
-        return FaceKey(path, None)
+        return FaceKey(path, None, (), face.ranges)
     lo, hi = face.weight
-    return FaceKey(path, min(max(int(weight), lo), hi), family.axes)
+    return FaceKey(path, min(max(int(weight), lo), hi), family.axes, face.ranges)
 
 
-@lru_cache(maxsize=256)
-def _notdef(key: FaceKey) -> tuple[float, tuple[float, float, float, float]]:
-    with _FT_LOCK:
-        font = load_face(key)
-        return font.getlength(NOTDEF_PROBE), font.getbbox(NOTDEF_PROBE)
+@lru_cache(maxsize=1024)
+def fallback_faces(stack: tuple[str, ...], weight: int, web_dir: str | None = None) -> tuple[FaceKey, ...]:
+    """The faces the page tries for a text, in its order: per family of the stack, the faces of the weight CSS matches
+    (Fonts 4 §5.2), the last declared first (§4.5)."""
+    out: list[FaceKey] = []
+    for fid in stack:
+        rows = fc.faces_of(fid)
+        matched = fc.match_weight(tuple(r.weight for r in rows), weight)
+        out += [face_key(r, weight, web_dir) for r in reversed(rows) if r.weight == matched]
+    return tuple(out)
+
+
+# face file name -> whether its family is an Indic one (``Cluster.indic``)
+_INDIC_FILES: Final = frozenset(Path(f.file).name for f in fc.FACES if fc.FAMILIES[f.family].role == "indic")
+
+
+def _indic(key: FaceKey | None) -> bool:
+    return key is not None and Path(key.path).name in _INDIC_FILES
+
+
+# --- shaping a text the page's way -----------------------------------------------------------------------------------
+
+Runs = tuple[tuple[int, int, str], ...]  # (start, end, script): a text's script runs (``shaping.script_runs``)
+
+
+@dataclass(frozen=True)
+class Segment:
+    """A HarfBuzz cluster of a shaped text (``text[start:end]``) as the page draws it: ``key`` the face (None: a system
+    font, ``uncovered``, or nothing at all for default-ignorable characters), ``units`` its advance (1/
+    ``shaping.UNITS_PER_EM`` em) and ``spaced`` whether the page adds the letter-spacing after it
+    (``shaping.takes_letter_spacing``: not after a zero-width character, nor inside a cursive script's run)."""
+
+    start: int
+    end: int
+    key: FaceKey | None
+    units: int
+    spaced: bool
+    uncovered: bool = False
+
+
+def runs_of(text: str, runs: Runs | None = None) -> Runs:
+    """``text``'s script runs: ``runs`` when given (a piece of a word, or a word of a text node, takes the runs the
+    page itemized the whole with: :func:`slice_runs`), else its own (``shaping.script_runs``: the text is its own text
+    node, as a title word's inline-block is)."""
+    return sh.script_runs(text) if runs is None else runs
+
+
+def slice_runs(runs: Runs, start: int, end: int) -> Runs:
+    """The part of ``runs`` (of a whole text) over ``[start, end)``, its offsets relative to ``start``."""
+    return tuple((max(a, start) - start, min(b, end) - start, s) for a, b, s in runs if a < end and b > start)
+
+
+def _clusters(key: FaceKey, text: str, start: int, end: int, script: str, language: str,
+              spaced: bool, tabular: bool = False) -> list[tuple[int, int, int, bool, int]]:
+    """``text[start:end]`` shaped by one face: ``(start, end, advance, missing, first)`` per HarfBuzz cluster
+    (absolute offsets; ``missing``: a glyph of it is the face's .notdef; ``first``: the cluster's own index, which
+    Chromium reads its letter-spacing from)."""
+    buf = sh.shape(key, text[start:end], script, language, spaced, tabular)
+    starts: list[int] = []
+    adv: dict[int, int] = {}
+    bad: dict[int, bool] = {}
+    for info, pos in zip(buf.glyph_infos, buf.glyph_positions, strict=True):
+        c = info.cluster
+        if c not in adv:
+            starts.append(c)
+            adv[c], bad[c] = 0, False
+        adv[c] += pos.x_advance
+        bad[c] = bad[c] or info.codepoint == 0
+    if not starts:  # HarfBuzz removed every glyph (only default-ignorable characters, the face has no space glyph)
+        return [(start, end, 0, False, start)]
+    starts.sort()  # left to right, clusters monotone: already sorted
+    out = []
+    for n, c in enumerate(starts):
+        s = 0 if n == 0 else c  # characters before the first glyph's cluster (removed ignorables) belong to it
+        e = starts[n + 1] if n + 1 < len(starts) else end - start
+        out.append((start + s, start + e, adv[c], bad[c], start + c))
+    return out
 
 
 @lru_cache(maxsize=65536)
-def has_glyph(key: FaceKey, ch: str) -> bool:
-    """Whether the face's cmap maps ``ch``: Pillow draws an unmapped character as glyph 0 (.notdef), so the character's
-    advance and box equal .notdef's and, at :data:`PROBE_PX`, its raster too. A mapped glyph drawn exactly like .notdef
-    would read as missing (the page then takes the next family): none of the vendored faces has one."""
-    with _FT_LOCK:
-        font = load_face(key)
-        if (font.getlength(ch), font.getbbox(ch)) != _notdef(key):
-            return True
-        probe = load_face(key, PROBE_PX)
-        return _raster(probe, ch) != _raster(probe, NOTDEF_PROBE)
-
-
-def _raster(font: ImageFont.FreeTypeFont, ch: str) -> bytes:
-    """``ch`` drawn alone on a fixed canvas (room for any glyph's overhang at :data:`PROBE_PX`)."""
-    canvas = Image.new("L", (4 * PROBE_PX, 3 * PROBE_PX))
-    ImageDraw.Draw(canvas).text((PROBE_PX, PROBE_PX), ch, font=font, fill=255)
-    return canvas.tobytes()
-
-
-@lru_cache(maxsize=65536)
-def advance_em(key: FaceKey, text: str) -> float:
-    """The advance of ``text`` in one face, in em (Pillow's basic layout: the characters' own glyphs, the face's legacy
-    ``kern`` table if it has one, no shaping)."""
-    with _FT_LOCK:
-        return load_face(key).getlength(text) / REF_PX
+def shape_text(text: str, stack: tuple[str, ...], weight: int, language: str, spaced: bool = False,
+               web_dir: str | None = None, runs: Runs | None = None, tabular: bool = False) -> tuple[Segment, ...]:
+    """``text`` (one text node of the page: a word, or a piece of one) shaped as Chromium shapes it (the module
+    docstring): per script run (:func:`runs_of`), the stack's faces in order (:func:`fallback_faces`), each drawing the
+    HarfBuzz clusters it has every glyph for as it shaped them, the rest left to the next face; what is left at the end
+    is drawn by a system font (uncovered), or not at all when it is only default-ignorable characters. ``language`` is
+    the page's ``lang`` (``shaping.language_tag``), ``spaced`` a letter-spacing other than 0, ``tabular``
+    ``font-variant-numeric: tabular-nums``."""
+    faces = fallback_faces(stack, int(weight), web_dir)
+    out: list[Segment] = []
+    for a, b, script in runs_of(text, runs):
+        holes = [(a, b)]
+        for key in faces:
+            if not holes:
+                break
+            hint = {ord(text[i]) for s, e in holes for i in range(s, e)}
+            if not any(key.in_range(cp) for cp in hint):
+                continue  # Chromium's fallback iterator skips a face whose range holds none of the characters left
+            left: list[tuple[int, int]] = []
+            for s, e in holes:
+                for cs, ce, adv, missing, first in _clusters(key, text, s, e, script, language, spaced, tabular):
+                    if missing:
+                        if left and left[-1][1] == cs:
+                            left[-1] = (left[-1][0], ce)
+                        else:
+                            left.append((cs, ce))
+                    else:
+                        drawn = any(not ignorable(ch) for ch in text[cs:ce])
+                        out.append(Segment(cs, ce, key, adv, drawn and sh.takes_letter_spacing(text[first], script)))
+            holes = left
+        for s, e in holes:  # no vendored face draws it
+            at = s
+            for g in graphemes(text[s:e]):
+                if all(ignorable(ch) for ch in g):
+                    out.append(Segment(at, at + len(g), None, 0, False))
+                else:
+                    out.append(Segment(at, at + len(g), None, round(UNCOVERED_EM * sh.UNITS_PER_EM),
+                                       sh.takes_letter_spacing(g[0], script), True))
+                at += len(g)
+    return tuple(sorted(out, key=lambda seg: seg.start))
 
 
 # --- measuring a text -------------------------------------------------------------------------------------------------
@@ -301,71 +347,110 @@ def advance_em(key: FaceKey, text: str) -> float:
 
 @dataclass(frozen=True)
 class Cluster:
-    """A grapheme cluster and how it is measured: ``key`` the face drawing it (None: zero width when ``text`` is only
-    ignorable characters, else no vendored face draws it), ``indic`` drawn by an Indic family."""
+    """A grapheme cluster as the page draws it: ``key`` the face (None: no vendored face, or only default-ignorable
+    characters), ``em`` the advance of the HarfBuzz clusters that start in it (a ligature's whole advance is its first
+    grapheme's), ``indic`` drawn by an Indic family, ``uncovered`` drawn by a system font, ``at`` its offset in its
+    word."""
 
     text: str
     key: FaceKey | None
+    em: float = 0.0
     indic: bool = False
     uncovered: bool = False
-
-    @property
-    def drawn(self) -> str:
-        """The characters that take width (default-ignorable ones are dropped, as the page draws them)."""
-        return "".join(ch for ch in self.text if not ignorable(ch))
-
-    @property
-    def em(self) -> float:
-        if self.uncovered:
-            return UNCOVERED_EM
-        return advance_em(self.key, self.drawn) if self.key is not None and self.drawn else 0.0
+    at: int = 0
 
     @property
     def reliable(self) -> bool:
-        """Whether Pillow's basic layout bounds this cluster's width on the page: one drawn character of a non-Indic
-        face, not a combining mark (a combining sequence or a lone mark, an Indic cluster or an uncovered character is
-        shaped or drawn by a system font)."""
-        return (not self.uncovered and not self.indic and len(self.drawn) <= 1
-                and not any(kn.is_mark(ch) for ch in self.drawn))
+        """Whether the shaped width is the page's: a vendored face draws it (a system font differs between machines)."""
+        return not self.uncovered
 
 
 @dataclass(frozen=True)
 class Word:
-    """One word unit: its clusters, ``em`` the advance of its face runs (em, Pillow), ``sep_em`` the width of the
-    whitespace after it (0 for the last word) and ``sep_units`` how many characters the page draws for it (a collapsed
-    run of spaces is one; each takes the letter-spacing)."""
+    """One word unit: its clusters, ``em`` its shaped advance (em) and ``spacings`` how many times the page adds the
+    letter-spacing to it, as its own text node (a title word's inline-block); ``flow_em`` / ``flow_spacings`` the same
+    inside the whole text as one text node (a kicker, subtitle or body text: the page itemizes the scripts of the whole
+    text, so a word's runs can resolve otherwise: ``1`` U+202F ``000`` is a Mongolian run on its own, unspaced, and
+    Latin after ``about``); ``sep_em`` the width of the whitespace after it (0 for the last word), ``sep_units`` /
+    ``sep_flow_units`` how many characters the page letter-spaces in it (a collapsed run of spaces is one; a
+    zero-width space none), ``sep_uncovered`` the characters of it no vendored face draws; ``at`` its offset in the
+    text."""
 
     text: str
     clusters: tuple[Cluster, ...]
     em: float
     sep_em: float
     sep_units: int = 0
-    kern_pos: float = 0.0  # em: the most its pairs and contexts can draw it wider (:func:`kern_bounds`)
-    kern_neg: float = 0.0  # em: the most its pairs and contexts can draw it narrower (negative: always wider)
-    kern_bounded: bool = True  # no run of it holds a context the table does not bound (:func:`kern_bounds`)
+    spacings: int = 0
+    flow_em: float | None = None
+    flow_spacings: int | None = None
+    sep_flow_units: int | None = None
+    sep_uncovered: tuple[str, ...] = ()
+    at: int = 0
 
     @property
     def reliable(self) -> bool:
-        return self.kern_bounded and all(c.reliable for c in self.clusters)
+        """Certifiable: every cluster is drawn by a vendored face, and so is the whitespace after it; the word does not
+        start with a combining mark that is not default-ignorable (a variation selector is one; the module docstring:
+        its width would depend on the slot's markup); and it holds no character that can change the bidi embedding
+        level (:func:`splits_bidi`)."""
+        lead = self.text[:1]
+        return (all(c.reliable for c in self.clusters) and not self.sep_uncovered
+                and not (lead and is_mark(lead) and not ignorable(lead))
+                and not any(splits_bidi(ch) for ch in self.text))
 
     @property
     def indic(self) -> bool:
         return any(c.indic for c in self.clusters)
 
-    @property
-    def slack(self) -> float:
-        return SLACK_INDIC if self.indic else SLACK_LATIN
+    def readings(self) -> tuple[tuple[float, int], ...]:
+        """``(em, spacings)`` as its own text node, then inside the whole text (when that differs)."""
+        flow = (self.em if self.flow_em is None else self.flow_em,
+                self.spacings if self.flow_spacings is None else self.flow_spacings)
+        return ((self.em, self.spacings),) if flow == (self.em, self.spacings) else ((self.em, self.spacings), flow)
+
+
+def _measure_word(text: str, segments: Sequence[Segment]) -> tuple[tuple[Cluster, ...], float, int]:
+    """The word's clusters (grapheme by grapheme, each with the face of the HarfBuzz cluster it starts in), its shaped
+    advance (em) and its letter-spacing count."""
+    out: list[Cluster] = []
+    at = 0
+    seg = list(segments)
+    for g in graphemes(text):
+        end = at + len(g)
+        inside = [s for s in seg if at <= s.start < end]
+        holder = next((s for s in seg if s.start <= at < s.end), None)
+        key = holder.key if holder is not None else None
+        uncovered = holder is not None and holder.uncovered
+        em = sum(s.units for s in inside) / sh.UNITS_PER_EM
+        out.append(Cluster(g, key, em, _indic(key), uncovered, at))
+        at = end
+    return tuple(out), _em(segments), _spacings(segments)
+
+
+def _em(segments: Sequence[Segment]) -> float:
+    return sum(s.units for s in segments) / sh.UNITS_PER_EM
+
+
+def _spacings(segments: Sequence[Segment]) -> int:
+    return sum(1 for s in segments if s.spaced)
 
 
 @dataclass(frozen=True)
 class Measured:
-    """A text measured for one slot role: its words, the role's stack (family ids), weight and letter-spacing."""
+    """A text measured for one slot role: its words, the role's stack (family ids), weight, letter-spacing, the page's
+    ``lang``, the faces' folder, ``tabular`` (``font-variant-numeric: tabular-nums``) and the text's script runs as one
+    text node (a piece of a broken word is shaped again with them)."""
 
     text: str
     words: tuple[Word, ...]
     stack: tuple[str, ...]
     weight: int
     tracking_em: float
+    language: str = sh.DEFAULT_LANGUAGE
+    web_dir: str | None = None
+    tabular: bool = False
+    flow_runs: Runs | None = None
 
     @property
     def reliable(self) -> bool:
@@ -373,128 +458,86 @@ class Measured:
 
     @property
     def uncovered(self) -> tuple[str, ...]:
-        """The clusters no vendored face of the stack draws, in order, each once."""
-        return tuple(dict.fromkeys(c.text for w in self.words for c in w.clusters if c.uncovered))
+        """The clusters (and the separator characters) no vendored face of the stack draws, in order, each once."""
+        return tuple(dict.fromkeys(t for w in self.words for t in (*(c.text for c in w.clusters if c.uncovered),
+                                                                   *w.sep_uncovered)))
 
-    def track_em(self, clusters: Sequence[Cluster]) -> float:
-        return self.tracking_em * tracking_count([c.text for c in clusters], self.tracking_em)
+    def shaped(self, text: str, runs: Runs | None = None) -> tuple[float, int]:
+        """``text`` shaped as one text node (a word or a piece of one; ``runs``: the script runs it takes from the
+        text it is part of, else its own): its advance (em) and letter-spacing count."""
+        segments = shape_text(text, self.stack, self.weight, self.language, self.tracking_em != 0, self.web_dir, runs,
+                              self.tabular)
+        return _em(segments), _spacings(segments)
+
+    def _piece(self, word: Word, clusters: Sequence[Cluster]) -> tuple[tuple[float, int], ...]:
+        """A piece of ``word`` (a line's part of a broken word) shaped on its own with the runs the page itemized the
+        word with, as its own text node and inside the whole text."""
+        lo = clusters[0].at
+        hi = clusters[-1].at + len(clusters[-1].text)
+        piece = word.text[lo:hi]
+        alone = self.shaped(piece, slice_runs(sh.script_runs(word.text), lo, hi))
+        if self.flow_runs is None:
+            return (alone,)
+        flow = self.shaped(piece, slice_runs(self.flow_runs, word.at + lo, word.at + hi))
+        return (alone,) if flow == alone else (alone, flow)
 
     def width(self, word: Word, size: float, bias: Bias = "conservative",
               clusters: Sequence[Cluster] | None = None) -> float:
-        """A word's (or a piece of it: ``clusters``) width in px at ``size``: ``raw`` Pillow's advance plus the
-        letter-spacing; ``conservative`` + the slack, :data:`KERN_FLOOR_EM` and the most its kerning pairs and
-        contexts add (:func:`kern_bounds`); ``optimistic`` - the slack, and its pairs' and contexts' lower bounds."""
-        part = word.clusters if clusters is None else tuple(clusters)
-        em = word.em if clusters is None else sum(c.em for c in part)
-        pos, neg = (word.kern_pos, word.kern_neg) if clusters is None else kern_bounds(part)[:2]
+        """A word's (or a piece of it: ``clusters``, shaped on its own as the page shapes a line's part of a word)
+        width in px at ``size``: ``raw`` the shaped advance plus the letter-spacing, as its own text node (a title
+        word); ``conservative`` the widest reading (as its own text node or inside the whole text: :meth:`Word.readings`)
+        + :data:`SLACK` of the advance and :data:`BOX_PX`; ``optimistic`` the narrowest - :data:`SLACK` of the
+        advance."""
+        readings = word.readings() if clusters is None else self._piece(word, clusters)
+        t = self.tracking_em
         if bias == "conservative":
-            em = em * (1 + word.slack) + KERN_FLOOR_EM + pos
-        elif bias == "optimistic":
-            em = max(0.0, em * (1 - word.slack) - neg)
-        return size * (em + self.track_em(part))
+            return max(size * (em * (1 + SLACK) + t * n) for em, n in readings) + BOX_PX
+        if bias == "optimistic":
+            return max(0.0, min(size * (em * (1 - SLACK) + t * n) for em, n in readings))
+        em, n = readings[0]
+        return size * (em + t * n)
 
-    def sep(self, word: Word, size: float) -> float:
-        """The whitespace after ``word`` in px at ``size``: its advance, and the letter-spacing the page adds after each
-        of its characters when the spacing is positive (left out when it is negative: never under-estimated)."""
-        return size * (word.sep_em + (self.tracking_em * word.sep_units if self.tracking_em > 0 else 0.0))
-
-
-def _cluster(text: str, stack: Sequence[str], weight: int, web_dir: Path | str | None) -> Cluster:
-    drawn = [ch for ch in text if not ignorable(ch)]
-    if not drawn:
-        return Cluster(text, None)
-    for fid in stack:
-        rows = fc.faces_of(fid)
-        matched = fc.match_weight(tuple(r.weight for r in rows), weight)
-        for row in reversed(rows):  # CSS Fonts 4 §4.5: the last declared face of a range is tried first
-            if row.weight != matched or not all(row.covers(ord(ch)) for ch in drawn):
-                continue
-            key = face_key(row, weight, web_dir)
-            if all(has_glyph(key, ch) for ch in drawn):
-                return Cluster(text, key, indic=fc.FAMILIES[fid].role == "indic")
-    return Cluster(text, None, uncovered=True)
-
-
-def kern_bounds(clusters: Sequence[Cluster]) -> tuple[float, float, bool]:
-    """``(wider, narrower, bounded)``: the most the page's kerning, ligatures and contextual alternates can draw these
-    clusters wider, and narrower (negative when they are always drawn wider), than their advances (em), and whether
-    the table bounds every run of them. Per run of characters one Latin face draws (a face kerns and substitutes only
-    its own glyphs: a change of face, an Indic cluster or a cluster no vendored face draws ends the run; a
-    default-ignorable cluster is skipped): its pairs' and context triples' measured bounds (``kerning``:
-    ``FaceKerning.bounds``), each side on its own (B2b review F2: a face-wide most negative adjustment per pair made
-    every long word's lower bound negative). A run of four or more characters that holds one of the face's open
-    contexts or two of its chain characters among four (``FaceKerning.bounded``: Inter's ``*`` beside capitals and
-    punctuation, whose alternates chain along the run, ``10x10``, its arrows, digits before a fraction slash; B2b
-    review F1) is not bounded: the word is not certified, and its bounds are an estimate. Indic runs add nothing:
-    such text is never certified (an estimate only)."""
-    table = kn.load()
-    pos = neg = 0.0
-    bounded = True
-    run: list[str] = []
-    run_key: FaceKey | None = None
-
-    def flush() -> None:
-        nonlocal pos, neg, bounded
-        if run_key is not None and len(run) > 1:
-            face = table.get(kn.face_name(run_key.path))
-            if face is None:
-                raise TextFitError(f"no measured kerning for the face {run_key.path}: run {kn.GENERATOR}")
-            text = "".join(run)
-            hi, lo = face.bounds(text)
-            pos += hi
-            neg -= lo
-            bounded = bounded and face.bounded(text)
-        run.clear()
-
-    for c in clusters:
-        if c.key is None and not c.uncovered:  # only default-ignorable characters: no glyph, no pair
-            continue
-        if c.uncovered or c.indic or c.key != run_key:
-            flush()
-            run_key = None if c.uncovered or c.indic else c.key
-        if run_key is not None:
-            run.extend(c.drawn)
-    flush()
-    return pos, neg, bounded
-
-
-def _runs_em(clusters: Sequence[Cluster]) -> float:
-    """The advance of consecutive clusters, measured as runs of one face each, as the page shapes a run (Pillow would
-    apply a legacy ``kern`` table inside a run; none of the vendored faces has one: their kerning is GPOS, pinned by a
-    test, so the slack and the floor carry all of it)."""
-    total = 0.0
-    run: list[Cluster] = []
-
-    def flush() -> float:
-        if not run:
+    def sep(self, word: Word, size: float, bias: Bias = "conservative") -> float:
+        """The whitespace after ``word`` in px at ``size``: ``raw`` its advance and the letter-spacing the page adds
+        after its characters (as a title draws it, between inline-blocks); ``conservative`` + :data:`SLACK` of the
+        advance and :data:`BOX_PX`, the largest letter-spacing either reading adds, a negative one left out (never
+        under-estimated); ``optimistic`` - :data:`SLACK` of the advance, the smallest letter-spacing."""
+        if not word.sep_em and not word.sep_units and not word.sep_flow_units:
             return 0.0
-        key = run[0].key
-        if key is None:
-            return sum(c.em for c in run)
-        return advance_em(key, "".join(c.drawn for c in run))
-
-    for c in clusters:
-        if run and (c.key != run[0].key or c.uncovered or run[0].uncovered):
-            total += flush()
-            run = []
-        run.append(c)
-    return total + flush()
+        t = self.tracking_em
+        units = (word.sep_units, word.sep_units if word.sep_flow_units is None else word.sep_flow_units)
+        if bias == "conservative":
+            return size * (word.sep_em * (1 + SLACK) + max(0.0, *(t * u for u in units))) + BOX_PX
+        if bias == "optimistic":
+            return max(0.0, size * (word.sep_em * (1 - SLACK) + min(t * u for u in units)))
+        return size * (word.sep_em + t * word.sep_units)
 
 
-def _separator(sep: str, stack: Sequence[str], weight: int, web_dir: Path | str | None) -> tuple[float, int]:
-    """The width (em) of the whitespace between two words and how many characters the page draws for it: a run of
-    collapsible whitespace is one space (CSS ``white-space: normal``); other spaces (en space, ideographic space, ...)
-    keep their own width; the zero-width space and the BOM have none (counted, so a positive letter-spacing is never
-    left out)."""
-    total, units = 0.0, 0
+def _separator(sep: str, flow: Runs, stack: tuple[str, ...], weight: int, language: str, spaced: bool,
+               web_dir: str | None) -> tuple[float, int, int, tuple[str, ...]]:
+    """The whitespace between two words: its width (em), how many of its characters the page letter-spaces as a
+    title draws it (its own text node) and inside the whole text (``flow``: its script runs there), and the characters
+    of it no vendored face draws. A run of collapsible whitespace is one space (CSS ``white-space: normal``; Chromium
+    letter-spaces a space even in a cursive run); other spaces (en space, ideographic space, ...) keep their own width;
+    the zero-width space and the BOM have none and take no letter-spacing (``shaping.zero_width``)."""
+    total, units, flow_units = 0.0, 0, 0
+    uncovered: list[str] = []
     if any(ch in _COLLAPSIBLE for ch in sep):
-        total += _cluster(" ", stack, weight, web_dir).em
+        segments = shape_text(" ", stack, weight, language, spaced, web_dir)
+        total += _em(segments)
         units += 1
-    for ch in sep:
-        if ch not in _COLLAPSIBLE:  # the zero-width space and the BOM are default-ignorable: no advance
-            units += 1
-            total += _cluster(ch, stack, weight, web_dir).em
-    return total, units
+        flow_units += 1
+        uncovered += [" "] if any(s.uncovered for s in segments) else []
+    scripts = [s for a, b, s in flow for _ in range(a, b)]
+    for i, ch in enumerate(sep):
+        if ch in _COLLAPSIBLE:
+            continue
+        segments = shape_text(ch, stack, weight, language, spaced, web_dir)
+        total += _em(segments)
+        units += _spacings(segments)
+        flow_units += 1 if sh.takes_letter_spacing(ch, scripts[i]) else 0
+        uncovered += [ch] if any(s.uncovered for s in segments) else []
+    return total, units, flow_units, tuple(dict.fromkeys(uncovered))
 
 
 def stack_for(fonts: fc.Fonts, role: str, language: str | None) -> tuple[str, ...]:
@@ -505,17 +548,37 @@ def stack_for(fonts: fc.Fonts, role: str, language: str | None) -> tuple[str, ..
 
 
 def measure(text: str, *, fonts: fc.Fonts, role: str, weight: int, language: str | None = "",
-            tracking_em: float = 0.0, web_dir: Path | str | None = None) -> Measured:
+            tracking_em: float = 0.0, web_dir: Path | str | None = None, tabular: bool = False) -> Measured:
     """Measure ``text`` for a slot of type ``role`` at ``weight`` (``presentation.fonts`` in either form; ``language``
-    the lecture's board language, which orders the Indic families as the stage does)."""
+    the lecture's board language, which orders the Indic families as the stage does and is the page's ``lang``;
+    ``tabular``: the slot is drawn with ``font-variant-numeric: tabular-nums``). Each word is measured as its own text
+    node (a title word's inline-block) and inside the whole text as one text node (flow text: :class:`Word`)."""
+    text = str(text)
     stack = stack_for(fonts, role, language)
+    lang = sh.language_tag(language)
+    where = None if web_dir is None else str(web_dir)
+    spaced = float(tracking_em) != 0
+    weight = int(weight)
+    flow = sh.script_runs(text)
     out: list[Word] = []
-    pairs = words(str(text))
-    for i, (word, sep) in enumerate(pairs):
-        clusters = tuple(_cluster(g, stack, int(weight), web_dir) for g in graphemes(word))
-        sep_em, units = _separator(sep, stack, int(weight), web_dir) if i + 1 < len(pairs) else (0.0, 0)
-        out.append(Word(word, clusters, _runs_em(clusters), sep_em, units, *kern_bounds(clusters)))
-    return Measured(str(text), tuple(out), stack, int(weight), float(tracking_em))
+    spans = _spans(text)
+    for i, (a, b, c) in enumerate(spans):
+        word = text[a:b]
+        clusters, em, spacings = _measure_word(word, shape_text(word, stack, weight, lang, spaced, where, None,
+                                                                tabular))
+        runs = slice_runs(flow, a, b)
+        flow_em, flow_spacings = em, spacings
+        if runs != sh.script_runs(word):
+            segments = shape_text(word, stack, weight, lang, spaced, where, runs, tabular)
+            flow_em, flow_spacings = _em(segments), _spacings(segments)
+        if i + 1 < len(spans):
+            sep_em, units, flow_units, sep_uncovered = _separator(text[b:c], slice_runs(flow, b, c), stack, weight,
+                                                                  lang, spaced, where)
+        else:
+            sep_em, units, flow_units, sep_uncovered = 0.0, 0, 0, ()
+        out.append(Word(word, clusters, em, sep_em, units, spacings, flow_em, flow_spacings, flow_units,
+                        sep_uncovered, a))
+    return Measured(text, tuple(out), stack, weight, float(tracking_em), lang, where, bool(tabular), flow)
 
 
 # --- fitting ----------------------------------------------------------------------------------------------------------
@@ -533,17 +596,17 @@ class Layout:
     fits: bool
 
 
-def _pieces(m: Measured, word: Word, size: float, width: float, bias: str) -> list[tuple[str, float]]:
+def _pieces(m: Measured, word: Word, size: float, width: float, bias: Bias) -> list[tuple[str, float]]:
     """An over-wide word broken into lines of at most ``width`` (``overflow-wrap: anywhere``): greedily, after the last
     hyphen that fits (a normal break opportunity, which CSS takes first), else between clusters; never inside a
-    cluster (a cluster wider than the line stands alone and overflows sideways)."""
+    cluster (a cluster wider than the line stands alone and overflows sideways). Each piece is shaped on its own."""
     out: list[tuple[str, float]] = []
     cl = word.clusters
     start = 0
     while start < len(cl):
         end = start + 1
         hyphen = None
-        while end < len(cl) and m.width(word, size, bias, cl[start:end + 1]) <= width:  # type: ignore[arg-type]
+        while end < len(cl) and m.width(word, size, bias, cl[start:end + 1]) <= width:
             end += 1
             prev, nxt = cl[end - 1].text, cl[end].text if end < len(cl) else ""
             if prev[-1:] in _HYPHENS and nxt[:1] and not nxt[:1].isdigit():
@@ -551,7 +614,7 @@ def _pieces(m: Measured, word: Word, size: float, width: float, bias: str) -> li
         if end < len(cl) and hyphen is not None and hyphen > start:
             end = hyphen
         piece = cl[start:end]
-        out.append(("".join(c.text for c in piece), m.width(word, size, bias, piece)))  # type: ignore[arg-type]
+        out.append(("".join(c.text for c in piece), m.width(word, size, bias, piece)))
         start = end
     return out
 
@@ -563,11 +626,9 @@ def _other(bias: Bias) -> Bias:
 def word_kinds(m: Measured, width: float, min_size: float, bias: Bias = "conservative") -> tuple[str, ...]:
     """How the page treats each word wider than the box (board_generic ``layout``: a word is "unavoidable", and may
     break, when the page measures it wider than the box at the slot's MINIMUM size; any other word must stay whole):
-    ``"break"`` when even the most favourable reading (the slack the other way and every kerning pair and context at
-    its measured lower bound: ``kerning``) is wider than the box at the minimum, so the page certainly breaks it (the
-    slack alone was not that: the page draws ``AVAVAV...`` up to 12% narrower than Pillow; B2b review F2);
-    ``"whole"`` when even ``bias``'s reading fits at the minimum, so the page certainly keeps it whole; ``"either"``
-    when the page may do either."""
+    ``"break"`` when even the most favourable reading (the slack the other way) is wider than the box at the minimum,
+    so the page certainly breaks it; ``"whole"`` when even ``bias``'s reading fits at the minimum, so the page
+    certainly keeps it whole; ``"either"`` when the page may do either (within the margins)."""
     out = []
     for w in m.words:
         if m.width(w, min_size, _other(bias)) > width:
@@ -599,7 +660,7 @@ def _lines(m: Measured, size: float, width: float, breaks: Sequence[bool], bias:
         else:
             cur_w += (sep_w if cur else 0.0) + ww
             cur.append(w.text)
-        sep_w = m.sep(w, size)
+        sep_w = m.sep(w, size, bias)
     if cur:
         lines.append((" ".join(cur), cur_w))
     return lines
@@ -614,7 +675,7 @@ def layout(m: Measured, size: float, width: float | None, max_lines: int | None,
     wider than the box), broken it takes at least two (Python's pieces are never narrower than the page's), so the
     broken layout holds the most lines either way."""
     if width is None:
-        total = sum(m.width(w, size, bias) + (m.sep(w, size) if i + 1 < len(m.words) else 0.0)
+        total = sum(m.width(w, size, bias) + (m.sep(w, size, bias) if i + 1 < len(m.words) else 0.0)
                     for i, w in enumerate(m.words))
         text = " ".join(w.text for w in m.words)
         return Layout(size, (text,) if text else (), (total,) if text else (), True, True)
@@ -684,10 +745,11 @@ def fit(m: Measured, *, width: float | None, size: tuple[float, float], max_line
 
 def fit_text(text: str, *, width: float | None, size: tuple[float, float], max_lines: int | None, role: str,
              weight: int, fonts: fc.Fonts, language: str | None = "", tracking_em: float = 0.0,
-             prefer_lines: int | None = None, step: float = SIZE_STEP, web_dir: Path | str | None = None) -> FitResult:
+             prefer_lines: int | None = None, step: float = SIZE_STEP, web_dir: Path | str | None = None,
+             tabular: bool = False) -> FitResult:
     """Measure and fit ``text`` (:func:`measure`, then :func:`fit`)."""
     m = measure(text, fonts=fonts, role=role, weight=weight, language=language, tracking_em=tracking_em,
-                web_dir=web_dir)
+                web_dir=web_dir, tabular=tabular)
     return fit(m, width=width, size=size, max_lines=max_lines, prefer_lines=prefer_lines, step=step)
 
 
@@ -695,13 +757,15 @@ def fit_slot(text: str, spec: SlotSpec, *, fonts: fc.Fonts, language: str | None
              width: float | None = None, step: float = SIZE_STEP, web_dir: Path | str | None = None) -> FitResult:
     """Fit ``text`` to a template slot (``templates.SlotSpec``, plan §1.6): its box ``w`` (``width`` overrides it where
     the template draws the text in a narrower box than the slot's: board_generic's kicker sits right of its 12 px pip
-    and 18 px gap), size range, line limit and preference, type role, weight and letter-spacing."""
+    and 18 px gap), size range, line limit and preference, type role, weight, letter-spacing and numerals
+    (``tabular_nums``: board_generic's countdown ring)."""
     return fit_text(text, width=spec.w if width is None else width, size=spec.size, max_lines=spec.max_lines,
                     role=spec.face, weight=spec.weight, fonts=fonts, language=language, tracking_em=spec.tracking_em,
-                    prefer_lines=spec.prefer_lines, step=step, web_dir=web_dir)
+                    prefer_lines=spec.prefer_lines, step=step, web_dir=web_dir, tabular=spec.tabular_nums)
 
 
 def clear_caches() -> None:
-    """Drop the loaded faces and measured advances (tests; a process normally keeps them)."""
-    for f in (load_face, _notdef, has_glyph, advance_em, kn.load):
+    """Drop the decoded faces, shaped texts and face lists (tests; a process normally keeps them)."""
+    sh.clear_caches()
+    for f in (shape_text, fallback_faces):
         f.cache_clear()

@@ -19,9 +19,12 @@ Modules (DYNAMIC_VIDEO_DESIGN §7.3, §7.4, §7.12):
 * ``icons``       item icons from ``icon_hint`` (B2b, §4.12): the offline index of the Lucide and Tabler sets
                   (``icon_index.json``, generated from the pinned npm packages; ``--check`` in CI), SVG normalised to
                   sanitised path data, the deterministic match and the ``ResolvedLook.icons`` entries;
-* ``textfit``     measured text fit (B2b, §4.6): a slot's size and line breaks from the vendored faces' advance
-                  widths (Pillow FreeType, basic layout, faces resolved per grapheme cluster in the stage's stack
-                  order, fail closed), biased conservative; certified for Latin text, an estimate for Indic text;
+* ``textfit``     measured text fit (B2b, §4.6; HarfBuzz since the step after B2b): a slot's size and line breaks
+                  from the vendored faces shaped as the page shapes them (Chromium's font fallback over the stage's
+                  stack, letter-spacing per cluster, fail closed), biased conservative by the margins the Chromium
+                  parity probe measured; certified for Latin, Indic and mixed text a vendored face draws;
+* ``shaping``     HarfBuzz (``uharfbuzz``) on the vendored WOFF2 faces decoded with ``fontTools`` (+ ``brotli``):
+                  the ``unicode-range`` filter, variable axes, the page's features, script and language per run;
 * ``colour``      CSS colour parsing (hex, ``rgb()``, ``hsl()``, ``oklch()``, ``oklab()``, ``color(srgb ...)``), alpha
                   compositing and the WCAG 2.x contrast ratio used by the analytic contrast check (R-53), on
                   ``colour_math``'s maths;

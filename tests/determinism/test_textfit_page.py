@@ -2,50 +2,53 @@
 B2 plan §1.11, §2 "Fonts"): what Python's measurement promises, checked where the page decides the pixels.
 
 * **Every word.** In every vendored Latin face at every weight and letter-spacing a slot uses, the page draws each word
-  of a corpus (kerning-prone pairs, digits, punctuation, lesson words; each face's largest measured positive pairs,
-  alone and repeated, and words of several such pairs: B2b review F1) no wider than ``textfit``'s conservative width
-  (Pillow's advance + the 4% slack + the kerning floor + the measured bounds of its pairs and contexts): the per-word
-  bound everything else rests on. A word holding a context the table does not bound (Inter's chained ``*``, a
-  context's exception such as ``10x10``: F1, round 2) is not certified, and is left out.
+  of a corpus (kerning-prone pairs, digits, punctuation, lesson words, the words whose kerning, ligatures and
+  contextual alternates the B2b review found adding up or chaining: ``f'f'f'f'``, ``2x3x4x5``, Inter's ``**A**``,
+  ``10x10``) within ``textfit``'s conservative and optimistic widths (its HarfBuzz width with the 0.5% slack and the
+  layout unit either way): the per-word bound everything else rests on. Only words with a character no vendored face
+  draws (Greek, maths) are not certified.
 * **board_generic's slots** (title: stack, quiz and chapter-card layouts; the kicker; the chapter card's subtitle), both
   formats, the B1 faces and three B2-form sets (Poppins / Atkinson / Anek, Lexend / Inter / Noto Sans, Inter / Inter /
   Noto Sans), for typical
   titles, wide-glyph titles at and past the line limit (a sweep of growing prefixes, so both answers and the edge
-  between them are met), one very long word and a hyphenated compound wider than the column:
+  between them are met), one very long word and a hyphenated compound wider than the column; and the same in Tamil,
+  Hindi and mixed Tamil + English titles (certified since the HarfBuzz step):
   - Python fits => the page reports overflow 0 (the kicker: is not cut with an ellipsis), at a size >= Python's
     (unless the page took the slot's preferred line count at a smaller size);
   - Python overflow => the page overflows, or fits only within Python's margins: the page's own measured words, made
-    as much wider as Python can make a word (the 4% slack, the kerning floor, and its pairs' and contexts' bounds both
-    ways, as Python's width leaves out the kerning that draws a word narrower), no longer fit (the plan's "within 4% /
-    8% slack");
+    as much wider as Python can make a word (the 0.5% slack and the layout unit), no longer fit (the plan's "within
+    4% / 8% slack", now within 0.5%); for the kicker (one text node: the page kerns across its spaces, which Python's
+    word-by-word line leaves out on purpose) its own measured words and spaces, so widened;
   - the subtitle (no line limit): Python's line count is never below the page's.
-* **Kerned words the page keeps whole** (``AVAV...``, B2b review F2): drawn up to 12% narrower than Pillow's advance,
-  so whether the page breaks them is not decided from the slack alone; and **words wider than the column at every
-  size** in Outfit, Inter and Lexend, which the page breaks at every size (F2, round 2: read as words the page might
-  keep whole, they were fitted at the minimum size): Python's size is the page's (a broken word's: at most one size
-  step smaller, as Python's pieces are conservative).
-* **Indic text is not certified** (Tamil, Hindi, mixed Tamil + English): ``fits`` is None. The basic layout cannot
-  bound a shaped Indic cluster (measured here: syllables drawn far wider and far narrower than their characters'
-  advances, more than the design's 8% either way), so the 8% gives an estimate only; the estimate is still a size
-  within the slot's range with its lines, and the Indic titles render without a page error.
+* **The stage's white-space.** Words are measured as the stage draws them (``white-space: normal`` in a title's
+  ``.dyn-word``, ``nowrap`` in the header; the probes use ``nowrap``, which shapes as ``normal`` does): Chromium shapes
+  text under ``white-space: pre`` otherwise (a ZWNJ between Latin letters breaks their kerning there), so only the
+  space, which ``nowrap`` would trim from an inline-block of its own, is measured under ``pre``.
+* **Titles of numbers grouped with U+202F NARROW NO-BREAK SPACE** (``300 000``; the B2b-H review, H-1: such a word is a
+  Mongolian run on the page, drawn with no letter-spacing, and B2b-H certified two such titles that the page drew on 3
+  lines), and a kicker with them, whose words are Latin inside its one text node.
+* **Kerned words the page keeps whole** (``AVAV...``, B2b review F2) and **words wider than the column at every
+  size** in Outfit, Inter and Lexend, which the page breaks at every size (F2, round 2): Python's size is the page's
+  (a broken word's: at most one size step smaller, as Python's pieces are conservative).
+* **The Indic syllables B2b's Pillow advances could not bound** (drawn up to 3.1x wider and 75% narrower than their
+  characters' advances) are drawn at their shaped widths.
 """
 
 from __future__ import annotations
 
 import math
-import unicodedata
 from typing import Any
 
 import pytest
 
 from aadhi.compose.dynamic import faces as fc
-from aadhi.compose.dynamic import kerning as kn
 from aadhi.compose.dynamic import textfit as tf
 from aadhi.compose.dynamic.stage_page import open_stage
 from aadhi.compose.dynamic.templates import TEMPLATES
 
 pytestmark = pytest.mark.slow
 TOKEN = "textfit.page"
+NN = "\u202f"  # NARROW NO-BREAK SPACE
 FPS = 30
 SLOTS = TEMPLATES["board_generic"].slots
 TOKENS = {"struct.accent": "#FF936D", "bg": "#10132C", "bg-alt": "#181D37", "bg-tint": "#22121C", "surface": "#252A3F"}
@@ -77,6 +80,13 @@ TAMIL_LONG = "ஒரு மின்சுற்றில் உள்ள மி
 MIXED = "Ohm விதி: மின்னழுத்தம் V = மின்னோட்டம் I × மின்தடை R"
 HINDI = "विद्युत धारा क्या है?"
 HINDI_LONG = "श्रेणीक्रम में जुड़े प्रतिरोधों का कुल प्रतिरोध उनके अलग-अलग प्रतिरोधों के योग के बराबर क्यों होता है?"
+# numbers grouped with U+202F (the B2b-H review's titles, H-1, which B2b-H certified and the page drew on 3 lines), and a
+# kicker of them (one text node: Latin there)
+SPACED_NUMBERS = (f"reach from 300{NN}000 1{NN}000{NN}000 to Earth 300{NN}000",
+                  f"take 300{NN}000 eight from Earth light 149{NN}600{NN}000 1{NN}000{NN}000 6{NN}371 300{NN}000 "
+                  f"across 6{NN}371 Why Earth about",
+                  f"Light covers 300{NN}000 km each second", f"5{NN}% of 1{NN}000{NN}000 is 50{NN}000")
+SPACED_KICKER = f"Chapter 3: light covers 300{NN}000 km per second and 1{NN}000{NN}000 in under 4 seconds flat"
 
 
 def _prefixes(text: str, start: int, step: int = 1) -> list[str]:
@@ -134,13 +144,17 @@ def _timeline(fmt: str, fonts: dict[str, str], language: str, cases: list[tuple[
 
 
 # The scene's title block as the page laid it out: the title's size, line height and line count, its box, every
-# word's natural width (an inline-block probe in the title, so its font, size and letter-spacing) and the space's;
-# the kicker's box and natural width; the subtitle's line count.
+# word's natural width (an inline-block probe in the title, so its font, size and letter-spacing) and the space's own
+# (alone: what Python measures; a face may kern a space against its neighbours); the kicker's box, natural width,
+# words and space; the subtitle's line count.
 _SCENE_JS = """(i) => {
   const root = document.querySelector(`.dyn-scene[data-scene="${i}"]`);
+  // white-space as the stage has it (nowrap shapes as normal does; pre would not: a ZWNJ breaks the kerning there),
+  // pre only for a lone space, which nowrap trims from an inline-block of its own
   const probe = (host, text) => {
     const e = document.createElement('span');
-    e.style.cssText = 'display:inline-block;white-space:pre;position:absolute;visibility:hidden';
+    const ws = text.trim() ? 'nowrap' : 'pre';
+    e.style.cssText = `display:inline-block;white-space:${ws};position:absolute;visibility:hidden`;
     e.textContent = text;
     host.appendChild(e);
     const w = e.getBoundingClientRect().width;
@@ -159,9 +173,11 @@ _SCENE_JS = """(i) => {
   const sub = root.querySelector('.dyn-subtitle');
   return {
     size, lines: Math.round(t.offsetHeight / lh), width: block.clientWidth,  // the title's room (it shrinks to fit)
-    words: words.map((w) => probe(t, w)), space: probe(t, 'x x') - probe(t, 'xx'),
+    words: words.map((w) => probe(t, w)), space: probe(t, ' '),
     // the kicker's room: the block's width (the header's max-width) less the pip and the gap
     kicker: k && k.textContent ? { cut: k.scrollWidth > k.clientWidth, natural: probe(header, k.textContent),
+      words: k.textContent.split(' ').filter((w) => w).map((w) => probe(header, w)),
+      space: probe(header, ' '),
       room: block.clientWidth - pip.getBoundingClientRect().width - parseFloat(getComputedStyle(header).columnGap) }
       : null,
     subtitle: sub ? { lines: Math.round(sub.offsetHeight / parseFloat(getComputedStyle(sub).lineHeight)),
@@ -184,20 +200,29 @@ async def _page(real_app, served: dict[str, Any]) -> list[dict[str, Any]]:
     return out
 
 
-def _page_fits_with_margins(got: dict[str, Any], spec: Any, slack: float, m: tf.Measured) -> bool:
+# what the page's own widths, scaled from its size to the minimum, may differ by from Python's raw widths there: the
+# parity probe's residual (< 0.06 px) and the scaling of a layout unit (tests/determinism/test_textfit_parity.py)
+MEASURED_PX = 3 * tf.BOX_PX
+
+
+def _widened(page_px: float) -> float:
+    """A width the page measured, made as much wider as Python makes a width (the slack and the layout unit) and the
+    measurement's own allowance (:data:`MEASURED_PX`)."""
+    return page_px * (1 + tf.SLACK) + tf.BOX_PX + MEASURED_PX
+
+
+def _page_fits_with_margins(got: dict[str, Any], spec: Any, m: tf.Measured) -> bool:
     """Whether the page's own text still fits the slot at its minimum size when every word is made as much wider as
-    Python's margins can make it (from ``m``): ``slack`` and the kerning floor, the most its kerning pairs and contexts
-    can add, and the most they can take off (Python's conservative width starts from the advances, without the
-    kerning that draws the word narrower on the page: B2b review F2, round 2); a space as wide as Python makes it (a
-    negative letter-spacing is not taken off it). The page's rules (whole words, greedy lines; a word wider than the
-    column even at the minimum breaks, into at least as many lines as its width needs)."""
+    Python's margins make it (:func:`_widened`); a space as wide as Python makes it (a negative letter-spacing is not
+    taken off it). The page's rules (whole words, greedy lines; a word wider than the column even at the minimum
+    breaks, into at least as many lines as its width needs)."""
     lo = spec.size[0]
     scale = lo / got["size"]
     width = got["width"]
-    space = got["space"] * scale + max(0.0, -m.tracking_em) * lo
+    space = _widened(got["space"] * scale) + max(0.0, -m.tracking_em) * lo
     lines, cur = 0, None
-    for w, word in zip(got["words"], m.words, strict=True):
-        ww = w * scale * (1 + slack) + (tf.KERN_FLOOR_EM + word.kern_pos + max(word.kern_neg, 0.0) * (1 + slack)) * lo
+    for w in got["words"]:
+        ww = _widened(w * scale)
         if ww > width:  # unavoidable at the minimum: lines of its own
             lines += (1 if cur is not None else 0) + math.ceil(ww / width)
             cur = None
@@ -211,8 +236,9 @@ def _page_fits_with_margins(got: dict[str, Any], spec: Any, slack: float, m: tf.
 
 
 def _cases_en() -> list[tuple[str, str, str, str]]:
-    titles = [TYPICAL, LONG_WORD, f"{LONG_WORD} is a word", COMPOUND, *_prefixes(WIDE, 4, 2), *_prefixes(PLAIN, 6, 3)]
-    kickers = [*_prefixes(KICKERS[0], 2), *_prefixes(KICKERS[1], 3)]
+    titles = [TYPICAL, LONG_WORD, f"{LONG_WORD} is a word", COMPOUND, *_prefixes(WIDE, 4, 2), *_prefixes(PLAIN, 6, 3),
+              *SPACED_NUMBERS]
+    kickers = [*_prefixes(KICKERS[0], 2), *_prefixes(KICKERS[1], 3), *_prefixes(SPACED_KICKER, 4, 2)]
     return [(variant, title, kickers[(i + j) % len(kickers)], SUBTITLE[: 40 + 9 * i])
             for j, variant in enumerate(("default", "quiz", "card")) for i, title in enumerate(titles)]
 
@@ -220,30 +246,23 @@ def _cases_en() -> list[tuple[str, str, str, str]]:
 SLOT_VARIANT = {"default": "default", "quiz": "quiz", "card": "card"}
 
 
-@pytest.mark.parametrize("fmt", ["landscape", "portrait"])
-@pytest.mark.parametrize("font_set", list(FONT_SETS))
-async def test_python_fits_implies_the_page_fits_on_board_generic_slots(real_app, fmt: str, font_set: str) -> None:
+def _check_slots(fmt: str, font_set: str, language: str, cases: list[tuple[str, str, str, str]],
+                 pages: list[dict[str, Any]], seen: dict[str, int]) -> None:
+    """The board_generic slots of each case against what the page laid out (the module docstring)."""
     fonts = FONT_SETS[font_set]
-    cases = _cases_en()
-    pages = await _page(real_app, _timeline(fmt, fonts, "en-IN", cases))
-    seen = {"fits": 0, "overflow": 0, "band": 0, "kicker_fits": 0, "kicker_cut": 0, "uncertified": 0}
     for (variant, title, kicker, subtitle), got in zip(cases, pages, strict=True):
         spec = SLOTS["title"][fmt][SLOT_VARIANT[variant]]
         where = (fmt, font_set, variant, title)
         assert got["width"] == spec.w, ("the slot's box is the title's", where, got["width"])
-        m = tf.measure(title, fonts=fonts, role=spec.face, weight=spec.weight, language="en-IN",
+        m = tf.measure(title, fonts=fonts, role=spec.face, weight=spec.weight, language=language,
                        tracking_em=spec.tracking_em)
-        # every word: drawn no wider than Python's conservative width (at the page's size)
+        assert m.reliable, (where, m.uncovered)
+        # every word: drawn within Python's conservative and optimistic widths (at the page's size)
         for word, page_w in zip(m.words, got["words"], strict=True):
-            if word.kern_bounded:
-                assert page_w <= m.width(word, got["size"]) + 0.01, (where, word.text, page_w,
-                                                                      m.width(word, got["size"]))
+            assert m.width(word, got["size"], "optimistic") <= page_w <= m.width(word, got["size"]), (
+                where, word.text, page_w, m.width(word, got["size"], "raw"))
         r = tf.fit(m, width=spec.w, size=spec.size, max_lines=spec.max_lines, prefer_lines=spec.prefer_lines)
-        if not m.reliable:  # Inter's "-by-": two chain characters among four (never bounded: kerning)
-            assert font_set == "inter" and title == COMPOUND and r.fits is None, where
-            assert [w.text for w in m.words if not w.kern_bounded] == [COMPOUND], where
-            seen["uncertified"] += 1
-        elif r.fits:
+        if r.fits:
             seen["fits"] += 1
             assert got["overflow"] == 0, (where, r, got)
             preferred = spec.prefer_lines is not None and got["lines"] <= spec.prefer_lines < len(r.lines)
@@ -254,42 +273,52 @@ async def test_python_fits_implies_the_page_fits_on_board_generic_slots(real_app
                 seen["overflow"] += 1
             else:
                 seen["band"] += 1
-                assert not _page_fits_with_margins(got, spec, tf.SLACK_LATIN, m), ("beyond the slack", where, r, got)
+                assert not _page_fits_with_margins(got, spec, m), ("beyond the margins", where, r, got)
         # the kicker (one line, cut with an ellipsis on the page)
         if got["kicker"] is not None:
             kspec = SLOTS["kicker"][fmt][SLOT_VARIANT[variant]]
             room = kspec.w - KICKER_ROOM
             assert abs(got["kicker"]["room"] - room) <= 0.5, ("the kicker's box", where, got["kicker"])
-            k = tf.fit_slot(kicker, kspec, fonts=fonts, language="en-IN", width=room)
+            k = tf.fit_slot(kicker, kspec, fonts=fonts, language=language, width=room)
             assert k.reliable and k.fits is not None
             if k.fits:
                 seen["kicker_fits"] += 1
                 assert not got["kicker"]["cut"], ("kicker", where, kicker, k, got["kicker"])
             else:
                 seen["kicker_cut"] += 1
-                km = tf.measure(kicker, fonts=fonts, role=kspec.face, weight=kspec.weight, language="en-IN",
-                                tracking_em=kspec.tracking_em)  # Python's floor and pair bounds, per word
-                margins = sum(tf.KERN_FLOOR_EM + w.kern_pos + max(w.kern_neg, 0.0) * (1 + tf.SLACK_LATIN)
-                              for w in km.words) * kspec.size[0]
-                assert got["kicker"]["cut"] or got["kicker"]["natural"] * (1 + tf.SLACK_LATIN) + margins > room, (
-                    "kicker beyond the slack", where, kicker, k, got["kicker"])
+                # its own words and spaces, made as much wider as Python makes them: the page kerns across the spaces
+                # of its one text node, which Python's word-by-word line leaves out on purpose (never wider: the
+                # parity probe's flow lines)
+                kw = got["kicker"]["words"]
+                own = sum(_widened(w) for w in kw) + (len(kw) - 1) * (
+                    _widened(got["kicker"]["space"]) + max(0.0, -kspec.tracking_em) * kspec.size[0])
+                assert got["kicker"]["cut"] or own > room, ("kicker beyond the margins", where, kicker, k,
+                                                            got["kicker"])
         # the chapter card's subtitle: Python never counts fewer lines than the page draws
         if got["subtitle"] is not None:
             sspec = SLOTS["subtitle"][fmt]["card"]
             assert got["subtitle"]["width"] == sspec.w
-            s = tf.fit_slot(subtitle, sspec, fonts=fonts, language="en-IN")
+            s = tf.fit_slot(subtitle, sspec, fonts=fonts, language=language)
             assert s.fits and len(s.lines) >= got["subtitle"]["lines"], (where, subtitle, s, got["subtitle"])
+
+
+@pytest.mark.parametrize("fmt", ["landscape", "portrait"])
+@pytest.mark.parametrize("font_set", list(FONT_SETS))
+async def test_python_fits_implies_the_page_fits_on_board_generic_slots(real_app, fmt: str, font_set: str) -> None:
+    cases = _cases_en()
+    pages = await _page(real_app, _timeline(fmt, FONT_SETS[font_set], "en-IN", cases))
+    seen = {"fits": 0, "overflow": 0, "band": 0, "kicker_fits": 0, "kicker_cut": 0}
+    _check_slots(fmt, font_set, "en-IN", cases, pages, seen)
     # both answers and the edge between them were met (the sweep crosses it), and the kicker both ways
     assert seen["fits"] >= 10 and seen["overflow"] + seen["band"] >= 3, seen
     assert seen["kicker_fits"] >= 5 and seen["kicker_cut"] >= 3, seen
 
 
-# Words the page draws up to 12% narrower than Pillow's advance (B2b review F2): wider than the portrait title's column
-# by Pillow's advance at the minimum size, yet drawn whole on one line there by the page
+# Words the page draws narrower than their letters' advances (B2b review F2: up to 12% below Pillow's): wider than the
+# portrait title's column by those advances at the minimum size, yet drawn whole on one line there by the page
 _KERNED_TITLES = ["AV" * 10, "TY" * 10, "To" * 11, "Yo" * 11]
-# Words wider than the column at every size, which the page breaks at every size (B2b review F2, round 2: in Inter and
-# Lexend a face-wide lower bound per pair read them as words the page might keep whole, so Python laid them out broken
-# only at the minimum size and stored it, where the page takes a larger one)
+# Words wider than the column at every size, which the page breaks at every size (B2b review F2, round 2: Python must
+# not lay them out broken only at the minimum size and store it where the page takes a larger one)
 _OVER_WIDE = ["Supercalifragilisticexpialidocious", LONG_WORD, "Electrochemistry_and_batteries_overview"]
 _WHOLE_OR_BROKEN = [("b1", t) for t in _KERNED_TITLES] + [
     (s, t) for s in ("b1", "inter", "lexend") for t in _OVER_WIDE]
@@ -307,37 +336,42 @@ async def test_pythons_size_is_the_pages_for_kerned_and_over_wide_words(real_app
         m = tf.measure(title, fonts=fonts, role=spec.face, weight=spec.weight, tracking_em=spec.tracking_em)
         kinds = tf.word_kinds(m, spec.w, spec.size[0])
         assert r.reliable and (got["overflow"] == 0 or not r.fits), (font_set, title, r, got)
-        assert kinds == (("either",) if title in _KERNED_TITLES else ("break",)), (font_set, title, kinds)
+        # a kerned word is never read as certainly broken (whole, or either within the margins); an over-wide one is
+        assert kinds in ((("either",), ("whole",)) if title in _KERNED_TITLES else (("break",),)), (font_set, title,
+                                                                                                      kinds)
         # no exemption for the preferred line count; Python's line count is never fewer
         assert len(r.lines) >= got["lines"], (font_set, title, r, got)
         if title in _KERNED_TITLES:  # kept whole on one line: Python's size is the page's
             assert got["size"] == r.size, (font_set, title, r, got)
         else:  # broken at every size, not fitted at the minimum where the page is not (the F2 symptom); Python's
-            # pieces are conservative (the 4% slack, the floor and its kerning bounds wider), so its size may be one
-            # step smaller
+            # pieces are conservative (the slack and the layout unit wider), so its size may be one step smaller
             assert r.size <= got["size"] <= r.size + tf.SIZE_STEP, (font_set, title, r, got)
 
 
-_INDIC_CASES = {
-    "ta-IN": [TAMIL, MIXED, *_prefixes(TAMIL_LONG, 3, 2)],
-    "hi-IN": [HINDI, *_prefixes(HINDI_LONG, 4, 3)],
-}
+def _cases_indic(language: str) -> list[tuple[str, str, str, str]]:
+    long = TAMIL_LONG if language == "ta-IN" else HINDI_LONG
+    titles = ([TAMIL, MIXED, *_prefixes(TAMIL_LONG, 3, 2)] if language == "ta-IN"
+              else [HINDI, *_prefixes(HINDI_LONG, 4, 3)])
+    titles.append(f"{long} {long}")  # past the line limit in every layout
+    kickers = _prefixes(f"{long} {long}", 2, 2)
+    return [(variant, title, kickers[(i + j) % len(kickers)], long[: 20 + 7 * i])
+            for j, variant in enumerate(("default", "quiz", "card")) for i, title in enumerate(titles)]
 
 
 @pytest.mark.parametrize("fmt", ["landscape", "portrait"])
-@pytest.mark.parametrize("language", list(_INDIC_CASES))
-async def test_indic_text_is_estimated_never_certified(real_app, fmt: str, language: str) -> None:
-    titles = _INDIC_CASES[language]
+@pytest.mark.parametrize("language", ["ta-IN", "hi-IN"])
+async def test_indic_text_is_certified_and_python_fits_implies_the_page_fits(real_app, fmt: str,
+                                                                            language: str) -> None:
+    """Tamil, Hindi and mixed Tamil + English on board_generic's slots, with the Noto Sans group (the B1 faces) and
+    Anek (the Poppins set): the same promises as Latin text (B2b gave them ``fits`` None: Pillow could not bound the
+    shaping)."""
+    cases = _cases_indic(language)
+    seen = {"fits": 0, "overflow": 0, "band": 0, "kicker_fits": 0, "kicker_cut": 0}
     for font_set in ("b1", "poppins"):
-        fonts = FONT_SETS[font_set]
-        cases = [(v, t, "Part 1", "") for v in ("default", "card") for t in titles]
-        pages = await _page(real_app, _timeline(fmt, fonts, language, cases))
-        for (variant, title, _, _), got in zip(cases, pages, strict=True):
-            spec = SLOTS["title"][fmt][variant]
-            r = tf.fit_slot(title, spec, fonts=fonts, language=language)
-            assert r.reliable is False and r.fits is None, (title, r)
-            assert spec.size[0] <= r.size <= spec.size[1] and r.lines, r  # an estimate is still given
-            assert got["overflow"] >= 0
+        pages = await _page(real_app, _timeline(fmt, FONT_SETS[font_set], language, cases))
+        _check_slots(fmt, font_set, language, cases, pages, seen)
+    assert seen["fits"] >= 6 and seen["overflow"] + seen["band"] >= 1, seen
+    assert seen["kicker_fits"] >= 2 and seen["kicker_cut"] >= 2, seen
 
 
 # A word corpus for the per-word bound: lesson words, digits and units, and every pair of kerning-prone characters
@@ -347,12 +381,16 @@ _WORDS = ("Ohm's law: voltage, current and resistance (series) [parallel] “quo
           "x² √2 Pneumonoultramicroscopicsilicovolcanoconiosis").split(" ")
 _KERN = "AFLPTVWYfrvwy.,'\")]?7"
 _NEXT = "AVWYTacdeoqsvwy.,')]?"
-# words whose positive pairs add up (B2b review F1: a per-word allowance certified them narrower than the page)
+# words whose kerning adds up per pair (B2b review F1: a per-word allowance certified them narrower than the page),
+# contexts no pair shows (Inter: x between digits drawn as a wider multiplication sign) and contexts that chain along
+# a run (Inter's * beside capitals and punctuation, which B2b's kerning table could not bound)
 _MULTI = ("f'f'", "f'f''", "f'f'f'f'", "f)f)f)", "f'(x)g'(x)", "f''(x)", "(j(j(j", "qjqjqj", "ïïïï",
-          "<–<–", "[j]f?",
-          # contexts no pair shows (Inter: x between digits drawn as a wider multiplication sign; * before
-          # punctuation and capitals), alone and adding up
-          "3x3", "2x3x4x5", "1x1x1x1", "10x10", "**A**", "A**B**C", "*(A)*", "a*b", "->", "-->", "<->", "=>")
+          "<–<–", "[j]f?", "3x3", "2x3x4x5", "1x1x1x1", "10x10", "**A**", "A**B**C", "*(A)*", "a*b", "->", "-->",
+          "<->", "=>", "A*****", "*:<H", "step-by-step", "f(x)", "(a+b)", "ffiw", "office",
+          # the B2b-H review: ZWNJ / ZWJ between Latin letters (drawn kerned and ligated across them under the stage's
+          # white-space), numbers grouped with U+202F (Mongolian runs: no letter-spacing)
+          "A\u200cV", "f\u200cfi", "A\u200cVA\u200cVA", "A\u200dV", f"1{NN}000", f"5{NN}%", f"(1{NN}000)",
+          f"300{NN}000", f"1{NN}000km")
 CORPUS = tuple(dict.fromkeys([*_WORDS, *_MULTI, *(a + b for a in _KERN for b in _NEXT)]))
 # (family, weight, tracking) of every slot's text: titles (display 700, -0.015 em), kickers (body 600, +0.02 em),
 # body text (400 in 16:9, 600 in 9:16), chips and subtitles
@@ -360,75 +398,55 @@ STYLES = [(f, 700, -0.015) for f in ("outfit", "poppins", "lexend", "inter", "at
     (f, w, t) for f in ("inter", "atkinson_hyperlegible_next") for w, t in ((600, 0.02), (400, 0.0), (600, 0.0),
                                                                               (700, 0.0))]
 
-_WIDTHS_JS = """async ([css, words, weight, tracking]) => {
+_WIDTHS_JS = """async ([css, words, weight, tracking, lang]) => {
   const host = document.createElement('div');
   Object.assign(host.style, { position: 'absolute', left: '0', top: '0', fontFamily: css, fontWeight: String(weight),
-    fontSize: '100px', letterSpacing: `${tracking}em`, visibility: 'hidden' });
+    fontSize: '100px', letterSpacing: `${tracking}em`, visibility: 'hidden', whiteSpace: 'nowrap' });
+  host.lang = lang;
   document.querySelector('.dyn-stage').appendChild(host);
   await Promise.all(words.map((w) => document.fonts.load(`${weight} 100px ${css}`, w)));
   const spans = words.map((w) => { const s = document.createElement('span'); s.style.display = 'inline-block';
-    s.style.whiteSpace = 'pre'; s.textContent = w; host.appendChild(s); return s; });
+    s.textContent = w; host.appendChild(s); return s; });
   const out = spans.map((s) => s.getBoundingClientRect().width);
   host.remove();
   return out;
 }"""
 
 
-def _top_pairs(family: str, weight: int, n: int = 24) -> list[str]:
-    """The face's ``n`` largest measured positive pairs and contexts (its Latin face at ``weight``), alone and three
-    times over (a context repeated may be one of the face's open runs: not certified, then)."""
-    face = fc.face_for(family, weight, ord("a"))
-    assert face is not None
-    k = kn.load()[kn.face_name(face)]
-    out = []
-    for table in (k.positive, k.up):
-        # a combining mark makes a cluster textfit never certifies (an estimate only): not a per-word bound case
-        plain = {seq: v for seq, v in table.items() if not any(unicodedata.combining(ch) for ch in seq)}
-        top = sorted(plain.items(), key=lambda kv: (-kv[1], kv[0]))[:n]
-        out += [w for seq, _ in top for w in (seq, seq * 3)]
-    return out
-
-
 async def test_every_latin_face_draws_every_word_within_its_conservative_width(real_app) -> None:
     served = _timeline("landscape", FONT_SETS["b1"], "en-IN", [("default", TYPICAL, "Basics", "")])
     worst: dict[str, float] = {}
-    unbounded: set[str] = set()
     async with open_stage(real_app.settings, size=(1920, 1080), token=TOKEN, base_url=real_app.base,
                           served_timeline=served) as page:
         await page.seek(0)
         for family, weight, tracking in STYLES:
             fonts = {"display": family, "body": "inter", "mono": "jetbrains_mono", "indic": "noto_sans"}
             css = fc.css_stack(fonts, "display", "en-IN")
-            corpus = list(dict.fromkeys([*CORPUS, *_top_pairs(family, weight)]))
-            got = await page.page.evaluate(_WIDTHS_JS, [css, corpus, weight, tracking])
-            m = tf.measure(" ".join(corpus), fonts=fonts, role="display", weight=weight, language="en-IN",
+            got = await page.page.evaluate(_WIDTHS_JS, [css, list(CORPUS), weight, tracking, "en-IN"])
+            m = tf.measure(" ".join(CORPUS), fonts=fonts, role="display", weight=weight, language="en-IN",
                            tracking_em=tracking)
-            assert [w.text for w in m.words] == corpus
+            assert [w.text for w in m.words] == list(CORPUS)
             key = f"{family} {weight} {tracking:+}"
             for word, page_w in zip(m.words, got, strict=True):
-                if not word.kern_bounded:  # a context that reaches four or more characters: never certified
-                    assert not word.reliable and all(c.reliable for c in word.clusters), word.text
-                    unbounded.add(word.text)
-                    continue
                 if not word.reliable:  # drawn by a system font (Greek and maths are not in the vendored subsets)
                     assert word.text in ("Ω", "√2") and m.uncovered == ("Ω", "√"), word.text
                     continue
-                bound = m.width(word, 100)
-                assert page_w <= bound + 0.01, (key, word.text, page_w, bound)
-                worst[key] = max(worst.get(key, 0.0), page_w / bound)
+                low, high = m.width(word, 100, "optimistic"), m.width(word, 100)
+                assert low <= page_w <= high, (key, word.text, low, page_w, high)
+                worst[key] = max(worst.get(key, 0.0), page_w / high)
         assert page.errors == [] and page.guard_trips == []
     assert len(worst) == len(STYLES), worst
-    # Inter's chains and a context's exception are never certified; its x between digits is
-    assert {"**A**", "A**B**C", "*(A)*", "10x10"} <= unbounded and "2x3x4x5" not in unbounded, unbounded
 
 
-# Syllables Pillow's basic layout cannot bound (the shaped glyphs are not the characters' own): each with the
-# direction the page differs from Pillow's advance by more than the 8% the design allows Indic text
+# Syllables B2b's Pillow advances could not bound (the shaped glyphs are not the characters' own): each with the
+# direction the page differs from Pillow's basic-layout advance (B2b's measurement) by more than the design's 8%
 _INDIC_SYLLABLES = [("रू", "wider"), ("ಕೋ", "wider"), ("டீ", "wider"), ("क्ष", "narrower"), ("ತ್ಝ", "narrower"),
                     ("ஸ்ரீ", "narrower")]
 
 
-async def test_the_basic_layout_cannot_bound_indic_clusters(real_app) -> None:
+async def test_indic_clusters_are_drawn_at_their_shaped_widths(real_app) -> None:
+    from PIL import ImageFont
+
     served = _timeline("landscape", FONT_SETS["b1"], "en-IN", [("default", TYPICAL, "Basics", "")])
     async with open_stage(real_app.settings, size=(1920, 1080), token=TOKEN, base_url=real_app.base,
                           served_timeline=served) as page:
@@ -436,13 +454,18 @@ async def test_the_basic_layout_cannot_bound_indic_clusters(real_app) -> None:
         for text, direction in _INDIC_SYLLABLES:
             fonts = FONT_SETS["b1"]
             css = fc.css_stack(fonts, "display", "en-IN")
-            (page_w,) = await page.page.evaluate(_WIDTHS_JS, [css, [text], 700, 0.0])
+            (page_w,) = await page.page.evaluate(_WIDTHS_JS, [css, [text], 700, 0.0, "en-IN"])
             m = tf.measure(text, fonts=fonts, role="display", weight=700, language="en-IN")
             (word,) = m.words
-            assert not word.reliable and word.indic and not m.reliable, text
-            raw = m.width(word, 100, "raw")
+            assert word.reliable and word.indic and m.reliable, text
+            assert m.width(word, 100, "optimistic") <= page_w <= m.width(word, 100), (text, page_w)
+            assert abs(page_w - m.width(word, 100, "raw")) < 0.05, (text, page_w, m.width(word, 100, "raw"))
+            # B2b's measurement: Pillow's basic layout (no shaping) on the same face
+            key = word.clusters[0].key
+            assert key is not None
+            pillow = ImageFont.truetype(key.path, 100, layout_engine=ImageFont.Layout.BASIC).getlength(text)
             if direction == "wider":
-                assert page_w > raw * (1 + tf.SLACK_INDIC), (text, page_w, raw)
+                assert page_w > pillow * 1.08, (text, page_w, pillow)
             else:
-                assert page_w < raw * (1 - tf.SLACK_INDIC), (text, page_w, raw)
+                assert page_w < pillow * 0.92, (text, page_w, pillow)
         assert page.errors == [] and page.guard_trips == []

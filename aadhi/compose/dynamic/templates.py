@@ -277,8 +277,9 @@ class SlotSpec:
     (min, max) font size in px (the page starts at ``text_fit.size`` <= max and never goes below min), ``role`` (the
     TextEntry role it reports), ``face`` (the type role), ``weight``, ``line_height``, ``tracking_em`` (letter-spacing,
     which measured fit must include), the text limits ``max_words`` / ``max_chars`` (None: none stated),
-    ``prefer_lines`` (fewer lines preferred while they fit at >= min), and whether the text is ``critical`` (safe zones
-    and contrast are checked, §7.12)."""
+    ``prefer_lines`` (fewer lines preferred while they fit at >= min), whether the text is ``critical`` (safe zones
+    and contrast are checked, §7.12), and ``tabular_nums``: the stage draws it with ``font-variant-numeric:
+    tabular-nums`` (measured fit shapes it with ``tnum``)."""
 
     w: int | None
     max_lines: int | None
@@ -292,6 +293,7 @@ class SlotSpec:
     max_chars: int | None = None
     prefer_lines: int | None = None
     critical: bool = True
+    tabular_nums: bool = False
 
     def __post_init__(self) -> None:
         if not 0 < self.size[0] <= self.size[1]:
@@ -916,7 +918,8 @@ def _board_slots() -> SlotTable:
             critical=False)}
         out.setdefault("ring", {})[fmt] = {"default": SlotSpec(
             w=BOARD_RING[0], max_lines=1, size=(label, label), role="label", face="body", weight=700, line_height=1.3,
-            critical=False)}  # the countdown's number (R-07: the think time is the ring itself)
+            critical=False, tabular_nums=True)}  # the countdown's number (R-07: the think time is the ring itself;
+        # dynamic.css .dyn-ring-num: tabular numerals)
     return MappingProxyType({slot: MappingProxyType({f: MappingProxyType(v) for f, v in per.items()})
                              for slot, per in out.items()})
 
