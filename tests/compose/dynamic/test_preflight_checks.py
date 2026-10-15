@@ -255,6 +255,25 @@ def test_merge_findings_keeps_the_worst_frame() -> None:
     assert merged_o.overflow == 9 and merged_o.remedy is None  # at its limit somewhere: no remedy
 
 
+def test_a_decorative_sighting_never_masks_a_checked_one() -> None:
+    # critical text mid-entrance is reported as not critical (stage.js: checked only when fully shown), so its overflow
+    # is first seen as a warning; the same slot seen fully shown later must still shrink or block (B2c review round)
+    early = Finding("text_overflow", 0, "body", "body", 18, [0, 0, 1, 1], None, overflow=139, status="warn")
+    shown = Finding("text_overflow", 0, "body", "body", 56, [0, 0, 2, 2], None, overflow=120)
+    (m,) = merge_findings([early, shown])
+    assert (m.status, m.frame, m.box, m.frames, m.remedy, m.overflow) == ("open", 56, [0, 0, 2, 2], 2, None, 139)
+    shrink = Finding("text_overflow", 0, "body", "body", 56, [0, 0, 1, 1], "shrink", overflow=20)
+    (m,) = merge_findings([early, shrink])
+    assert (m.status, m.remedy, m.overflow) == ("open", "shrink", 139)
+    # the other order: a later warn sighting keeps the checked status and never clears its remedy
+    (m,) = merge_findings([shrink, early])
+    assert (m.status, m.remedy, m.frame, m.overflow, m.frames) == ("open", "shrink", 56, 139, 2)
+    # two decorative sightings stay a warning
+    (m,) = merge_findings([early, early])
+    assert m.status == "warn" and m.frames == 2
+    assert [f.status for f in pf._finalise(merge_findings([early, shown]), None, set())] == ["block"]
+
+
 # --- remedies --------------------------------------------------------------------------------------------------
 
 

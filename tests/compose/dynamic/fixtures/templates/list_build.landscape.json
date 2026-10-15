@@ -1,0 +1,444 @@
+{
+ "board_language": "en-IN",
+ "branding": {
+  "bgm_url": null,
+  "bgm_volume": 0.06,
+  "ding_url": null,
+  "mascot_clips": {},
+  "mascot_rig_url": null,
+  "static_background_url": null,
+  "tick_url": null
+ },
+ "captions": [
+  {
+   "end": 2.2,
+   "start": 0.5,
+   "text": "First, something has to push the charge around."
+  },
+  {
+   "end": 4.3,
+   "start": 2.6,
+   "text": "Then the charge needs a complete loop to travel."
+  },
+  {
+   "end": 6.4,
+   "start": 4.7,
+   "text": "Somewhere in that loop, energy is used."
+  },
+  {
+   "end": 8.5,
+   "start": 6.8,
+   "text": "And we want a way to stop it."
+  }
+ ],
+ "chapters": [
+  {
+   "start": 0.0,
+   "title": "What a circuit needs"
+  }
+ ],
+ "concept_map": [],
+ "estimated": false,
+ "fps": 30,
+ "height": 1080,
+ "intro": null,
+ "language": "en-IN",
+ "learning_objectives": [],
+ "meta": {
+  "session_number": "Session 3",
+  "session_title": "Circuits",
+  "subject_name": "Basic Electrical Engineering",
+  "unit_name": "Unit 2: DC Circuits"
+ },
+ "presentation": {
+  "caption_style": "clean_pill",
+  "captions_burn": true,
+  "content": {
+   "entity:0": "#0FE3FE",
+   "entity:1": "#C4A4FE",
+   "entity:2": "#FEACE3",
+   "focus": "#F2D935",
+   "ink": "#F3F5F9",
+   "ink2": "#B9BEC7",
+   "mark": "#F2D935",
+   "ok": "#5DD8AA",
+   "warn": "#F8A87F"
+  },
+  "content_alt": {
+   "entity:0": "#0267C7",
+   "entity:1": "#80369E",
+   "entity:2": "#870C62",
+   "focus": "#141822",
+   "ink": "#141822",
+   "ink2": "#484D58",
+   "mark": "#F2D935",
+   "ok": "#016F50",
+   "warn": "#9F4503"
+  },
+  "cue_term_style": "marker",
+  "engine_version": 2,
+  "family": "deep_teal",
+  "fonts": {
+   "body": "inter",
+   "display": "outfit",
+   "indic": "noto_sans",
+   "mono": "jetbrains_mono"
+  },
+  "format": "landscape",
+  "generated_seconds": 9.7,
+  "mode": "dark",
+  "motion": "standard",
+  "motion_scale": 0.85,
+  "personality": "crisp",
+  "safe_zone": "universal",
+  "sfx": false,
+  "style": "dynamic",
+  "text_entrance": "baseline_reveal"
+ },
+ "scenes": [
+  {
+   "audio_asset_key": null,
+   "audio_duration": 8.4,
+   "audio_offset": 0.5,
+   "audio_url": null,
+   "beats": [
+    {
+     "beat_id": "lb-l-typical-0",
+     "board_item_id": "b1",
+     "captions": [
+      {
+       "end": 2.2,
+       "start": 0.5,
+       "text": "First, something has to push the charge around."
+      }
+     ],
+     "end": 2.6,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 0,
+     "narration": "First, something has to push the charge around.",
+     "phase": "main",
+     "speech_end": 2.2,
+     "start": 0.5,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "lb-l-typical-1",
+     "board_item_id": "b2",
+     "captions": [
+      {
+       "end": 4.3,
+       "start": 2.6,
+       "text": "Then the charge needs a complete loop to travel."
+      }
+     ],
+     "end": 4.7,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 1,
+     "narration": "Then the charge needs a complete loop to travel.",
+     "phase": "main",
+     "speech_end": 4.3,
+     "start": 2.6,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "lb-l-typical-2",
+     "board_item_id": "b3",
+     "captions": [
+      {
+       "end": 6.4,
+       "start": 4.7,
+       "text": "Somewhere in that loop, energy is used."
+      }
+     ],
+     "end": 6.8,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 2,
+     "narration": "Somewhere in that loop, energy is used.",
+     "phase": "main",
+     "speech_end": 6.4,
+     "start": 4.7,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "lb-l-typical-3",
+     "board_item_id": "b4",
+     "captions": [
+      {
+       "end": 8.5,
+       "start": 6.8,
+       "text": "And we want a way to stop it."
+      }
+     ],
+     "end": 8.9,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 3,
+     "narration": "And we want a way to stop it.",
+     "phase": "main",
+     "speech_end": 8.5,
+     "start": 6.8,
+     "visual_cue": null,
+     "words": []
+    }
+   ],
+   "board": [
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "h1",
+     "justification": null,
+     "kind": "heading",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "What a circuit needs",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "icon_hint": "battery",
+     "id": "b1",
+     "justification": null,
+     "kind": "bullet",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "A [[source]] that pushes charge",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "icon_hint": "plug",
+     "id": "b2",
+     "justification": null,
+     "kind": "bullet",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "A closed path for the current",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "icon_hint": "lightbulb",
+     "id": "b3",
+     "justification": null,
+     "kind": "bullet",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "A [[load]] that turns energy into work",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "icon_hint": "toggle-left",
+     "id": "b4",
+     "justification": null,
+     "kind": "bullet",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "A switch to open the loop",
+     "variables": []
+    }
+   ],
+   "chapter_id": null,
+   "chapter_label": null,
+   "concept_id": null,
+   "duration": 9.7,
+   "events": [
+    {
+     "anchored": true,
+     "dur": 1.4,
+     "kind": "cue_term",
+     "sfx": null,
+     "t": 1.2,
+     "target": "b1",
+     "words": ""
+    },
+    {
+     "anchored": true,
+     "dur": 1.6,
+     "kind": "look_here",
+     "sfx": null,
+     "t": 5.0,
+     "target": "b3",
+     "words": ""
+    }
+   ],
+   "figures": {},
+   "index": 0,
+   "layout": {
+    "fullscreen_media": false,
+    "mascot_position": "left",
+    "show_side_panel": true
+   },
+   "look": {
+    "background": {
+     "frozen_at": null,
+     "params": {
+      "tone": "bg"
+     },
+     "preset": "mesh_drift",
+     "seed": 4000
+    },
+    "hold_reason": null,
+    "icons": {
+     "b1": {
+      "filled": false,
+      "name": "battery",
+      "paths": [
+       "M22 14L22 10",
+       "M4 6H16A2 2 0 0 1 18 8V16A2 2 0 0 1 16 18H4A2 2 0 0 1 2 16V8A2 2 0 0 1 4 6Z"
+      ],
+      "set": "lucide",
+      "stroke_width": 2.0,
+      "version": "1.48.0",
+      "viewBox": [
+       0.0,
+       0.0,
+       24.0,
+       24.0
+      ]
+     },
+     "b2": {
+      "filled": false,
+      "name": "plug",
+      "paths": [
+       "M12 22v-5",
+       "M15 8V2",
+       "M17 8a1 1 0 0 1 1 1v4a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1z",
+       "M9 8V2"
+      ],
+      "set": "lucide",
+      "stroke_width": 2.0,
+      "version": "1.48.0",
+      "viewBox": [
+       0.0,
+       0.0,
+       24.0,
+       24.0
+      ]
+     },
+     "b3": {
+      "filled": false,
+      "name": "lightbulb",
+      "paths": [
+       "M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5 .7 .7 1.3 1.5 1.5 2.5",
+       "M9 18h6",
+       "M10 22h4"
+      ],
+      "set": "lucide",
+      "stroke_width": 2.0,
+      "version": "1.48.0",
+      "viewBox": [
+       0.0,
+       0.0,
+       24.0,
+       24.0
+      ]
+     },
+     "b4": {
+      "filled": false,
+      "name": "toggle-left",
+      "paths": [
+       "M12 12A3 3 0 0 1 9 15A3 3 0 0 1 6 12A3 3 0 0 1 9 9A3 3 0 0 1 12 12Z",
+       "M9 5H15A7 7 0 0 1 22 12V12A7 7 0 0 1 15 19H9A7 7 0 0 1 2 12V12A7 7 0 0 1 9 5Z"
+      ],
+      "set": "lucide",
+      "stroke_width": 2.0,
+      "version": "1.48.0",
+      "viewBox": [
+       0.0,
+       0.0,
+       24.0,
+       24.0
+      ]
+     }
+    },
+    "presenter": null,
+    "template": "list_build",
+    "text_fit": {},
+    "tokens": {
+     "bg": "#001B1C",
+     "bg-alt": "#002527",
+     "bg-tint": "#251118",
+     "block.base": "#7B64A8",
+     "block.highlight": "#A970B6",
+     "block.ink": "#FFFFFF",
+     "block.ink2": "#F1EFF7",
+     "scrim": "#001B1CC7",
+     "struct.accent": "#FF89B0",
+     "surface": "#0E3133"
+    },
+    "transition_in": {
+     "kind": "cut",
+     "seconds": 0.0
+    },
+    "variant": null
+   },
+   "media": null,
+   "objective_ids": [],
+   "p5_code": null,
+   "poster": null,
+   "quiz": null,
+   "scene_id": "lb-l-typical",
+   "side_panel": null,
+   "start": 0.0,
+   "subtitle": null,
+   "title": "What a circuit needs",
+   "type": "content"
+  }
+ ],
+ "schema_version": 3,
+ "screenplay_revision": null,
+ "total_duration": 9.7,
+ "transition_seconds": 0.4,
+ "version_id": null,
+ "width": 1920
+}

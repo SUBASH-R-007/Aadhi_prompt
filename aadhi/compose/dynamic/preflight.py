@@ -279,6 +279,21 @@ class Finding:
 
     def merge(self, other: Finding) -> None:
         self.frames += other.frames
+        # a decorative sighting (``warn`` at once: text not checked, such as critical text mid-entrance, which the
+        # stage reports as not critical until it is fully shown) never masks a checked one of the same slot: the
+        # checked sighting's status and remedy rule, and a warn sighting's missing remedy never clears a checked
+        # one's (B2c review fix round: a 9:16 phrase overflowing at its minimum was first seen mid-entrance, so the
+        # merged finding stayed a warning and preflight never blocked it)
+        if self.status == "warn" and other.status != "warn":
+            self.status, self.remedy, self.frame, self.box = other.status, other.remedy, other.frame, other.box
+            self.ratio = other.ratio if other.ratio is not None else self.ratio
+            if other.overflow is not None:
+                self.overflow = max(other.overflow, self.overflow or 0.0)
+            return
+        if other.status == "warn" and self.status != "warn":
+            if other.overflow is not None and (self.overflow is None or other.overflow > self.overflow):
+                self.overflow = other.overflow
+            return
         if other.ratio is not None and (self.ratio is None or other.ratio < self.ratio):
             self.ratio, self.frame, self.box = other.ratio, other.frame, other.box
         if other.overflow is not None and (self.overflow is None or other.overflow > self.overflow):

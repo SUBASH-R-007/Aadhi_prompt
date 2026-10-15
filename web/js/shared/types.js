@@ -264,6 +264,8 @@
  * @property {'dark' | 'light'} [mode]           B2a: the family's mode
  * @property {number} [motion_scale]             B2a: the personality's duration scale (absent = 1, B1's timings)
  * @property {Record<string, number>} [entity_colors]  B2a: lesson-wide symbol/entity -> entity slot 0..2 (R-30)
+ * @property {string} [text_entrance]            B2c: the personality's text entrance (`fade_rise`, `baseline_reveal`;
+ *   absent = `fade_rise`; dynamic/stage.js motionOf)
  */
 
 /**

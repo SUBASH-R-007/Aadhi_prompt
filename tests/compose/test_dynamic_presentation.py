@@ -210,6 +210,25 @@ def test_the_teachers_look_is_honoured_within_what_b1_draws(flag_on: Settings) -
     assert by["s-video"].look.transition_in["kind"] == "crossfade"
 
 
+def test_a_dense_template_freezes_its_background_throughout(flag_on: Settings, monkeypatch: pytest.MonkeyPatch) -> None:
+    """R-55 (§4.5): throughout formula_focus, worked_steps and code_walkthrough the background is frozen from the
+    scene start, as a hold freezes it. The resolver draws board_generic only until B2e, so this is shown with the
+    resolver allowed to draw formula_focus; a scene without a hold in any other template keeps its drifting
+    background."""
+    looks = {"s-board": {"template": "formula_focus"}, "s-sim": {"template": "board_generic"}}
+    tl = build(dynamic_screenplay(looks=looks), flag_on)
+    by = {s.scene_id: s for s in tl.scenes}
+    assert by["s-board"].look.template == "board_generic", "B2c: still board_generic"
+    assert by["s-board"].look.background["frozen_at"] is None
+    monkeypatch.setattr(pres, "TEMPLATES", ("board_generic", "formula_focus"))
+    tl = build(dynamic_screenplay(looks=looks), flag_on)
+    by = {s.scene_id: s for s in tl.scenes}
+    board = by["s-board"].look
+    assert board.template == "formula_focus" and board.hold_reason is None
+    assert board.background["frozen_at"] == 0.0, "frozen from the scene start"
+    assert by["s-sim"].look.background["frozen_at"] is None
+
+
 def test_portrait_reels_get_short_phrase_captions(flag_on: Settings) -> None:
     tl = build(dynamic_screenplay("portrait"), flag_on)
     assert (tl.width, tl.height) == (1080, 1920)
@@ -417,7 +436,8 @@ def test_portrait_caption_grouping_shares_a_fast_beat_instead_of_leaving_an_orph
 ROOT = Path(__file__).resolve().parents[2]
 B1_LOOKS = json.loads((Path(__file__).parent / "fixtures" / "b1_looks.json").read_text("utf-8"))
 B1_TOKEN_KEYS = ("struct.accent", "bg", "bg-alt", "bg-tint", "surface")
-B2A_PRESENTATION_KEYS = ("content_alt", "family", "mode", "motion_scale", "entity_colors")
+# the presentation fields after B1: B2a's five and B2c's text_entrance
+B2A_PRESENTATION_KEYS = ("content_alt", "family", "mode", "motion_scale", "entity_colors", "text_entrance")
 
 
 def golden_build(cfg: dict[str, Any], settings: Settings) -> dict[str, Any]:
@@ -617,6 +637,9 @@ def test_motion_scale_follows_the_personality_the_stage_draws(flag_on: Settings,
     assert pres.motion_scale(personality, fam) == scale == th.PERSONALITIES[stage].duration_scale
     p = build(dynamic_screenplay(theme_family=family, personality=personality), flag_on).presentation
     assert p.personality == personality and p.motion_scale == scale  # the requested id is kept, as in B1
+    # B2c: the text entrance of the same personality (§4.8: Crisp revealed from the baseline, Soft fade + rise)
+    assert p.text_entrance == pres.text_entrance(personality, fam) == th.PERSONALITIES[stage].text_entrances[0]
+    assert p.text_entrance == {"crisp": "baseline_reveal", "soft": "fade_rise"}[stage]
 
 
 def test_presentation_carries_the_other_mode_family_and_entities(flag_on: Settings) -> None:
@@ -636,7 +659,10 @@ def test_presentation_carries_the_other_mode_family_and_entities(flag_on: Settin
 def test_the_resolver_draws_only_what_the_stage_implements() -> None:
     from aadhi.compose.dynamic import templates
 
-    assert pres.TEMPLATES == templates.IMPLEMENTED and pres.DEFAULT_TEMPLATE == templates.FALLBACK_TEMPLATE
+    # the resolver draws board_generic only until B2e's direct.py (a subset of what the stage implements)
+    assert pres.TEMPLATES == ("board_generic",) and set(pres.TEMPLATES) <= set(templates.IMPLEMENTED)
+    assert pres.DEFAULT_TEMPLATE == templates.FALLBACK_TEMPLATE
+    assert pres.DENSE_TEMPLATES == tuple(k for k, s in templates.TEMPLATES.items() if s.dense)
     assert pres.BACKGROUNDS == tuple(k for k, b in templates.BACKGROUNDS.items() if b.implemented)
     assert pres.TRANSITIONS == tuple(k for k, t in templates.TRANSITIONS.items() if t.implemented)
     assert templates.TRANSITIONS["crossfade"].seconds == (pres.CROSSFADE_MIN_SECONDS, pres.CROSSFADE_MAX_SECONDS)

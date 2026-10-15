@@ -49,6 +49,11 @@ def test_defaults_are_left_out_and_values_kept() -> None:
     assert (full["content_alt"], full["family"], full["mode"], full["motion_scale"], full["entity_colors"]) == (
         {"ink": "#141822"}, "paper_ink", "light", 0.85, {"V": 0, "I": 1})
     assert "motion_scale" not in presentation(motion_scale=1.0).model_dump(mode="json")  # 1 = B1's timings
+    # B2c: the personality's text entrance (ctx.motion), left out when unset
+    assert presentation(text_entrance="baseline_reveal").model_dump(mode="json")["text_entrance"] == "baseline_reveal"
+    assert "text_entrance" not in presentation().model_dump(mode="json")
+    with pytest.raises(ValidationError):
+        presentation(text_entrance="Not An Id")
     rich = look(fixes={"safe": True}, icons={"i1": ICON}, refs={"next": {"title": "Next"}}, accent_fade=0.8,
                 continues_from="s-a").model_dump(mode="json")
     assert rich["fixes"] == {"safe": True, "slots": {}} and rich["refs"] == {"next": {"title": "Next"}}

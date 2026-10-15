@@ -62,7 +62,13 @@ if TYPE_CHECKING:
 
 # What the stage renders (web/js/dynamic; the catalogue's ``implemented`` entries, pinned equal by a test): anything
 # else falls back to these defaults. Static tuples, so importing this module loads no Dynamic module.
+# The resolver draws only ``board_generic`` until B2e's direct.py chooses templates (B2c: the pilot templates are
+# implemented, but reached only by timelines that name them, so no timeline built today changes): a subset of the
+# catalogue's ``implemented`` entries (pinned by a test).
 TEMPLATES = ("board_generic",)
+# The dense templates (templates.py ``dense``; pinned equal by a test): their background is frozen from the scene start
+# throughout (R-55), as a hold freezes it.
+DENSE_TEMPLATES = ("formula_focus", "worked_steps", "code_walkthrough")
 BACKGROUNDS = ("mesh_drift", "colour_block")
 TRANSITIONS = ("cut", "crossfade")
 DEFAULT_TEMPLATE = "board_generic"
@@ -198,6 +204,14 @@ def stage_personality(personality: str, family: Family) -> str:
     return named.id if named is not None and named.release == "R1" else family.personality
 
 
+def text_entrance(personality: str, family: Family) -> str:
+    """``TimelinePresentation.text_entrance`` (B2c, plan §1.4 ``ctx.motion``): the first text entrance of
+    :func:`stage_personality` (§4.8 table: Crisp ``baseline_reveal``, Soft ``fade_rise``)."""
+    from .dynamic import themes
+
+    return themes.PERSONALITIES[stage_personality(personality, family)].text_entrances[0]
+
+
 def motion_scale(personality: str, family: Family) -> float:
     """``TimelinePresentation.motion_scale``: the duration scale of :func:`stage_personality` (§4.8 table: Crisp
     x0.85, Soft x1.15)."""
@@ -268,6 +282,7 @@ def resolve_looks(screenplay: Screenplay, scenes: Sequence[TimedScene],
         if seconds is None:  # too short to carry a >= 300 ms fade (R-54; unreachable, see crossfade_seconds)
             kind, seconds = "cut", 0.0
         hold = look.hold_reason if look is not None else None
+        frozen = hold is not None or template in DENSE_TEMPLATES  # R-55: a hold, or a dense template throughout
         follows = look.continues_from if look is not None else None
         looks.append(ResolvedLook(
             template=template,
@@ -275,7 +290,7 @@ def resolve_looks(screenplay: Screenplay, scenes: Sequence[TimedScene],
             tokens=tokens,
             background={"preset": preset, "params": {"tone": TONES[tone_step % len(TONES)]},
                         "seed": seed_for(presentation, timed.scene_id, "background"),
-                        "frozen_at": 0.0 if hold is not None else None},
+                        "frozen_at": 0.0 if frozen else None},
             transition_in={"kind": kind, "seconds": seconds},
             hold_reason=hold,
             continues_from=follows if i > 0 and follows == scenes[i - 1].scene_id else None,
@@ -313,6 +328,7 @@ def timeline_presentation(presentation: Presentation, scenes: Sequence[TimedScen
         mode=family.mode,
         motion_scale=motion_scale(presentation.personality, family),
         entity_colors=dict(presentation.entity_colors),
+        text_entrance=text_entrance(presentation.personality, family),
     )
 
 

@@ -201,3 +201,65 @@ export function captionAt(scene, t, state = null) {
   if (!cue || !cue.text) return null;
   return { lines: String(cue.text).split('\n'), keys: new Set(), id: `c${cue.text}` };
 }
+
+// ---------------------------------------------------------------------------------------------
+// Item states (B2 plan §1.5; B2c)
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * The states a template may draw on an item besides its entrance and the two cues (plan §1.5, allow-listed: no other
+ * state styling exists, and none uses `outline`, `text-decoration`, `mark` or `focus`, which are the cues'):
+ * - `current`: the item being explained: weight 700 and a 2 px `ink2` border (the catalogue's `state_border_px`), so it
+ *   reads apart from a look_here outline (4 px `focus`, outset >= 8 px) in every family;
+ * - `past`: an earlier item: `ink2` text, no border (§4.3 list_build "earlier items are ink2, no accent colour");
+ * - `done`: a completed item: an `ok` check icon and a 2 px `ok` border;
+ * - `struck`: a refuted item: a line drawn through its text in `warn` (an SVG line, never text-decoration).
+ * The look of each is `itemStateStyle`; templates/_shared.js `itemStateParts` / `paintItemState` draw it.
+ */
+export const ITEM_STATES = Object.freeze(['current', 'past', 'done', 'struck']);
+
+/**
+ * How an item state looks, from the scene's roles (plan §1.5): the text `weight` (null: the template's own), the text
+ * `ink`, the `border` colour (null: none), the `check` icon colour (null: none) and the `strike` line colour (null:
+ * none). Pure; throws for a state outside ITEM_STATES.
+ * @param {string} state
+ * @param {{color: (role: string) => string}} roles
+ * @returns {{weight: number | null, ink: string, border: string | null, check: string | null, strike: string | null}}
+ */
+export function itemStateStyle(state, roles) {
+  switch (state) {
+    case 'current':
+      return { weight: 700, ink: roles.color('ink'), border: roles.color('ink2'), check: null, strike: null };
+    case 'past':
+      return { weight: null, ink: roles.color('ink2'), border: null, check: null, strike: null };
+    case 'done':
+      return { weight: null, ink: roles.color('ink'), border: roles.color('ok'), check: roles.color('ok'), strike: null };
+    case 'struck':
+      return { weight: null, ink: roles.color('ink2'), border: null, check: null, strike: roles.color('warn') };
+    default:
+      throw new RangeError(`unknown item state: ${String(state)}`);
+  }
+}
+
+/**
+ * The current / past state of a scene's items at scene time t, from their entrances (`itemTimings`: reveal events
+ * first, else the beat that reveals the item): the item entered last (by t) is `current` from its entrance; every
+ * item entered before it is `past` from the moment the next one entered. Items not yet entered are absent. `ids`
+ * restricts the items considered (a list_build's bullets without its heading, say). Pure; `since` lets a template ease
+ * the change (e.g. `progress(t, since, 0.4)`).
+ * @param {TimedScene} scene
+ * @param {number} t
+ * @param {readonly string[] | null} [ids]
+ * @returns {{current: string | null, states: Map<string, {state: 'current' | 'past', since: number}>}}
+ */
+export function itemStatesAt(scene, t, ids = null) {
+  const keep = ids ? new Set(ids) : null;
+  const entered = itemTimings(scene).filter((it) => (!keep || keep.has(it.id)) && it.enter <= t);
+  /** @type {Map<string, {state: 'current' | 'past', since: number}>} */
+  const states = new Map();
+  entered.forEach((it, k) => {
+    const next = entered[k + 1];
+    states.set(it.id, next ? { state: 'past', since: next.enter } : { state: 'current', since: it.enter });
+  });
+  return { current: entered.length ? entered[entered.length - 1].id : null, states };
+}

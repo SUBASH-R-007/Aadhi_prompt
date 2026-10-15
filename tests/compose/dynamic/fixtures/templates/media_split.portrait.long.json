@@ -1,0 +1,323 @@
+{
+  "board_language": "en-IN",
+  "branding": {
+    "bgm_url": null,
+    "bgm_volume": 0.06,
+    "ding_url": null,
+    "mascot_clips": {},
+    "mascot_rig_url": null,
+    "static_background_url": null,
+    "tick_url": null
+  },
+  "captions": [
+    {
+      "end": 3.2,
+      "start": 0.6,
+      "text": "Wide words."
+    },
+    {
+      "end": 6.2,
+      "start": 3.4,
+      "text": "A very long word."
+    },
+    {
+      "end": 9.4,
+      "start": 6.4,
+      "text": "Wide words make maximum demands."
+    }
+  ],
+  "chapters": [
+    {
+      "start": 0.0,
+      "title": "Circuits"
+    }
+  ],
+  "concept_map": [],
+  "estimated": false,
+  "fps": 30,
+  "height": 1920,
+  "intro": null,
+  "language": "en-IN",
+  "learning_objectives": [],
+  "meta": {},
+  "presentation": {
+    "caption_style": "bold_outline",
+    "captions_burn": true,
+    "content": {
+      "entity:0": "#0267C7",
+      "entity:1": "#80369E",
+      "entity:2": "#870C62",
+      "focus": "#141822",
+      "ink": "#141822",
+      "ink2": "#484D58",
+      "mark": "#F2D935",
+      "ok": "#016F50",
+      "warn": "#9F4503"
+    },
+    "content_alt": {
+      "entity:0": "#0FE3FE",
+      "entity:1": "#C4A4FE",
+      "entity:2": "#FEACE3",
+      "focus": "#F2D935",
+      "ink": "#F3F5F9",
+      "ink2": "#B9BEC7",
+      "mark": "#F2D935",
+      "ok": "#5DD8AA",
+      "warn": "#F8A87F"
+    },
+    "cue_term_style": "underline",
+    "engine_version": 2,
+    "family": "paper_ink",
+    "fonts": {
+      "body": "inter",
+      "display": "outfit",
+      "indic": "noto_sans",
+      "mono": "jetbrains_mono"
+    },
+    "format": "portrait",
+    "generated_seconds": 10.0,
+    "mode": "light",
+    "motion": "standard",
+    "motion_scale": 0.85,
+    "personality": "crisp",
+    "safe_zone": "universal",
+    "sfx": false,
+    "style": "dynamic",
+    "text_entrance": "baseline_reveal"
+  },
+  "scenes": [
+    {
+      "audio_asset_key": null,
+      "audio_duration": 0.0,
+      "audio_offset": 0.4,
+      "audio_url": null,
+      "beats": [
+        {
+          "beat_id": "r1",
+          "board_item_id": "q1",
+          "captions": [
+            {
+              "end": 3.2,
+              "start": 0.6,
+              "text": "Wide words."
+            }
+          ],
+          "end": 3.4,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 0,
+          "narration": "Wide words.",
+          "phase": "main",
+          "speech_end": 3.2,
+          "start": 0.6,
+          "visual_cue": null,
+          "words": []
+        },
+        {
+          "beat_id": "r2",
+          "board_item_id": "q2",
+          "captions": [
+            {
+              "end": 6.2,
+              "start": 3.4,
+              "text": "A very long word."
+            }
+          ],
+          "end": 6.4,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 1,
+          "narration": "A very long word.",
+          "phase": "main",
+          "speech_end": 6.2,
+          "start": 3.4,
+          "visual_cue": null,
+          "words": []
+        },
+        {
+          "beat_id": "r3",
+          "board_item_id": "q3",
+          "captions": [
+            {
+              "end": 9.4,
+              "start": 6.4,
+              "text": "Wide words make maximum demands."
+            }
+          ],
+          "end": 9.6,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 2,
+          "narration": "Wide words make maximum demands.",
+          "phase": "main",
+          "speech_end": 9.4,
+          "start": 6.4,
+          "visual_cue": null,
+          "words": []
+        }
+      ],
+      "board": [
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "q1",
+          "justification": null,
+          "kind": "bullet",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "WWW MMM WWW MMM WWW MMM",
+          "variables": []
+        },
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "q2",
+          "justification": null,
+          "kind": "paragraph",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "Pneumonoultramicroscopicsilicovolcanoconiosis",
+          "variables": []
+        },
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "q3",
+          "justification": null,
+          "kind": "takeaway",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "Wide words make [[maximum]] demands",
+          "variables": []
+        }
+      ],
+      "chapter_id": null,
+      "chapter_label": null,
+      "concept_id": null,
+      "duration": 10.0,
+      "events": [
+        {
+          "anchored": true,
+          "dur": 1.6,
+          "kind": "cue_term",
+          "sfx": null,
+          "t": 7.0,
+          "target": "q3",
+          "words": ""
+        }
+      ],
+      "figures": {},
+      "index": 0,
+      "layout": {
+        "fullscreen_media": false,
+        "mascot_position": "left",
+        "show_side_panel": true
+      },
+      "look": {
+        "background": {
+          "frozen_at": null,
+          "params": {
+            "tone": "bg"
+          },
+          "preset": "mesh_drift",
+          "seed": 6606
+        },
+        "hold_reason": null,
+        "presenter": null,
+        "template": "media_split",
+        "text_fit": {},
+        "tokens": {
+          "bg": "#FDF2DD",
+          "bg-alt": "#F3E8D3",
+          "bg-tint": "#FFEAEF",
+          "block.base": "#BE3D70",
+          "block.highlight": "#C7537D",
+          "block.ink": "#FFFFFF",
+          "block.ink2": "#F6D9E1",
+          "scrim": "#FDF2DDC7",
+          "struct.accent": "#BE3D70",
+          "surface": "#FFFDFA"
+        },
+        "transition_in": {
+          "kind": "cut",
+          "seconds": 0.0
+        },
+        "variant": null
+      },
+      "media": null,
+      "objective_ids": [],
+      "p5_code": null,
+      "poster": null,
+      "quiz": null,
+      "scene_id": "s-long",
+      "side_panel": {
+        "media": {
+          "asset_key": "img-fixture",
+          "attribution": null,
+          "duration": null,
+          "end_behavior": "loop",
+          "fit": "contain",
+          "height": 1200,
+          "ken_burns": null,
+          "kind": "image",
+          "link_url": null,
+          "mime": null,
+          "render_in_mp4": true,
+          "url": "data:image/png;base64,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",
+          "width": 900
+        },
+        "panel": {
+          "chart": null,
+          "figure_id": null,
+          "gif_query": null,
+          "graph": null,
+          "image_prompt": "A simple circuit: a battery, wires and a bulb",
+          "kind": "image",
+          "manim": null,
+          "model_3d": null,
+          "override_asset_key": null,
+          "quiz": null,
+          "rationale": "Shows the circuit.",
+          "show_from_beat_id": null,
+          "terminal": null,
+          "title": "A tall circuit"
+        },
+        "show_at": 0.0
+      },
+      "start": 0.0,
+      "subtitle": null,
+      "title": "Maximum Wattage Within Wide Wires",
+      "type": "content"
+    }
+  ],
+  "schema_version": 3,
+  "screenplay_revision": null,
+  "total_duration": 10.0,
+  "transition_seconds": 0.4,
+  "version_id": null,
+  "width": 1080
+}

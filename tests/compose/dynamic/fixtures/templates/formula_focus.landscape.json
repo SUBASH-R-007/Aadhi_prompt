@@ -1,0 +1,650 @@
+{
+  "board_language": "en-IN",
+  "branding": {
+    "bgm_url": "/branding/bgm.mp3",
+    "bgm_volume": 0.06,
+    "ding_url": null,
+    "mascot_clips": {
+      "center": "/branding/aadhi_center_clean.mp4",
+      "hidden": "/branding/no_aadhi_clean.mp4",
+      "left": "/branding/aadhi_left_clean.mp4",
+      "popup_bottom_left": "/branding/aadhi_popup_clean.mp4",
+      "popup_bottom_right": "/branding/aadhi_popup_clean.mp4",
+      "right": "/branding/aadhi_right_clean.mp4"
+    },
+    "mascot_rig_url": null,
+    "static_background_url": "/branding/static_background.png",
+    "tick_url": null
+  },
+  "captions": [
+    {
+      "end": 1.5,
+      "start": 0.5,
+      "text": "This equation gives the final\nvelocity of a steadily pushed body."
+    },
+    {
+      "end": 2.65,
+      "start": 1.65,
+      "text": "Here v is the final velocity,"
+    },
+    {
+      "end": 3.8,
+      "start": 2.8,
+      "text": "v nought is the initial velocity,"
+    },
+    {
+      "end": 4.95,
+      "start": 3.95,
+      "text": "a is the acceleration,"
+    },
+    {
+      "end": 6.5,
+      "start": 5.1,
+      "text": "and t is the time."
+    }
+  ],
+  "chapters": [
+    {
+      "start": 0.0,
+      "title": "Ohm's Law"
+    }
+  ],
+  "concept_map": [
+    {
+      "depends_on": [],
+      "id": "basics",
+      "kind": "core",
+      "summary": "",
+      "title": "Charge and Current"
+    },
+    {
+      "depends_on": [
+        "basics"
+      ],
+      "id": "ohm",
+      "kind": "core",
+      "summary": "",
+      "title": "Ohm's Law"
+    }
+  ],
+  "estimated": false,
+  "fps": 30,
+  "height": 1080,
+  "intro": null,
+  "language": "en-IN",
+  "learning_objectives": [],
+  "meta": {
+    "asset_storage_keys": {
+      "scene_audio-ff-velocity": "assets/scene_audio/scene_audio-ff-velocity/x.mp3"
+    },
+    "session_number": "Session 3",
+    "session_title": "Ohm's Law",
+    "subject_name": "Basic Electrical Engineering",
+    "unit_name": "Unit 2: DC Circuits"
+  },
+  "presentation": {
+    "caption_style": "clean_pill",
+    "captions_burn": true,
+    "content": {
+      "entity:0": "#0FE3FE",
+      "entity:1": "#C4A4FE",
+      "entity:2": "#FEACE3",
+      "focus": "#F2D935",
+      "ink": "#F3F5F9",
+      "ink2": "#B9BEC7",
+      "mark": "#F2D935",
+      "ok": "#5DD8AA",
+      "warn": "#F8A87F"
+    },
+    "content_alt": {
+      "entity:0": "#0267C7",
+      "entity:1": "#80369E",
+      "entity:2": "#870C62",
+      "focus": "#141822",
+      "ink": "#141822",
+      "ink2": "#484D58",
+      "mark": "#F2D935",
+      "ok": "#016F50",
+      "warn": "#9F4503"
+    },
+    "cue_term_style": "marker",
+    "engine_version": 2,
+    "entity_colors": {
+      "a": 2,
+      "v": 0,
+      "v_0": 1
+    },
+    "family": "midnight_indigo",
+    "fonts": {
+      "body": "inter",
+      "display": "outfit",
+      "indic": "noto_sans",
+      "mono": "jetbrains_mono"
+    },
+    "format": "landscape",
+    "generated_seconds": 11.4,
+    "mode": "dark",
+    "motion": "calm",
+    "motion_scale": 1.15,
+    "personality": "soft",
+    "safe_zone": "universal",
+    "sfx": false,
+    "style": "dynamic",
+    "text_entrance": "fade_rise"
+  },
+  "scenes": [
+    {
+      "audio_asset_key": "scene_audio-ff-velocity",
+      "audio_duration": 10.1,
+      "audio_offset": 0.5,
+      "audio_url": null,
+      "beats": [
+        {
+          "beat_id": "ff-velocity-b1",
+          "board_item_id": "f",
+          "captions": [
+            {
+              "end": 1.5,
+              "start": 0.5,
+              "text": "This equation gives the final\nvelocity of a steadily pushed body."
+            }
+          ],
+          "end": 1.5,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 0,
+          "narration": "This equation gives the final velocity of a steadily pushed body.",
+          "phase": "main",
+          "speech_end": 1.5,
+          "start": 0.5,
+          "visual_cue": null,
+          "words": [
+            {
+              "end": 0.591,
+              "start": 0.5,
+              "text": "This"
+            },
+            {
+              "end": 0.682,
+              "start": 0.591,
+              "text": "equation"
+            },
+            {
+              "end": 0.773,
+              "start": 0.682,
+              "text": "gives"
+            },
+            {
+              "end": 0.864,
+              "start": 0.773,
+              "text": "the"
+            },
+            {
+              "end": 0.955,
+              "start": 0.864,
+              "text": "final"
+            },
+            {
+              "end": 1.045,
+              "start": 0.955,
+              "text": "velocity"
+            },
+            {
+              "end": 1.136,
+              "start": 1.045,
+              "text": "of"
+            },
+            {
+              "end": 1.227,
+              "start": 1.136,
+              "text": "a"
+            },
+            {
+              "end": 1.318,
+              "start": 1.227,
+              "text": "steadily"
+            },
+            {
+              "end": 1.409,
+              "start": 1.318,
+              "text": "pushed"
+            },
+            {
+              "end": 1.5,
+              "start": 1.409,
+              "text": "body."
+            }
+          ]
+        },
+        {
+          "beat_id": "ff-velocity-b2",
+          "board_item_id": null,
+          "captions": [
+            {
+              "end": 2.65,
+              "start": 1.65,
+              "text": "Here v is the final velocity,"
+            }
+          ],
+          "end": 2.65,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 1,
+          "narration": "Here v is the final velocity,",
+          "phase": "main",
+          "speech_end": 2.65,
+          "start": 1.65,
+          "visual_cue": null,
+          "words": [
+            {
+              "end": 1.817,
+              "start": 1.65,
+              "text": "Here"
+            },
+            {
+              "end": 1.983,
+              "start": 1.817,
+              "text": "v"
+            },
+            {
+              "end": 2.15,
+              "start": 1.983,
+              "text": "is"
+            },
+            {
+              "end": 2.317,
+              "start": 2.15,
+              "text": "the"
+            },
+            {
+              "end": 2.483,
+              "start": 2.317,
+              "text": "final"
+            },
+            {
+              "end": 2.65,
+              "start": 2.483,
+              "text": "velocity,"
+            }
+          ]
+        },
+        {
+          "beat_id": "ff-velocity-b3",
+          "board_item_id": null,
+          "captions": [
+            {
+              "end": 3.8,
+              "start": 2.8,
+              "text": "v nought is the initial velocity,"
+            }
+          ],
+          "end": 3.8,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 2,
+          "narration": "v nought is the initial velocity,",
+          "phase": "main",
+          "speech_end": 3.8,
+          "start": 2.8,
+          "visual_cue": null,
+          "words": [
+            {
+              "end": 2.967,
+              "start": 2.8,
+              "text": "v"
+            },
+            {
+              "end": 3.133,
+              "start": 2.967,
+              "text": "nought"
+            },
+            {
+              "end": 3.3,
+              "start": 3.133,
+              "text": "is"
+            },
+            {
+              "end": 3.467,
+              "start": 3.3,
+              "text": "the"
+            },
+            {
+              "end": 3.633,
+              "start": 3.467,
+              "text": "initial"
+            },
+            {
+              "end": 3.8,
+              "start": 3.633,
+              "text": "velocity,"
+            }
+          ]
+        },
+        {
+          "beat_id": "ff-velocity-b4",
+          "board_item_id": null,
+          "captions": [
+            {
+              "end": 4.95,
+              "start": 3.95,
+              "text": "a is the acceleration,"
+            }
+          ],
+          "end": 4.95,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 3,
+          "narration": "a is the acceleration,",
+          "phase": "main",
+          "speech_end": 4.95,
+          "start": 3.95,
+          "visual_cue": null,
+          "words": [
+            {
+              "end": 4.2,
+              "start": 3.95,
+              "text": "a"
+            },
+            {
+              "end": 4.45,
+              "start": 4.2,
+              "text": "is"
+            },
+            {
+              "end": 4.7,
+              "start": 4.45,
+              "text": "the"
+            },
+            {
+              "end": 4.95,
+              "start": 4.7,
+              "text": "acceleration,"
+            }
+          ]
+        },
+        {
+          "beat_id": "ff-velocity-b5",
+          "board_item_id": null,
+          "captions": [
+            {
+              "end": 6.5,
+              "start": 5.1,
+              "text": "and t is the time."
+            }
+          ],
+          "end": 10.6,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 4,
+          "narration": "and t is the time.",
+          "phase": "main",
+          "speech_end": 6.1,
+          "start": 5.1,
+          "visual_cue": null,
+          "words": [
+            {
+              "end": 5.3,
+              "start": 5.1,
+              "text": "and"
+            },
+            {
+              "end": 5.5,
+              "start": 5.3,
+              "text": "t"
+            },
+            {
+              "end": 5.7,
+              "start": 5.5,
+              "text": "is"
+            },
+            {
+              "end": 5.9,
+              "start": 5.7,
+              "text": "the"
+            },
+            {
+              "end": 6.1,
+              "start": 5.9,
+              "text": "time."
+            }
+          ]
+        }
+      ],
+      "board": [
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "h",
+          "justification": null,
+          "kind": "heading",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "Final velocity",
+          "variables": []
+        },
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "f",
+          "justification": null,
+          "kind": "formula",
+          "language": null,
+          "latex": "v = v_0 + a t",
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "Velocity grows steadily from $v_0$: the [[final velocity]]",
+          "variables": [
+            {
+              "meaning": "final velocity",
+              "symbol_latex": "v",
+              "unit": "m/s"
+            },
+            {
+              "meaning": "initial velocity",
+              "symbol_latex": "v_0",
+              "unit": "m/s"
+            },
+            {
+              "meaning": "acceleration",
+              "symbol_latex": "a",
+              "unit": "m/s²"
+            },
+            {
+              "meaning": "time",
+              "symbol_latex": "t",
+              "unit": "s"
+            }
+          ]
+        }
+      ],
+      "chapter_id": null,
+      "chapter_label": null,
+      "concept_id": "ohm",
+      "duration": 11.4,
+      "events": [
+        {
+          "anchored": true,
+          "dur": null,
+          "kind": "reveal",
+          "sfx": null,
+          "t": 0.38,
+          "target": "f",
+          "words": ""
+        },
+        {
+          "anchored": true,
+          "dur": null,
+          "kind": "var",
+          "sfx": null,
+          "t": 0.744,
+          "target": "f:var:v",
+          "words": ""
+        },
+        {
+          "anchored": true,
+          "dur": null,
+          "kind": "var",
+          "sfx": null,
+          "t": 3.347,
+          "target": "f:var:v_0",
+          "words": ""
+        },
+        {
+          "anchored": true,
+          "dur": null,
+          "kind": "var",
+          "sfx": null,
+          "t": 4.58,
+          "target": "f:var:a",
+          "words": ""
+        },
+        {
+          "anchored": true,
+          "dur": null,
+          "kind": "var",
+          "sfx": null,
+          "t": 5.78,
+          "target": "f:var:t",
+          "words": ""
+        },
+        {
+          "anchored": false,
+          "dur": null,
+          "kind": "draw",
+          "sfx": null,
+          "t": 6.18,
+          "target": "f",
+          "words": ""
+        },
+        {
+          "anchored": false,
+          "dur": 1.5,
+          "kind": "look_here",
+          "sfx": null,
+          "t": 6.68,
+          "target": "f:var:v",
+          "words": ""
+        },
+        {
+          "anchored": false,
+          "dur": 1.5,
+          "kind": "look_here",
+          "sfx": null,
+          "t": 8.68,
+          "target": "f:var:v_0",
+          "words": ""
+        }
+      ],
+      "figures": {},
+      "index": 0,
+      "layout": {
+        "fullscreen_media": false,
+        "mascot_position": "left",
+        "show_side_panel": false
+      },
+      "look": {
+        "background": {
+          "frozen_at": 0.0,
+          "params": {
+            "tone": "bg"
+          },
+          "preset": "mesh_drift",
+          "seed": 1288341481
+        },
+        "hold_reason": "formula",
+        "presenter": null,
+        "template": "formula_focus",
+        "text_fit": {},
+        "tokens": {
+          "bg": "#10132C",
+          "bg-alt": "#181D37",
+          "bg-tint": "#26120C",
+          "block.base": "#A15778",
+          "block.highlight": "#C46979",
+          "block.ink": "#FFFFFF",
+          "block.ink2": "#F6EDF1",
+          "scrim": "#10132CC7",
+          "struct.accent": "#FF936D",
+          "surface": "#252A3F"
+        },
+        "transition_in": {
+          "kind": "cut",
+          "seconds": 0.0
+        },
+        "variant": null
+      },
+      "media": null,
+      "objective_ids": [],
+      "p5_code": null,
+      "poster": null,
+      "quiz": null,
+      "scene_id": "ff-velocity",
+      "side_panel": null,
+      "start": 0.0,
+      "subtitle": null,
+      "sync_cues": [
+        {
+          "beat_id": "ff-velocity-b1",
+          "end": null,
+          "item_id": "f",
+          "kind": "var",
+          "part": "var:0",
+          "start": 0.864,
+          "words": "final"
+        },
+        {
+          "beat_id": "ff-velocity-b3",
+          "end": null,
+          "item_id": "f",
+          "kind": "var",
+          "part": "var:1",
+          "start": 3.467,
+          "words": "initial"
+        },
+        {
+          "beat_id": "ff-velocity-b4",
+          "end": null,
+          "item_id": "f",
+          "kind": "var",
+          "part": "var:2",
+          "start": 4.7,
+          "words": "acceleration"
+        },
+        {
+          "beat_id": "ff-velocity-b5",
+          "end": null,
+          "item_id": "f",
+          "kind": "var",
+          "part": "var:3",
+          "start": 5.9,
+          "words": "time"
+        }
+      ],
+      "title": "Uniform acceleration",
+      "type": "content"
+    }
+  ],
+  "schema_version": 3,
+  "screenplay_revision": null,
+  "total_duration": 11.4,
+  "transition_seconds": 0.4,
+  "version_id": null,
+  "width": 1920
+}

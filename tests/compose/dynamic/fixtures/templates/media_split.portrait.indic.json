@@ -1,0 +1,341 @@
+{
+  "board_language": "ta-IN",
+  "branding": {
+    "bgm_url": null,
+    "bgm_volume": 0.06,
+    "ding_url": null,
+    "mascot_clips": {},
+    "mascot_rig_url": null,
+    "static_background_url": null,
+    "tick_url": null
+  },
+  "captions": [
+    {
+      "end": 3.2,
+      "start": 0.6,
+      "text": "மின்னோட்டம் ஓடுகிறது."
+    },
+    {
+      "end": 6.2,
+      "start": 3.4,
+      "text": "वोल्टेज धक्का देता है."
+    },
+    {
+      "end": 9.4,
+      "start": 6.4,
+      "text": "Ohm விதி."
+    }
+  ],
+  "chapters": [
+    {
+      "start": 0.0,
+      "title": "Circuits"
+    }
+  ],
+  "concept_map": [],
+  "estimated": false,
+  "fps": 30,
+  "height": 1920,
+  "intro": null,
+  "language": "ta-IN",
+  "learning_objectives": [],
+  "meta": {},
+  "presentation": {
+    "caption_style": "bold_outline",
+    "captions_burn": true,
+    "content": {
+      "entity:0": "#0267C7",
+      "entity:1": "#80369E",
+      "entity:2": "#870C62",
+      "focus": "#141822",
+      "ink": "#141822",
+      "ink2": "#484D58",
+      "mark": "#F2D935",
+      "ok": "#016F50",
+      "warn": "#9F4503"
+    },
+    "content_alt": {
+      "entity:0": "#0FE3FE",
+      "entity:1": "#C4A4FE",
+      "entity:2": "#FEACE3",
+      "focus": "#F2D935",
+      "ink": "#F3F5F9",
+      "ink2": "#B9BEC7",
+      "mark": "#F2D935",
+      "ok": "#5DD8AA",
+      "warn": "#F8A87F"
+    },
+    "cue_term_style": "marker",
+    "engine_version": 2,
+    "family": "mint_studio",
+    "fonts": {
+      "body": "inter",
+      "display": "outfit",
+      "indic": "noto_sans",
+      "mono": "jetbrains_mono"
+    },
+    "format": "portrait",
+    "generated_seconds": 10.0,
+    "mode": "light",
+    "motion": "standard",
+    "motion_scale": 1.15,
+    "personality": "soft",
+    "safe_zone": "universal",
+    "sfx": false,
+    "style": "dynamic",
+    "text_entrance": "fade_rise"
+  },
+  "scenes": [
+    {
+      "audio_asset_key": null,
+      "audio_duration": 0.0,
+      "audio_offset": 0.4,
+      "audio_url": null,
+      "beats": [
+        {
+          "beat_id": "j1",
+          "board_item_id": "i1",
+          "captions": [
+            {
+              "end": 3.2,
+              "start": 0.6,
+              "text": "மின்னோட்டம் ஓடுகிறது."
+            }
+          ],
+          "end": 3.4,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 0,
+          "narration": "மின்னோட்டம் ஓடுகிறது.",
+          "phase": "main",
+          "speech_end": 3.2,
+          "start": 0.6,
+          "visual_cue": null,
+          "words": []
+        },
+        {
+          "beat_id": "j2",
+          "board_item_id": "i2",
+          "captions": [
+            {
+              "end": 6.2,
+              "start": 3.4,
+              "text": "वोल्टेज धक्का देता है."
+            }
+          ],
+          "end": 6.4,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 1,
+          "narration": "वोल्टेज धक्का देता है.",
+          "phase": "main",
+          "speech_end": 6.2,
+          "start": 3.4,
+          "visual_cue": null,
+          "words": []
+        },
+        {
+          "beat_id": "j3",
+          "board_item_id": "i3",
+          "captions": [
+            {
+              "end": 9.4,
+              "start": 6.4,
+              "text": "Ohm விதி."
+            }
+          ],
+          "end": 9.6,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 2,
+          "narration": "Ohm விதி.",
+          "phase": "main",
+          "speech_end": 9.4,
+          "start": 6.4,
+          "visual_cue": null,
+          "words": []
+        }
+      ],
+      "board": [
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "i1",
+          "justification": null,
+          "kind": "bullet",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "[[மின்னோட்டம்]] என்பது ஓட்டம்",
+          "variables": []
+        },
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "i2",
+          "justification": null,
+          "kind": "bullet",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "वोल्टेज [[धक्का]] देता है",
+          "variables": []
+        },
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "i3",
+          "justification": null,
+          "kind": "bullet",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "Ohm விதி: [[மின்தடை]] $R = V/I$",
+          "variables": []
+        }
+      ],
+      "chapter_id": null,
+      "chapter_label": null,
+      "concept_id": null,
+      "duration": 10.0,
+      "events": [
+        {
+          "anchored": true,
+          "dur": 1.6,
+          "kind": "cue_term",
+          "sfx": null,
+          "t": 1.2,
+          "target": "i1",
+          "words": ""
+        },
+        {
+          "anchored": true,
+          "dur": 1.6,
+          "kind": "cue_term",
+          "sfx": null,
+          "t": 4.0,
+          "target": "i2",
+          "words": ""
+        },
+        {
+          "anchored": true,
+          "dur": 1.6,
+          "kind": "look_here",
+          "sfx": null,
+          "t": 7.2,
+          "target": "panel",
+          "words": ""
+        }
+      ],
+      "figures": {},
+      "index": 0,
+      "layout": {
+        "fullscreen_media": false,
+        "mascot_position": "left",
+        "show_side_panel": true
+      },
+      "look": {
+        "background": {
+          "frozen_at": null,
+          "params": {
+            "tone": "bg"
+          },
+          "preset": "mesh_drift",
+          "seed": 5505
+        },
+        "hold_reason": null,
+        "presenter": null,
+        "template": "media_split",
+        "text_fit": {},
+        "tokens": {
+          "bg": "#E4F9F1",
+          "bg-alt": "#DAEFE7",
+          "bg-tint": "#EAF0FF",
+          "block.base": "#4F69D7",
+          "block.highlight": "#5E79DC",
+          "block.ink": "#FFFFFF",
+          "block.ink2": "#D9E1FA",
+          "scrim": "#E4F9F1C7",
+          "struct.accent": "#4F69D7",
+          "surface": "#FBFEFD"
+        },
+        "transition_in": {
+          "kind": "cut",
+          "seconds": 0.0
+        },
+        "variant": null
+      },
+      "media": null,
+      "objective_ids": [],
+      "p5_code": null,
+      "poster": null,
+      "quiz": null,
+      "scene_id": "s-indic",
+      "side_panel": {
+        "media": {
+          "asset_key": "img-fixture",
+          "attribution": null,
+          "duration": null,
+          "end_behavior": "loop",
+          "fit": "contain",
+          "height": 1200,
+          "ken_burns": null,
+          "kind": "image",
+          "link_url": null,
+          "mime": null,
+          "render_in_mp4": true,
+          "url": "data:image/png;base64,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AAAAghAAAABBCAAAgCAEAAAQhAAAAAhCAAAABCEAAACCEAAAAEEIAACAIAQAAEAQAgAAIAgBAAAQhAAAAAhCAAAABCEAAACCEAAAAEEIAACAIAQAAEAQAgAAIAgBAAAQhAAAAAhCAAAABCEAAACCEAAAAEEIAACAIAQAAEAQAgAACEIAAAAEIQAAAIIQAAAAQQgAAIAgBAAAQBACAAAgCAEAABCEAAAACEIAAAAEIQAAAIIQAAAAQQgAAIAgBAAAQBACAAAgCAEAABCEAAAACEIAAAAEIQAAAIIQAACATYxdAg7dcrVwEQAAIE4IAQAAEIQAAAAIQgAAAAQhAAAAghAAAEAQAgAAIAgBAAAQhAAAAAhCAAAABCEAAACCEAAAAEEIAACAIAQAAEAQAgAAIAgBAAAQhAAAAAhCAAAABCEAAACCEAAAgB0YtU3nKgAAAMQJIQAAAIIQAAAAQQgAAIAgBAAAQBACAAAgCAEAABCEAAAACEIAAAAEIQAAAIIQAAAAQQgAAIAgBAAAQBACAAAgCAEAABCEAAAACEIAAAAEIQAAAIIQAAAAQQgAAIAgBAAAQBACAAAgCAEAABCEAAAAghAAAABBCAAAgCAEAABAEAIAACAIAQAAEIQAAAAIQgAAAAQhAAAAghAAAABBCAAAgCAEAABAEAIAACAIAQAAEIQAAAAIQgAAAAQhAAAAghAAAABBCAAAgCAEAABAEAIAACAIAQAAEIQAAAAIQgAAAEEIAACAIAQAAEAQAgAAIAgBAAAQhAAAAAhCAAAABCEAAACCEAAAAEEIAACAIAQAAEAQAgAAIAgBAAAQhAAAAAhCAAAABCEAAACCEAAAAEEIAACAIAQAAEAQAgAAIAgBAAAQhAAAAAhCAAAABCEAAIAgdAkAAAAEIQAAAIIQAAAAQQgAAIAgBAAAQBACAAAgCAEAABCEAAAACEIAAAAEIQAAAIIQAAAAQQgAAIAgBAAAQBACAAAgCAEAABCEAAAACEIAAAAEIQAAAIIQAAAAQQgAAIAgBAAAQBACAAAgCAEAABCEAAAAghAAAABBCAAAgCAEAABAEAIAACAIAQAAEIQAAAAIQgAAAAQhAAAAghAAAABBCAAAgCAEAABAEAIAACAIAQAAEIQAAAAIQgAAAAQhAAAAghAAAABBCAAAgCAEAABAEAIAACAIAQAAEIQAAAAIQgAAAEEIAACAIAQAAEAQAgAAIAgBAAAQhAAAAAhCAAAABCEAAACCEAAAAEEIAACAIAQAAEAQAgAAIAgBAAAQhAAAAAhCAAAABCEAAACCEAAAAEEIAACAIAQAAEAQAgAAIAgBAAAQhAAAAAhCAAAABCEAAACCEAAAQBACAAAgCAEAABCEAAAACEIAAAAEIQAAAIIQAAAAQQgAAIAgBAAAQBACAAAgCAEAABCEAAAACEIAAAAEIQAAAIIQAAAAQQgAAIAgBAAAQBACAAAgCAEAABCEAAAACEIAAAAEIQAAAIIQAAAAQQgAACAIAQAAEIQAAAAIQgAAAAQhAAAAghAAAABBCAAAgCAEAABAEAIAACAIAQAAEIQAAAAIQgAAAAQhAAAAghAAAABBCAAAgCAEAABAEAIAACAIAQAAEIQAAAAIQgAAAAQhAAAAghAAAABBCAAAgCAEAABAEAIAAAhCAAAABCEAAACCEAAAgKEa/7j/6SoAAADECSEAAACCEAAAAEEIAACAIAQAAEAQAgAAIAgBAAAQhAAAAAhCAAAABCEAAACCEAAAAEEIAACAIAQAAEAQAgAAIAgBAAAQhAAAAAhCAAAABCEAAACCEAAAAEEIAACAIAQAAEAQAgAAIAgBAAAQhAAAAIIQAAAAQQgAAIAgBAAAQBACAAAgCAEAABCEAAAACEIAAAAEIQAAAIIQAAAAQQgAAIAgBAAAQBACAAAgCAEAABCEAAAACEIAAAAEIQAAAIIQAAAAQQgAAIAgBAAAQBACAAAgCAEAABCEAAAACEIAAABBCAAAgCAEAABAEAIAACAIAQAAEIQAAAAIQgAAAAQhAAAAghAAAABBCAAAgCAEAABAEAIAACAIAQAAEIQAAAAIQgAAAAQhAAAAghAAAABBCAAAgCAEAABAEAIAACAIAQAAEIQAAAAIQgAAAAQhAACAIHQJAAAABCEAAACF/AaCqM99USZRbQAAAABJRU5ErkJggg==",
+          "width": 1200
+        },
+        "panel": {
+          "chart": null,
+          "figure_id": null,
+          "gif_query": null,
+          "graph": null,
+          "image_prompt": "A simple circuit: a battery, wires and a bulb",
+          "kind": "image",
+          "manim": null,
+          "model_3d": null,
+          "override_asset_key": null,
+          "quiz": null,
+          "rationale": "Shows the circuit.",
+          "show_from_beat_id": null,
+          "terminal": null,
+          "title": "மின்சுற்று"
+        },
+        "show_at": 0.0
+      },
+      "start": 0.0,
+      "subtitle": null,
+      "title": "மின்னோட்டம் எப்படி பாய்கிறது",
+      "type": "content"
+    }
+  ],
+  "schema_version": 3,
+  "screenplay_revision": null,
+  "total_duration": 10.0,
+  "transition_seconds": 0.4,
+  "version_id": null,
+  "width": 1080
+}

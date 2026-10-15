@@ -1102,6 +1102,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "item:step",
       "item:row",
       "item:column",
+      "item:term",
       "panel",
       "panel:bar",
       "panel:point",
@@ -1114,7 +1115,11 @@ export const CATALOGUE = Object.freeze(freezeInside({
   "templates": {
     "aadhi_intro": {
       "class": "structure",
-      "consumes": {"kinds": ["reveal", "cue_term", "exit"], "targets": ["item"]},
+      "consumes": {
+        "forms": {"cue_term": ["item"], "exit": ["item"], "reveal": ["item"]},
+        "kinds": ["reveal", "cue_term", "exit"],
+        "targets": ["item"]
+      },
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 8.0, "min": 5.0, "per_item": false},
@@ -1132,7 +1137,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "aadhi_recap": {
       "class": "structure",
-      "consumes": {"kinds": ["reveal", "exit"], "targets": ["item"]},
+      "consumes": {"forms": {"exit": ["item"], "reveal": ["item"]}, "kinds": ["reveal", "exit"], "targets": ["item"]},
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 8.0, "min": 5.0, "per_item": false},
@@ -1150,7 +1155,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "analogy_bridge": {
       "class": "correspondence",
-      "consumes": {"kinds": ["reveal", "draw"], "targets": ["item"]},
+      "consumes": {"forms": {"draw": ["item"], "reveal": ["item"]}, "kinds": ["reveal", "draw"], "targets": ["item"]},
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 15.0, "min": 8.0, "per_item": false},
@@ -1168,7 +1173,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "animation_stage": {
       "class": "media",
-      "consumes": {"kinds": [], "targets": []},
+      "consumes": {"forms": {}, "kinds": [], "targets": []},
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 40.0, "min": 8.0, "per_item": false},
@@ -1186,7 +1191,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "board_generic": {
       "class": "fallback",
-      "consumes": {"kinds": ["reveal", "fill"], "targets": ["item"]},
+      "consumes": {"forms": {"fill": ["item"], "reveal": ["item"]}, "kinds": ["reveal", "fill"], "targets": ["item"]},
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 45.0, "min": 6.0, "per_item": false},
@@ -1549,7 +1554,11 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "cause_chain": {
       "class": "cause",
-      "consumes": {"kinds": ["reveal", "draw", "look_here"], "targets": ["item"]},
+      "consumes": {
+        "forms": {"draw": ["item"], "look_here": ["item"], "reveal": ["item"]},
+        "kinds": ["reveal", "draw", "look_here"],
+        "targets": ["item"]
+      },
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 25.0, "min": 8.0, "per_item": false},
@@ -1567,7 +1576,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "chapter_bumper": {
       "class": "structure",
-      "consumes": {"kinds": [], "targets": []},
+      "consumes": {"forms": {}, "kinds": [], "targets": []},
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 3.0, "min": 2.0, "per_item": false},
@@ -1585,7 +1594,15 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "chart_build": {
       "class": "quantity",
-      "consumes": {"kinds": ["draw", "count", "look_here"], "targets": ["panel", "panel:bar", "panel:point"]},
+      "consumes": {
+        "forms": {
+          "count": ["panel", "panel:bar", "panel:point"],
+          "draw": ["panel", "panel:bar", "panel:point"],
+          "look_here": ["panel", "panel:bar", "panel:point"]
+        },
+        "kinds": ["draw", "count", "look_here"],
+        "targets": ["panel", "panel:bar", "panel:point"]
+      },
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 20.0, "min": 8.0, "per_item": false},
@@ -1603,7 +1620,11 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "check": {
       "class": "prompt",
-      "consumes": {"kinds": ["reveal", "countdown", "answer"], "targets": ["item", "option"]},
+      "consumes": {
+        "forms": {"answer": ["item", "option"], "countdown": ["item", "option"], "reveal": ["item", "option"]},
+        "kinds": ["reveal", "countdown", "answer"],
+        "targets": ["item", "option"]
+      },
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 30.0, "min": 15.0, "per_item": false},
@@ -1624,7 +1645,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "checklist": {
       "class": "completion",
-      "consumes": {"kinds": ["reveal", "draw"], "targets": ["item"]},
+      "consumes": {"forms": {"draw": ["item"], "reveal": ["item"]}, "kinds": ["reveal", "draw"], "targets": ["item"]},
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 20.0, "min": 8.0, "per_item": false},
@@ -1642,7 +1663,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "clip_scene": {
       "class": "media",
-      "consumes": {"kinds": [], "targets": []},
+      "consumes": {"forms": {}, "kinds": [], "targets": []},
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": null, "min": 0.5, "per_item": false},
@@ -1660,7 +1681,15 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "code_walkthrough": {
       "class": "code",
-      "consumes": {"kinds": ["reveal", "look_here", "output"], "targets": ["item", "item:line", "panel"]},
+      "consumes": {
+        "forms": {
+          "look_here": ["item", "item:line", "panel"],
+          "output": ["item", "item:line", "panel"],
+          "reveal": ["item", "item:line", "panel"]
+        },
+        "kinds": ["reveal", "look_here", "output"],
+        "targets": ["item", "item:line", "panel"]
+      },
       "dense": true,
       "duration": {
         "landscape": {"end_screen": null, "max": 30.0, "min": 10.0, "per_item": false},
@@ -1678,7 +1707,11 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "concept_tree": {
       "class": "hierarchy",
-      "consumes": {"kinds": ["reveal", "look_here"], "targets": ["panel"]},
+      "consumes": {
+        "forms": {"look_here": ["panel"], "reveal": ["panel"]},
+        "kinds": ["reveal", "look_here"],
+        "targets": ["panel"]
+      },
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 15.0, "min": 8.0, "per_item": false},
@@ -1696,7 +1729,11 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "cycle_loop": {
       "class": "sequence",
-      "consumes": {"kinds": ["reveal", "draw", "look_here"], "targets": ["item"]},
+      "consumes": {
+        "forms": {"draw": ["item"], "look_here": ["item"], "reveal": ["item"]},
+        "kinds": ["reveal", "draw", "look_here"],
+        "targets": ["item"]
+      },
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 25.0, "min": 8.0, "per_item": false},
@@ -1714,7 +1751,11 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "definition_card": {
       "class": "definition",
-      "consumes": {"kinds": ["reveal", "cue_term"], "targets": ["item"]},
+      "consumes": {
+        "forms": {"cue_term": ["item"], "reveal": ["item"]},
+        "kinds": ["reveal", "cue_term"],
+        "targets": ["item"]
+      },
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 12.0, "min": 6.0, "per_item": false},
@@ -1735,7 +1776,11 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "diagram_build": {
       "class": "media",
-      "consumes": {"kinds": ["draw", "reveal", "look_here"], "targets": ["item"]},
+      "consumes": {
+        "forms": {"draw": ["item"], "look_here": ["item"], "reveal": ["item"]},
+        "kinds": ["draw", "reveal", "look_here"],
+        "targets": ["item"]
+      },
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 30.0, "min": 8.0, "per_item": false},
@@ -1753,7 +1798,11 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "formula_focus": {
       "class": "formula",
-      "consumes": {"kinds": ["reveal", "var", "draw"], "targets": ["item", "item:var"]},
+      "consumes": {
+        "forms": {"draw": ["item"], "look_here": ["item", "item:var"], "reveal": ["item"], "var": ["item:var"]},
+        "kinds": ["reveal", "var", "draw", "look_here"],
+        "targets": ["item", "item:var"]
+      },
       "dense": true,
       "duration": {
         "landscape": {"end_screen": null, "max": 25.0, "min": 10.0, "per_item": false},
@@ -1762,16 +1811,153 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "forced_for": [],
       "formats": ["landscape", "portrait"],
       "holds": ["formula"],
-      "implemented": false,
+      "implemented": true,
       "push_ok": false,
       "release": "R1",
       "representational": true,
-      "slots": {},
+      "slots": {
+        "formula": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.0,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [64, 104],
+              "tracking_em": 0.0,
+              "w": 1616,
+              "weight": 400
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.0,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [68, 96],
+              "tracking_em": 0.0,
+              "w": 696,
+              "weight": 400
+            }
+          }
+        },
+        "legend": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [40, 48],
+              "tracking_em": 0.0,
+              "w": 840,
+              "weight": 400
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [44, 52],
+              "tracking_em": 0.0,
+              "w": 588,
+              "weight": 600
+            }
+          }
+        },
+        "text": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [48, 52],
+              "tracking_em": 0.0,
+              "w": 1616,
+              "weight": 400
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 3,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [56, 60],
+              "tracking_em": 0.0,
+              "w": 588,
+              "weight": 600
+            }
+          }
+        },
+        "title": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [72, 96],
+              "tracking_em": -0.015,
+              "w": 1728,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [56, 88],
+              "tracking_em": -0.015,
+              "w": 696,
+              "weight": 700
+            }
+          }
+        }
+      },
       "variants": {"landscape": [], "portrait": []}
     },
     "full_bleed_media": {
       "class": "media",
-      "consumes": {"kinds": ["reveal"], "targets": ["item"]},
+      "consumes": {"forms": {"reveal": ["item"]}, "kinds": ["reveal"], "targets": ["item"]},
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 12.0, "min": 3.0, "per_item": false},
@@ -1789,7 +1975,11 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "function_plot": {
       "class": "quantity",
-      "consumes": {"kinds": ["draw", "look_here"], "targets": ["panel", "panel:point"]},
+      "consumes": {
+        "forms": {"draw": ["panel", "panel:point"], "look_here": ["panel", "panel:point"]},
+        "kinds": ["draw", "look_here"],
+        "targets": ["panel", "panel:point"]
+      },
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 25.0, "min": 6.0, "per_item": false},
@@ -1807,7 +1997,11 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "hook_question": {
       "class": "prompt",
-      "consumes": {"kinds": ["reveal", "cue_term"], "targets": ["item"]},
+      "consumes": {
+        "forms": {"cue_term": ["item"], "reveal": ["item"]},
+        "kinds": ["reveal", "cue_term"],
+        "targets": ["item"]
+      },
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 10.0, "min": 4.0, "per_item": false},
@@ -1828,7 +2022,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "interactive_poster": {
       "class": "media",
-      "consumes": {"kinds": [], "targets": []},
+      "consumes": {"forms": {}, "kinds": [], "targets": []},
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 30.0, "min": 6.0, "per_item": false},
@@ -1846,7 +2040,11 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "key_terms": {
       "class": "definition",
-      "consumes": {"kinds": ["reveal", "draw", "cue_term"], "targets": ["item"]},
+      "consumes": {
+        "forms": {"cue_term": ["item"], "draw": ["item"], "reveal": ["item"]},
+        "kinds": ["reveal", "draw", "cue_term"],
+        "targets": ["item"]
+      },
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 4.0, "min": 3.0, "per_item": true},
@@ -1864,7 +2062,11 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "kinetic_statement": {
       "class": "statement",
-      "consumes": {"kinds": ["reveal", "cue_term"], "targets": ["item"]},
+      "consumes": {
+        "forms": {"cue_term": ["item"], "reveal": ["item"]},
+        "kinds": ["reveal", "cue_term"],
+        "targets": ["item"]
+      },
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 7.0, "min": 3.0, "per_item": false},
@@ -1882,7 +2084,11 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "list_build": {
       "class": "enumeration",
-      "consumes": {"kinds": ["reveal", "cue_term", "look_here"], "targets": ["item"]},
+      "consumes": {
+        "forms": {"cue_term": ["item", "item:term"], "look_here": ["item", "item:term"], "reveal": ["item"]},
+        "kinds": ["reveal", "cue_term", "look_here"],
+        "targets": ["item", "item:term"]
+      },
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 5.0, "min": 3.0, "per_item": true},
@@ -1891,16 +2097,140 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "forced_for": [],
       "formats": ["landscape", "portrait"],
       "holds": [],
-      "implemented": false,
+      "implemented": true,
       "push_ok": false,
       "release": "R1",
       "representational": false,
-      "slots": {},
+      "slots": {
+        "heading": {
+          "landscape": {
+            "centred": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.15,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [84, 96],
+              "tracking_em": 0.0,
+              "w": 1036,
+              "weight": 700
+            },
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.15,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [84, 96],
+              "tracking_em": 0.0,
+              "w": 1728,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.15,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [56, 88],
+              "tracking_em": 0.0,
+              "w": 696,
+              "weight": 700
+            }
+          }
+        },
+        "item": {
+          "landscape": {
+            "centred": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [40, 52],
+              "tracking_em": 0.0,
+              "w": 932,
+              "weight": 700
+            },
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [40, 52],
+              "tracking_em": 0.0,
+              "w": 834,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [56, 64],
+              "tracking_em": 0.0,
+              "w": 496,
+              "weight": 700
+            }
+          }
+        },
+        "row": {
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [40, 40],
+              "tracking_em": 0.0,
+              "w": 496,
+              "weight": 600
+            }
+          }
+        }
+      },
       "variants": {"landscape": [], "portrait": []}
     },
     "media_split": {
       "class": "media",
-      "consumes": {"kinds": ["reveal", "cue_term", "look_here", "output"], "targets": ["item", "panel", "panel:row"]},
+      "consumes": {
+        "forms": {
+          "cue_term": ["item", "item:term"],
+          "look_here": ["item", "item:term", "panel", "panel:row"],
+          "output": ["panel"],
+          "reveal": ["item"]
+        },
+        "kinds": ["reveal", "cue_term", "look_here", "output"],
+        "targets": ["item", "item:term", "panel", "panel:row"]
+      },
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 20.0, "min": 8.0, "per_item": false},
@@ -1909,16 +2239,161 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "forced_for": [],
       "formats": ["landscape", "portrait"],
       "holds": ["diagram"],
-      "implemented": false,
+      "implemented": true,
       "push_ok": true,
       "release": "R1",
       "representational": true,
-      "slots": {},
+      "slots": {
+        "body": {
+          "landscape": {
+            "media_left": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [44, 52],
+              "tracking_em": 0.0,
+              "w": 706,
+              "weight": 400
+            },
+            "media_right": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [44, 52],
+              "tracking_em": 0.0,
+              "w": 706,
+              "weight": 400
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [48, 64],
+              "tracking_em": 0.0,
+              "w": 588,
+              "weight": 700
+            }
+          }
+        },
+        "terminal": {
+          "landscape": {
+            "media_left": {
+              "critical": true,
+              "face": "mono",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [36, 44],
+              "tracking_em": 0.0,
+              "w": 874,
+              "weight": 400
+            },
+            "media_right": {
+              "critical": true,
+              "face": "mono",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [36, 44],
+              "tracking_em": 0.0,
+              "w": 874,
+              "weight": 400
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "mono",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [40, 44],
+              "tracking_em": 0.0,
+              "w": 904,
+              "weight": 700
+            }
+          }
+        },
+        "title": {
+          "landscape": {
+            "media_left": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 3,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [64, 88],
+              "tracking_em": -0.015,
+              "w": 742,
+              "weight": 700
+            },
+            "media_right": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 3,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [64, 88],
+              "tracking_em": -0.015,
+              "w": 742,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [56, 88],
+              "tracking_em": -0.015,
+              "w": 696,
+              "weight": 700
+            }
+          }
+        }
+      },
       "variants": {"landscape": ["media_left", "media_right"], "portrait": []}
     },
     "model_spin": {
       "class": "media",
-      "consumes": {"kinds": ["look_here"], "targets": ["panel"]},
+      "consumes": {"forms": {"look_here": ["panel"]}, "kinds": ["look_here"], "targets": ["panel"]},
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 25.0, "min": 6.0, "per_item": false},
@@ -1936,7 +2411,11 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "myth_fact": {
       "class": "refutation",
-      "consumes": {"kinds": ["reveal", "draw", "answer"], "targets": ["item"]},
+      "consumes": {
+        "forms": {"answer": ["item"], "draw": ["item"], "reveal": ["item"]},
+        "kinds": ["reveal", "draw", "answer"],
+        "targets": ["item"]
+      },
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 14.0, "min": 8.0, "per_item": false},
@@ -1954,7 +2433,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "outro_next": {
       "class": "structure",
-      "consumes": {"kinds": ["reveal"], "targets": ["item"]},
+      "consumes": {"forms": {"reveal": ["item"]}, "kinds": ["reveal"], "targets": ["item"]},
       "dense": false,
       "duration": {
         "landscape": {"end_screen": 15.0, "max": 10.0, "min": 6.0, "per_item": false},
@@ -1972,7 +2451,11 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "predict": {
       "class": "prompt",
-      "consumes": {"kinds": ["reveal", "countdown"], "targets": ["item"]},
+      "consumes": {
+        "forms": {"countdown": ["item"], "reveal": ["item"]},
+        "kinds": ["reveal", "countdown"],
+        "targets": ["item"]
+      },
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 12.0, "min": 6.0, "per_item": false},
@@ -1990,7 +2473,11 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "process_flow": {
       "class": "sequence",
-      "consumes": {"kinds": ["reveal", "draw", "look_here"], "targets": ["item"]},
+      "consumes": {
+        "forms": {"draw": ["item"], "look_here": ["item"], "reveal": ["item"]},
+        "kinds": ["reveal", "draw", "look_here"],
+        "targets": ["item"]
+      },
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 25.0, "min": 10.0, "per_item": false},
@@ -2008,7 +2495,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "quote_card": {
       "class": "statement",
-      "consumes": {"kinds": ["reveal"], "targets": ["item"]},
+      "consumes": {"forms": {"reveal": ["item"]}, "kinds": ["reveal"], "targets": ["item"]},
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 8.0, "min": 5.0, "per_item": false},
@@ -2026,7 +2513,17 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "recap_retrieval": {
       "class": "prompt",
-      "consumes": {"kinds": ["reveal", "fill", "countdown", "answer", "cue_term"], "targets": ["item"]},
+      "consumes": {
+        "forms": {
+          "answer": ["item"],
+          "countdown": ["item"],
+          "cue_term": ["item"],
+          "fill": ["item"],
+          "reveal": ["item"]
+        },
+        "kinds": ["reveal", "fill", "countdown", "answer", "cue_term"],
+        "targets": ["item"]
+      },
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 40.0, "min": 25.0, "per_item": false},
@@ -2044,7 +2541,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "roadmap": {
       "class": "structure",
-      "consumes": {"kinds": ["reveal"], "targets": ["item"]},
+      "consumes": {"forms": {"reveal": ["item"]}, "kinds": ["reveal"], "targets": ["item"]},
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 30.0, "min": 6.0, "per_item": false},
@@ -2062,7 +2559,11 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "spotlight_image": {
       "class": "media",
-      "consumes": {"kinds": ["reveal", "look_here"], "targets": ["item", "panel"]},
+      "consumes": {
+        "forms": {"look_here": ["item", "panel"], "reveal": ["item", "panel"]},
+        "kinds": ["reveal", "look_here"],
+        "targets": ["item", "panel"]
+      },
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 12.0, "min": 6.0, "per_item": false},
@@ -2080,7 +2581,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "stat_punch": {
       "class": "quantity",
-      "consumes": {"kinds": ["reveal", "count"], "targets": ["item"]},
+      "consumes": {"forms": {"count": ["item"], "reveal": ["item"]}, "kinds": ["reveal", "count"], "targets": ["item"]},
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 7.0, "min": 4.0, "per_item": false},
@@ -2098,7 +2599,11 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "table_reveal": {
       "class": "table",
-      "consumes": {"kinds": ["reveal", "look_here"], "targets": ["item", "item:row", "item:column"]},
+      "consumes": {
+        "forms": {"look_here": ["item", "item:row", "item:column"], "reveal": ["item", "item:row", "item:column"]},
+        "kinds": ["reveal", "look_here"],
+        "targets": ["item", "item:row", "item:column"]
+      },
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 20.0, "min": 10.0, "per_item": false},
@@ -2116,7 +2621,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "takeaway_stamp": {
       "class": "statement",
-      "consumes": {"kinds": ["reveal"], "targets": ["item"]},
+      "consumes": {"forms": {"reveal": ["item"]}, "kinds": ["reveal"], "targets": ["item"]},
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 7.0, "min": 4.0, "per_item": false},
@@ -2134,7 +2639,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "thumbnail": {
       "class": "structure",
-      "consumes": {"kinds": [], "targets": []},
+      "consumes": {"forms": {}, "kinds": [], "targets": []},
       "dense": false,
       "duration": {"landscape": {"end_screen": null, "max": 0.0, "min": 0.0, "per_item": false}},
       "forced_for": [],
@@ -2149,7 +2654,11 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "timeline_track": {
       "class": "sequence",
-      "consumes": {"kinds": ["reveal", "draw", "look_here"], "targets": ["item"]},
+      "consumes": {
+        "forms": {"draw": ["item"], "look_here": ["item"], "reveal": ["item"]},
+        "kinds": ["reveal", "draw", "look_here"],
+        "targets": ["item"]
+      },
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 25.0, "min": 8.0, "per_item": false},
@@ -2167,7 +2676,11 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "versus": {
       "class": "contrast",
-      "consumes": {"kinds": ["reveal", "look_here"], "targets": ["item", "item:row", "item:column"]},
+      "consumes": {
+        "forms": {"look_here": ["item", "item:row", "item:column"], "reveal": ["item", "item:row", "item:column"]},
+        "kinds": ["reveal", "look_here"],
+        "targets": ["item", "item:row", "item:column"]
+      },
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 16.0, "min": 8.0, "per_item": false},
@@ -2185,7 +2698,16 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "worked_steps": {
       "class": "procedure",
-      "consumes": {"kinds": ["reveal", "fill", "countdown", "look_here"], "targets": ["item", "item:var"]},
+      "consumes": {
+        "forms": {
+          "countdown": ["item", "item:var"],
+          "fill": ["item", "item:var"],
+          "look_here": ["item", "item:var"],
+          "reveal": ["item", "item:var"]
+        },
+        "kinds": ["reveal", "fill", "countdown", "look_here"],
+        "targets": ["item", "item:var"]
+      },
       "dense": true,
       "duration": {
         "landscape": {"end_screen": null, "max": 45.0, "min": 15.0, "per_item": false},

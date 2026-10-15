@@ -16,7 +16,7 @@
 import { h, svg } from '../../shared/dom.js';
 import { ease } from '../../motion/easing.js';
 import { progress } from '../../motion/track.js';
-import { composite, contrastRatio, mixOklch, toOklch } from '../../motion/color.js';
+import { mixOklch, toOklch } from '../../motion/color.js';
 import { splitWords } from '../../motion/text.js';
 import { strokeDash } from '../../motion/draw.js';
 import { mathSpans, mountTex, parseRich, plainText, renderRich } from '../../player/richtext.js';
@@ -25,6 +25,11 @@ import { planScene } from '../../player/schedule.js';
 import { SCRIM_ALPHA_HEX, TYPE_FLOORS, fixesOf, fx, templateSlots } from '../core.js';
 import { shownIn } from '../media.js';
 import { itemTimings, INITIAL_DELAY, INITIAL_STAGGER, REVEAL_LEAD } from '../state.js';
+import { scrimmedBg } from './_shared.js';
+
+// scrimmedBg lives in _shared.js (B2c: every template that reports text on a scrim uses it); re-exported for the
+// callers and tests that import it from here since B2a
+export { scrimmedBg };
 
 /** @typedef {import('./types.js').TemplateContext} TemplateContext */
 /** @typedef {import('./types.js').TemplateModule} TemplateModule */
@@ -651,29 +656,6 @@ function richWordSpans(ctx, host, nodes) {
   return { words, tex };
 }
 
-/**
- * What text of `ink` over the title block's translucent `scrim` sits on: the scrim composited over each colour the
- * background shows, the one with the least contrast against `ink` (R-53's worst case). Opaque hex, the colour
- * preflight's contrast check then measures, so a scrim that helps reads as fixed.
- * @param {string} scrim   #rrggbbaa
- * @param {{bg: string, bgs?: string[]}} onBackground
- * @param {string} ink
- */
-export function scrimmedBg(scrim, onBackground, ink) {
-  const bgs = onBackground.bgs && onBackground.bgs.length ? onBackground.bgs : [onBackground.bg];
-  let worst = composite(scrim, bgs[0]);
-  let low = contrastRatio(ink, worst);
-  for (const b of bgs.slice(1)) {
-    const c = composite(scrim, b);
-    const ratio = contrastRatio(ink, c);
-    if (ratio < low) {
-      low = ratio;
-      worst = c;
-    }
-  }
-  return worst;
-}
-
 /** @type {TemplateModule} */
 export default {
   id: 'board_generic',
@@ -1227,16 +1209,20 @@ export default {
   /**
    * The element holding an item's text, where cue.term finds its [[term]] spans (`.rt-k`, kept by renderRich): the
    * body of the item's card (`option:<i>`: the option's), as `cardOf` finds it. Null for anything else. In 9:16 a
-   * misconception with a justification is two cards, and every target of it names the first, its myth: the terms of
-   * its correction (the `<id>:fact` card) are out of reach, while in 16:9 one card holds both. No cue reaches this
-   * template (its consumes list no cue_term or look_here, templates.py); B2c settles how a split item is reached
-   * before cues.js uses itemEl.
+   * misconception with a justification is two cards: then both bodies, the myth's and the fact's, in that order (the
+   * item's field order, text then justification, which `<item>:term:<n>` counts in; B2c settled the open B2a item
+   * this way), so the terms of the correction are reached as in 16:9, where one card holds both. No cue reaches this
+   * template yet (its consumes list no cue_term or look_here, templates.py, so cues.js never calls this).
    * @param {TemplateContext} ctx
    * @param {string} itemId
+   * @returns {Element | Element[] | null}
    */
   itemEl(ctx, itemId) {
-    const card = cardOf(ctx.view, itemId);
-    return card ? card.body : null;
+    const v = ctx.view;
+    const card = cardOf(v, itemId);
+    if (!card) return null;
+    const fact = card.spec.part === 'myth' ? v.cards.find((/** @type {any} */ c) => c.spec.lead === card.spec.id) : null;
+    return fact ? [card.body, fact.body] : card.body;
   },
 
   /**

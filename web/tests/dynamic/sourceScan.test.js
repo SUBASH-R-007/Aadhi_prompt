@@ -59,14 +59,16 @@ const FACES_READERS = new Set(['web/js/dynamic/fonts.js']);
  * What the stage may read off CATALOGUE (plan §1.1: runtime use is geometry only), as member paths (`*`: any key). A
  * read is allowed when one of these is a prefix of its path: the zones, regions, grid, end-screen half (a format's
  * `box`; its `seconds` sit apart) and platform zones; the type floors and scale; the layout tokens; a caption style's
- * `metrics` (its geometry; its `colours` sit apart); a template's `slots`; and the vocabularies (role names, target
- * forms, the versions). Everything else (the families, content palettes, cue colours, personalities, scrims table,
+ * `metrics` (its geometry; its `colours` sit apart); a template's `slots` and its behaviour flags `consumes` and
+ * `push_ok` (B2c: which visual events the stage's cues.js applies to it, and whether look_here may push); and the
+ * vocabularies (role names, target forms, the versions). Everything else (the families, content palettes, cue colours, personalities, scrims table,
  * studio surface, caption colours, the end-screen length, template durations, transition lengths, backgrounds, the
  * class table, a computed key, CATALOGUE itself as a value) is for the gallery and the parity tests.
  */
 const CATALOGUE_RUNTIME = [
   ['version'], ['zones_version'], ['zones'], ['regions'], ['grid'], ['end_screen', '*', 'box'], ['platforms'], ['type'],
-  ['layout'], ['captions', '*', 'metrics'], ['templates', '*', 'slots'], ['roles'], ['targets'],
+  ['layout'], ['captions', '*', 'metrics'], ['templates', '*', 'slots'], ['templates', '*', 'consumes'],
+  ['templates', '*', 'push_ok'], ['roles'], ['targets'],
 ];
 
 /** Rule ids and what they forbid (shown in failure messages). */

@@ -135,7 +135,8 @@ def _template(spec: tp.TemplateSpec) -> dict[str, Any]:
         "push_ok": spec.push_ok,
         "slots": {slot: {f: {v: _slot(s) for v, s in per_variant.items()} for f, per_variant in per_format.items()}
                   for slot, per_format in spec.slots.items()},
-        "consumes": {"kinds": list(spec.consumes.kinds), "targets": list(spec.consumes.targets)},
+        "consumes": {"kinds": list(spec.consumes.kinds), "targets": list(spec.consumes.targets),
+                     "forms": {k: list(spec.consumes.forms(k)) for k in spec.consumes.kinds}},
     }
 
 

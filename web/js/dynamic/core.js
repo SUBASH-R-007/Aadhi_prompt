@@ -639,3 +639,164 @@ export function zonesFor(timeline) {
 export function insideAny(r, boxes) {
   return boxes.some((b) => r.x >= b.x0 - 1 && r.y >= b.y0 - 1 && r.x + r.w <= b.x1 + 1 && r.y + r.h <= b.y1 + 1);
 }
+
+// ---------------------------------------------------------------------------------------------
+// B2c: template behaviour, layout geometry, the target grammar, cue colours and the entity map
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * What a template does with visual events (aadhi/compose/dynamic/templates.py TemplateSpec, through the catalogue):
+ * the event kinds it draws and the target forms it resolves (`consumes`, plan §1.7), and whether `cue.look_here` may
+ * take the camera-push form on it (`push_ok`, plan §1.5). The stage applies a `cue_term` / `look_here` event only to a
+ * template that consumes it (cues.js), so a template that never declared a cue (board_generic) is never given one.
+ * Behaviour flags, not colours, durations or personality values (plan §1.1; the source scan allows exactly these two).
+ * @typedef {object} TemplateBehaviour
+ * @property {{kinds: readonly string[], targets: readonly string[], forms: Readonly<Record<string, readonly string[]>>}} consumes
+ *   `targets` every form the template resolves; `forms` the forms per kind (B2c review CG-5: a cue kind is applied
+ *   only on a form the template draws it on, templates.py Consumes.forms)
+ * @property {boolean} pushOk
+ */
+
+/**
+ * The behaviour of template `id`, or null for an id the registry does not list.
+ * @param {string} id
+ * @returns {TemplateBehaviour | null}
+ */
+export function templateBehaviour(id) {
+  if (!Object.prototype.hasOwnProperty.call(CATALOGUE.templates, id)) return null;
+  const consumes = /** @type {Record<string, {consumes: any}>} */ (CATALOGUE.templates)[id].consumes;
+  const pushOk = /** @type {Record<string, {push_ok: boolean}>} */ (CATALOGUE.templates)[id].push_ok === true;
+  return { consumes: { kinds: consumes.kinds, targets: consumes.targets, forms: consumes.forms }, pushOk };
+}
+
+/**
+ * The layout tokens (aadhi/compose/dynamic/zones.py through the catalogue, plan §1.1): the 8 px spacing steps
+ * (`spacing.steps`), radii (`radius.card` 24, `media` 24, `chip`), borders, the focus outline and underline widths
+ * and outset (`outline.focus_px` 4, `focus_outset_px` 8, `state_border_px` 2, `underline_px` 4), icon sizes
+ * (`icon.card_px`, `feature_px`, `inline_em`, `stroke_width`), the dim and scrim alphas (`alpha.dim` 0.7), shadows.
+ * @type {any}
+ */
+export const LAYOUT_TOKENS = CATALOGUE.layout;
+
+/**
+ * The named regions of each format (§2.5; zones.py REGIONS): 16:9 `full`, `left-55`, `right-45`, `centre-60`,
+ * `top-band`, `stage`; 9:16 `hook`, `headline`, `stage`, `tall`, `clip`, `text-above`, `text-below`. Stage px boxes.
+ * @type {Readonly<Record<'landscape' | 'portrait', Readonly<Record<string, Box>>>>}
+ */
+export const REGIONS = CATALOGUE.regions;
+
+/** The 16:9 layout grid (§2.5: 12 columns of 122 px with 24 px gutters over x 96-1824). @type {any} */
+export const GRID = CATALOGUE.grid;
+
+/** The forms of the visual-event target grammar (plan §1.7; templates.py TARGET_FORMS), in the registry's order. */
+export const TARGET_FORMS = CATALOGUE.targets.forms;
+
+/**
+ * A parsed visual-event target (plan §1.7; templates.py `parse_target`, whose rules this mirrors case for case:
+ * web/tests/dynamic/cues.test.js runs the Python test's cases).
+ * @typedef {object} Target
+ * @property {string} form     one of TARGET_FORMS
+ * @property {string} [item]   the board item id (item forms)
+ * @property {number} [index]  line, step, row, column, term, bar / point or option index (0-based)
+ * @property {number} [series] chart dataset index (panel:bar / panel:point)
+ * @property {string} [symbol] the formula symbol as written (item:var)
+ */
+
+const SLUG_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/;
+const INDEX_RE = /^(0|[1-9][0-9]{0,5})$/;
+/** @type {Readonly<Record<string, string>>} */
+const ITEM_PARTS = Object.freeze({ line: 'item:line', step: 'item:step', row: 'item:row', column: 'item:column', term: 'item:term' });
+/** @type {Readonly<Record<string, string>>} */
+const PANEL_PARTS = Object.freeze({ row: 'panel:row', column: 'panel:column' });
+/** The longest symbol of an `<item>:var:<symbol>` target (Presentation.entity_colors' key length). */
+const SYMBOL_MAX = 80;
+const CONTROL_RE = /[\u0000-\u001f]/;
+
+/**
+ * The parsed form of a target string, or null when it is not in the grammar (a target the stage cannot read is drawn
+ * as no target: its cue is skipped, never guessed). Board items named `panel` or `option` cannot be targets.
+ * @param {unknown} text
+ * @returns {Target | null}
+ */
+export function parseTarget(text) {
+  if (typeof text !== 'string' || !text) return null;
+  const at = text.indexOf(':');
+  const head = at < 0 ? text : text.slice(0, at);
+  const rest = at < 0 ? null : text.slice(at + 1);
+  const index = (/** @type {string} */ s) => (INDEX_RE.test(s) ? Number(s) : null);
+  if (head === 'panel') {
+    if (rest === null) return { form: 'panel' };
+    const k = rest.indexOf(':');
+    const part = k < 0 ? rest : rest.slice(0, k);
+    const arg = k < 0 ? '' : rest.slice(k + 1);
+    if (Object.prototype.hasOwnProperty.call(PANEL_PARTS, part)) {
+      const i = index(arg);
+      return i === null ? null : { form: PANEL_PARTS[part], index: i };
+    }
+    if (part === 'bar' || part === 'point') {
+      const m = arg.indexOf(':');
+      if (m < 0) return null;
+      const series = index(arg.slice(0, m));
+      const i = index(arg.slice(m + 1));
+      return series === null || i === null ? null : { form: `panel:${part}`, series, index: i };
+    }
+    return null;
+  }
+  if (head === 'option') {
+    const i = rest === null ? null : index(rest);
+    return i === null ? null : { form: 'option', index: i };
+  }
+  if (!SLUG_RE.test(head)) return null;
+  if (rest === null) return { form: 'item', item: head };
+  const k = rest.indexOf(':');
+  if (k < 0) return null;
+  const part = rest.slice(0, k);
+  const arg = rest.slice(k + 1);
+  if (part === 'var') {
+    if (!arg || arg !== arg.trim() || arg.length > SYMBOL_MAX || CONTROL_RE.test(arg)) return null;
+    return { form: 'item:var', item: head, symbol: arg };
+  }
+  if (Object.prototype.hasOwnProperty.call(ITEM_PARTS, part)) {
+    const i = index(arg);
+    return i === null ? null : { form: ITEM_PARTS[part], item: head, index: i };
+  }
+  return null;
+}
+
+/** §4.7: in light families the marker is the same yellow at 35% under ink. */
+export const LIGHT_MARKER_ALPHA = 0.35;
+
+/**
+ * The `cue.term` colours of a scene (§4.7, §4.8; plan §1.5), from its roles: in dark families an opaque `mark`
+ * marker with the swept glyphs in the dark on-block ink (never light on yellow) and a `mark` underline; in light
+ * families `mark` at 35% under the content `ink` (the glyphs stay `ink`) and an `ink` underline. themes.py CUE_COLOURS
+ * holds the same rule and its validator checks ink on mark >= 12:1 and the underline >= 3:1 on every background and
+ * surface; web/tests/dynamic/cues.test.js pins this function against the catalogue's `cues` for every R1 family.
+ * @param {Roles} roles
+ * @returns {{mark: string, markerInk: string, markerAlpha: number, underline: string}}
+ */
+export function cueColours(roles) {
+  const mark = roles.color('mark');
+  if (roles.mode === 'dark') return { mark, markerInk: ON_BLOCK[1], markerAlpha: 1, underline: mark };
+  return { mark, markerInk: roles.color('ink'), markerAlpha: LIGHT_MARKER_ALPHA, underline: roles.color('ink') };
+}
+
+/**
+ * The content role of a formula symbol or compared entity in the lesson-wide map (`presentation.entity_colors`, R-30,
+ * §4.7: normalised symbol or entity name -> slot 0..2), as `entity:<n>`, or null (the symbol stays `ink`). The key is
+ * the symbol as written (`FormulaVariable.symbol_latex`), else the same with its whitespace removed: B2e's writer of
+ * the map must store keys in one of these forms (no other normalisation is defined yet).
+ * @param {Record<string, unknown> | null | undefined} map
+ * @param {string} symbol
+ * @returns {string | null}
+ */
+export function entityRole(map, symbol) {
+  if (!map || typeof map !== 'object') return null;
+  const s = String(symbol || '');
+  for (const key of [s, s.replace(/\s+/g, '')]) {
+    if (!key || !Object.prototype.hasOwnProperty.call(map, key)) continue;
+    const slot = map[key];
+    if (slot === 0 || slot === 1 || slot === 2) return `entity:${slot}`;
+  }
+  return null;
+}

@@ -158,7 +158,8 @@ def test_turning_the_flag_off_stops_the_dynamic_stage_even_for_a_stale_build(app
 # --- the look-engine generation (plan B2 §1.3): an older Dynamic build is served rebuilt -------------------------
 
 B1_TOKEN_KEYS = ("struct.accent", "bg", "bg-alt", "bg-tint", "surface")
-B2A_PRESENTATION_KEYS = ("content_alt", "family", "mode", "motion_scale", "entity_colors")
+# the presentation fields after B1: B2a's five and B2c's text_entrance
+B2A_PRESENTATION_KEYS = ("content_alt", "family", "mode", "motion_scale", "entity_colors", "text_entrance")
 MARKER_SEED = 7  # written into the stored document only: a rebuild replaces it with the real seed
 
 
