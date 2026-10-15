@@ -3131,6 +3131,14 @@ integrator. It is what makes a real lecture use the new templates instead of dra
   page carries a **Video mode** switch that also says which of the two sources is in force. It governs what happens
   next: a lecture already generated keeps the style it was made with, and a Dynamic lecture served while the switch is
   off is played and rendered as a classic one.
+- **Gates on the committed tree** (`3094d0f`, the lead's run after the fix round): ruff, `tsc` and all ten
+  generated-file checks clean; `npm test` 1,584 tests (1,583 pass, 1 skipped); the fast suite **5,595 passed,
+  5 skipped, 0 failed** (12 min 26 s); the API suite 510 passed; the classic invariance goldens 60 passed, so classic
+  output is unchanged; the slow Chromium gates `test_template_pages`, `test_template_fixtures` and
+  `test_template_clips` 182 passed in the fix round; migration `0007` runs from scratch on an empty database. The
+  first fast run after the migration failed three stale migration expectations (`test_alembic`'s pinned revision
+  list, and two `test_review_migration` cases that ran `alembic check` with the database at `0006`, which is no
+  longer the head the models describe); all three are fixed at the root, and `0007` has its own migration test.
 - **Open.** The scenes the demo still draws with `board_generic` need the remaining R1 templates
   (`full_bleed_media` for `ai_video`, `animation_stage` for `simulation`, `check` for a quiz checkpoint,
   `aadhi_intro` / `outro_next` / `myth_fact` / `predict` / `code_walkthrough` / `chart_build` /
