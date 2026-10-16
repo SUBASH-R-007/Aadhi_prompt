@@ -1,8 +1,8 @@
 # Session handoff — Batch B2 (Dynamic video visual system)
 
-Updated 2026-10-15 (deadline mode), after the DEMO PHASE landed. NEXT: the remaining R1 templates, re-prioritised by
-the owner to the ones the demo actually needs (below). To continue, paste the "Prompt for the next session" block
-below into a new session.
+Updated 2026-10-16 (deadline mode), after STEP 4 landed. NEXT: the five owner decisions listed below, then the
+templates still unbuilt (`myth_fact`, `aadhi_intro`, `outro_next`, `code_walkthrough`, `chart_build`). To continue,
+paste the "Prompt for the next session" block below into a new session.
 
 ## Where things are (2026-10-15, end of the first account's session)
 
@@ -41,6 +41,24 @@ superseded where they conflict.
   **Video mode** switch on the Studio's Administration page. `compose.presentation.dynamic_enabled` is the single
   place the switch and `DYNAMIC_ENABLED` are merged. It governs what is generated NEXT; existing lectures keep their
   style.
+- **STEP 4 LANDED (2026-10-16).** `full_bleed_media`, `animation_stage`, `check`, `predict` and the shared
+  side-panel layer are built and registered; fourteen of the 23 R1 templates now draw. **The showcase lecture now draws 11 of its
+  16 scenes with a B2 template in 16:9** (it was 4), 6 in 9:16. The review found a BLOCKER: the 9:16 builds could
+  not be rendered at all (Dynamic preflight returned two blocking `text_overflow` findings), and the demo renderer
+  had been skipping preflight entirely, so earlier portrait MP4s were rendered with overflowing text and an
+  unreadable 196x110 chart stand-in. Both fixed; the renderer now runs `run_preflight` + `raise_if_blocked`.
+  Record: design §10.3 B2 "Status (B2 step 4)".
+- **OWNER DECISIONS WAITING (they block nothing; each is a layout question only the owner can settle):**
+  1. **No chart path exists at all.** A `graph` / `chart` / `model_3d` panel is drawn as its authored TITLE on a card,
+     not as a plot, so the worked example's graph is a card reading "I = V / R (straight line!)". `chart_build` is
+     the template that would draw it (Chart.js is vendored and B2-0 measured it order-independent).
+  2. **`mcq` in 9:16** is 16:9 only (§4.3, R-06 gives a reel two options): a reel quiz falls back today.
+  3. **A side panel in 9:16** is drawn in 16:9 only: a picture or terminal card above a step stack would push the
+     steps under R-29's floor and block preflight.
+  4. **`s5`** carries two definitions plus a `misconception` (which is `myth_fact`'s data), so no template claims it:
+     may `key_terms` carry a misconception card?
+  5. **Aadhi is in no Dynamic video.** `aadhi_intro` / `aadhi_recap` are unbuilt and the classic intro is skipped for
+     a Dynamic timeline, so the presenter never appears. `aadhi_intro` is what would bring him back.
 - **What the demo still falls back on (the owner's re-prioritised next step, 2026-10-15).** 12 of the showcase's 16
   scenes still draw `board_generic`. The owner reordered step 4 to the templates that convert the most scenes:
   **1. `full_bleed_media`** (3 `ai_video` scenes), **2. `animation_stage`** (a `simulation`), **3. side-panel support

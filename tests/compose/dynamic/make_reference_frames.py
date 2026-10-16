@@ -84,6 +84,17 @@ CHOSEN: dict[tuple[str, str], tuple[str, ...]] = {
     ("recap_retrieval", "portrait"): ("recap_retrieval.portrait.json", "recap_retrieval.portrait.hindi.json"),
     ("worked_steps", "landscape"): ("worked_steps.landscape.json", "worked_steps.landscape.light.json"),
     ("worked_steps", "portrait"): ("worked_steps.portrait.json", "worked_steps.portrait.light.json"),
+    # step 4's four (the templates the showcase's fallback scenes needed), same shape: a dark typical case plus its
+    # light / Indic case
+    ("animation_stage", "landscape"): ("animation_stage.landscape.json", "animation_stage.landscape.light.json"),
+    ("animation_stage", "portrait"): ("animation_stage.portrait.json", "animation_stage.portrait.indic.json"),
+    ("check", "landscape"): ("check.landscape.json", "check.landscape.light.json"),
+    ("check", "portrait"): ("check.portrait.json", "check.portrait.hindi.json"),
+    ("full_bleed_media", "landscape"): ("full_bleed_media.landscape.json",
+                                        "full_bleed_media.landscape.light.json"),
+    ("full_bleed_media", "portrait"): ("full_bleed_media.portrait.json", "full_bleed_media.portrait.indic.json"),
+    ("predict", "landscape"): ("predict.landscape.json", "predict.landscape.tamil.json"),
+    ("predict", "portrait"): ("predict.portrait.json", "predict.portrait.hindi.json"),
 }
 CLIP = "+clip"
 

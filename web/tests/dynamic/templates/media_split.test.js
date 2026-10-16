@@ -12,7 +12,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 
 import { installDom, uninstallDom } from '../../player/_dom.js';
 import mediaSplit, {
-  DEFAULT_VARIANT, EXIT_FACTOR, LABELS, LAYOUT, LINE_HEIGHT, MEDIA_FROM, MIN_DWELL, TEXT_ENTER, TEXT_KINDS, clipShown, landscapeColumn,
+  DEFAULT_VARIANT, EXIT_FACTOR, LABELS, LAYOUT, LINE_HEIGHT, MEDIA_FROM, MEDIA_MIN_SHARE, MIN_DWELL, TEXT_ENTER, TEXT_KINDS, clipShown, landscapeColumn,
   lineHeight, mediaOf, phraseSchedule,
   portraitBoxes, pushArea, pushTargets, splitRegions, terminalOf, texOf, textItemsOf, variantOf,
 } from '../../../js/dynamic/templates/media_split.js';
@@ -359,6 +359,27 @@ test('portraitBoxes: the phrase ends above the caption band in the column below 
   assert.equal(pushed.phrase.x0, pushed.title.x0, 'pushed too: one left edge');
   const none = portraitBoxes(/** @type {any} */ ({ ...p, title: '', board: [] }), 0, 0);
   assert.deepEqual(none.media, { x0: 60, y0: 340, x1: 1020, y1: 1040 }, 'without headline and phrase: the tall region');
+});
+
+test('portraitBoxes: an oversized phrase never collapses the medium (MEDIA_MIN_SHARE, B2 review F3)', () => {
+  const p = load('media_split.portrait.json').scenes[0];
+  const stage = REGIONS.portrait.stage;
+  const floor = Math.round((stage.y1 - stage.y0) * MEDIA_MIN_SHARE);
+  const calm = /** @type {any} */ ({ ...p, events: [] });
+  // the five-line body of the showcase's s13: before the floor the medium kept about 110 px and `containRect` drew a
+  // chart stand-in too small to read
+  for (const phraseH of [300, 400, 500, 700]) {
+    const m = portraitBoxes(calm, 60, phraseH).media;
+    assert.ok(m.y1 - m.y0 >= floor, `phrase ${phraseH}: medium ${m.y1 - m.y0} px >= ${floor}`);
+    assert.ok(m.y1 <= stage.y1, 'never below the stage');
+  }
+  // a phrase that fits its two lines leaves the medium untouched (the floor binds for no real scene: the fixtures,
+  // and templates.py MEDIA_SPLIT_PHRASE_WORDS, keep the phrase inside its region)
+  const L = LAYOUT.portrait;
+  const two = Math.ceil(2 * L.body.max * LINE_HEIGHT.body.indic);
+  const fits = portraitBoxes(calm, 60, two).media;
+  assert.equal(fits.y1, L.phraseBottom - two - L.stageGap, 'sized from the phrase, not the floor');
+  assert.ok(fits.y1 - fits.y0 > floor && (fits.y1 - fits.y0) / (stage.y1 - stage.y0) > 0.6);
 });
 
 // ---------------------------------------------------------------------------------------------

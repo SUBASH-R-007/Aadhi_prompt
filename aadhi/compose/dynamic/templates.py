@@ -427,6 +427,18 @@ TEXT_KINDS: Final = frozenset({"heading", "bullet", "paragraph", "definition", "
 STATEMENT_KINDS: Final = frozenset({"takeaway", "paragraph", "heading", "callout_info", "callout_tip",
                                     "callout_warning"})
 MEDIA_PANELS: Final = ("figure", "image", "chart", "graph", "terminal", "manim", "model_3d")
+# web/js/dynamic/templates/_shared.js PANEL_MEDIA_KINDS / 'terminal' / PANEL_TITLED_KINDS: the side panels the shared
+# panel helper draws for any template that uses it - a resolved medium, a terminal card, or (for a chart, graph or
+# model panel, which the Dynamic engine draws nowhere yet: chart_build, function_plot and model_spin are their own
+# templates, and board_generic draws none of them either) the panel's own authored title on the card surface.
+# web/tests/dynamic/templates/shared.test.js pins the JS lists to these.
+SHARED_PANEL_MEDIA: Final = ("figure", "image", "manim", "gif")
+SHARED_PANEL_TITLED: Final = ("chart", "graph", "model_3d")
+SHARED_PANELS: Final = (*SHARED_PANEL_MEDIA, "terminal", *SHARED_PANEL_TITLED)
+# _shared.js PANEL_TERM: the mono text of a side panel's terminal card per format, (min, max, weight, padding)
+# (media_split's `terminal` slot; 9:16 at weight 700, R-29: JetBrains Mono has 400 and 700 only).
+SHARED_PANEL_TERM: Final[Mapping[Format, tuple[float, float, int, int]]] = MappingProxyType(
+    {"landscape": (36.0, 44.0, 400, 32), "portrait": (40.0, 44.0, 700, 28)})
 _FORCED_TYPES: Final[tuple[tuple[type[SceneBase], Signal], ...]] = (
     (ChapterCardScene, Signal("chapter_card", "structure", "chapter_bumper", forced=True)),
     (QuizScene, Signal("quiz", "prompt", "check", forced=True)),
@@ -476,6 +488,32 @@ def _panel(scene: SceneBase) -> str | None:
     return scene.side_panel.kind if scene.side_panel is not None else None
 
 
+def _draws_panel(scene: SceneBase) -> bool:
+    """Whether ``_shared.js drawsPanel`` draws the scene's side panel: it has none, or one of :data:`SHARED_PANELS` -
+    a ``chart`` / ``graph`` / ``model_3d`` panel only when it has the title that is all the shared helper can draw for
+    it. A template whose page uses the helper must ask exactly this in its ``fit`` (B2c review CG-2: a fit that takes
+    a scene the page refuses makes the director pick the template and the page silently draw board_generic)."""
+    panel = scene.side_panel
+    if panel is None:
+        return True
+    kind = str(getattr(panel.kind, "value", panel.kind))
+    if kind not in SHARED_PANELS:
+        return False
+    if kind == "terminal":
+        return panel.terminal is not None
+    if kind in SHARED_PANEL_TITLED:
+        return bool((panel.title or "").strip())
+    return True
+
+
+def _panel_terminal_slot(width: int, fmt: Format) -> SlotSpec:
+    """The slot of a side panel's terminal card in a panel box ``width`` px wide (``_shared.js PANEL_TERM``, which
+    ``layoutPanel`` fits on the page and ``panelTexts`` reports in the ``terminal`` slot)."""
+    low, high, weight, pad = SHARED_PANEL_TERM[fmt]
+    return SlotSpec(w=width - 2 * pad, max_lines=None, size=(low, high), role="body", face="mono", weight=weight,
+                    line_height=1.35)
+
+
 def _presenter(scene: SceneBase) -> bool:
     return scene.look is not None and scene.look.presenter is not None
 
@@ -487,6 +525,13 @@ def _sequence(scene: SceneBase) -> str | None:
 def _words(text: str | None) -> int:
     """Words as the R-25 lint counts them: whitespace-delimited, a ``$TeX$`` span one word."""
     return len(_TEX.sub(" x ", text).split()) if text else 0
+
+
+def _phrase_text(item: BoardItem) -> str:
+    """A text item as one run, the way a template draws it (media_split.js ``itemString``): a definition's term joins
+    its meaning, every other kind is its text alone."""
+    term = item.term if str(getattr(item.kind, "value", item.kind)) == "definition" else None
+    return f"{term or ''} {item.text or ''}".strip()
 
 
 def _table(scene: SceneBase) -> BoardItem | None:
@@ -646,11 +691,13 @@ def _fit_hook_question(scene: SceneBase, fmt: Format) -> float:
 
 
 def _fit_key_terms(scene: SceneBase, fmt: Format) -> float:
-    # 2-4 definition items: term <= 3 words, meaning <= 8 words. key_terms.js draws no medium (drawsScene hands a
-    # scene with a panel to board_generic whole), so such a scene is not this template's (B2c review CG-2).
-    if _panel(scene) is not None:
-        return FIT_NONE
+    # 2-4 definition items: term <= 3 words, meaning <= 8 words. key_terms.js draws the scene's side panel in 16:9
+    # only, of a kind _shared.js draws, and beside at most KEY_TERMS_PANEL_MAX terms (`drawsScene`); anything else is
+    # board_generic's whole, and this fit refuses exactly what the page refuses (B2c review CG-2).
     if not _shape(scene, {"definition": (2, 4)}):
+        return FIT_NONE
+    if scene.side_panel is not None and (
+            fmt != "landscape" or not _draws_panel(scene) or len(_of(scene, "definition")) > KEY_TERMS_PANEL_MAX):
         return FIT_NONE
     return _ok(all(_words(d.term) <= 3 and _words(d.text) <= 8 for d in _of(scene, "definition")))
 
@@ -718,16 +765,34 @@ def _fit_list_build(scene: SceneBase, fmt: Format) -> float:
     return FIT_PREFERRED if _shape(scene, {"bullet": (2, None)}) else FIT_NONE
 
 
+# media_split.js LAYOUT.portrait.body: the 9:16 phrase is **two** lines of 48-64 px in a 588 px column (570 px when
+# the scene pushes). Measured with ``textfit`` on the vendored faces at the slot's minimum: six words of average
+# length fit those two lines, seven do not. A reel phrase past this is board_generic's whole - a board_generic board
+# sets its items at its own sizes, where they fit. Without the cap the page draws the item anyway, reports the excess
+# through ``texts()`` and Dynamic preflight **blocks** the render ("Shorten text", §7.12): the showcase lecture's s3
+# (a 9-word bullet) and s13 (an 11-, a 14- and a 22-word item) made a real 9:16 render of it impossible (B2 review
+# F3). 16:9 has a 3-line column of its own and is not capped. A B2 reading, pending the owner's review.
+MEDIA_SPLIT_PHRASE_WORDS: Final = 6
+
+
 def _fit_media_split(scene: SceneBase, fmt: Format) -> float:
     # <= 3 text items and a figure, image, chart, graph or terminal panel
     ok = _media_board(scene) and _panel(scene) in ("figure", "image", "chart", "graph", "terminal")
+    if ok and fmt == "portrait" and any(
+            _words(_phrase_text(i)) > MEDIA_SPLIT_PHRASE_WORDS for i in _items(scene)
+            if str(getattr(i.kind, "value", i.kind)) in TEXT_KINDS):
+        return FIT_NONE
     return FIT_PREFERRED if ok else FIT_NONE
 
 
 def _fit_full_bleed_media(scene: SceneBase, fmt: Format) -> float:
-    # forced for ai_video; on a board, an application image (an image panel) under a lower-third label (one text item)
+    # forced for ai_video; on a board, an application image (an image panel) under a lower-third label (one text item).
+    # The page draws a side panel only when the panel *is* the medium (the lower third holds the scene's words and
+    # nothing else, full_bleed_media.js `drawsScene`), so an ``ai_video`` - whose medium is its own footage or still -
+    # carrying a panel beside it is board_generic's whole, which draws that panel's card. Without this the forced
+    # ``ai_video`` row wins and the panel's content disappears from the video (CG-2 parity, never drop content).
     if isinstance(scene, AIVideoScene):
-        return FIT_PREFERRED
+        return FIT_NONE if scene.side_panel is not None else FIT_PREFERRED
     ok = _media_board(scene) and _panel(scene) == "image" and sum(
         n for k, n in _kinds(scene).items() if k in TEXT_KINDS) <= 1 and not _of(scene, "figure")
     return FIT_PREFERRED if ok else FIT_NONE
@@ -805,8 +870,11 @@ def _fit_worked_steps(scene: SceneBase, fmt: Format) -> float:
     # ``callout_info``, so without this the demo's worked examples would all fall back to board_generic). At most one
     # of the three: two such items send the scene to board_generic (B2 reading, pending the owner's review).
     # ``_worked_shape`` is the §4.4 ``example`` row's own question, so the row and this fit never drift apart (D1).
-    # the page draws no side panel either (worked_steps.js drawsScene), so such a scene is board_generic's (CG-2)
-    if _panel(scene) is not None:
+    # The page draws the scene's side panel in 16:9 only, never beside a formula card (the right 45% holds one
+    # visual) and only of a kind _shared.js draws (worked_steps.js `drawsScene`); anything else is board_generic's
+    # whole (CG-2).
+    if scene.side_panel is not None and (
+            fmt != "landscape" or _kinds(scene).get("formula", 0) > 0 or not _draws_panel(scene)):
         return FIT_NONE
     return FIT_PREFERRED if _worked_shape(scene) else FIT_NONE
 
@@ -842,9 +910,17 @@ def _fit_model_spin(scene: SceneBase, fmt: Format) -> float:
 
 
 def _fit_animation_stage(scene: SceneBase, fmt: Format) -> float:
-    # forced for simulation scenes; a manim panel beside <= 3 text items on a board
+    # forced for simulation scenes; a manim panel beside <= 3 text items on a board.
+    # animation_stage.js draws the animation, the title and the step labels and nothing else (``drawsScene``), so a
+    # board carrying a ``figure`` item - whose own medium it does not lay out - is spotlight_image's / board_generic's
+    # whole (the CG-2 parity rule: the Python fit must refuse what the page refuses).
+    # The page draws a side panel only when the panel *is* the animation (a ``manim`` panel), so a ``simulation`` -
+    # whose medium is its own Manim render - carrying a panel beside it is board_generic's whole, which draws that
+    # panel's card. Without this the forced ``simulation`` row wins and the panel's content disappears.
     if isinstance(scene, SimulationScene):
-        return FIT_PREFERRED
+        return FIT_NONE if scene.side_panel is not None else FIT_PREFERRED
+    if _of(scene, "figure"):
+        return FIT_NONE
     return FIT_PREFERRED if _media_board(scene) and _panel(scene) == "manim" else FIT_NONE
 
 
@@ -868,6 +944,10 @@ def _blank_question(scene: SceneBase) -> bool:
 
 
 def _fit_predict(scene: SceneBase, fmt: Format) -> float:
+    # predict.js draws no medium (drawsScene hands such a scene to board_generic whole), so a scene with a side panel
+    # is not this template's (B2c review CG-2, B2-demo review D5)
+    if _panel(scene) is not None:
+        return FIT_NONE
     return FIT_PREFERRED if _blank_question(scene) else FIT_NONE
 
 
@@ -876,8 +956,16 @@ CHECK_MAX_OPTIONS: Final[Mapping[Format, int]] = MappingProxyType({"landscape": 
 
 
 def _fit_check(scene: SceneBase, fmt: Format) -> float:
-    if isinstance(scene, QuizScene):  # forced: never 0 on a quiz
-        return _ok(len(scene.options) <= CHECK_MAX_OPTIONS[fmt])
+    # §4.3 gives a check no picture and check.js draws none (its ``mediaBox`` returns null), so a scene carrying a
+    # side panel is board_generic's whole (B2-demo review D5). §4.3 gives `mcq` to 16:9 only and 9:16 two options
+    # (CHECK_MAX_OPTIONS; R-06: a reel's check is free recall or true / false), and check.js hands a quiz past that
+    # cap to board_generic - whose stack compacts and collapses the cards, so nothing is dropped - which the fit must
+    # refuse too, forced or not (B2c review CG-2): a stretched score would have the director plan `check` for a scene
+    # the page then draws with board_generic, and B2e would store `text_fit` for slots the page never lays out.
+    if _panel(scene) is not None:
+        return FIT_NONE
+    if isinstance(scene, QuizScene):
+        return FIT_PREFERRED if len(scene.options) <= CHECK_MAX_OPTIONS[fmt] else FIT_NONE
     return FIT_PREFERRED if _blank_question(scene) else FIT_NONE
 
 
@@ -1095,6 +1183,53 @@ def _media_split_slots() -> SlotTable:
     return MappingProxyType(out)
 
 
+# --- full_bleed_media's slots: web/js/dynamic/templates/full_bleed_media.js LAYOUT, labelBox() and slotRows();
+# full_bleed_media.test.js pins the catalogue's rows to slotRows. The lower third is the whole critical width in 16:9
+# and, in 9:16, the part both critical bands hold (the headline's left edge to the rail), so one width per format and
+# one "default" variant (§4.3 gives this template no variant).
+def _full_bleed_media_slots() -> SlotTable:
+    land_w = zn.REGIONS["landscape"]["full"].w                                                   # 1728
+    port_w = zn.REGIONS["portrait"]["text-below"].x1 - zn.REGIONS["portrait"]["headline"].x0     # 588
+
+    def label(w: int, size: tuple[float, float]) -> SlotSpec:
+        return SlotSpec(w=w, max_lines=2, size=size, role="title", face="display", weight=700, line_height=1.05,
+                        tracking_em=-0.015, prefer_lines=1)
+
+    def sub(w: int, size: tuple[float, float], weight: int) -> SlotSpec:
+        # 9:16 at weight 700: R-29 asks >= 600 at or below 64 px
+        return SlotSpec(w=w, max_lines=2, size=size, role="label", face="body", weight=weight, line_height=1.35)
+
+    return MappingProxyType({
+        "label": MappingProxyType({"landscape": MappingProxyType({"default": label(land_w, (64, 96))}),
+                                   "portrait": MappingProxyType({"default": label(port_w, (56, 88))})}),
+        "sub": MappingProxyType({"landscape": MappingProxyType({"default": sub(land_w, (40, 52), 600)}),
+                                 "portrait": MappingProxyType({"default": sub(port_w, (44, 56), 700)})}),
+    })
+
+
+# --- animation_stage's slots (B2 R1): web/js/dynamic/templates/animation_stage.js LAYOUT, LINE_HEIGHT and boxes();
+# animation_stage.test.js pins the catalogue's rows to them. The widths are the boxes the title and the step label are
+# laid out in: 16:9 the critical box (x 96-1824), 9:16 the headline region (x 192-888) and the lower critical text
+# column (x 192-780). The sizes are B2 proposals pending the owner's review: below R-29's nominal heading / body
+# ranges and above its floors, as deviation 31 allows.
+def _animation_stage_slots() -> SlotTable:
+    wide = zn.REGIONS["landscape"]["full"].w            # 1728
+    headline = zn.REGIONS["portrait"]["headline"].w     # 696
+    column = zn.ZONES["portrait"].text_column.w         # 588
+    title_l = SlotSpec(w=wide, max_lines=2, size=(64, 88), role="title", face="display", weight=700,
+                       line_height=1.15, prefer_lines=1)
+    label_l = SlotSpec(w=wide, max_lines=2, size=(44, 56), role="label", face="body", weight=700, line_height=1.35)
+    title_p = SlotSpec(w=headline, max_lines=2, size=(56, 88), role="title", face="display", weight=700,
+                       line_height=1.15, prefer_lines=1)
+    label_p = SlotSpec(w=column, max_lines=2, size=(48, 64), role="label", face="body", weight=700, line_height=1.35)
+    return MappingProxyType({
+        "title": MappingProxyType({"landscape": MappingProxyType({"default": title_l}),
+                                   "portrait": MappingProxyType({"default": title_p})}),
+        "label": MappingProxyType({"landscape": MappingProxyType({"default": label_l}),
+                                   "portrait": MappingProxyType({"default": label_p})}),
+    })
+
+
 # --- list_build's slots (B2c): web/js/dynamic/templates/list_build.js LAYOUT, PAD, boxes() and slotRows();
 # list_build.test.js pins the catalogue's rows to slotRows. The 16:9 "default" variant is the split layout (the
 # narrower boxes: a size fitted there is an upper bound for the centred one too).
@@ -1253,6 +1388,10 @@ def _hook_question_slots() -> SlotTable:
 KEY_TERMS_PAD: Final[Mapping[Format, int]] = MappingProxyType({"landscape": 32, "portrait": 0})
 KEY_TERMS_CARDS_MAX: Final = 4  # §4.3: 2-4 cards in a row
 KEY_TERMS_MEANING_WEIGHT: Final[Mapping[Format, int]] = MappingProxyType({"landscape": 400, "portrait": 600})
+# key_terms.js PANEL_TERMS_MAX: how many terms may stand beside the scene's panel in 16:9 (two cards in the left 55%
+# are 457 px wide, above the 414 px the slot sizes were fitted against; three would be 296 px, which R-29's 48 px
+# term floor cannot be set in).
+KEY_TERMS_PANEL_MAX: Final = 2
 
 
 def _key_terms_slots() -> SlotTable:
@@ -1276,6 +1415,10 @@ def _key_terms_slots() -> SlotTable:
                  "portrait": {"default": term(port, (44, 64))}},
         "meaning": {"landscape": {"default": meaning(land, (40, 48), KEY_TERMS_MEANING_WEIGHT["landscape"])},
                     "portrait": {"default": meaning(port, (40, 48), KEY_TERMS_MEANING_WEIGHT["portrait"])}},
+        # the terminal card of a side panel (16:9 only: 9:16 draws no panel), mono, in the panel's own box less its
+        # padding; _shared.js layoutPanel fits it on the page and panelTexts reports it in this slot
+        "terminal": {"landscape": {"default": _panel_terminal_slot(zn.REGIONS["landscape"]["right-45"].w,
+                                                                   "landscape")}},
     }
     return MappingProxyType({slot: MappingProxyType({f: MappingProxyType(v) for f, v in per.items()})
                              for slot, per in out.items()})
@@ -1325,6 +1468,114 @@ def _recap_retrieval_slots() -> SlotTable:
             "tile": spec(tile, tile_text, "body", "body", 1.35),
             "ring": spec((ring_num, ring_num, 1, 1, 700), ring_px, "label", "body", 1.3,
                          critical=False, tabular=True),
+        }
+
+    land, port = table("landscape"), table("portrait")
+    return MappingProxyType({slot: MappingProxyType({
+        "landscape": MappingProxyType({"default": land[slot]}),
+        "portrait": MappingProxyType({"default": port[slot]}),
+    }) for slot in land})
+
+
+# --- check's slots (B2 demo): web/js/dynamic/templates/check.js LAYOUT and boxes(). A tile's padding, the gap between
+# the block's parts, the think ring's box and its number's size, the letter column a tile keeps whether or not it
+# draws one, and the 16:9 tile (two fixed columns of the content box: (1728 - 24) / 2).
+CHECK_PAD: Final[Mapping[Format, int]] = MappingProxyType({"landscape": 24, "portrait": 16})
+CHECK_GAP: Final[Mapping[Format, int]] = MappingProxyType({"landscape": 24, "portrait": 16})
+CHECK_RING: Final[Mapping[Format, tuple[int, int]]] = MappingProxyType({"landscape": (120, 40), "portrait": (96, 44)})
+CHECK_BADGE: Final[Mapping[Format, int]] = MappingProxyType({"landscape": 48, "portrait": 44})
+CHECK_TILE_W: Final = 852
+
+
+def _check_slots() -> SlotTable:
+    """check's slots, variant ``default``: a check's layout is a function of its data (how many options it has),
+    never of the stored variant, so a stored variant can never disagree with the box the page lays text out in
+    (review D7). ``label`` sits at the top left of the band, left of the think ring; ``question`` and ``explain``
+    take the block's full width; ``option`` is a tile less its padding, its letter column and the room the ``ok``
+    check needs (both kept whether or not they are drawn, so the stored width is the one the page lays out);
+    ``ring`` is the countdown's number in the ring's box, never critical (R-07: the think time is the ring itself).
+    check.test.js pins this table to the template's own ``slotRows``."""
+    def table(fmt: Format) -> dict[str, SlotSpec]:
+        pad, gap = CHECK_PAD[fmt], CHECK_GAP[fmt]
+        ring_px, ring_num = CHECK_RING[fmt]
+        badge = CHECK_BADGE[fmt]
+        col = zn.ZONES["portrait"].text_column if fmt == "portrait" else zn.ZONES["landscape"].body
+        if fmt == "landscape":
+            label, question = (40, 40, 1, 1, 600), (56, 72, 3, 2, 700)
+            option, explain = (40, 48, 2, 1, 600), (40, 48, 2, 1, 400)
+            tile_w = CHECK_TILE_W                                           # 852
+        else:
+            label, question = (44, 44, 1, 1, 600), (48, 60, 4, 3, 700)
+            option, explain = (40, 44, 2, 1, 600), (40, 44, 2, 1, 600)
+            tile_w = col.w                                                  # 588
+        label_w = col.x1 - ring_px - gap - col.x0                           # 1584 / 476
+        option_w = tile_w - 2 * pad - 2 * (badge + gap)                     # 660 / 436
+
+        def spec(s: tuple[int, int, int, int | None, int], w: int, role: str, face: FaceRole, lh: float, *,
+                 critical: bool = True, tabular: bool = False) -> SlotSpec:
+            return SlotSpec(w=w, max_lines=s[2], size=(s[0], s[1]), role=role, face=face, weight=s[4],
+                            line_height=lh, prefer_lines=s[3], critical=critical, tabular_nums=tabular)
+
+        return {
+            "label": spec(label, label_w, "label", "body", 1.3),
+            "question": spec(question, col.w, "title", "display", 1.15),
+            "option": spec(option, option_w, "body", "body", 1.35),
+            "explain": spec(explain, col.w, "body", "body", 1.35),
+            "ring": spec((ring_num, ring_num, 1, 1, 700), ring_px, "label", "body", 1.3,
+                         critical=False, tabular=True),
+        }
+
+    land, port = table("landscape"), table("portrait")
+    return MappingProxyType({slot: MappingProxyType({
+        "landscape": MappingProxyType({"default": land[slot]}),
+        "portrait": MappingProxyType({"default": port[slot]}),
+    }) for slot in land})
+
+
+# --- predict's slots (R1 step 4): web/js/dynamic/templates/predict.js LAYOUT, boxes() and chipBox(). The card's
+# padding, the think ring's box and its number's size, and the "Your prediction?" chip of the explaining scene (its
+# text size, its horizontal padding and the widest it may be).
+PREDICT_PAD: Final[Mapping[Format, int]] = MappingProxyType({"landscape": 32, "portrait": 24})
+PREDICT_RING: Final[Mapping[Format, tuple[int, int]]] = MappingProxyType({"landscape": (120, 40),
+                                                                          "portrait": (96, 44)})
+PREDICT_CHIP: Final[Mapping[Format, tuple[int, int, int]]] = MappingProxyType({"landscape": (40, 24, 720),
+                                                                               "portrait": (44, 20, 420)})
+
+
+def _predict_slots() -> SlotTable:
+    """predict's slots, variant ``default`` (§4.3 gives the template no look variant). ``label`` sits on the background
+    above the card; ``question`` and ``prompt`` ("Pause and predict") share the card's text box; ``ring`` is the think
+    ring's number, never critical (R-07: the think time is the ring itself); ``chip`` is the "Your prediction?" line
+    the explaining scene carries (``predict.js buildChip``), one line and never critical - a reminder of another
+    scene's words, cut with an ellipsis as board_generic's kicker is. predict.test.js pins this table to the
+    template's own ``slotRows``."""
+    def table(fmt: Format) -> dict[str, SlotSpec]:
+        pad = PREDICT_PAD[fmt]
+        ring_px, ring_num = PREDICT_RING[fmt]
+        chip_px, chip_pad, chip_max = PREDICT_CHIP[fmt]
+        if fmt == "landscape":
+            card_w = zn.REGIONS["landscape"]["centre-60"].w                     # 1036
+            # the question comes down to 64 px rather than take a fourth line: the card holds three plus the
+            # instruction and the think ring (predict.js LAYOUT)
+            label, question, prompt = (40, 40, 1, 1, 600), (64, 96, 3, 2, 700), (40, 40, 1, 1, 600)
+        else:
+            card_w = zn.ZONES["portrait"].text_column.w                         # 588
+            label, question, prompt = (44, 44, 1, 1, 600), (56, 64, 3, 2, 700), (44, 44, 1, 1, 600)
+        card_text = card_w - 2 * pad
+        chip_w = min(chip_max, zn.ZONES[fmt].header.w) - 2 * chip_pad
+
+        def spec(s: tuple[int, int, int, int | None, int], w: int, role: str, face: FaceRole, lh: float, *,
+                 critical: bool = True, tabular: bool = False) -> SlotSpec:
+            return SlotSpec(w=w, max_lines=s[2], size=(s[0], s[1]), role=role, face=face, weight=s[4],
+                            line_height=lh, prefer_lines=s[3], critical=critical, tabular_nums=tabular)
+
+        return {
+            "label": spec(label, card_w, "label", "body", 1.3),
+            "question": spec(question, card_text, "title", "display", 1.15),
+            "prompt": spec(prompt, card_text, "label", "body", 1.3),
+            "ring": spec((ring_num, ring_num, 1, 1, 700), ring_px, "label", "body", 1.3,
+                         critical=False, tabular=True),
+            "chip": spec((chip_px, chip_px, 1, 1, 600), chip_w, "label", "body", 1.3, critical=False),
         }
 
     land, port = table("landscape"), table("portrait")
@@ -1393,6 +1644,8 @@ def _worked_steps_slots() -> SlotTable:
                                                   "label", 2)},
                     "portrait": {"default": body(card_p, WORKED_WHY["portrait"], WORKED_WEIGHT["portrait"],
                                                  "label", 2)}},
+        # the terminal card of a side panel (16:9 only: 9:16 draws no panel), in the right-45 box less its padding
+        "terminal": {"landscape": {"default": _panel_terminal_slot(regions["right-45"].w, "landscape")}},
     }
     return MappingProxyType({slot: MappingProxyType({f: MappingProxyType(v) for f, v in per.items()})
                              for slot, per in out.items()})
@@ -1453,8 +1706,12 @@ _SPECS: Final[tuple[TemplateSpec, ...]] = (
     # template in 9:16, not its length, so a 9:16 key-terms scene keeps the same per-term range (A2 reading, pending
     # owner review)
     TemplateSpec("key_terms", "definition", False, "R1", _d((3.0, 4.0), per_item=True),
-                 _c(("reveal", "draw", "cue_term"), ("item", "item:term"),
-                    {"reveal": ("item",), "draw": ("item",)}),
+                 # the shared panel helper adds the panel's cues and its `output` beat (_shared.js panelFocusRect):
+                 # cue_term is narrowed explicitly now that `targets` is wider (B2c review CG-5)
+                 _c(("reveal", "draw", "cue_term", "look_here", "output"),
+                    ("item", "item:term", "panel", "panel:row"),
+                    {"reveal": ("item",), "draw": ("item",), "cue_term": ("item", "item:term"),
+                     "look_here": ("panel", "panel:row"), "output": ("panel",)}),
                  _fit_key_terms, implemented=True, slots=_key_terms_slots()),
     TemplateSpec("chapter_bumper", "structure", False, "R1", _d((2.0, 3.0), (1.2, 1.8)), _c(()), _fit_chapter_bumper,
                  forced_for=("chapter_card",), implemented=True, slots=_chapter_bumper_slots()),
@@ -1489,8 +1746,11 @@ _SPECS: Final[tuple[TemplateSpec, ...]] = (
                     {"reveal": ("item",), "cue_term": ("item", "item:term"), "output": ("panel",)}),
                  _fit_media_split, implemented=True, variants=_v(("media_left", "media_right"), ()), holds=_DIAGRAM,
                  push_ok=True, slots=_media_split_slots()),
-    TemplateSpec("full_bleed_media", "media", True, "R1", _d((3.0, 12.0)), _c(("reveal",)), _fit_full_bleed_media,
-                 forced_for=("ai_video",)),
+    # not push_ok: the medium fills the frame and a clip is never scaled or pushed (cues.js showsClip, B2c
+    # deviation 28); a still's own move is its stored Ken Burns, which media.js paints
+    TemplateSpec("full_bleed_media", "media", True, "R1", _d((3.0, 12.0)),
+                 _c(("reveal",), ("item",), {"reveal": ("item",)}), _fit_full_bleed_media,
+                 forced_for=("ai_video",), implemented=True, slots=_full_bleed_media_slots()),
     TemplateSpec("spotlight_image", "media", True, "W2", _d((6.0, 12.0)),
                  _c(("reveal", "look_here"), ("item", "panel")), _fit_spotlight_image, holds=_DIAGRAM, push_ok=True),
     TemplateSpec("diagram_build", "media", True, "W2", _d((8.0, 30.0)), _c(("draw", "reveal", "look_here")), _never,
@@ -1516,9 +1776,12 @@ _SPECS: Final[tuple[TemplateSpec, ...]] = (
                     {"reveal": ("item",), "var": ("item:var",), "draw": ("item",)}), _fit_formula_focus,
                  implemented=True, holds=("formula",), dense=True, slots=_formula_focus_slots()),
     TemplateSpec("worked_steps", "procedure", True, "R1", _d((15.0, 45.0), (10.0, 30.0)),
-                 _c(("reveal", "fill", "countdown", "look_here"), ("item", "item:var", "item:step"),
+                 # the shared panel helper adds the panel's own look_here targets and its `output` beat
+                 _c(("reveal", "fill", "countdown", "look_here", "output"),
+                    ("item", "item:var", "item:step", "panel", "panel:row"),
                     {"reveal": ("item",), "fill": ("item",), "countdown": ("item",),
-                     "look_here": ("item", "item:var", "item:step")}), _fit_worked_steps,
+                     "look_here": ("item", "item:var", "item:step", "panel", "panel:row"),
+                     "output": ("panel",)}), _fit_worked_steps,
                  implemented=True, holds=("formula", "think"), dense=True, slots=_worked_steps_slots()),
     TemplateSpec("code_walkthrough", "code", True, "R1", _d((10.0, 30.0), (8.0, 20.0)),
                  _c(("reveal", "look_here", "output"), ("item", "item:line", "panel")), _fit_code_walkthrough,
@@ -1531,17 +1794,28 @@ _SPECS: Final[tuple[TemplateSpec, ...]] = (
                  _fit_function_plot, holds=_DIAGRAM),
     TemplateSpec("model_spin", "media", True, "W2", _d((6.0, 25.0)), _c(("look_here",), ("panel",)), _fit_model_spin,
                  holds=_DIAGRAM),
-    TemplateSpec("animation_stage", "media", True, "R1", _d((8.0, 40.0)), _c(()), _fit_animation_stage,
-                 forced_for=("simulation",)),
+    # the label's item takes a term cue; look_here points at a label or at the animation's frame (`panel`). push_ok
+    # stays False: a clip is never scaled (deviation 28), so its look_here keeps the outline form.
+    TemplateSpec("animation_stage", "media", True, "R1", _d((8.0, 40.0)),
+                 _c(("reveal", "cue_term", "look_here"), ("item", "item:term", "panel"),
+                    {"reveal": ("item",), "cue_term": ("item", "item:term"), "look_here": ("item", "panel")}),
+                 _fit_animation_stage, implemented=True, forced_for=("simulation",),
+                 slots=_animation_stage_slots()),
     # C. Practice and consolidation
     TemplateSpec("myth_fact", "refutation", False, "R1", _d((8.0, 14.0), (6.0, 10.0)),
                  _c(("reveal", "draw", "answer")), _fit_myth_fact),
-    TemplateSpec("predict", "prompt", False, "R1", _d((6.0, 12.0), (5.0, 9.0)), _c(("reveal", "countdown")),
-                 _fit_predict, holds=_THINK),
+    # the cue_term reaches a single term of the question (``<item>:term:<n>``) as well as all of them; a reveal and a
+    # countdown are the whole item (B2c review CG-5: the forms are per kind). §4.3 gives predict no look variant, and
+    # push_ok stays false (R-07: the think ring never moves).
+    TemplateSpec("predict", "prompt", False, "R1", _d((6.0, 12.0), (5.0, 9.0)),
+                 _c(("reveal", "countdown", "cue_term"), ("item", "item:term"),
+                    {"reveal": ("item",), "countdown": ("item",), "cue_term": ("item", "item:term")}),
+                 _fit_predict, implemented=True, holds=_THINK, slots=_predict_slots()),
     TemplateSpec("check", "prompt", False, "R1", _d((15.0, 30.0), (10.0, 18.0)),
                  _c(("reveal", "countdown", "answer"), ("item", "option")), _fit_check,
                  variants=_v(("mcq", "free_recall", "true_false", "apply"), ("free_recall", "true_false")),
-                 forced_for=("quiz_checkpoint",), holds=_THINK),
+                 forced_for=("quiz_checkpoint",), holds=_THINK,
+                 implemented=True, slots=_check_slots()),
     TemplateSpec("takeaway_stamp", "statement", False, "W2", _d((4.0, 7.0)), _c(("reveal",)), _fit_takeaway_stamp),
     TemplateSpec("quote_card", "statement", False, "W2", _d((5.0, 8.0)), _c(("reveal",)), _fit_quote_card),
     TemplateSpec("checklist", "completion", False, "W2", _d((8.0, 20.0)), _c(("reveal", "draw")), _fit_checklist),

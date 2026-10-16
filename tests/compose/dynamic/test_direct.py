@@ -52,9 +52,10 @@ def _one(scene, **kw):  # type: ignore[no-untyped-def]
 def test_only_implemented_r1_templates_of_the_format_are_candidates(fmt) -> None:  # type: ignore[no-untyped-def]
     ids = direct.candidates(fmt)
     assert set(ids) == {t for t, s in tp.TEMPLATES.items() if s.implemented and s.release == "R1" and fmt in s.formats}
-    # B1's, B2c's three pilots and the demo phase's six
-    assert set(ids) == {"board_generic", "chapter_bumper", "definition_card", "formula_focus", "hook_question",
-                        "key_terms", "list_build", "media_split", "recap_retrieval", "worked_steps"}
+    # B1's, B2c's three pilots, the demo phase's six and step 4's four
+    assert set(ids) == {"animation_stage", "board_generic", "chapter_bumper", "check", "definition_card",
+                        "formula_focus", "full_bleed_media", "hook_question", "key_terms", "list_build",
+                        "media_split", "predict", "recap_retrieval", "worked_steps"}
     for tid in ids:
         assert direct.candidate(tid, fmt) is tp.TEMPLATES[tid]
     assert direct.candidate("kinetic_statement", fmt) is None  # R1, not built yet

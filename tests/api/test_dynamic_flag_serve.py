@@ -199,7 +199,8 @@ def _marked(served: dict[str, Any]) -> bool:
 
 def test_an_older_look_engine_is_served_rebuilt(app_env) -> None:
     """A stored engine_version 1 timeline of the current revision is served as the render job would build it now
-    (engine 2, with the derived structure colours), on every serving path; the stored document is left alone."""
+    (the current generation, with the derived structure colours), on every serving path; the stored document is left
+    alone."""
     from aadhi.compose.dynamic import themes
     from aadhi.compose.presentation import ENGINE_VERSION
     from aadhi.compose.timeline import build_timeline
@@ -208,7 +209,7 @@ def test_an_older_look_engine_is_served_rebuilt(app_env) -> None:
         pid, vid, stored = _store_engine(harness, engine=1)
         c = harness.login("alice")
         served = c.get(f"/api/versions/{vid}/timeline").json()
-        assert served["presentation"]["engine_version"] == ENGINE_VERSION == 3 and not _marked(served)
+        assert served["presentation"]["engine_version"] == ENGINE_VERSION == 4 and not _marked(served)
         assert all(tuple(s["look"]["tokens"]) == themes.SCENE_TOKEN_KEYS for s in served["scenes"])
         with harness.db() as db:
             row = db.get(ProjectVersion, vid)
@@ -225,7 +226,8 @@ def test_an_older_look_engine_is_served_rebuilt(app_env) -> None:
             assert other["presentation"]["engine_version"] == ENGINE_VERSION and not _marked(other)
 
 
-@pytest.mark.parametrize(("engine", "stale"), [(3, False), (4, False), (1, True), (2, True), (None, False)])
+@pytest.mark.parametrize(("engine", "stale"), [(4, False), (5, False), (1, True), (2, True), (3, True),
+                                               (None, False)])
 def test_other_builds_are_served_as_stored(app_env, engine: int | None, stale: bool) -> None:
     """Served exactly as stored: a current-generation build; one of a newer generation (the stage refuses it with
     timeline_invalid rather than a downgrade here); a stale build of the previous revision (served as built, as with
@@ -245,13 +247,13 @@ def test_the_etag_changes_with_the_look_engine(app_env, monkeypatch: pytest.Monk
     from aadhi.api import timelines
 
     with running(app_env, dynamic=True) as harness:
-        _, vid, _ = _store_engine(harness, engine=3)
+        _, vid, _ = _store_engine(harness, engine=4)
         c = harness.login("alice")
         first = c.get(f"/api/versions/{vid}/timeline")
         etag = first.headers["etag"]
         assert _marked(first.json())
         assert c.get(f"/api/versions/{vid}/timeline", headers={"If-None-Match": etag}).status_code == 304
-        monkeypatch.setattr(timelines, "ENGINE_VERSION", 4)
+        monkeypatch.setattr(timelines, "ENGINE_VERSION", 5)
         after = c.get(f"/api/versions/{vid}/timeline", headers={"If-None-Match": etag})
         assert after.status_code == 200 and after.headers["etag"] != etag
-        assert not _marked(after.json()), "the stored generation 3 is now older: rebuilt"
+        assert not _marked(after.json()), "the stored generation 4 is now older: rebuilt"

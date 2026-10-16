@@ -13,7 +13,7 @@
  */
 
 /** The newest look-engine generation this stage draws (aadhi/compose/presentation.py ENGINE_VERSION). */
-export const ENGINE_VERSION = 3;
+export const ENGINE_VERSION = 4;
 
 /**
  * A timeline's look-engine generation, read as aadhi/api/timelines.py `built_engine` reads it: an integer >= 1 is

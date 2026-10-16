@@ -21,6 +21,10 @@
  *   schema's pattern and caps (the `LookIcon` model of aadhi.schemas.timeline and its JSON schema in web/schemas),
  *   path data set with setAttribute only.
  * - Media (§7.7, §P): `mediaAspect`, `containRect`, `pushHeadroom` (a push_ok template's picture box), `paintMedia`.
+ * - Side panels (§4.3 "the scene's panel", B2-demo): `panelOf` / `drawsPanel` (which panels a template may claim, the
+ *   one question its Python `fit` must mirror), `buildPanel` / `layoutPanel` / `paintPanel` and the geometry and
+ *   reporting hooks `panelFocusRect` / `panelTexts` / `panelMediaBox` - the three forms board_generic and media_split
+ *   already draw (a medium, a terminal card, the panel's title on the card surface) and nothing else.
  * - Formula tints (§4.7 entity colours, §P (g)): `tintTex` wraps each symbol of a formula in a `\color` placeholder,
  *   `tintTargets` finds the placeholder's SVG groups after MathJax, `paintTint` colours them per frame.
  * Everything a template paints per frame goes through `ctx.paint` (the frame key); build- and layout-time placement
@@ -34,7 +38,9 @@ import { composite, contrastRatio } from '../../motion/color.js';
 import { splitWords } from '../../motion/text.js';
 import { mountTex, parseRich, renderRich } from '../../player/richtext.js';
 import { icon } from '../../player/icons.js';
-import { GRID, LAYOUT_TOKENS, REGIONS, TYPE_FLOORS, fixesOf, fx, templateSlots } from '../core.js';
+import { planScene } from '../../player/schedule.js';
+import { GRID, LAYOUT_TOKENS, REGIONS, TYPE_FLOORS, fixesOf, fx, parseTarget, templateSlots } from '../core.js';
+import { shownIn } from '../media.js';
 import { itemStateStyle } from '../state.js';
 import { PUSH_SCALE_MAX } from '../cues.js';
 
@@ -42,6 +48,7 @@ import { PUSH_SCALE_MAX } from '../cues.js';
 /** @typedef {import('../core.js').Box} Box */
 /** @typedef {import('../core.js').SlotSpec} SlotSpec */
 /** @typedef {import('../../shared/types.js').MediaRef} MediaRef */
+/** @typedef {import('../../shared/types.js').TimedScene} TimedScene */
 
 // ---------------------------------------------------------------------------------------------
 // Geometry (the catalogue's zones, regions, grid and layout tokens; plan §1.1)
@@ -628,6 +635,356 @@ export function pushHeadroom(box) {
  */
 export function paintMedia(ctx, view, t) {
   view.update(ctx.paint, t, ctx.frameInfo || {});
+}
+
+// ---------------------------------------------------------------------------------------------
+// Side panels (§4.3 "the scene's panel", §7.7; the B2-demo side-panel slice: one helper for every template that
+// shows a scene's side panel beside its own content, so a panel is drawn, timed, pointed at and reported the same
+// way everywhere)
+//
+// It draws exactly the three panel forms `board_generic` (the fallback, which must be able to draw every scene
+// whole) and `media_split` already draw, and nothing else:
+//
+// 1. a **medium** (`PANEL_MEDIA_KINDS`: the `figure` / `image` / `manim` / `gif` panels the resolver gives a
+//    `ResolvedSidePanel.media`, `compose.timeline._panel_media`), contained in the panel's box at its own aspect;
+// 2. a **terminal card** (`terminal`): the command and the output lines the classic panel's schedule reveals
+//    (`player/schedule.js planScene`, `SceneState.terminalLines`), mono, on the card surface;
+// 3. the panel's **title** on the card surface, for a panel whose own content this mode cannot show - a GIF in the
+//    MP4, an unsafe URL (`media.shownIn`; board_generic's `.dyn-media-missing`, media_split's `MISSING_LABEL_PX`,
+//    list_build's `.dyn-lb-missing`) - and for the `PANEL_TITLED_KINDS`, whose stored spec the Dynamic engine draws
+//    nowhere yet (`chart` is Chart.js's `chart_build`, `graph` is `function_plot`, `model_3d` is `model_spin`: none
+//    of them implemented, and board_generic draws none of them either, so there is no chart or plot path to reuse
+//    and this slice invents none). Such a panel is only claimed when it HAS a title (`panelOf` gives null
+//    otherwise): the authored caption is content worth drawing, an empty card is not.
+//
+// Every other kind (`skill_tree`, `quiz`) is nobody's here: `panelOf` gives null, `drawsPanel` is false and the
+// template hands the whole scene to board_generic (B2c review CG-2 - a template's Python `fit` must refuse exactly
+// what its JS refuses, or the director picks it and the page silently draws board_generic).
+// ---------------------------------------------------------------------------------------------
+
+/** Panel kinds whose content is a resolved medium (board_generic's `mediaOf` slot `panel`). */
+export const PANEL_MEDIA_KINDS = Object.freeze(['figure', 'image', 'manim', 'gif']);
+/** Panel kinds the Dynamic engine draws nowhere yet: shown as the panel's own title on the card surface. */
+export const PANEL_TITLED_KINDS = Object.freeze(['chart', 'graph', 'model_3d']);
+/** Every panel kind this helper draws (templates.py `SHARED_PANELS` mirrors it, pinned by the templates' tests). */
+export const PANEL_KINDS = Object.freeze([...PANEL_MEDIA_KINDS, 'terminal', ...PANEL_TITLED_KINDS]);
+/** A panel shown from the scene's start enters this long after it (board_generic's media frame, 200 ms). */
+export const PANEL_DELAY = 0.2;
+/** A panel's entrance (§4.3 media_split's 500 ms, as a fade and rise; a clip only ever fades, see `paintPanel`). */
+export const PANEL_ENTER = 0.5;
+/** How far a panel rises in (board_generic's and media_split's media frame, §4.8). */
+export const PANEL_RISE = 24;
+/** The panel's title on the card surface (board_generic's `.dyn-media-missing`, media_split's MISSING_LABEL_PX). */
+export const PANEL_LABEL_PX = Object.freeze({ landscape: 52, portrait: 48 });
+/** A terminal card's mono text and padding per format (media_split's `terminal` slot: 9:16 at weight 700, R-29,
+ * since JetBrains Mono has 400 and 700 only). */
+export const PANEL_TERM = Object.freeze({
+  landscape: Object.freeze({ max: 44, min: 36, lh: 1.35, weight: 400, pad: 32 }),
+  portrait: Object.freeze({ max: 44, min: 40, lh: 1.35, weight: 700, pad: 28 }),
+});
+/** The slot a terminal card's text is reported in (media_split's name, so preflight's remedies read the same). */
+export const PANEL_TERM_SLOT = 'terminal';
+
+/**
+ * What `panelOf` describes: the panel as this helper draws it.
+ * @typedef {object} PanelPlan
+ * @property {string} kind            the stored `SidePanel.kind`
+ * @property {'media' | 'terminal' | 'label'} draw   which of the three forms above
+ * @property {MediaRef | null} ref    its medium, kept even when this mode cannot show it (the panel is laid out at
+ *                                    its aspect either way, so the live player and the MP4 share one layout)
+ * @property {boolean} shown          `media.shownIn`: this mode can show `ref`
+ * @property {string} title           the panel's title, else the scene's (never empty)
+ * @property {number} start           scene-relative second the panel appears (`ResolvedSidePanel.show_at`)
+ * @property {{command: string, lines: string[]} | null} terminal
+ */
+
+/**
+ * The scene's side panel when the layout shows it (null without one, or with `layout.show_side_panel` false:
+ * board_generic's, media_split's and list_build's one question).
+ * @param {TimedScene} scene
+ * @returns {import('../../shared/types.js').ResolvedSidePanel | null}
+ */
+export function shownPanel(scene) {
+  const sp = scene.side_panel;
+  return sp && sp.panel && scene.layout?.show_side_panel !== false ? sp : null;
+}
+
+/**
+ * The scene's panel as this helper draws it (see the section header), or null when it has none the helper draws -
+ * which is also what makes the scene board_generic's (`drawsPanel`). Pure.
+ * @param {TimedScene} scene
+ * @param {'live' | 'render'} [mode]
+ * @returns {PanelPlan | null}
+ */
+export function panelOf(scene, mode = 'live') {
+  const sp = shownPanel(scene);
+  if (!sp) return null;
+  const kind = String(sp.panel.kind || '');
+  const start = Math.max(0, Number(sp.show_at) || 0);
+  const own = typeof sp.panel.title === 'string' ? sp.panel.title.trim() : '';
+  const title = own || String(scene.title || '');
+  if (kind === 'terminal') {
+    if (!sp.panel.terminal) return null;
+    const plan = planScene(scene).terminal;
+    return {
+      kind, draw: 'terminal', ref: null, shown: true, title, start,
+      terminal: { command: String(sp.panel.terminal.command || ''), lines: plan ? plan.lines.slice() : [] },
+    };
+  }
+  if (PANEL_MEDIA_KINDS.includes(kind)) {
+    const ref = sp.media || null;
+    const shown = !!ref && shownIn(ref, mode === 'render' ? 'render' : 'live');
+    return { kind, draw: shown ? 'media' : 'label', ref, shown, title, start, terminal: null };
+  }
+  // a stored spec the Dynamic engine draws nowhere yet: its authored title, and only when it has one
+  if (PANEL_TITLED_KINDS.includes(kind) && own) {
+    return { kind, draw: 'label', ref: null, shown: false, title: own, start, terminal: null };
+  }
+  return null;
+}
+
+/**
+ * Whether a template that uses this helper can draw the scene's panel: it has none shown, or one `panelOf` draws.
+ * A template's `drawsScene` asks this, and its Python `fit` must refuse exactly the same scenes (CG-2). Pure, and
+ * independent of the mode (a GIF is claimed in both: the MP4 shows its title card).
+ * @param {TimedScene} scene
+ */
+export function drawsPanel(scene) {
+  return !shownPanel(scene) || panelOf(scene, 'render') !== null;
+}
+
+/**
+ * What `buildPanel` makes (the template keeps it in its view and hands it back to the other helpers).
+ * @typedef {object} PanelParts
+ * @property {PanelPlan} panel
+ * @property {HTMLElement} el        the dim group (the template returns it from `dimGroups`; the stage owns its
+ *                                  opacity, so everything animated sits inside it)
+ * @property {HTMLElement} frame     the panel's own box, placed by `layoutPanel`
+ * @property {import('../media.js').MediaView | null} view
+ * @property {HTMLElement | null} label
+ * @property {{pre: HTMLElement, cmd: HTMLElement, lines: HTMLElement[], size: number, min: number,
+ *   overflow: number} | null} term
+ * @property {number} start
+ * @property {Box | null} box        the frame's box as laid out
+ * @property {number} alpha          its entrance now (read by `panelTexts` / `panelFocusRect` after `update`)
+ */
+
+/**
+ * The panel's DOM, once per scene (build time; no measuring): the frame, inside a dim group of its own over the
+ * whole stage, holding its medium, its terminal card or its title. The caller appends `parts.el` to its root.
+ * @param {TemplateContext} ctx
+ * @param {PanelPlan} panel
+ * @returns {PanelParts}
+ */
+export function buildPanel(ctx, panel) {
+  const surface = ctx.roles.color('surface');
+  // every style key is written literally (the source scan refuses a style name it cannot read, plan §P)
+  const frame = h('div', {
+    class: 'dyn-panel-frame',
+    style: {
+      position: 'absolute', overflow: 'hidden', borderRadius: `${RADIUS.media}px`,
+      boxShadow: String(LAYOUT_TOKENS.shadow['3']),
+    },
+  });
+  /** @type {import('../media.js').MediaView | null} */
+  let view = null;
+  /** @type {HTMLElement | null} */
+  let label = null;
+  /** @type {PanelParts['term']} */
+  let term = null;
+  if (panel.draw === 'media' && panel.ref) {
+    // sized by the template's own mediaBox for slot 'panel' (the box mediaPlan extracts a clip at)
+    view = ctx.media(panel.ref, { slot: 'panel', start: panel.start, alt: panel.title });
+    frame.appendChild(view.el);
+  }
+  if (panel.draw === 'terminal' && panel.terminal) {
+    const T = PANEL_TERM[ctx.format];
+    const lines = panel.terminal.lines.map((line) => h('div', { class: 'dyn-panel-term-line', text: line || ' ' }));
+    const cmd = h('div', {
+      class: 'dyn-panel-term-cmd', style: { fontWeight: '700' }, text: `$ ${panel.terminal.command}`,
+    });
+    const pre = h('pre', {
+      class: 'dyn-panel-term',
+      style: {
+        margin: '0px', fontFamily: 'var(--dyn-font-mono)', fontWeight: String(T.weight), lineHeight: String(T.lh),
+        whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', color: ctx.roles.color('ink'),
+      },
+    }, cmd, lines);
+    frame.style.background = surface;
+    frame.style.padding = `${T.pad}px`;
+    frame.appendChild(pre);
+    term = { pre, cmd, lines, size: T.max, min: T.min, overflow: 0 };
+  } else if (!view || view.missing) {
+    // nothing this mode can show (a GIF in the MP4, an unsafe URL), or a kind drawn nowhere yet: the panel's title
+    // on the card surface, never an empty box (board_generic's, media_split's and list_build's convention)
+    frame.style.background = surface;
+    label = h('div', {
+      class: 'dyn-panel-missing', dir: 'auto', text: panel.title || '·',
+      style: {
+        position: 'absolute', left: '0px', top: '0px', right: '0px', bottom: '0px', display: 'flex',
+        alignItems: 'center', justifyContent: 'center', padding: '0 1em', textAlign: 'center',
+        fontSize: `${PANEL_LABEL_PX[ctx.format]}px`, fontWeight: '600', lineHeight: '1.2',
+        color: ctx.roles.color('ink2'), overflowWrap: 'anywhere',
+      },
+    });
+    frame.appendChild(label);
+  }
+  const el = group('dyn-panel', frame);
+  Object.assign(el.style, { position: 'absolute', left: '0px', top: '0px', right: '0px', bottom: '0px' });
+  return { panel, el, frame, view, label, term, start: panel.start, box: null, alpha: 0 };
+}
+
+/**
+ * Place the panel in `box` (layout time; idempotent, so it may run again when a late face arrives): a medium (or a
+ * title card standing in for one) contained at the medium's aspect and centred; a terminal card the box's width and
+ * its fitted text's height, centred. Returns the frame's box and keeps it on `parts.box`.
+ * @param {TemplateContext} ctx
+ * @param {PanelParts} parts
+ * @param {Box} box
+ * @returns {Box}
+ */
+export function layoutPanel(ctx, parts, box) {
+  /** @type {{x: number, y: number, w: number, h: number}} */
+  let r;
+  if (parts.term) {
+    const T = PANEL_TERM[ctx.format];
+    const range = slotRange(ctx, PANEL_TERM_SLOT, { min: T.min, max: T.max, role: 'body' });
+    const w = Math.round(box.x1 - box.x0);
+    const avail = (box.y1 - box.y0) - 2 * T.pad;
+    parts.frame.style.width = `${w}px`;
+    parts.frame.style.height = 'auto';
+    // the largest mono size whose card fits the box (media_split's 2 px walk; its floor is R-29's label floor)
+    let s = Math.max(range.min, range.max);
+    for (;;) {
+      parts.term.pre.style.fontSize = `${s}px`;
+      if (parts.term.pre.offsetHeight <= avail || s <= range.min) break;
+      s = Math.max(range.min, s - 2);
+    }
+    parts.term.size = s;
+    parts.term.min = range.min;
+    const contentH = parts.term.pre.offsetHeight;
+    const wide = (parts.term.pre.scrollWidth || 0) - (parts.term.pre.clientWidth || 0);
+    // what still does not fit is reported, never clipped silently (plan §1.4: preflight blocks with "Shorten text")
+    parts.term.overflow = Math.max(0, contentH - avail, wide > 2 ? wide : 0);
+    const hh = Math.min(box.y1 - box.y0, contentH + 2 * T.pad);
+    r = { x: Math.round(box.x0), y: Math.round(box.y0 + ((box.y1 - box.y0) - hh) / 2), w, h: Math.round(hh) };
+  } else {
+    r = containRect(mediaAspect(parts.panel.ref), box);
+  }
+  Object.assign(parts.frame.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px` });
+  parts.box = { x0: r.x, y0: r.y, x1: r.x + r.w, y1: r.y + r.h };
+  return parts.box;
+}
+
+/**
+ * Paint the panel at scene time t: its entrance (a fade and rise from `start`, or PANEL_DELAY after the scene when
+ * it is there from the start), its medium every frame (also while hidden, so the element never keeps a frame from an
+ * earlier seek) and a terminal's output lines as the schedule reveals them (`SceneState.terminalLines`, a pure
+ * function of (timeline, t)). A clip only ever fades: it is never scaled nor moved (B2c, test_template_clips.py).
+ * Every property is written on every frame with a value (never ''), so a frame never depends on paint order.
+ * @param {TemplateContext} ctx
+ * @param {PanelParts} parts
+ * @param {number} t
+ * @param {import('../../shared/types.js').SceneState} [state]
+ */
+export function paintPanel(ctx, parts, t, state) {
+  const p = ctx.paint;
+  const e = enterAt(ctx, t, parts.start > 0 ? parts.start : PANEL_DELAY, PANEL_ENTER);
+  parts.alpha = e;
+  const clip = !!parts.panel.ref && parts.panel.ref.kind === 'video';
+  paintRise(ctx, parts.frame, e, clip ? 0 : PANEL_RISE);
+  p.style(parts.frame, 'visibility', e > 0 ? 'visible' : 'hidden');
+  if (parts.view) paintMedia(ctx, parts.view, t);
+  if (parts.term) {
+    const lines = state && state.terminalLines ? state.terminalLines.length : parts.term.lines.length;
+    parts.term.lines.forEach((line, i) => p.style(line, 'visibility', i < lines ? 'visible' : 'hidden'));
+  }
+}
+
+/**
+ * Where a look_here on the panel points (plan §1.5, §1.7; the `panel` and `panel:row:<n>` target forms of
+ * templates.py `_PANEL_PARTS`): `panel` the panel's frame (a shape, so cues.js draws the outline round it and never
+ * across it), `panel:row:<n>` the n-th output line of a terminal card (a bar). Null for any other target, for a row
+ * this panel has not got, or while the panel is not on screen (read after `update`). Whole stage px.
+ * @param {TemplateContext} ctx
+ * @param {PanelParts} parts
+ * @param {string} target
+ * @returns {import('./types.js').FocusRect | null}
+ */
+export function panelFocusRect(ctx, parts, target) {
+  const parsed = parseTarget(String(target || ''));
+  if (!parsed) return null;
+  /** @type {Element | null} */
+  let el = null;
+  /** @type {'rect' | 'bar'} */
+  let shape = 'rect';
+  let radius = RADIUS.media;
+  if (parsed.form === 'panel') {
+    el = parts.alpha > 0.01 ? parts.frame : null;
+  } else if (parsed.form === 'panel:row') {
+    const i = typeof parsed.index === 'number' ? parsed.index : -1;
+    el = parts.term && parts.alpha > 0.01 ? parts.term.lines[i] || null : null;
+    shape = 'bar';
+    radius = 0;
+  } else {
+    return null;
+  }
+  const r = el ? ctx.rectOf(el) : null;
+  if (!r || !(r.w > 0 && r.h > 0)) return null;
+  const x0 = Math.round(r.x);
+  const y0 = Math.round(r.y);
+  return {
+    rect: { x: x0, y: y0, w: Math.round(r.x + r.w) - x0, h: Math.round(r.y + r.h) - y0 },
+    shape, radius, el: parts.el, kind: 'shape',
+  };
+}
+
+/**
+ * The panel's text on screen (preflight, §7.12): a terminal card's text (slot `terminal`, critical, on the card
+ * surface, with the overflow `layoutPanel` measured) and a title card's label (never critical: it stands in for a
+ * picture, R-07's reading in board_generic and media_split). Nothing for a panel showing its medium.
+ * @param {TemplateContext} ctx
+ * @param {PanelParts} parts
+ * @returns {import('./types.js').TextEntry[]}
+ */
+export function panelTexts(ctx, parts) {
+  /** @type {import('./types.js').TextEntry[]} */
+  const out = [];
+  const surface = ctx.roles.color('surface');
+  if (parts.term) {
+    const T = PANEL_TERM[ctx.format];
+    const command = parts.panel.terminal ? parts.panel.terminal.command : '';
+    const lines = parts.panel.terminal ? parts.panel.terminal.lines : [];
+    out.push({
+      el: parts.term.pre, role: 'body', slot: PANEL_TERM_SLOT, critical: true, ink: ctx.roles.color('ink'),
+      bg: surface, alpha: parts.alpha, overflow: parts.term.overflow, size: parts.term.size, min: parts.term.min,
+      weight: T.weight, text: [`$ ${command}`, ...lines].join('\n'),
+    });
+  }
+  if (parts.label) {
+    out.push({
+      el: parts.label, role: 'label', critical: false, ink: ctx.roles.color('ink2'), bg: surface,
+      alpha: parts.alpha, size: PANEL_LABEL_PX[ctx.format], weight: 600, text: parts.label.textContent || '',
+    });
+  }
+  return out;
+}
+
+/**
+ * Static: the box the panel's medium is sized for (a template's `mediaBox` for slot `panel`; `mediaPlan` extracts a
+ * clip at it and `ctx.media` shows it at it, so every frame the page asks for is one the worker has). `box`: the
+ * panel's own box in the template's layout, the largest it is ever shown in. Null for any other slot and for a panel
+ * with no medium (a terminal or a title card asks for none).
+ * @param {TimedScene} scene
+ * @param {Box} box
+ * @param {string | undefined} slot
+ * @returns {{w: number, h: number} | null}
+ */
+export function panelMediaBox(scene, box, slot) {
+  if (slot !== 'panel') return null;
+  const panel = panelOf(scene, 'render');
+  if (!panel || !panel.ref) return null;
+  return { w: Math.round(box.x1 - box.x0), h: Math.round(box.y1 - box.y0) };
 }
 
 // ---------------------------------------------------------------------------------------------

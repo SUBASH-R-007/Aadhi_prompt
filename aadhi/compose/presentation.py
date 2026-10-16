@@ -65,8 +65,9 @@ if TYPE_CHECKING:
 # The resolver asks ``dynamic.direct`` which template draws each scene (plan §A step 5). This tuple is the set it may
 # answer with (``templates.IMPLEMENTED`` of release R1; pinned equal by a test); ``direct.candidate`` is the gate, so a
 # template joins it by flipping ``implemented`` in ``compose/dynamic/templates.py``.
-TEMPLATES = ("board_generic", "chapter_bumper", "definition_card", "formula_focus", "hook_question", "key_terms",
-             "list_build", "media_split", "recap_retrieval", "worked_steps")
+TEMPLATES = ("animation_stage", "board_generic", "chapter_bumper", "check", "definition_card", "formula_focus",
+             "full_bleed_media", "hook_question", "key_terms", "list_build", "media_split", "predict",
+             "recap_retrieval", "worked_steps")
 # The dense templates (templates.py ``dense``; pinned equal by a test): their background is frozen from the scene start
 # throughout (R-55), as a hold freezes it.
 DENSE_TEMPLATES = ("formula_focus", "worked_steps", "code_walkthrough")
@@ -81,10 +82,13 @@ CROSSFADE_MAX_SECONDS = 0.5
 TONES = ("bg", "bg-alt", "bg-tint")  # §4.5: the per-scene tone step of the background
 # The look-engine generation (TimelinePresentation.engine_version; plan §1.3, deviation 21): 1 = B1, 2 = B2a, 3 = the
 # demo phase's director (``dynamic.direct`` picks a template, a variant and the scene's visual events, so a stored
-# generation-2 timeline draws board_generic everywhere where a rebuild would now draw a real template). The stage
-# contract stays aadhiStage v3. aadhi.api.timelines rebuilds a stored Dynamic timeline of the current revision built by
-# an older generation, and hashes this into the served timeline's ETag.
-ENGINE_VERSION = 3
+# generation-2 timeline draws board_generic everywhere where a rebuild would now draw a real template), 4 = step 4's
+# four templates (``animation_stage``, ``check``, ``full_bleed_media``, ``predict``) and the side panel of
+# ``worked_steps`` / ``key_terms``: a stored generation-3 timeline draws board_generic on its ai_video, simulation,
+# quiz and panelled worked-example scenes where a rebuild now draws a real template. The stage contract stays
+# aadhiStage v3. aadhi.api.timelines rebuilds a stored Dynamic timeline of the current revision built by an older
+# generation, and hashes this into the served timeline's ETag.
+ENGINE_VERSION = 4
 CHAPTER_START_EPS = 1e-3  # a chapter starting within 1 ms of a scene is its chapter (board_generic.kickerOf)
 # Portrait captions: phrase chunks of <= 32 characters in <= 2 lines (R-32), until kinetic.py (B2) measures them.
 PORTRAIT_CAPTION_LINE_CHARS = 16

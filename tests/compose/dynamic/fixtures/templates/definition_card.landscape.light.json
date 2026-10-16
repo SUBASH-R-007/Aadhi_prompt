@@ -61,7 +61,7 @@
       "warn": "#F8A87F"
     },
     "cue_term_style": "underline",
-    "engine_version": 3,
+    "engine_version": 4,
     "family": "paper_ink",
     "fonts": {
       "body": "inter",

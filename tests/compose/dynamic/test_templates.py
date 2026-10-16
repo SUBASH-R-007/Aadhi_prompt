@@ -452,6 +452,8 @@ PANELS: dict[str, dict[str, Any]] = {
     "manim": {"kind": "manim", "manim": {"template": "x"}},
     "model_3d": {"kind": "model_3d", "model_3d": {"primitives": [{"shape": "sphere"}]}},
     "skill_tree": {"kind": "skill_tree"}, "gif": {"kind": "gif", "gif_query": "x"},
+    # the shared panel helper claims a chart / graph / model panel only when it has the authored title it draws
+    "graph_titled": {"kind": "graph", "title": "I = V / R", "graph": {"functions": [{"expr": "x"}]}},
 }
 _ITEM_DATA: dict[str, dict[str, Any]] = {
     "definition": {"term": "Ohm", "text": "the unit of resistance"}, "formula": {"latex": "V = IR"},
@@ -524,9 +526,13 @@ def test_fit_forced_scene_types() -> None:
                                      "correct_index": 0, "beats": BEAT,
                                      "reveal_beats": [{"id": "b2", "narration": "A."}]})
     assert fits(quiz) == {"check": 1.0, "board_generic": FIT_FALLBACK}
-    assert fits(quiz, "portrait")["check"] == FIT_STRETCHED  # reels: free recall or true / false (2 options)
+    # §4.3: `mcq` is 16:9 only and 9:16 takes two options (R-06); check.js hands a quiz past the cap to
+    # board_generic whole, so the fit refuses it too (CG-2 parity) and the forced row falls back
+    assert "check" not in fits(quiz, "portrait")
+    two = quiz.model_copy(update={"options": ["a", "b"]})
+    assert fits(two, "portrait") == {"check": 1.0, "board_generic": FIT_FALLBACK}
     five = quiz.model_copy(update={"options": ["a", "b", "c", "d", "e"]})
-    assert fits(five)["check"] == FIT_STRETCHED  # forced: never 0 on its scene type
+    assert "check" not in fits(five)  # §4.3 draws at most 4, and the page refuses the rest
     sim = SimulationScene.model_validate({"id": "m", "type": "simulation", "manim": {"template": "x"}, "beats": BEAT})
     ai = AIVideoScene.model_validate({"id": "v", "type": "ai_video", "video_prompt": "a lamp", "beats": BEAT})
     sketch = InteractiveScene.model_validate({"id": "p", "type": "interactive", "p5_code": "x", "beats": BEAT})
@@ -705,6 +711,30 @@ def test_fit_media_row() -> None:
     assert all(tp.TEMPLATES["diagram_build"].fit(s, "landscape") == 0 for s in (two, label))  # needs a bound SVG (W2)
 
 
+def test_media_split_refuses_a_reel_phrase_longer_than_its_two_lines() -> None:
+    """B2 review F3: the 9:16 phrase is two lines of 48-64 px in a 588 px column - six words of average length fit it
+    at the slot's minimum, seven do not (measured with textfit). A longer item is board_generic's: the page would draw
+    it and report the excess, and Dynamic preflight would block the render ("Shorten text"). 16:9 keeps its own
+    3-line column and is not capped."""
+    assert tp.MEDIA_SPLIT_PHRASE_WORDS == 6
+    short = board(item("bullet", 1, text=words(6)), item("bullet", 2, text=words(4)), panel="chart")
+    assert fits(short, "portrait")["media_split"] == 1.0
+    assert fits(short)["media_split"] == 1.0
+    long_one = board(item("bullet", 1, text=words(6)), item("bullet", 2, text=words(7)), panel="chart")
+    assert "media_split" not in fits(long_one, "portrait")        # one long item moves the whole scene
+    assert fits(long_one)["media_split"] == 1.0, "16:9 draws it in its 45% column"
+    # a definition's term counts with its meaning (the page draws them as one run)
+    term = board(item("definition", 1, term="Resistance", text=words(6)), panel="image")
+    assert "media_split" not in fits(term, "portrait")
+    # the showcase's two blocked items, in their own words
+    for text in ("Current is the flow of charge, measured in amperes.",
+                 "Tamil Nadu's grid delivers thousands of megawatts every day."):
+        assert "media_split" not in fits(board(item("bullet", text=text), panel="chart"), "portrait"), text
+    # a $TeX$ span is one word (``_words``), so a formula-carrying phrase is not refused for its symbols
+    assert fits(board(item("bullet", text="Ohm's law says $I = V / R$ today"), panel="image"),
+                "portrait")["media_split"] == 1.0
+
+
 def test_fit_last_scene_fallback_and_formats() -> None:
     closing = board(item("takeaway"))
     assert fits(closing, last=True) == {"kinetic_statement": 1.0, "outro_next": 1.0, "board_generic": FIT_FALLBACK}
@@ -734,3 +764,42 @@ def test_cross_class_alternatives_are_the_two_the_design_names() -> None:
 
 def test_fit_values_are_ordered_and_swap_threshold_holds() -> None:
     assert FIT_PREFERRED > FIT_ALTERNATIVE >= tp.SWAP_MIN_FIT > FIT_STRETCHED > FIT_FALLBACK > tp.FIT_NONE == 0
+
+
+def test_shared_panels_match_the_page() -> None:
+    """templates.py SHARED_PANELS == _shared.js PANEL_KINDS, and the two fits that use the shared panel helper refuse
+    exactly what the page refuses (B2c review CG-2)."""
+    assert tp.SHARED_PANELS == ("figure", "image", "manim", "gif", "terminal", "chart", "graph", "model_3d")
+    steps = [item("heading"), item("example_step", 1), item("example_step", 2)]
+    for kind in ("figure", "image", "manim", "gif", "terminal", "graph_titled"):
+        panelled = board(*steps, panel=kind)
+        assert fits(panelled)["worked_steps"] == 1.0, kind
+        assert "worked_steps" not in fits(panelled, "portrait"), kind              # 9:16 draws no panel
+        assert "worked_steps" not in fits(board(*steps, item("formula"), panel=kind)), kind  # one visual box
+    for kind in ("skill_tree", "graph", "chart"):          # nobody's, or no title to draw
+        assert "worked_steps" not in fits(board(*steps, panel=kind)), kind
+    # key_terms reaches a panelled scene only through a row that names it (the §4.4 ``pretraining`` row): on a plain
+    # content board, two definitions beside a picture are the ``media`` row's, which names media_split
+    two = [item("definition", 1), item("definition", 2)]
+    assert fits(board(*two, panel="image", role="pretraining"))["key_terms"] == 1.0
+    assert "key_terms" not in fits(board(*two, panel="image", role="pretraining"), "portrait")
+    assert "key_terms" not in fits(board(*two, item("definition", 3), panel="image",
+                                         role="pretraining"))                       # KEY_TERMS_PANEL_MAX
+    # The two **forced** media templates draw a side panel only when the panel *is* their medium (a board scene's
+    # application picture / a ``manim`` panel). An ``ai_video`` or a ``simulation`` carries its own medium, so a panel
+    # beside it is content the page draws nothing of: both fits refuse the scene and the forced row falls through to
+    # board_generic, which draws that panel's card (never drop content; full_bleed_media.js / animation_stage.js
+    # ``drawsScene`` refuse exactly the same scenes).
+    for kind in ("terminal", "chart", "graph", "image", "figure", "manim", "skill_tree"):
+        ai = AIVideoScene.model_validate({"id": "v", "type": "ai_video", "video_prompt": "a lamp", "beats": BEAT,
+                                          "side_panel": PANELS[kind]})
+        sim = SimulationScene.model_validate({"id": "m", "type": "simulation", "manim": {"template": "x"},
+                                              "beats": BEAT, "side_panel": PANELS[kind]})
+        for fmt in ("landscape", "portrait"):
+            assert fits(ai, fmt) == {"board_generic": FIT_FALLBACK}, (kind, fmt)
+            assert fits(sim, fmt) == {"board_generic": FIT_FALLBACK}, (kind, fmt)
+    # without a panel both are still their forced row's (the demo's s1 / s6 / s8 / s14)
+    assert fits(AIVideoScene.model_validate({"id": "v", "type": "ai_video", "video_prompt": "a lamp",
+                                             "beats": BEAT}))["full_bleed_media"] == 1.0
+    assert fits(SimulationScene.model_validate({"id": "m", "type": "simulation", "manim": {"template": "x"},
+                                                "beats": BEAT}))["animation_stage"] == 1.0

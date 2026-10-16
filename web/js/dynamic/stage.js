@@ -32,14 +32,18 @@ import { backgroundTime, captionAt, chapterTitleAt, dynamicStateAt, freezeProgre
 import { paintTransition, transitionAt } from './transitions.js';
 import { CaptionLayer, captionStyle } from './captions.js';
 import { LIVE_DRIFT, MediaView, mediaPlan as planMedia, presenterOf, frameUrl, mediaKey } from './media.js';
+import animationStage from './templates/animation_stage.js';
 import boardGeneric from './templates/board_generic.js';
 import chapterBumper from './templates/chapter_bumper.js';
+import check from './templates/check.js';
 import definitionCard from './templates/definition_card.js';
 import formulaFocus from './templates/formula_focus.js';
+import fullBleedMedia from './templates/full_bleed_media.js';
 import hookQuestion from './templates/hook_question.js';
 import keyTerms from './templates/key_terms.js';
 import listBuild from './templates/list_build.js';
 import mediaSplit from './templates/media_split.js';
+import predict, { buildChip, chipTexts, layoutChip, paintChip } from './templates/predict.js';
 import recapRetrieval from './templates/recap_retrieval.js';
 import workedSteps from './templates/worked_steps.js';
 import meshDrift from './backgrounds/mesh_drift.js';
@@ -56,7 +60,8 @@ import colourBlock from './backgrounds/colour_block.js';
 
 /**
  * Templates by id (B1: board_generic; B2c: the pilots formula_focus, list_build and media_split; the demo phase:
- * chapter_bumper, definition_card, hook_question, key_terms, recap_retrieval and worked_steps; an unknown or
+ * chapter_bumper, definition_card, hook_question, key_terms, recap_retrieval and worked_steps; step 4:
+ * animation_stage, check, full_bleed_media and predict; an unknown or
  * unreleased id falls back to board_generic). The catalogue's registry lists exactly these as `implemented`
  * (web/tests/dynamic/catalogue.test.js, tests/compose/dynamic/test_templates.py). The resolver asks
  * `compose/dynamic/direct.py` which of them draws each scene (presentation.TEMPLATES), so a real lecture now uses
@@ -64,14 +69,18 @@ import colourBlock from './backgrounds/colour_block.js';
  * @type {Readonly<Record<string, TemplateModule>>}
  */
 export const TEMPLATES = Object.freeze({
+  animation_stage: animationStage,
   board_generic: boardGeneric,
   chapter_bumper: chapterBumper,
+  check: check,
   definition_card: definitionCard,
   formula_focus: formulaFocus,
+  full_bleed_media: fullBleedMedia,
   hook_question: hookQuestion,
   key_terms: keyTerms,
   list_build: listBuild,
   media_split: mediaSplit,
+  predict: predict,
   recap_retrieval: recapRetrieval,
   worked_steps: workedSteps,
 });
@@ -257,6 +266,22 @@ class Slot {
       entityRole: (symbol) => entityRole(stage.entityColors, symbol),
     };
     this.ctx.view = this.template.build(this.ctx);
+    // the open prediction's chip (§4.3 predict, predict.js): the scene that explains the outcome carries it whatever
+    // template draws it, in a layer above the content and below the cues. Only a scene whose look has
+    // refs.prediction gets one, so every other scene's DOM, writes and frame keys are unchanged.
+    /** @type {any} */
+    this.chip = null;
+    if (this.template.id !== predict.id) {
+      const layer = h('div', {
+        class: 'dyn-predict-layer',
+        style: { position: 'absolute', left: '0px', top: '0px', right: '0px', bottom: '0px' },
+      });
+      const chip = buildChip(this.ctx, layer);
+      if (chip) {
+        this.el.insertBefore(layer, this.cueLayer || null);
+        this.chip = chip;
+      }
+    }
     /** @type {import('./cues.js').SlotCues | null} */
     this.cues = needs.events.length ? createCues({
       template: this.template, ctx: this.ctx, events: needs.events, layer: this.cueLayer, camera: this.camera,
@@ -324,6 +349,7 @@ class Slot {
   layout() {
     if (this.stage.destroyed || !this.el.isConnected) return;
     if (typeof this.template.layout === 'function') this.template.layout(this.ctx);
+    layoutChip(this.ctx, this.chip);
     this.laidOut = true;
   }
 
@@ -340,6 +366,7 @@ class Slot {
     this.bg.update(paint, bgT, freezeProgress(this.scene, sceneT));
     if (this.cues) this.cues.begin(paint);
     this.template.update(this.ctx, sceneT, dynamicStateAt(this.scene, sceneT));
+    paintChip(this.ctx, this.chip, sceneT);
     // the cues after the template: they read its geometry as painted this frame (plan §1.5)
     if (this.cues) this.cues.update(paint, sceneT);
     const pr = this.presenter;
@@ -372,7 +399,8 @@ class Slot {
    * @returns {TextEntry[]}
    */
   texts() {
-    const out = typeof this.template.texts === 'function' ? this.template.texts(this.ctx) : [];
+    const own = typeof this.template.texts === 'function' ? this.template.texts(this.ctx) : [];
+    const out = this.chip ? [...own, ...chipTexts(this.ctx, this.chip)] : own;
     if (!this.cues) return out;
     const cues = this.cues;
     const under = this.ctx.onBackground.bg;

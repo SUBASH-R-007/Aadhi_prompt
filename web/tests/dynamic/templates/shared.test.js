@@ -10,10 +10,12 @@ import { Painter, REGIONS, TYPE_FLOORS, ZONES, makeRoles } from '../../../js/dyn
 import { PUSH_SCALE_MAX } from '../../../js/dynamic/cues.js';
 import { svg } from '../../../js/shared/dom.js';
 import {
-  ICON_PATHS_MAX, ICON_PATH_MAX_CHARS, ICON_PATH_RE, ICON_STROKE_MAX, RADIUS, SPACE, STATE_BORDER, TEXT_RISE, TINT_BASE,
-  boxRect, containRect, enterAt, entityColour, fitLines, gridSpan, group, insetBox, itemStateParts, layoutStrike,
-  mediaAspect, paintItemState, paintRise, paintTextEntrance, paintTint, place, pushHeadroom, region, revealMask,
-  richWords, sanitiseIcon, seconds, slotRange, slotSpec, storedIcon, texTokens, tintTargets, tintTex,
+  ICON_PATHS_MAX, ICON_PATH_MAX_CHARS, ICON_PATH_RE, ICON_STROKE_MAX, PANEL_DELAY, PANEL_ENTER, PANEL_KINDS,
+  PANEL_LABEL_PX, PANEL_MEDIA_KINDS, PANEL_TERM, PANEL_TITLED_KINDS, RADIUS, SPACE, STATE_BORDER, TEXT_RISE, TINT_BASE,
+  boxRect, buildPanel, containRect, drawsPanel, enterAt, entityColour, fitLines, gridSpan, group, insetBox,
+  itemStateParts, layoutPanel, layoutStrike, mediaAspect, paintItemState, paintPanel, paintRise, paintTextEntrance,
+  paintTint, panelFocusRect, panelMediaBox, panelOf, panelTexts, place, pushHeadroom, region, revealMask, richWords,
+  sanitiseIcon, seconds, shownPanel, slotRange, slotSpec, storedIcon, texTokens, tintTargets, tintTex,
 } from '../../../js/dynamic/templates/_shared.js';
 import { contractProblems, orderProblems, recordingTex } from './_harness.js';
 import { dynamicTimeline } from '../_fixture.js';
@@ -414,4 +416,198 @@ test('the harness passes a template that keeps the contract, and catches each wa
     const problems = await contractProblems(minimal(new Set([fault])), tl);
     assert.ok(problems.some((p) => want.test(p)), `${fault}: ${JSON.stringify(problems)}`);
   }
+});
+
+// --- side panels (the B2-demo side-panel slice) ---------------------------------------------------------------------
+
+/** A timed scene with a side panel. @param {any} panel @param {any} [media] @param {any} [extra] */
+const panelScene = (panel, media = null, extra = {}) => /** @type {any} */ ({
+  title: 'The scene', board: [], side_panel: { panel, media, show_at: 0 }, ...extra,
+});
+
+test('PANEL_KINDS: the picture kinds, the terminal and the three the engine draws nowhere yet', () => {
+  assert.deepEqual([...PANEL_MEDIA_KINDS], ['figure', 'image', 'manim', 'gif']);
+  assert.deepEqual([...PANEL_TITLED_KINDS], ['chart', 'graph', 'model_3d']);
+  assert.deepEqual([...PANEL_KINDS], ['figure', 'image', 'manim', 'gif', 'terminal', 'chart', 'graph', 'model_3d']);
+  // skill_tree and quiz panels are nobody's here: a template must hand such a scene to board_generic whole
+  for (const kind of ['skill_tree', 'quiz']) assert.ok(!PANEL_KINDS.includes(kind), kind);
+});
+
+test('shownPanel: the panel only when the layout shows it', () => {
+  assert.ok(shownPanel(panelScene({ kind: 'image' })));
+  assert.equal(shownPanel(panelScene({ kind: 'image' }, null, { layout: { show_side_panel: false } })), null);
+  assert.equal(shownPanel(/** @type {any} */ ({ board: [] })), null);
+  assert.equal(shownPanel(/** @type {any} */ ({ board: [], side_panel: { show_at: 0 } })), null, 'no panel payload');
+});
+
+test('panelOf: a medium when the mode can show it, else the panel\'s title; a terminal its command and lines', () => {
+  const ref = { kind: 'image', url: '/p.png', width: 800, height: 600 };
+  const picture = panelOf(panelScene({ kind: 'image', title: 'Pumps' }, ref), 'render');
+  assert.deepEqual({ kind: picture?.kind, draw: picture?.draw, shown: picture?.shown, title: picture?.title },
+    { kind: 'image', draw: 'media', shown: true, title: 'Pumps' });
+  assert.equal(picture?.ref, ref);
+  // a GIF is live-only: the MP4 shows its title card, and the panel is laid out at the medium's aspect either way
+  const gifRef = { kind: 'gif', url: 'https://x/g.gif', width: 400, height: 300 };
+  assert.equal(panelOf(panelScene({ kind: 'gif', title: 'G' }, gifRef), 'live')?.draw, 'media');
+  const inMp4 = panelOf(panelScene({ kind: 'gif', title: 'G' }, gifRef), 'render');
+  assert.equal(inMp4?.draw, 'label');
+  assert.equal(inMp4?.ref, gifRef, 'the medium is kept, so both modes lay the panel out the same');
+  // a picture panel whose medium was never resolved: its title (else the scene's)
+  assert.equal(panelOf(panelScene({ kind: 'figure' }), 'render')?.title, 'The scene');
+  assert.equal(panelOf(panelScene({ kind: 'figure', title: 'Fig 2' }), 'render')?.draw, 'label');
+  // a terminal: its command and the lines the classic schedule reveals
+  const term = panelOf(panelScene({ kind: 'terminal', terminal: { command: 'ls -l', output: 'a\nb' } }), 'render');
+  assert.equal(term?.draw, 'terminal');
+  assert.equal(term?.terminal?.command, 'ls -l');
+  assert.ok(/** @type {string[]} */ (term?.terminal?.lines).length >= 1);
+  assert.equal(panelOf(panelScene({ kind: 'terminal' }), 'render'), null, 'no payload, nothing to draw');
+  // the kinds the engine draws nowhere yet: their authored title, and only when they have one
+  assert.equal(panelOf(panelScene({ kind: 'graph', title: 'I = V / R' }), 'render')?.draw, 'label');
+  assert.equal(panelOf(panelScene({ kind: 'graph', title: 'I = V / R' }), 'render')?.title, 'I = V / R');
+  assert.equal(panelOf(panelScene({ kind: 'graph' }), 'render'), null, 'no title: nothing this slice can draw');
+  assert.equal(panelOf(panelScene({ kind: 'chart' }), 'render'), null);
+  // and the kinds nobody draws here
+  for (const kind of ['skill_tree', 'quiz']) assert.equal(panelOf(panelScene({ kind }), 'render'), null, kind);
+  assert.equal(panelOf(/** @type {any} */ ({ board: [] }), 'render'), null, 'no panel at all');
+});
+
+test('drawsPanel: the one question a template\'s drawsScene and its Python fit must both ask (CG-2)', () => {
+  assert.equal(drawsPanel(/** @type {any} */ ({ board: [] })), true, 'no panel: nothing to refuse');
+  assert.equal(drawsPanel(panelScene({ kind: 'image' })), true);
+  assert.equal(drawsPanel(panelScene({ kind: 'skill_tree', title: 'T' })), false);
+  assert.equal(drawsPanel(panelScene({ kind: 'graph' })), false);
+  assert.equal(drawsPanel(panelScene({ kind: 'graph', title: 'A plot' })), true);
+  assert.equal(drawsPanel(panelScene({ kind: 'skill_tree' }, null, { layout: { show_side_panel: false } })), true,
+    'a hidden panel is not drawn at all, so it never sends the scene away');
+  // it never depends on the mode: a GIF is claimed in the MP4 too (its title card)
+  assert.equal(drawsPanel(panelScene({ kind: 'gif', title: 'G' }, { kind: 'gif', url: 'https://x/g.gif' })), true);
+});
+
+test('buildPanel / layoutPanel: a medium contained at its aspect, a terminal card fitted and centred', () => {
+  const ctx = ctxFor({ media: (/** @type {any} */ ref, /** @type {any} */ opts) => ({
+    el: document.createElement('div'), missing: false, ref, opts, update: () => {},
+  }) });
+  const box = { x0: 1058, y0: 300, x1: 1824, y1: 900 };
+  // a picture: contained at 4:3, centred, on whole px, and asked for in slot `panel`
+  const pic = /** @type {any} */ (panelOf(panelScene({ kind: 'image', title: 'P' },
+    { kind: 'image', url: '/p.png', width: 800, height: 600 }), 'render'));
+  const parts = buildPanel(ctx, pic);
+  assert.equal(parts.view?.opts.slot, 'panel');
+  assert.equal(parts.label, null, 'a shown medium needs no stand-in label');
+  const laid = layoutPanel(ctx, parts, box);
+  assert.deepEqual(laid, { x0: 1058, y0: 313, x1: 1824, y1: 888 });
+  assert.equal(Math.round(((laid.x1 - laid.x0) / (laid.y1 - laid.y0)) * 100), Math.round((4 / 3) * 100));
+  for (const v of [parts.frame.style.left, parts.frame.style.top, parts.frame.style.width, parts.frame.style.height]) {
+    assert.ok(/^-?\d+px$/.test(v), `${v} is whole px`);
+  }
+  // a terminal: the box's width, the fitted card's height, centred; its size never below the slot's minimum
+  const term = /** @type {any} */ (panelOf(panelScene({ kind: 'terminal', terminal: { command: 'ls', output: 'a\nb' } }), 'render'));
+  const tParts = buildPanel(ctx, term);
+  assert.ok(tParts.term);
+  const tBox = layoutPanel(ctx, tParts, box);
+  assert.equal(tBox.x1 - tBox.x0, 766);
+  assert.ok(/** @type {any} */ (tParts.term).size >= PANEL_TERM.landscape.min);
+  assert.ok(/** @type {any} */ (tParts.term).size <= PANEL_TERM.landscape.max);
+  // a stand-in title card, on the card surface
+  const titled = /** @type {any} */ (panelOf(panelScene({ kind: 'graph', title: 'I = V / R' }), 'render'));
+  const tc = buildPanel(ctx, titled);
+  assert.equal(tc.label?.textContent, 'I = V / R');
+  assert.equal(tc.view, null);
+  ctx.root.remove();
+});
+
+test('panelMediaBox: the panel\'s box for slot `panel` when it has a medium, else nothing', () => {
+  const box = { x0: 1058, y0: 54, x1: 1824, y1: 912 };
+  const scene = panelScene({ kind: 'image', title: 'P' }, { kind: 'image', url: '/p.png', width: 800, height: 600 });
+  assert.deepEqual(panelMediaBox(scene, box, 'panel'), { w: 766, h: 858 });
+  assert.equal(panelMediaBox(scene, box, 'main'), null);
+  assert.equal(panelMediaBox(scene, box, undefined), null);
+  assert.equal(panelMediaBox(panelScene({ kind: 'terminal', terminal: { command: 'ls' } }), box, 'panel'), null);
+  assert.equal(panelMediaBox(panelScene({ kind: 'graph', title: 'G' }), box, 'panel'), null);
+  assert.equal(panelMediaBox(/** @type {any} */ ({ board: [] }), box, 'panel'), null);
+});
+
+test('paintPanel: the entrance, every property on every frame, and a clip that is never moved', () => {
+  const ctx = ctxFor({ media: (/** @type {any} */ ref) => ({ el: document.createElement('div'), missing: false, ref, update: () => {} }) });
+  const pic = /** @type {any} */ (panelOf(panelScene({ kind: 'image', title: 'P' },
+    { kind: 'image', url: '/p.png', width: 800, height: 600 }), 'render'));
+  const parts = buildPanel(ctx, pic);
+  paintPanel(ctx, parts, 0, /** @type {any} */ ({ terminalLines: [] }));
+  assert.equal(parts.frame.style.visibility, 'hidden');
+  assert.equal(parts.frame.style.opacity, '0');
+  paintPanel(ctx, parts, PANEL_DELAY + PANEL_ENTER + 0.2, /** @type {any} */ ({ terminalLines: [] }));
+  assert.equal(parts.frame.style.visibility, 'visible');
+  assert.equal(parts.frame.style.opacity, '1');
+  assert.equal(parts.frame.style.transform, 'none');
+  // mid-entrance the rise is a whole-pixel 2D translate (§P), never a scale
+  paintPanel(ctx, parts, PANEL_DELAY + PANEL_ENTER / 2, /** @type {any} */ ({ terminalLines: [] }));
+  assert.match(parts.frame.style.transform, /^translate\(0, \d+px\)$/);
+  // a clip is never moved at all (a scaled or translated clip was measured order-dependent, B2c)
+  const clip = /** @type {any} */ (panelOf(panelScene({ kind: 'manim', title: 'M' },
+    { kind: 'video', asset_key: 'k', url: '/v.mp4', width: 800, height: 600 }), 'render'));
+  const cParts = buildPanel(ctx, clip);
+  paintPanel(ctx, cParts, PANEL_DELAY + PANEL_ENTER / 2, /** @type {any} */ ({ terminalLines: [] }));
+  assert.equal(cParts.frame.style.transform, 'none');
+  // a terminal's lines follow the scene state, and every one is written on every frame (never '')
+  const term = /** @type {any} */ (panelOf(panelScene({ kind: 'terminal', terminal: { command: 'ls', output: 'a\nb' } }), 'render'));
+  const tParts = buildPanel(ctx, term);
+  const lines = /** @type {any} */ (tParts.term).lines;
+  paintPanel(ctx, tParts, 1, /** @type {any} */ ({ terminalLines: [] }));
+  assert.deepEqual(lines.map((/** @type {any} */ l) => l.style.visibility), lines.map(() => 'hidden'));
+  paintPanel(ctx, tParts, 1, /** @type {any} */ ({ terminalLines: ['a'] }));
+  assert.equal(lines[0].style.visibility, 'visible');
+  assert.equal(lines[1].style.visibility, 'hidden');
+  ctx.root.remove();
+});
+
+test('panelTexts: a terminal card is critical in slot `terminal`; a stand-in title card is not', () => {
+  const ctx = ctxFor();
+  const term = /** @type {any} */ (panelOf(panelScene({ kind: 'terminal', terminal: { command: 'ls', output: 'a' } }), 'render'));
+  const tParts = buildPanel(ctx, term);
+  tParts.alpha = 1;
+  const [entry] = panelTexts(ctx, tParts);
+  assert.equal(entry.slot, 'terminal');
+  assert.equal(entry.critical, true);
+  assert.equal(entry.role, 'body');
+  assert.equal(entry.bg, ctx.roles.color('surface'));
+  assert.ok(/** @type {string} */ (entry.text).startsWith('$ ls'));
+  const titled = /** @type {any} */ (panelOf(panelScene({ kind: 'graph', title: 'A plot' }), 'render'));
+  const lParts = buildPanel(ctx, titled);
+  lParts.alpha = 0.5;
+  const [label] = panelTexts(ctx, lParts);
+  assert.equal(label.critical, false);
+  assert.equal(label.role, 'label');
+  assert.equal(label.size, PANEL_LABEL_PX.landscape);
+  assert.equal(label.alpha, 0.5);
+  // a panel showing its medium reports no text of its own
+  const ctx2 = ctxFor({ media: (/** @type {any} */ ref) => ({ el: document.createElement('div'), missing: false, ref, update: () => {} }) });
+  const pic = /** @type {any} */ (panelOf(panelScene({ kind: 'image', title: 'P' },
+    { kind: 'image', url: '/p.png', width: 800, height: 600 }), 'render'));
+  assert.deepEqual(panelTexts(ctx2, buildPanel(ctx2, pic)), []);
+  ctx.root.remove();
+  ctx2.root.remove();
+});
+
+test('panelFocusRect: `panel` the frame as a shape, `panel:row:<n>` a terminal line as a bar; nothing else', () => {
+  const ctx = ctxFor();
+  const term = /** @type {any} */ (panelOf(panelScene({ kind: 'terminal', terminal: { command: 'ls', output: 'a\nb' } }), 'render'));
+  const parts = buildPanel(ctx, term);
+  parts.alpha = 1;
+  const lines = /** @type {any} */ (parts.term).lines;
+  /** @param {Element} el */
+  const rects = (el) => (el === parts.frame ? { x: 1058.4, y: 300.2, w: 766.3, h: 400.9 }
+    : el === lines[1] ? { x: 1090, y: 420, w: 640, h: 56 } : null);
+  const c = /** @type {any} */ ({ ...ctx, rectOf: rects });
+  assert.deepEqual(panelFocusRect(c, parts, 'panel'),
+    { rect: { x: 1058, y: 300, w: 767, h: 401 }, shape: 'rect', radius: RADIUS.media, el: parts.el, kind: 'shape' });
+  assert.deepEqual(panelFocusRect(c, parts, 'panel:row:1'),
+    { rect: { x: 1090, y: 420, w: 640, h: 56 }, shape: 'bar', radius: 0, el: parts.el, kind: 'shape' });
+  assert.equal(panelFocusRect(c, parts, 'panel:row:5'), null, 'a row the panel has not got');
+  assert.equal(panelFocusRect(c, parts, 'panel:column:0'), null, 'no column form here');
+  assert.equal(panelFocusRect(c, parts, 'd1'), null, 'an item is the template\'s own');
+  assert.equal(panelFocusRect(c, parts, 'not a target'), null);
+  // nothing while the panel is off screen
+  parts.alpha = 0;
+  assert.equal(panelFocusRect(c, parts, 'panel'), null);
+  ctx.root.remove();
 });

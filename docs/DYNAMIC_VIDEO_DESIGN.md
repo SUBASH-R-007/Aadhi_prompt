@@ -3149,6 +3149,52 @@ integrator. It is what makes a real lecture use the new templates instead of dra
   under `board_generic`; the parity is kept guard by guard, not by a test that walks every template.
 
 
+**Status (B2 step 4, 2026-10-16): the templates the demo lecture actually fell back on.** The owner re-prioritised
+step 4 from the original order (which would have converted one showcase scene) to the templates the fallback scenes
+need: `full_bleed_media`, `animation_stage`, side-panel support in `worked_steps` / `key_terms`, `check` and
+`predict`. Built by `docs/plans/b2/r1_workflow.js` (five parallel builders, one integrator, one review, one fix).
+Fourteen of the 23 R1 templates now draw (the side-panel layer is not a template of its own). Record: `final_videos/demo_b2/README.md` (the per-scene table and every remaining
+fallback's reason), `docs/plans/b2/demo_frames/index.html`.
+- **Built.** `full_bleed_media` (forced for `ai_video`: the medium fills the frame, the words sit on an always-on
+  scrim lower third, and `texts()` reports the colour the text really sits on - the scrim composited over the
+  darkest and the lightest medium, the worse of the two, measured 8.2-9.6:1 for the label and 4.5-4.9:1 for the
+  sub-line in all four families); `animation_stage` (forced for `simulation`); `check` (forced for a quiz, `mcq` in
+  16:9); `predict` with the "Your prediction?" chip that carries into the next explaining scene; and the shared
+  side-panel layer in `_shared.js`, which lets `worked_steps` and `key_terms` draw a scene that carries a panel
+  instead of refusing it.
+- **The demo.** In 16:9 the showcase lecture now draws **11 of its 16 scenes with a B2 template** (it was 4):
+  `full_bleed_media` x3, `chapter_bumper` x2, `worked_steps` x2, `animation_stage`, `check`, `list_build` and
+  `media_split`. In 9:16 it draws 6, because `mcq` is 16:9 only (R-06), a side panel is drawn in 16:9 only, and
+  `media_split`'s reel phrase cannot hold these two scenes' text.
+- **A blocker the review found: the 9:16 builds could not be rendered at all.** Dynamic preflight returned two
+  blocking `text_overflow` findings on the portrait showcase, so no real portrait render of this lecture was
+  possible; `media_split`'s reel phrase (two lines of 48-64 px in a 588 px column) was being handed a 9-, an 11-, a
+  14- and a 22-word item, drawn anyway and reported, and the chart card beside a five-line body was squeezed to an
+  unreadable 196x110 px stand-in reading "Dra" / "w". `templates.py MEDIA_SPLIT_PHRASE_WORDS` now keeps those scenes
+  off the template in 9:16, so they fall back to `board_generic`, which holds the text, and both portrait builds
+  render. **The demo renderer had also been skipping preflight entirely** (it called `render_motion` directly, unlike
+  the production path): it now runs `run_preflight` and `raise_if_blocked`, with an explicit
+  `--allow-preflight-blocks` escape hatch, so a blocked demo can no longer be rendered by accident.
+- **Review and fix (deadline process).** One reviewer, one fix round. 5 findings: 1 blocker (above), 2 major
+  (`full_bleed_media` and `animation_stage` each accepted a scene carrying a side panel they draw none of, silently
+  dropping its content - both now refuse such a scene, the CG-2 rule again) and 2 minor (the demo renderer's missing
+  preflight; a chunk-key guard test that had been weakened with a comment-stripping pass and a lookbehind, now a
+  module-level pattern again). All five fixed.
+- **Gates.** ruff, `tsc`, `git diff --check` and all ten generated-file checks clean; the fast suite 5,647 passed,
+  5 skipped, 0 failed; `npm test` 1,732 tests (1,731 pass, 1 skipped); the real-Chromium gates
+  `test_template_fixtures` + `test_template_clips` 65 passed (the 1x/3x/reverse frame-hash gate on all 60 fixtures,
+  the four new templates included) and `test_template_pages` 181 passed (real preflight on every fixture with zero
+  blocking and zero `type_floor` findings); `tests/invariance` green, so classic output is unchanged.
+- **Open.** `s2`, `s7`, `s15`, `s16`: no R1 template claims their board shape. `s5` carries two definitions plus a
+  `misconception`, which is `myth_fact`'s data, so whether `key_terms` may carry a misconception card is an owner
+  decision. A `graph` / `chart` / `model_3d` panel is drawn as its authored title on the card surface, not as the
+  plot: **the Dynamic engine still has no chart path** (`chart_build`, `function_plot`, `model_spin` are unbuilt), so
+  s11's graph is a card reading "I = V / R (straight line!)" beside the steps. `mcq` in 9:16 and a reel side panel
+  are owner decisions on the reel layout. Still unbuilt: `myth_fact`, `aadhi_intro`, `outro_next`,
+  `code_walkthrough`, `chart_build`, `kinetic_statement`, `aadhi_recap`, `thumbnail`, `interactive_poster` - and
+  `aadhi_intro` is the one that would put the Aadhi presenter back into a Dynamic video, which no template does
+  today.
+
 #### B3. Audio system (in parallel with B1–B2)
 
 **Scope**

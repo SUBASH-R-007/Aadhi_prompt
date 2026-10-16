@@ -236,6 +236,11 @@ def test_chunk_key_covers_the_chapter_title_drawn_as_the_kicker() -> None:
     assert renamed[1] != base[1] and renamed[2] != base[2] and renamed[3] != base[3]
 
 
+#: A ``timeline.<field>`` read in the stage's code, qualified or not (``timeline.x``, ``stage.timeline.x``,
+#: ``this.timeline.x``); only the slash form of a path (``compose/timeline.py``) is not one.
+READS_TIMELINE = r"(?<!/)\btimeline\.([A-Za-z_]+)"
+
+
 def test_every_timeline_field_the_stage_reads_is_in_the_key() -> None:
     """A top-level timeline field the stage reads but the key does not hash (as ``chapters`` once was) would let a
     retry reuse chunks drawn from the old value."""
@@ -245,8 +250,19 @@ def test_every_timeline_field_the_stage_reads_is_in_the_key() -> None:
     from aadhi.config import ROOT_DIR
 
     read: set[str] = set()
+    # Code only: a comment line naming the Python module (``compose/timeline.py``, ``compose.timeline._panel_media``)
+    # is prose, not a field the page reads, and the templates' own headers are full of it. A line of a JSDoc block or
+    # a ``//`` comment is dropped. ``(?<!/)`` drops the *path* form (``compose/timeline.py``) should one survive in a
+    # trailing comment, and nothing else: a qualified member read (``this.stage.timeline.x``) must still be seen -
+    # that is the bug this guard exists to catch.
+    def code(text: str) -> str:
+        out = [ln for ln in text.splitlines() if not ln.lstrip().startswith(("*", "//", "/*"))]
+        return "\n".join(out)
+
+    assert re.findall(READS_TIMELINE, "const n = this.stage.timeline.bogus;") == ["bogus"]
+    assert re.findall(READS_TIMELINE, "// see compose/timeline.py") == []
     for path in (ROOT_DIR / "web" / "js" / "dynamic").rglob("*.js"):
-        read |= set(re.findall(r"\btimeline\.([A-Za-z_]+)", path.read_text(encoding="utf-8")))
+        read |= set(re.findall(READS_TIMELINE, code(path.read_text(encoding="utf-8"))))
     assert read and "chapters" in read
     assert read <= set(STAGE_TIMELINE_FIELDS), sorted(read - set(STAGE_TIMELINE_FIELDS))
     tl = dynamic_timeline([3.0, 3.0])

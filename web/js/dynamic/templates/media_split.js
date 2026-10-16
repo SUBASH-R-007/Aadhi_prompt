@@ -185,6 +185,17 @@ export const EXIT_FACTOR = 0.7;
 /** A 9:16 phrase is fully shown at least this long before a phrase with no beat of its own replaces it
  * (board_generic's MIN_DWELL). */
 export const MIN_DWELL = 1.5;
+/**
+ * The least share of the 9:16 `stage` region the medium ever keeps (`portraitBoxes`). The medium is sized from what is
+ * left over the bottom-anchored phrase, so before this floor a phrase taller than its two lines shrank the medium
+ * instead of giving up height: a 5-line body left a 196x110 px box, in which `containRect` drew a chart panel's
+ * stand-in too small to read its title (B2 review F3, measured in both shipped 9:16 demo MP4s). A phrase that does
+ * not fit its two lines now grows over the medium's lower edge instead - on its own scrim, so it stays legible - and
+ * is reported through `texts()` as overflow, so preflight blocks the render with "Shorten text" (plan §2) rather than
+ * shipping an unreadable medium. `templates.py MEDIA_SPLIT_PHRASE_WORDS` keeps such a scene off this template in the
+ * first place, so for a phrase that fits the floor never binds (the medium keeps >= 61% of the stage).
+ */
+export const MEDIA_MIN_SHARE = 0.4;
 
 // ---------------------------------------------------------------------------------------------
 // What the scene shows (pure)
@@ -358,7 +369,10 @@ export function portraitBoxes(scene, titleH, phraseH) {
   }
   const top = titleH > 0 ? Math.max(stage.y0, Math.ceil(title.y1 + L.stageGap)) : tall.y0;
   const phraseTop = phraseH > 0 ? Math.floor(phrase.y1 - phraseH) : stage.y1 + L.stageGap;
-  const bottom = Math.min(stage.y1, phraseTop - L.stageGap);
+  // the medium keeps MEDIA_MIN_SHARE of the stage whatever the phrase does (see MEDIA_MIN_SHARE): an oversized
+  // phrase grows over its lower edge and is reported as overflow, never collapses it
+  const floor = Math.round((stage.y1 - stage.y0) * MEDIA_MIN_SHARE);
+  const bottom = Math.min(stage.y1, Math.max(phraseTop - L.stageGap, top + floor));
   return { title, phrase: { ...phrase, y0: phraseH > 0 ? phraseTop : phrase.y0 }, media: { x0: stage.x0, y0: top, x1: stage.x1, y1: Math.max(top, bottom) } };
 }
 

@@ -15,12 +15,15 @@ import { CATALOGUE } from '../../../js/dynamic/catalogue.gen.js';
 import { TYPE_FLOORS, ZONES, templateSlots } from '../../../js/dynamic/core.js';
 import { FOCUS_OUTSET, FOCUS_PX } from '../../../js/dynamic/cues.js';
 import { itemTimings } from '../../../js/dynamic/state.js';
-import { STATE_WEIGHT, TEXT_RISE } from '../../../js/dynamic/templates/_shared.js';
+import {
+  PANEL_DELAY, PANEL_ENTER, PANEL_KINDS, PANEL_LABEL_PX, PANEL_TERM, PANEL_TITLED_KINDS, STATE_WEIGHT, TEXT_RISE,
+} from '../../../js/dynamic/templates/_shared.js';
 import workedSteps, {
   COUNTDOWN_FADE, LAYOUT, LINE_HEIGHT, PAD, RISE, STATE_EASE, STEP_ENTER, TEXT_DELAY, TOP_KINDS, TYPE_CPS, anchored,
-  boxes, countdownOf, drawsScene, lineHeight, slotRows, stateAt, stateTrack, statesOn, stepItems, texOf, typeSeconds,
-  typedAt, variantOf, wordChars,
+  boxes, countdownOf, drawsScene, lineHeight, panelFor, slotRows, stateAt, stateTrack, statesOn, stepItems, texOf,
+  typeSeconds, typedAt, variantOf, wordChars,
 } from '../../../js/dynamic/templates/worked_steps.js';
+import boardGeneric from '../../../js/dynamic/templates/board_generic.js';
 import { contractProblems, orderProblems, recordingTex, renderStage } from './_harness.js';
 
 before(() => installDom());
@@ -136,8 +139,22 @@ test('drawsScene: steps plus at most one top line and one formula; anything else
     false, 'two top lines');
   assert.equal(drawsScene(scene([step], { quiz: {} })), false);
   assert.equal(drawsScene(scene([step], { media: {} })), false);
-  assert.equal(drawsScene(scene([step], { side_panel: { kind: 'figure' } })), false);
-  assert.equal(drawsScene(scene([step], { side_panel: { kind: 'figure' }, layout: { show_side_panel: false } })), true);
+  // a side panel: 16:9 only, never beside a formula card (the right 45% holds one visual), and only a kind
+  // _shared.js draws - the one question `_fit_worked_steps` must ask too (B2c review CG-2)
+  const sp = (/** @type {any} */ panel, /** @type {any} */ media = null) => ({ side_panel: { panel, media, show_at: 0 } });
+  for (const kind of PANEL_KINDS) {
+    const panel = PANEL_TITLED_KINDS.includes(kind) ? { kind, title: 'A plot' } : { kind, title: 'P', terminal: { command: 'ls' } };
+    assert.equal(drawsScene(scene([step], sp(panel)), 'landscape'), true, kind);
+    assert.equal(drawsScene(scene([step], sp(panel)), 'portrait'), false, `${kind} in 9:16`);
+    assert.equal(drawsScene(scene([step, { id: 'f', kind: 'formula', latex: 'a' }], sp(panel)), 'landscape'), false,
+      `${kind} beside a formula`);
+  }
+  for (const kind of ['skill_tree', 'quiz']) assert.equal(drawsScene(scene([step], sp({ kind })), 'landscape'), false, kind);
+  for (const kind of PANEL_TITLED_KINDS) {
+    assert.equal(drawsScene(scene([step], sp({ kind })), 'landscape'), false, `${kind} with no title to draw`);
+  }
+  assert.equal(drawsScene(scene([step], { side_panel: { panel: { kind: 'figure' }, show_at: 0 }, layout: { show_side_panel: false } })), true);
+  assert.equal(drawsScene(scene([step]), 'portrait'), true, 'without a panel 9:16 draws the steps');
 });
 
 test('variantOf: 16:9 split with a formula, else centred; 9:16 stack when a step is beat-revealed, else list', () => {
@@ -146,6 +163,12 @@ test('variantOf: 16:9 split with a formula, else centred; 9:16 stack when a step
   const withBeats = /** @type {any} */ ({ board: base, beats: [{ beat_id: 'b', index: 0, phase: 'main', start: 1, speech_end: 2, end: 2, narration: 'x', board_item_id: 's2' }] });
   assert.equal(variantOf(noBeats, 'landscape'), 'centred');
   assert.equal(variantOf(/** @type {any} */ ({ ...noBeats, board: [...base, { id: 'f', kind: 'formula', latex: 'a' }] }), 'landscape'), 'split');
+  // a panel takes the same visual box, so it splits the layout too (16:9 only)
+  const panelled = /** @type {any} */ ({ ...noBeats, side_panel: { panel: { kind: 'image' }, media: null, show_at: 0 } });
+  assert.equal(variantOf(panelled, 'landscape'), 'split');
+  assert.equal(variantOf(panelled, 'portrait'), 'list', '9:16 draws no panel');
+  assert.ok(panelFor(panelled, 'landscape'));
+  assert.equal(panelFor(panelled, 'portrait'), null);
   assert.equal(variantOf(noBeats, 'portrait'), 'list');
   assert.equal(variantOf(withBeats, 'portrait'), 'stack');
   assert.equal(anchored(withBeats, ['s2']), true);
@@ -181,6 +204,11 @@ test('slotRows: the step and justification boxes, R-29 sizes, the formula as a p
   assert.equal(rows.formula.landscape.default.line_height, 1, 'a TeX picture sets its own height');
   assert.equal(rows.formula.portrait.default.w, (780 - 192) - 2 * LAYOUT.portrait.card.padX);
   assert.equal(rows.heading.portrait.default.w, 696);
+  // the panel's terminal card: 16:9 only (9:16 draws no panel), mono, the right 45% less its padding
+  assert.deepEqual(Object.keys(rows.terminal), ['landscape']);
+  assert.equal(rows.terminal.landscape.default.face, 'mono');
+  assert.equal(rows.terminal.landscape.default.w, (1824 - 1058) - 2 * PANEL_TERM.landscape.pad);
+  assert.deepEqual(rows.terminal.landscape.default.size, [PANEL_TERM.landscape.min, PANEL_TERM.landscape.max]);
   // R-29 (tests/compose/dynamic/test_templates.py pins the same rule on the catalogue's rows): no slot starts below
   // its role's floor, and 9:16 text at <= 64 px is at least weight 600
   for (const slot of Object.keys(rows)) {
@@ -215,7 +243,12 @@ test('the catalogue\'s worked_steps slots (templates.py) are slotRows exactly, o
     return;
   }
   const want = /** @type {any} */ (slotRows(ZONES.landscape, ZONES.portrait));
+  // the side-panel slice added the `terminal` row; until the integrator applies its templates.py change and
+  // regenerates the catalogue, that one row is not there yet (the same handshake as `implemented` above)
+  const pending = Object.keys(want).filter((slot) => !Object.prototype.hasOwnProperty.call(cat, slot));
+  assert.deepEqual(pending.filter((slot) => slot !== 'terminal'), [], 'only the new `terminal` row may be pending');
   for (const slot of Object.keys(want)) {
+    if (pending.includes(slot)) continue;
     for (const fmt of Object.keys(want[slot])) {
       for (const variant of Object.keys(want[slot][fmt])) {
         const got = cat[slot][fmt][variant];
@@ -224,9 +257,13 @@ test('the catalogue\'s worked_steps slots (templates.py) are slotRows exactly, o
       }
     }
   }
-  assert.deepEqual(Object.keys(cat).sort(), Object.keys(want).sort());
-  assert.deepEqual(spec.consumes.forms,
-    { reveal: ['item'], fill: ['item'], countdown: ['item'], look_here: ['item', 'item:var', 'item:step'] });
+  assert.deepEqual(Object.keys(cat).sort(), Object.keys(want).filter((s) => !pending.includes(s)).sort());
+  // the panel's own forms (`panel`, `panel:row`) and its `output` kind reach `consumes` with the integrator's
+  // templates.py change; until then the B2c forms stand
+  const forms = /** @type {any} */ (spec.consumes.forms);
+  assert.deepEqual({ reveal: forms.reveal, fill: forms.fill, countdown: forms.countdown },
+    { reveal: ['item'], fill: ['item'], countdown: ['item'] });
+  assert.ok(forms.look_here.includes('item') && forms.look_here.includes('item:var') && forms.look_here.includes('item:step'));
   assert.equal(spec.dense, true, 'R-55 / R-49: the background freezes and SFX are off');
 });
 
@@ -669,13 +706,17 @@ function fakeLayout() {
 
 /**
  * A one-scene timeline of `fmt` whose steps are `texts` (each with a justification), beat-revealed unless
- * `beats: false`.
+ * `beats: false`. `panel` / `panelMedia`: the scene's side panel (the demo's s11 and s12 shapes).
  * @param {'landscape' | 'portrait'} fmt @param {string[]} texts
- * @param {{beats?: boolean, heading?: string | null, formula?: boolean}} [opts]
+ * @param {{beats?: boolean, heading?: string | null, formula?: boolean, panel?: any, panelMedia?: any}} [opts]
  */
 function stepsTimeline(fmt, texts, opts = {}) {
   const tl = load(fmt === 'portrait' ? 'worked_steps.portrait.json' : 'worked_steps.landscape.json');
   const scene = tl.scenes[0];
+  if (opts.panel) {
+    scene.side_panel = { panel: opts.panel, media: opts.panelMedia || null, show_at: 0 };
+    scene.layout = { ...(scene.layout || {}), show_side_panel: true };
+  }
   const heading = opts.heading === undefined ? 'Find the current' : opts.heading;
   scene.board = [
     ...(heading ? [{ id: 'h1', kind: 'heading', text: heading }] : []),
@@ -740,5 +781,183 @@ test('fit (9:16): the stack sizes the current step under the compact steps above
     list.done();
   } finally {
     restore();
+  }
+});
+
+// --- the scene's side panel (the B2-demo side-panel slice; _shared.js) ----------------------------------------------
+
+test('16:9 panel: the steps keep the left 55%, the panel takes the right 45% from the steps\' top down', async () => {
+  const restore = fakeLayout();
+  try {
+    // the demo's s11 shape: a worked example whose panel illustrates it (here a figure the mode can show)
+    const s = spyStage(stepsTimeline('landscape', ['Step 1: I = V / R', 'Step 2: I = 230 / 115', 'Step 3: I = 2 A'],
+      { panel: { kind: 'figure', title: 'I = V / R (a straight line)' },
+        panelMedia: { kind: 'image', url: '/media/plot.png', width: 1200, height: 900 } }));
+    await s.seekTo(0, 1.2);
+    const ctx = s.ctx(0);
+    assert.equal(s.stage.el.querySelector('.dyn-board'), null, 'worked_steps drew it, not board_generic');
+    assert.equal(ctx.view.variant, 'split');
+    assert.ok(ctx.view.panel && ctx.view.panel.view, 'the panel shows its medium');
+    const px = (/** @type {string} */ v) => Number.parseFloat(v) || 0;
+    const frame = ctx.view.panel.frame.style;
+    const box = { x: px(frame.left), y: px(frame.top), w: px(frame.width), h: px(frame.height) };
+    assert.ok(box.x >= 1058 - 1 && box.x + box.w <= 1824 + 1, 'the panel is in the right 45%');
+    assert.ok(box.y >= ctx.view.stepsTop - 1, 'it starts under the top line');
+    assert.equal(Math.round((box.w / box.h) * 100), Math.round((1200 / 900) * 100), 'contained at its aspect');
+    for (const step of ctx.view.steps) {
+      assert.ok(px(step.el.style.left) + px(step.el.style.width) <= 1034 + 1, 'a step stays in the left 55%');
+    }
+    // its own dim group, whose opacity the template never writes (the stage owns it)
+    assert.ok(workedSteps.dimGroups?.(ctx)?.includes(ctx.view.panel.el));
+    assert.equal(ctx.view.panel.el.style.opacity, '');
+    // look_here on `panel` (jsdom has no layout: rectOf is stubbed)
+    const stub = { ...ctx, rectOf: (/** @type {Element} */ el) => (el === ctx.view.panel.frame ? { x: 1100.4, y: 300.6, w: 680.2, h: 510.4 } : null) };
+    assert.deepEqual(workedSteps.focusRect?.(stub, 'panel'),
+      { rect: { x: 1100, y: 301, w: 681, h: 510 }, shape: 'rect', radius: 24, el: ctx.view.panel.el, kind: 'shape' });
+    assert.equal(workedSteps.focusRect?.(stub, 'panel:row:0'), null, 'a picture panel has no rows');
+    // mediaBox for slot `panel`: the panel's whole box, so a clip is extracted at the largest size it is shown at
+    const fixes = { safe: false, slots: {} };
+    const want = /** @type {any} */ (boxes('landscape', 'split', ZONES.landscape, true)).visual;
+    assert.deepEqual(workedSteps.mediaBox?.(ctx.scene, ZONES.landscape, 'render', 'panel', fixes),
+      { w: want.x1 - want.x0, h: want.y1 - want.y0 });
+    assert.equal(workedSteps.mediaBox?.(ctx.scene, ZONES.landscape, 'render', 'main', fixes), null);
+    s.done();
+  } finally {
+    restore();
+  }
+});
+
+test('16:9 terminal panel: the command and its output lines on the card surface, in the `terminal` slot', async () => {
+  const restore = fakeLayout();
+  try {
+    // the demo's s12 shape: a "your turn" example with a terminal session beside it
+    const s = spyStage(stepsTimeline('landscape', ['Step 1: I = V / R', 'Step 2: I = ______ / ______'],
+      { panel: { kind: 'terminal', title: 'Check', terminal: { command: 'circuit_check --v 6 --r 3', output: 'I = 6 / 3\nI = 2.0 A' } } }));
+    await s.seekTo(0, 1.2);
+    const ctx = s.ctx(0);
+    const term = ctx.view.panel.term;
+    assert.ok(term, 'a terminal card');
+    assert.equal(term.cmd.textContent, '$ circuit_check --v 6 --r 3');
+    assert.equal(term.lines.length, 2);
+    for (const line of term.lines) assert.ok(['visible', 'hidden'].includes(line.style.visibility), 'written every frame');
+    const entry = /** @type {any} */ (workedSteps.texts?.(ctx)?.find((e) => e.slot === 'terminal'));
+    assert.ok(entry && entry.critical === true);
+    assert.equal(entry.bg, ctx.roles.color('surface'));
+    assert.equal(entry.weight, PANEL_TERM.landscape.weight);
+    assert.ok(entry.size >= PANEL_TERM.landscape.min && entry.size <= PANEL_TERM.landscape.max);
+    assert.ok(entry.text.startsWith('$ circuit_check'), 'preflight gets the text it would ask to shorten');
+    // a terminal asks for no medium at all
+    assert.equal(workedSteps.mediaBox?.(ctx.scene, ZONES.landscape, 'render', 'panel', { safe: false, slots: {} }), null);
+    // look_here on its n-th output line is a bar on that line
+    const stub = { ...ctx, rectOf: (/** @type {Element} */ el) => (el === term.lines[1] ? { x: 1090, y: 420, w: 640, h: 56 } : null) };
+    assert.deepEqual(workedSteps.focusRect?.(stub, 'panel:row:1'),
+      { rect: { x: 1090, y: 420, w: 640, h: 56 }, shape: 'bar', radius: 0, el: ctx.view.panel.el, kind: 'shape' });
+    assert.equal(workedSteps.focusRect?.(stub, 'panel:row:7'), null, 'a row the panel has not got');
+    s.done();
+  } finally {
+    restore();
+  }
+});
+
+test('16:9 panel with nothing to show: the authored title on the card surface, reported but not critical', async () => {
+  const restore = fakeLayout();
+  try {
+    // a graph panel: the Dynamic engine draws no plot anywhere yet (function_plot is unimplemented, and
+    // board_generic draws none either), so the panel's own title stands in for it
+    const s = spyStage(stepsTimeline('landscape', ['Step 1: I = V / R', 'Step 2: I = 2 A'],
+      { panel: { kind: 'graph', title: 'I = V / R (a straight line)', graph: { functions: [{ expr: 'x/2' }] } } }));
+    await s.seekTo(0, 1.2);
+    const ctx = s.ctx(0);
+    assert.ok(ctx.view.panel && ctx.view.panel.label, 'a title card');
+    assert.equal(ctx.view.panel.label.textContent, 'I = V / R (a straight line)');
+    assert.equal(ctx.view.panel.term, null);
+    const entry = /** @type {any} */ (workedSteps.texts?.(ctx)?.find((e) => e.el === ctx.view.panel.label));
+    assert.ok(entry && entry.critical === false, 'a stand-in label is not critical (board_generic\'s reading)');
+    assert.equal(entry.size, PANEL_LABEL_PX.landscape);
+    assert.equal(entry.bg, ctx.roles.color('surface'));
+    s.done();
+  } finally {
+    restore();
+  }
+});
+
+test('a panel in 9:16, beside a formula, or of a kind nobody draws sends the whole scene to board_generic (CG-2)', async () => {
+  const restore = fakeLayout();
+  try {
+    /** @type {[string, 'landscape' | 'portrait', any][]} */
+    const cases = [
+      ['a panel in 9:16', 'portrait', { panel: { kind: 'figure', title: 'P' } }],
+      ['a panel beside a formula', 'landscape', { panel: { kind: 'figure', title: 'P' }, formula: true }],
+      ['a skill-tree panel', 'landscape', { panel: { kind: 'skill_tree', title: 'P' } }],
+      ['a graph with no title', 'landscape', { panel: { kind: 'graph', graph: { functions: [] } } }],
+    ];
+    for (const [name, fmt, opts] of cases) {
+      const tl = stepsTimeline(fmt, ['Step 1: I = V / R', 'Step 2: I = 2 A'], opts);
+      const s = spyStage(tl);
+      await s.seekTo(0, 1.2);
+      assert.ok(s.stage.el.querySelector('.dyn-board'), `${name}: board_generic drew it`);
+      assert.equal(s.stage.el.querySelector('.dyn-ws'), null, name);
+      const scene = tl.scenes[0];
+      const fixes = { safe: false, slots: {} };
+      // every hook is handed on, so `mediaPlan` and `ctx.media` agree with what the page draws
+      assert.deepEqual(workedSteps.tex?.(scene, scene.look, fmt), boardGeneric.tex?.(scene, scene.look, fmt), name);
+      assert.deepEqual(workedSteps.mediaBox?.(scene, ZONES[fmt], 'render', 'panel', fixes),
+        boardGeneric.mediaBox?.(scene, ZONES[fmt], 'render', 'panel', fixes), name);
+      s.done();
+    }
+  } finally {
+    restore();
+  }
+});
+
+test('the panel enters at its own show_at over PANEL_ENTER, and PANEL_DELAY after a scene that has it from the start', async () => {
+  const restore = fakeLayout();
+  try {
+    const tl = stepsTimeline('landscape', ['Step 1: I = V / R', 'Step 2: I = 2 A'],
+      { panel: { kind: 'figure', title: 'P' }, panelMedia: { kind: 'image', url: '/media/p.png', width: 800, height: 600 } });
+    tl.scenes[0].side_panel.show_at = 2;
+    const s = spyStage(tl);
+    await s.seekTo(0, 1.9);
+    const ctx = s.ctx(0);
+    assert.equal(ctx.view.panel.frame.style.visibility, 'hidden', 'nothing before its show_at');
+    const scale = Number(tl.presentation.motion_scale ?? 1) || 1;
+    await s.seekTo(0, 2 + PANEL_ENTER * scale + 0.3);
+    assert.equal(op(ctx.view.panel.frame.style.opacity), 1);
+    assert.equal(ctx.view.panel.frame.style.transform, 'none', 'the rise ends at none, on whole px');
+    s.done();
+    // from the scene's start: PANEL_DELAY, board_generic's media frame
+    const own = stepsTimeline('landscape', ['Step 1: I = V / R'],
+      { panel: { kind: 'figure', title: 'P' }, panelMedia: { kind: 'image', url: '/media/p.png', width: 800, height: 600 } });
+    const t0 = spyStage(own);
+    await t0.seekTo(0, PANEL_DELAY / 2);
+    assert.equal(t0.ctx(0).view.panel.frame.style.visibility, 'hidden');
+    t0.done();
+  } finally {
+    restore();
+  }
+});
+
+test('a panelled scene keeps the contract and paints the same frame forward, in reverse and on a fresh page', async () => {
+  /** @type {any[]} */
+  const panels = [
+    { panel: { kind: 'figure', title: 'I = V / R (a straight line)' },
+      panelMedia: { kind: 'image', url: '/media/plot.png', width: 1200, height: 900 } },
+    { panel: { kind: 'terminal', title: 'Check', terminal: { command: 'circuit_check --v 6 --r 3', output: 'I = 6 / 3\nI = 2.0 A   [VERIFIED]' } } },
+    { panel: { kind: 'graph', title: 'I = V / R (a straight line)', graph: { functions: [{ expr: 'x/2' }] } } },
+  ];
+  for (const opts of panels) {
+    const tl = stepsTimeline('landscape', ['Step 1: I = V / R', 'Step 2: I = 230 / 115', 'Step 3: I = 2 A'], opts);
+    // a look_here on the panel and on one of its rows, so the cue layer asks focusRect for both forms
+    tl.scenes[0].events = [{ t: 1.4, kind: 'look_here', target: 'panel', dur: 1.2 },
+      { t: 3.2, kind: 'look_here', target: 'panel:row:0', dur: 1 }];
+    const name = String(opts.panel.kind);
+    assert.deepEqual(await contractProblems(workedSteps, tl), [], name);
+    const total = Math.round(tl.total_duration * tl.fps);
+    const frames = new Set();
+    for (let f = 0; f < total; f += 9) frames.add(f);
+    for (const e of tl.scenes[0].events) {
+      for (const d of [0, 0.2, 0.5]) frames.add(Math.min(total - 1, Math.round((tl.scenes[0].start + e.t + d) * tl.fps)));
+    }
+    assert.deepEqual(await orderProblems(tl, [...frames].sort((a, b) => a - b), SEAM), [], name);
   }
 });

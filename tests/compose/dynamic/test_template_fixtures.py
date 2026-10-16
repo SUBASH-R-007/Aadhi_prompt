@@ -124,12 +124,16 @@ def test_every_fixture_file_is_its_generator_s_current_output() -> None:
     (``python -m tests.compose.dynamic.<generator>``; each also has ``--check``): a fixture edited by hand, a stale one
     after a pipeline change, or a stray file fails here."""
     from tests.compose.dynamic import list_build_fixtures as lbf
+    from tests.compose.dynamic import make_animation_stage_fixtures as asf
     from tests.compose.dynamic import make_chapter_bumper_fixtures as cbf
+    from tests.compose.dynamic import make_check_fixtures as ckf
     from tests.compose.dynamic import make_definition_card_fixtures as dcf
     from tests.compose.dynamic import make_formula_focus_fixtures as fff
+    from tests.compose.dynamic import make_full_bleed_media_fixtures as fbm
     from tests.compose.dynamic import make_hook_question_fixtures as hqf
     from tests.compose.dynamic import make_key_terms_fixtures as ktf
     from tests.compose.dynamic import make_media_split_fixtures as msf
+    from tests.compose.dynamic import make_predict_fixtures as pdf
     from tests.compose.dynamic import make_recap_retrieval_fixtures as rrf
     from tests.compose.dynamic import worked_steps_fixtures as wsf
 
@@ -142,6 +146,10 @@ def test_every_fixture_file_is_its_generator_s_current_output() -> None:
     generated |= {p.name: text for p, text in ktf.files().items()}
     generated |= {name: rrf.render(tl) for name, tl in rrf.fixtures().items()}
     generated |= {name: wsf.render(tl) for name, tl in wsf.fixtures().items()}
+    generated |= {p.name: text for p, text in asf.files().items()}
+    generated |= {name: ckf.render(tl) for name, tl in ckf.fixtures().items()}
+    generated |= {p.name: text for p, text in fbm.files().items()}
+    generated |= {name: pdf.render(tl) for name, tl in pdf.fixtures().items()}
     assert sorted(generated) == sorted(p.name for p in PATHS)
     stale = [p.name for p in PATHS if p.read_text("utf-8") != generated[p.name]]
     assert stale == [], f"stale fixtures: {stale}"
@@ -159,7 +167,7 @@ def test_the_reference_contact_sheet_lists_every_template_it_captured() -> None:
     groups = {key: [("dark (midnight_indigo, crisp)", names[0], [shot(names[0])])] for key, names in CHOSEN.items()}
     sheet = contact_sheet(groups)
     names = sorted({t for t, _ in CHOSEN})
-    assert len(names) == 9
+    assert len(names) == 13
     for template in names:
         assert f"<h2>{template}</h2>" in sheet, template
     assert sheet.count('src="') == len(groups)

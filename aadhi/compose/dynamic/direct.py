@@ -30,6 +30,25 @@ and becomes a candidate the moment its ``implemented`` flag flips - this module 
    dictionary order.
 5. No row with a candidate: ``board_generic``, which is the only template this module falls back to.
 
+**Step 4's four templates** (``animation_stage``, ``check``, ``full_bleed_media``, ``predict``) need no rule of their
+own here, and none was added: each is reached through machinery that was already in place, which is what keeps the
+choice deterministic and reviewable.
+
+* ``full_bleed_media`` (forced for ``ai_video``), ``animation_stage`` (``simulation``) and ``check``
+  (``quiz_checkpoint``) are **forced rows** (``templates._FORCED_TYPES``), so step 2 above takes them the moment
+  ``implemented`` flips. Their ``fit`` refuses what their page refuses (B2c review CG-2), so a quiz past §4.3's
+  option cap for the format - 9:16 beyond two options - scores 0 and the forced row falls through to
+  ``board_generic`` rather than planning a template the page would then draw with the fallback.
+* ``predict`` is an ordinary class candidate of the ``prompt`` row (a board with one blank ``question`` item), nudged
+  by ``INTENT_TEMPLATES["predict"]``.
+* ``worked_steps`` / ``key_terms`` now draw a **side panel** in 16:9, so their fits take a panelled scene there (and
+  refuse it in 9:16): the §4.4 rows are unchanged, only what their fits accept.
+
+The "Your prediction?" chip of §4.3's ``predict`` belongs to whichever template explains the outcome, so it is not a
+template choice at all: ``web/js/dynamic/stage.js`` builds it in a layer of its own on any scene whose look carries
+``refs.prediction`` (``predict.js buildChip``). Nothing here writes that ref yet - the resolver's ``refs`` are B2e's -
+so no built lecture shows a chip today; when the ref is stored, every template shows it with no further change.
+
 **Variants.** ``spec.variants[fmt]``, empty for most. ``media_split``'s media side is a function of the scene's
 **chapter** (§4.3 / §4.4: the side changes only at chapter boundaries), seeded per lecture, so it never flips inside
 a chapter; ``aadhi_intro`` and ``hook_question`` take the teacher's stored choice, ``check`` and

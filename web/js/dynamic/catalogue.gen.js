@@ -1173,7 +1173,11 @@ export const CATALOGUE = Object.freeze(freezeInside({
     },
     "animation_stage": {
       "class": "media",
-      "consumes": {"forms": {}, "kinds": [], "targets": []},
+      "consumes": {
+        "forms": {"cue_term": ["item", "item:term"], "look_here": ["item", "panel"], "reveal": ["item"]},
+        "kinds": ["reveal", "cue_term", "look_here"],
+        "targets": ["item", "item:term", "panel"]
+      },
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 40.0, "min": 8.0, "per_item": false},
@@ -1182,11 +1186,84 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "forced_for": ["simulation"],
       "formats": ["landscape", "portrait"],
       "holds": [],
-      "implemented": false,
+      "implemented": true,
       "push_ok": false,
       "release": "R1",
       "representational": true,
-      "slots": {},
+      "slots": {
+        "label": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [44, 56],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 1728,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [48, 64],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 588,
+              "weight": 700
+            }
+          }
+        },
+        "title": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.15,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [64, 88],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 1728,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.15,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [56, 88],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 696,
+              "weight": 700
+            }
+          }
+        }
+      },
       "variants": {"landscape": [], "portrait": []}
     },
     "board_generic": {
@@ -1764,11 +1841,192 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "forced_for": ["quiz_checkpoint"],
       "formats": ["landscape", "portrait"],
       "holds": ["think"],
-      "implemented": false,
+      "implemented": true,
       "push_ok": false,
       "release": "R1",
       "representational": false,
-      "slots": {},
+      "slots": {
+        "explain": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "body",
+              "size": [40, 48],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 1728,
+              "weight": 400
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "body",
+              "size": [40, 44],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 588,
+              "weight": 600
+            }
+          }
+        },
+        "label": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.3,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "label",
+              "size": [40, 40],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 1584,
+              "weight": 600
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.3,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "label",
+              "size": [44, 44],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 476,
+              "weight": 600
+            }
+          }
+        },
+        "option": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "body",
+              "size": [40, 48],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 660,
+              "weight": 600
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "body",
+              "size": [40, 44],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 436,
+              "weight": 600
+            }
+          }
+        },
+        "question": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.15,
+              "max_chars": null,
+              "max_lines": 3,
+              "max_words": null,
+              "prefer_lines": 2,
+              "role": "title",
+              "size": [56, 72],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 1728,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.15,
+              "max_chars": null,
+              "max_lines": 4,
+              "max_words": null,
+              "prefer_lines": 3,
+              "role": "title",
+              "size": [48, 60],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 588,
+              "weight": 700
+            }
+          }
+        },
+        "ring": {
+          "landscape": {
+            "default": {
+              "critical": false,
+              "face": "body",
+              "line_height": 1.3,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "label",
+              "size": [40, 40],
+              "tabular_nums": true,
+              "tracking_em": 0.0,
+              "w": 120,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": false,
+              "face": "body",
+              "line_height": 1.3,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "label",
+              "size": [44, 44],
+              "tabular_nums": true,
+              "tracking_em": 0.0,
+              "w": 96,
+              "weight": 700
+            }
+          }
+        }
+      },
       "variants": {
         "landscape": ["mcq", "free_recall", "true_false", "apply"],
         "portrait": ["free_recall", "true_false"]
@@ -2349,11 +2607,84 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "forced_for": ["ai_video"],
       "formats": ["landscape", "portrait"],
       "holds": [],
-      "implemented": false,
+      "implemented": true,
       "push_ok": false,
       "release": "R1",
       "representational": true,
-      "slots": {},
+      "slots": {
+        "label": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [64, 96],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 1728,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [56, 88],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 588,
+              "weight": 700
+            }
+          }
+        },
+        "sub": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [40, 52],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 1728,
+              "weight": 600
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [44, 56],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 588,
+              "weight": 700
+            }
+          }
+        }
+      },
       "variants": {"landscape": [], "portrait": []}
     },
     "function_plot": {
@@ -2563,9 +2894,15 @@ export const CATALOGUE = Object.freeze(freezeInside({
     "key_terms": {
       "class": "definition",
       "consumes": {
-        "forms": {"cue_term": ["item", "item:term"], "draw": ["item"], "reveal": ["item"]},
-        "kinds": ["reveal", "draw", "cue_term"],
-        "targets": ["item", "item:term"]
+        "forms": {
+          "cue_term": ["item", "item:term"],
+          "draw": ["item"],
+          "look_here": ["panel", "panel:row"],
+          "output": ["panel"],
+          "reveal": ["item"]
+        },
+        "kinds": ["reveal", "draw", "cue_term", "look_here", "output"],
+        "targets": ["item", "item:term", "panel", "panel:row"]
       },
       "dense": false,
       "duration": {
@@ -2685,6 +3022,25 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "tracking_em": 0.0,
               "w": 588,
               "weight": 700
+            }
+          }
+        },
+        "terminal": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "mono",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [36.0, 44.0],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 702,
+              "weight": 400
             }
           }
         }
@@ -3099,9 +3455,9 @@ export const CATALOGUE = Object.freeze(freezeInside({
     "predict": {
       "class": "prompt",
       "consumes": {
-        "forms": {"countdown": ["item"], "reveal": ["item"]},
-        "kinds": ["reveal", "countdown"],
-        "targets": ["item"]
+        "forms": {"countdown": ["item"], "cue_term": ["item", "item:term"], "reveal": ["item"]},
+        "kinds": ["reveal", "countdown", "cue_term"],
+        "targets": ["item", "item:term"]
       },
       "dense": false,
       "duration": {
@@ -3111,11 +3467,192 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "forced_for": [],
       "formats": ["landscape", "portrait"],
       "holds": ["think"],
-      "implemented": false,
+      "implemented": true,
       "push_ok": false,
       "release": "R1",
       "representational": false,
-      "slots": {},
+      "slots": {
+        "chip": {
+          "landscape": {
+            "default": {
+              "critical": false,
+              "face": "body",
+              "line_height": 1.3,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "label",
+              "size": [40, 40],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 672,
+              "weight": 600
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": false,
+              "face": "body",
+              "line_height": 1.3,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "label",
+              "size": [44, 44],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 380,
+              "weight": 600
+            }
+          }
+        },
+        "label": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.3,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "label",
+              "size": [40, 40],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 1036,
+              "weight": 600
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.3,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "label",
+              "size": [44, 44],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 588,
+              "weight": 600
+            }
+          }
+        },
+        "prompt": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.3,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "label",
+              "size": [40, 40],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 972,
+              "weight": 600
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.3,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "label",
+              "size": [44, 44],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 540,
+              "weight": 600
+            }
+          }
+        },
+        "question": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.15,
+              "max_chars": null,
+              "max_lines": 3,
+              "max_words": null,
+              "prefer_lines": 2,
+              "role": "title",
+              "size": [64, 96],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 972,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.15,
+              "max_chars": null,
+              "max_lines": 3,
+              "max_words": null,
+              "prefer_lines": 2,
+              "role": "title",
+              "size": [56, 64],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 540,
+              "weight": 700
+            }
+          }
+        },
+        "ring": {
+          "landscape": {
+            "default": {
+              "critical": false,
+              "face": "body",
+              "line_height": 1.3,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "label",
+              "size": [40, 40],
+              "tabular_nums": true,
+              "tracking_em": 0.0,
+              "w": 120,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": false,
+              "face": "body",
+              "line_height": 1.3,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "label",
+              "size": [44, 44],
+              "tabular_nums": true,
+              "tracking_em": 0.0,
+              "w": 96,
+              "weight": 700
+            }
+          }
+        }
+      },
       "variants": {"landscape": [], "portrait": []}
     },
     "process_flow": {
@@ -3530,11 +4067,12 @@ export const CATALOGUE = Object.freeze(freezeInside({
         "forms": {
           "countdown": ["item"],
           "fill": ["item"],
-          "look_here": ["item", "item:var", "item:step"],
+          "look_here": ["item", "item:var", "item:step", "panel", "panel:row"],
+          "output": ["panel"],
           "reveal": ["item"]
         },
-        "kinds": ["reveal", "fill", "countdown", "look_here"],
-        "targets": ["item", "item:var", "item:step"]
+        "kinds": ["reveal", "fill", "countdown", "look_here", "output"],
+        "targets": ["item", "item:var", "item:step", "panel", "panel:row"]
       },
       "dense": true,
       "duration": {
@@ -3739,6 +4277,25 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "tracking_em": 0.0,
               "w": 496,
               "weight": 700
+            }
+          }
+        },
+        "terminal": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "mono",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [36.0, 44.0],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 702,
+              "weight": 400
             }
           }
         },

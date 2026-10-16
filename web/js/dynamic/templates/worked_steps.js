@@ -7,14 +7,19 @@
  * Data (§4.3, templates.py `_fit_worked_steps`): one or more `example_step` items (`text` the step, rich-lite with
  * `$TeX$`; `justification` why it holds; `blank` a step withheld until its fill beat), an optional top line (a
  * `heading`, or - what the generator writes for the example's setup - a `callout_info` / `paragraph`) and an optional
- * `formula` item. Nothing a timeline names is silently dropped: a scene with anything else on its board (a second top
- * line, a quiz, a medium, a poster or a shown side panel) is drawn by **board_generic** whole, every hook handed on
- * (`drawsScene`, formula_focus's and list_build's convention), and `_fit_worked_steps` scores such a scene 0, so
- * direct.py never sends it here.
+ * `formula` item, with - in 16:9, and only without a formula - the scene's **side panel** beside the steps
+ * (`_shared.js panelOf`: the example's figure, picture, animation, terminal session, or the authored title of a chart,
+ * plot or model the Dynamic engine draws nowhere yet). Nothing a timeline names is silently dropped: a scene with
+ * anything else on its board (a second top line, a quiz, a medium, a poster), with a panel of a kind `_shared.js`
+ * does not draw, with a panel in 9:16 (the reel's column holds the steps alone, list_build's rule) or with a panel
+ * AND a formula (one visual box, which the formula's card takes) is drawn by **board_generic** whole, every hook
+ * handed on (`drawsScene`, formula_focus's and list_build's convention), and `_fit_worked_steps` scores such a scene
+ * 0, so direct.py never sends it here (B2c review CG-2: a fit that takes a scene the page refuses makes the page
+ * silently draw board_generic).
  *
- * 16:9 (§4.3): the steps in the left 55% (`split`) with the formula's card in the right 45%; with no formula the steps
- * are set in the centre 60% (`centred`), so the right side is never left empty (list_build's V12 rule). The top line
- * spans its variant's width above both.
+ * 16:9 (§4.3): the steps in the left 55% (`split`) with the formula's card - or the scene's panel - in the right 45%;
+ * with neither, the steps are set in the centre 60% (`centred`), so the right side is never left empty (list_build's
+ * V12 rule). The top line spans its variant's width above both.
  *
  * 9:16 (§4.3, [RV L-13]): the top line, then the formula's card across the text column, then a **persistent compact
  * stack** of the steps: the current step is large (56-64 px) and every step before it is a compact 40 px row (R-29's
@@ -45,11 +50,12 @@
  *
  * Emphasis is cues.js's (§4.2, plan §1.4/§1.5): `focusRect` gives a step's card (a shape, so the outline runs outside
  * its state border, B2c review V4), the `<item>:step:<n>` form (the scene's n-th step, 1-based), the formula's card
- * and a symbol in it (`<item>:var:<symbol>`, kept bright with the formula's group); `itemEl` hands the term spans of a
- * step's text and justification (its field order) and of the top line; `dimGroups` the top line, every step and the
- * formula. Nothing here writes `outline`, `text-decoration`, `filter`, `backdrop-filter` or `will-change`, no
- * structure role colours content, and the cue roles (`mark`, `focus`) are never used: the blank rule and the think
- * ring are drawn in `ink2`.
+ * and a symbol in it (`<item>:var:<symbol>`, kept bright with the formula's group), and - through
+ * `_shared.js panelFocusRect` - the panel (`panel`) and a terminal's n-th output line (`panel:row:<n>`); `itemEl`
+ * hands the term spans of a step's text and justification (its field order) and of the top line; `dimGroups` the top
+ * line, every step and the formula or the panel. Nothing here writes `outline`, `text-decoration`, `filter`,
+ * `backdrop-filter` or `will-change`, no structure role colours content, and the cue roles (`mark`, `focus`) are
+ * never used: the blank rule and the think ring are drawn in `ink2`.
  *
  * Determinism (§7.4, plan §P): `update` is a pure function of t (every value comes from `(ctx, t)`; the typing share,
  * the state ramps and the ring are closed forms in t); translates are whole pixels; the only per-frame size change
@@ -72,9 +78,10 @@ import { itemStateStyle, itemTimings } from '../state.js';
 import boardGeneric from './board_generic.js';
 import { brokenTex } from './formula_focus.js';
 import {
-  RADIUS, STATE_BORDER, STATE_WEIGHT, enterAt, entityColour, fitLines, group, itemStateParts, paintRise,
-  paintTextEntrance, paintTint, region, revealMask, richWords, scrimmedBg, seconds, slotRange, tex, tintTargets,
-  tintTex,
+  PANEL_TERM, PANEL_TERM_SLOT, RADIUS, STATE_BORDER, STATE_WEIGHT, buildPanel, drawsPanel, enterAt, entityColour,
+  fitLines, group, itemStateParts, layoutPanel, paintPanel, paintRise, paintTextEntrance, paintTint, panelFocusRect,
+  panelMediaBox, panelOf, panelTexts, region, revealMask, richWords, scrimmedBg, seconds, shownPanel, slotRange, tex,
+  tintTargets, tintTex,
 } from './_shared.js';
 
 /** @typedef {import('./types.js').TemplateContext} TemplateContext */
@@ -203,17 +210,18 @@ export const LAYOUT = Object.freeze({
 
 /**
  * The boxes of a format and variant (pure; whole stage px): `heading` (the top line), `steps` (the step column: the
- * cards' edges, their text PAD inside), `visual` (the formula card's box: 16:9 `split` the right 45% beside the steps,
- * 9:16 the step column, where `layout` puts the card above the steps; null without a formula) and `bottom`, where
- * content ends. 16:9 steps end at the body box's bottom (y 900, board_generic's cards); 9:16 they fill the text column
- * (x 192-780: the part both critical boxes hold, R-59) down to y 1020.
+ * cards' edges, their text PAD inside), `visual` (the box of the one thing beside the steps - the formula's card, or
+ * the scene's side panel: 16:9 `split` the right 45%, 9:16 the step column, where `layout` puts the formula's card
+ * above the steps; null with neither) and `bottom`, where content ends. 16:9 steps end at the body box's bottom
+ * (y 900, board_generic's cards); 9:16 they fill the text column (x 192-780: the part both critical boxes hold,
+ * R-59) down to y 1020.
  * @param {'landscape' | 'portrait'} format
  * @param {'split' | 'centred' | 'stack' | 'list'} variant
  * @param {Zones} zones
- * @param {boolean} formula
+ * @param {boolean} visual   the scene has a formula card or a panel beside the steps
  * @returns {{heading: Box, steps: Box, visual: Box | null, bottom: number}}
  */
-export function boxes(format, variant, zones, formula) {
+export function boxes(format, variant, zones, visual) {
   const ctx = { format };
   if (format === 'portrait') {
     const col = zones.textColumn;
@@ -221,7 +229,7 @@ export function boxes(format, variant, zones, formula) {
     return {
       heading: { x0: zones.title.x0, y0: zones.title.y0, x1: zones.title.x1, y1: zones.title.y1 },
       steps,
-      visual: formula ? { ...steps } : null,
+      visual: visual ? { ...steps } : null,
       bottom: col.y1,
     };
   }
@@ -310,6 +318,17 @@ export function slotRows(landscape, portrait) {
       landscape: { default: body(L.why, w(/** @type {Box} */ (split.visual)) - 2 * L.card.padX, L.whyWeight, 'label', L.why.lines) },
       portrait: { default: body(P.why, w(tall.steps) - 2 * P.card.padX, P.whyWeight, 'label', P.why.lines) },
     },
+    // a terminal panel's card (16:9 `split` only: 9:16 draws no panel), mono, in the panel's own box less its
+    // padding; `_shared.js layoutPanel` fits it on the page and `_shared.js panelTexts` reports it in this slot
+    terminal: {
+      landscape: {
+        default: {
+          w: w(/** @type {Box} */ (split.visual)) - 2 * PANEL_TERM.landscape.pad, max_lines: null,
+          size: [PANEL_TERM.landscape.min, PANEL_TERM.landscape.max], role: 'body', face: 'mono',
+          weight: PANEL_TERM.landscape.weight, line_height: PANEL_TERM.landscape.lh, prefer_lines: null,
+        },
+      },
+    },
   };
 }
 
@@ -360,19 +379,33 @@ export function stepItems(scene) {
 }
 
 /**
- * Whether this template draws the scene whole (templates.py `_fit_worked_steps` scores 0 otherwise): at least one
- * `example_step` with text, at most one top line, at most one formula, nothing else on the board, and no quiz, main
- * medium, poster or shown side panel. Anything else is board_generic's, every hook handed on.
+ * Whether this template draws the scene whole in `format` (templates.py `_fit_worked_steps` scores 0 otherwise, or
+ * the director picks it and the page silently draws board_generic: B2c review CG-2, the demo review's D5): at least
+ * one `example_step` with text, at most one top line, at most one formula, nothing else on the board, no quiz, main
+ * medium or poster, and a shown side panel only in 16:9, without a formula (the right 45% holds one visual) and of a
+ * kind `_shared.js` draws (`drawsPanel`). Anything else is board_generic's, every hook handed on.
  * @param {TimedScene} scene
+ * @param {'landscape' | 'portrait'} [format]
  */
-export function drawsScene(scene) {
+export function drawsScene(scene, format = 'landscape') {
   const board = (scene.board || []).filter(Boolean);
   const { top, steps, formula } = stepItems(scene);
   if (!steps.length) return false;
   const counted = steps.length + (top ? 1 : 0) + (formula ? 1 : 0);
   if (counted !== board.length) return false;
   if (scene.quiz || scene.media || scene.poster) return false;
-  return !(scene.side_panel && scene.layout?.show_side_panel !== false);
+  if (!shownPanel(scene)) return true;
+  return format === 'landscape' && !formula && drawsPanel(scene);
+}
+
+/**
+ * The scene's panel as this template draws it (16:9, without a formula; `_shared.js panelOf`), or null. A scene
+ * `drawsScene` takes in 9:16, or one with a formula, never has one here.
+ * @param {TimedScene} scene @param {'landscape' | 'portrait'} format @param {'live' | 'render'} [mode]
+ */
+export function panelFor(scene, format, mode = 'live') {
+  if (format !== 'landscape' || stepItems(scene).formula) return null;
+  return panelOf(scene, mode);
 }
 
 /**
@@ -396,15 +429,16 @@ export function statesOn(scene, ids) {
 }
 
 /**
- * Layout variant: 16:9 `split` (a formula beside the steps) or `centred`; 9:16 `stack` (the steps take turns being
- * current) or `list` (no step is beat-revealed).
+ * Layout variant: 16:9 `split` (a formula card or the scene's panel beside the steps) or `centred`; 9:16 `stack` (the
+ * steps take turns being current) or `list` (no step is beat-revealed). The same in both modes: the panel is laid out
+ * whether or not this mode can show its medium, so the live player and the MP4 share one layout (media_split's rule).
  * @param {TimedScene} scene @param {'landscape' | 'portrait'} format
  * @returns {'split' | 'centred' | 'stack' | 'list'}
  */
 export function variantOf(scene, format) {
   const { steps, formula } = stepItems(scene);
   if (format === 'portrait') return anchored(scene, steps.map((s) => s.id)) ? 'stack' : 'list';
-  return formula ? 'split' : 'centred';
+  return formula || panelFor(scene, format, 'render') ? 'split' : 'centred';
 }
 
 /**
@@ -658,7 +692,7 @@ export default {
    */
   build(ctx) {
     const { scene, format } = ctx;
-    if (!drawsScene(scene)) {
+    if (!drawsScene(scene, format)) {
       // a board this template does not draw whole: board_generic draws it, every hook handed on
       const inner = boardGeneric.build(ctx);
       inner.wsFallback = true;
@@ -817,6 +851,16 @@ export default {
       };
     }
 
+    // --- the scene's panel, in the visual box the formula's card would have taken (16:9, formula-less scenes only:
+    // `drawsScene` / `panelFor`); `_shared.js` builds, lays out, paints and reports it
+    /** @type {import('./_shared.js').PanelParts | null} */
+    let panelParts = null;
+    const panel = panelFor(scene, format, ctx.mode);
+    if (panel) {
+      panelParts = buildPanel(ctx, panel);
+      root.appendChild(panelParts.el);
+    }
+
     ctx.root.appendChild(root);
     const ids = items.map((s) => s.id);
     /** @type {Map<string, number>} */
@@ -834,7 +878,7 @@ export default {
       s.track = states ? stateTrack(at, next, doneAt) : [];
     }
     return {
-      variant, root, head, steps, card, ids, enter, order, states, stepScrim,
+      variant, root, head, steps, card, panel: panelParts, ids, enter, order, states, stepScrim,
       allCompact: false, stepsTop: 0, largeSize: L.step.max, compactSize: L.row ? L.row.max : L.step.max,
       stepMin: L.step.min, rowMin: L.row ? L.row.min : L.step.min, whyMin: L.why.min,
     };
@@ -855,7 +899,7 @@ export default {
     const v = ctx.view;
     const { format, zones } = ctx;
     const L = LAYOUT[format];
-    const b = boxes(format, v.variant, zones, !!v.card);
+    const b = boxes(format, v.variant, zones, !!v.card || !!v.panel);
 
     // --- the top line: its own element's size (nothing paints it), fitted in place
     let top = b.steps.y0;
@@ -944,6 +988,8 @@ export default {
       }
       c.laidOut = true;
     }
+    // --- the panel, in the same visual box, from the steps' top (16:9 only; list_build's panel box)
+    if (v.panel && b.visual) layoutPanel(ctx, v.panel, { ...b.visual, y0: top });
     v.stepsTop = top;
 
     // --- the steps
@@ -1145,6 +1191,9 @@ export default {
         paintTint(ctx, /** @type {Element[]} */ (c.targets.get(tint.symbol) || []), entityColour(ctx, tint.symbol));
       }
     }
+
+    // --- the scene's panel: its entrance, its medium and a terminal's output lines (`_shared.js paintPanel`)
+    if (v.panel) paintPanel(ctx, v.panel, t, state);
   },
 
   /**
@@ -1178,6 +1227,8 @@ export default {
     const id = text.split(':')[0];
     const part = text.split(':')[1] || '';
     const arg = text.split(':').slice(2).join(':');
+    // `panel` is a reserved target word (plan §1.7), so no board item can have that id
+    if (id === 'panel') return v.panel ? panelFocusRect(ctx, v.panel, text) : null;
     if (part === 'step') {
       const n = Number(arg);
       const s = Number.isInteger(n) && n >= 1 ? v.steps[n - 1] : undefined;
@@ -1215,16 +1266,17 @@ export default {
   },
 
   /**
-   * The content groups a look_here dims (all but the target's): the top line, every step and the formula's card; the
-   * same elements at every t. This template writes the opacity of what is inside them, never theirs.
+   * The content groups a look_here dims (all but the target's): the top line, every step and the formula's card or
+   * the scene's panel; the same elements at every t. This template writes the opacity of what is inside them, never
+   * theirs.
    * @param {TemplateContext} ctx
    * @returns {Element[]}
    */
   dimGroups(ctx) {
     if (isFallback(ctx)) return typeof boardGeneric.dimGroups === 'function' ? boardGeneric.dimGroups(ctx) : [];
     const v = ctx.view;
-    return [v.head ? v.head.el : null, ...v.steps.map((/** @type {any} */ s) => s.el), v.card ? v.card.el : null]
-      .filter(Boolean);
+    return [v.head ? v.head.el : null, ...v.steps.map((/** @type {any} */ s) => s.el), v.card ? v.card.el : null,
+      v.panel ? v.panel.el : null].filter(Boolean);
   },
 
   /**
@@ -1243,8 +1295,10 @@ export default {
   },
 
   /**
-   * Static: the box a medium of `slot` is sized for. This template shows none; a scene it hands to board_generic gets
-   * board_generic's box, so `mediaPlan` and `ctx.media` agree.
+   * Static: the box a medium of `slot` is sized for. The only medium this template shows is its panel's, in slot
+   * `panel`: its whole visual box from the top of the title zone (the largest it is ever shown in, so the picture
+   * only ever downscales, §P; preflight's fixes cannot enlarge it, list_build's reasoning). A scene it hands to
+   * board_generic gets board_generic's box, so `mediaPlan` and `ctx.media` agree.
    * @param {TimedScene} scene
    * @param {Zones} zones
    * @param {'live' | 'render'} mode
@@ -1253,26 +1307,32 @@ export default {
    * @returns {{w: number, h: number} | null}
    */
   mediaBox(scene, zones, mode, slot, fixes) {
-    if (!drawsScene(scene) && typeof boardGeneric.mediaBox === 'function') return boardGeneric.mediaBox(scene, zones, mode, slot, fixes);
-    return null;
+    if (!drawsScene(scene, zones.format)) {
+      return typeof boardGeneric.mediaBox === 'function' ? boardGeneric.mediaBox(scene, zones, mode, slot, fixes) : null;
+    }
+    if (!panelFor(scene, zones.format, mode)) return null;
+    const b = boxes(zones.format, variantOf(scene, zones.format), zones, true);
+    return b.visual ? panelMediaBox(scene, b.visual, slot) : null;
   },
 
   /**
    * Static: every TeX string this template converts for the scene (`texOf`; board_generic's for a scene it hands on).
+   * The panel brings none (a terminal card and a title card are plain text).
    * @param {TimedScene} scene
    * @param {import('../../shared/types.js').ResolvedLook | null} look
    * @param {'landscape' | 'portrait'} fmt
    */
   tex(scene, look, fmt) {
-    if (!drawsScene(scene)) return typeof boardGeneric.tex === 'function' ? boardGeneric.tex(scene, look, fmt) : [];
+    if (!drawsScene(scene, fmt)) return typeof boardGeneric.tex === 'function' ? boardGeneric.tex(scene, look, fmt) : [];
     return texOf(scene, fmt);
   },
 
   /**
    * The text on screen (preflight, §7.12): the top line (slot `heading`), each step (slot `step`; a 9:16 compact row,
-   * slot `row`), each justification (slot `why`), the formula (slot `formula`) and its meaning (slot `meaning`), in
-   * the ink and at the size and weight painted now, on the background's worst case (or on the R-53 scrim over it) or
-   * on the card's surface. Every one is critical (R-59, R-53).
+   * slot `row`), each justification (slot `why`), the formula (slot `formula`) and its meaning (slot `meaning`), and
+   * the panel's terminal card (slot `terminal`) or title label, in the ink and at the size and weight painted now, on
+   * the background's worst case (or on the R-53 scrim over it) or on the card's surface. Every one but a title card's
+   * label is critical (R-59, R-53).
    * @param {TemplateContext} ctx
    * @returns {TextEntry[]}
    */
@@ -1324,6 +1384,8 @@ export default {
         });
       }
     }
+    // the panel's own text: a terminal card (slot `terminal`, critical) or a title card's label (not critical)
+    if (v.panel) out.push(...panelTexts(ctx, v.panel));
     return out;
   },
 };

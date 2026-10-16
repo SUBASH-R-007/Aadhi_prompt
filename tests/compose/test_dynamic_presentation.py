@@ -129,7 +129,7 @@ def test_presentation_is_resolved(flag_on: Settings) -> None:
                                                "indic": "noto_sans"}  # B2b: the B2 form of B1's faces
     assert (p.personality, p.caption_style, p.cue_term_style) == ("crisp", "clean_pill", "underline")
     assert (p.captions_burn, p.sfx, p.motion) == (True, False, "calm")
-    assert p.engine_version == pres.ENGINE_VERSION == 3  # the look-engine generation of the B2 resolver
+    assert p.engine_version == pres.ENGINE_VERSION == 4  # the look-engine generation of the B2 resolver
     assert p.content_alt == pres.content_tokens("light"), "the other mode's palette (code editor surface)"
     assert (p.family, p.mode, p.motion_scale) == ("midnight_indigo", "dark", 0.85)  # Crisp: x0.85 (§4.8)
     assert p.entity_colors == {"V": 0, "I": 1, "R": 2}  # Presentation.entity_colors, lesson-wide (R-30)
@@ -236,7 +236,9 @@ def test_a_dense_template_freezes_its_background_throughout(flag_on: Settings, m
     board = by["s-board"].look
     assert board.template == "formula_focus" and board.hold_reason is None
     assert board.background["frozen_at"] == 0.0, "frozen from the scene start"
-    assert by["s-sim"].look.template == "board_generic"
+    # the simulation scene is animation_stage's since step 4 (forced, and the template is implemented); it is not
+    # dense, so its background still runs
+    assert by["s-sim"].look.template == "animation_stage"
     assert by["s-sim"].look.background["frozen_at"] is None
 
 
@@ -400,6 +402,25 @@ def _showcase_portrait() -> Timeline:
                           settings=Settings(_env_file=None, dynamic_enabled=True, render_fps=30))
 
 
+def test_the_showcase_reel_never_plans_a_phrase_too_long_for_media_split() -> None:
+    """B2 review F3: ``media_split``'s 9:16 phrase is two lines, and the director planned it for s3 (a 9-word bullet)
+    and s13 (up to 22 words). The page draws them anyway and reports the excess, so Dynamic preflight **blocked**
+    both 9:16 builds of the showcase (``text_overflow`` on the ``body`` slot) and no real portrait render of this
+    lecture was possible. Those scenes are board_generic's now, which sets a board at its own sizes."""
+    from aadhi.compose.dynamic.templates import MEDIA_SPLIT_PHRASE_WORDS, TEXT_KINDS, _phrase_text, _words
+
+    tl = _showcase_portrait()
+    planned = [s for s in tl.scenes if s.look is not None and s.look.template == "media_split"]
+    for scene in planned:
+        for item in scene.board or []:
+            if str(getattr(item.kind, "value", item.kind)) in TEXT_KINDS:
+                assert _words(_phrase_text(item)) <= MEDIA_SPLIT_PHRASE_WORDS, (scene.scene_id, item.id, item.text)
+    # the two scenes the cap moved, named so a later layout change that frees them is noticed here
+    moved = {s.scene_id: s.look.template for s in tl.scenes
+             if s.scene_id in ("s3", "s13") and s.look is not None}
+    assert moved == {"s3": "board_generic", "s13": "board_generic"}
+
+
 def test_portrait_captions_never_flash_by() -> None:
     """R-32: a 9:16 chunk stays 1.5-3 s, 1.0 s at the very least; the greedy splitter left 42 of 172 chunks of the
     showcase under 1.0 s, the shortest a 0.31 s one-word orphan. What remains short are beats too fast for any
@@ -468,7 +489,8 @@ def test_b1_choices_are_kept(flag_on: Settings, cfg: dict[str, Any]) -> None:
 
     * a lecture without ``Screenplay.chapters`` (``no_screenplay_chapters``) changes accent and tone where its chapter
       list (chapter cards) changes chapter, which B1 ignored (compose-classic bug 4);
-    * the demo phase's director (``dynamic.direct``, engine generation 3) decides the ``template`` and ``variant`` of
+    * the demo phase's director (``dynamic.direct``, engine generation 3; step 4's four templates and the side panel
+      of worked_steps / key_terms make it generation 4) decides the ``template`` and ``variant`` of
       every scene instead of naming ``board_generic`` everywhere, and a dense template it picks freezes the
       background from the scene start (R-55). Those three fields are checked against the director's own plan here;
       everything else still has to match B1 exactly."""
@@ -479,7 +501,7 @@ def test_b1_choices_are_kept(flag_on: Settings, cfg: dict[str, Any]) -> None:
     assert new_p["fonts"] == {**old_p["fonts"], "indic": "noto_sans"}
     assert fc.stage_roles(new_p["fonts"]) == fc.stage_roles(old_p["fonts"])
     assert {k: v for k, v in new_p.items() if k not in B2A_PRESENTATION_KEYS} == {
-        **old_p, "engine_version": 3, "fonts": new_p["fonts"]}
+        **old_p, "engine_version": pres.ENGINE_VERSION, "fonts": new_p["fonts"]}
     assert list(new_p)[:len(old_p)] == list(old_p), "B1's keys keep their order"
     assert [s["scene_id"] for s in tl["scenes"]] == [s["scene_id"] for s in cfg["scenes"]]
     family = pres.family_for(cfg["presentation"].get("theme_family", "midnight_indigo"))

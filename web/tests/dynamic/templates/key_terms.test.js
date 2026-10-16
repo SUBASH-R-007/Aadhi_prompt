@@ -17,9 +17,13 @@ import { termPieces } from '../../../js/dynamic/cues.js';
 import { itemTimings } from '../../../js/dynamic/state.js';
 import { TEXT_RISE } from '../../../js/dynamic/templates/_shared.js';
 import { scrimmedBg } from '../../../js/dynamic/templates/_shared.js';
+import {
+  PANEL_DELAY, PANEL_ENTER, PANEL_KINDS, PANEL_LABEL_PX, PANEL_TERM, PANEL_TITLED_KINDS,
+} from '../../../js/dynamic/templates/_shared.js';
 import keyTerms, {
-  CARD_GUTTER, HEADING_ENTER, ICON_DRAW, ICON_SIZE, ITEM_ENTER, LAYOUT, LINE_HEIGHT, RISE, TERM_WEIGHT, TEXT_DELAY,
-  boxes, cardWidth, drawAt, drawsScene, inlineIcon, lineHeight, sizePairs, sizeSteps, slotRows, termItems, texOf,
+  CARD_GUTTER, HEADING_ENTER, ICON_DRAW, ICON_SIZE, ITEM_ENTER, LAYOUT, LINE_HEIGHT, PANEL_TERMS_MAX, RISE,
+  TERM_WEIGHT, TEXT_DELAY, boxes, cardWidth, drawAt, drawsScene, inlineIcon, lineHeight, panelFor, sizePairs,
+  sizeSteps, slotRows, termItems, texOf,
 } from '../../../js/dynamic/templates/key_terms.js';
 import boardGeneric from '../../../js/dynamic/templates/board_generic.js';
 import { contractProblems, orderProblems, recordingTex, renderStage } from './_harness.js';
@@ -123,18 +127,39 @@ test('termItems: the first heading with text is the heading; every other item wi
   assert.deepEqual(termItems(/** @type {any} */ ({ board: [] })), { heading: null, terms: [] });
 });
 
-test('drawsScene: a scene with a shown side panel or a scene medium is board_generic\'s (nothing is dropped)', () => {
+test('drawsScene: a scene medium, a 9:16 panel, an undrawn panel kind or too many terms beside one is board_generic\'s (CG-2)', () => {
   const plain = /** @type {any} */ ({ board: [] });
-  assert.equal(drawsScene(plain), true);
-  assert.equal(drawsScene({ ...plain, side_panel: { panel: { kind: 'image' } } }), false);
-  assert.equal(drawsScene({ ...plain, side_panel: { panel: { kind: 'image' } }, layout: { show_side_panel: false } }), true);
-  assert.equal(drawsScene({ ...plain, media: { kind: 'image', url: '/x.png' } }), false);
+  const two = /** @type {any} */ ({ board: [
+    { id: 'a', kind: 'definition', term: 'One', text: 'first' }, { id: 'b', kind: 'definition', term: 'Two', text: 'second' },
+  ] });
+  const panelled = (/** @type {any} */ scene, /** @type {any} */ panel, /** @type {any} */ media = null) => (
+    { ...scene, side_panel: { panel, media, show_at: 0 } });
+  assert.equal(drawsScene(plain, 'landscape'), true);
+  assert.equal(drawsScene(plain, 'portrait'), true);
+  assert.equal(drawsScene({ ...plain, media: { kind: 'image', url: '/x.png' } }, 'landscape'), false);
+  // 16:9 draws the panel kinds _shared.js draws, beside at most PANEL_TERMS_MAX terms; 9:16 draws none
+  for (const kind of PANEL_KINDS) {
+    const panel = PANEL_TITLED_KINDS.includes(kind) ? { kind, title: 'A plot' } : { kind, title: 'P', terminal: { command: 'ls' } };
+    assert.equal(drawsScene(panelled(two, panel), 'landscape'), true, kind);
+    assert.equal(drawsScene(panelled(two, panel), 'portrait'), false, `${kind} in 9:16`);
+  }
+  // a kind nobody here draws, and a chart / graph / model panel without the title that is all this slice can draw
+  for (const kind of ['skill_tree', 'quiz']) assert.equal(drawsScene(panelled(two, { kind }), 'landscape'), false, kind);
+  for (const kind of PANEL_TITLED_KINDS) assert.equal(drawsScene(panelled(two, { kind }), 'landscape'), false, `${kind} with no title`);
+  // more terms than fit beside a panel
+  const three = { board: [...two.board, { id: 'c', kind: 'definition', term: 'Three', text: 'third' }] };
+  assert.equal(PANEL_TERMS_MAX, 2);
+  assert.equal(drawsScene(panelled(/** @type {any} */ (three), { kind: 'image' }), 'landscape'), false);
+  assert.equal(drawsScene(/** @type {any} */ (three), 'landscape'), true, 'without a panel every count is drawn');
+  // a hidden panel is not drawn at all, so it never sends the scene away
+  assert.equal(drawsScene({ ...panelled(three, { kind: 'skill_tree' }), layout: { show_side_panel: false } }, 'portrait'), true);
 });
 
 test('a scene with a panel this template does not draw is drawn by board_generic whole, every hook handed on', async () => {
   for (const name of ['key_terms.landscape.json', 'key_terms.portrait.json']) {
     const tl = load(name);
-    tl.scenes[0].side_panel = { panel: { kind: 'image', title: 'P' }, media: { kind: 'image', url: '/media/p.png', width: 800, height: 600 }, show_at: 0 };
+    // a skill-tree panel: no R1 template of this slice draws one, so board_generic takes the whole scene
+    tl.scenes[0].side_panel = { panel: { kind: 'skill_tree', title: 'P' }, media: null, show_at: 0 };
     tl.scenes[0].layout = { ...(tl.scenes[0].layout || {}), show_side_panel: true };
     const run = renderStage(tl, { templates: { key_terms: keyTerms } });
     await run.stage.seek(30);
@@ -196,11 +221,17 @@ test('sizes keep R-29: no size below the format\'s text floor, 9:16 text at <= 6
 
 test('cardWidth: §4.3\'s (1728 - gutters) / n on the 12-column grid, with the grid\'s own gutter', () => {
   assert.equal(CARD_GUTTER, CATALOGUE.grid.landscape.gutter);
-  assert.deepEqual([2, 3, 4].map(cardWidth), [852, 560, 414]);
+  assert.deepEqual([2, 3, 4].map((n) => cardWidth(n)), [852, 560, 414]);
   for (const n of [2, 3, 4]) {
     assert.ok(cardWidth(n) * n + CARD_GUTTER * (n - 1) <= 1728, `${n} cards fit the grid box`);
   }
   assert.equal(cardWidth(1), 1728);
+  // beside a panel the cards share the left 55%, and at PANEL_TERMS_MAX they are still wider than the narrowest card
+  // the stored slot sizes were fitted against (414 px), so those sizes stay upper bounds
+  const band = /** @type {any} */ (boxes('landscape', ZONES.landscape, true)).cards;
+  assert.equal(band.x1 - band.x0, 1034 - 96);
+  assert.equal(cardWidth(PANEL_TERMS_MAX, band), 457);
+  assert.ok(cardWidth(PANEL_TERMS_MAX, band) >= cardWidth(4), 'the slot width stays an upper bound');
 });
 
 /**
@@ -254,7 +285,13 @@ test('slotRows: the slot table templates.py mirrors (the narrowest card\'s width
   assert.equal(rows.term.portrait.default.weight, TERM_WEIGHT);
   assert.equal(rows.meaning.landscape.default.max_lines, null, 'the meaning is fitted by the card\'s height');
   assert.equal(rows.heading.portrait.default.prefer_lines, 1);
-  assert.deepEqual(Object.keys(rows).sort(), ['heading', 'meaning', 'term']);
+  assert.deepEqual(Object.keys(rows).sort(), ['heading', 'meaning', 'term', 'terminal']);
+  // the terminal card of a panel: 16:9 only (9:16 draws no panel), mono, in the panel's box less its padding
+  const term = /** @type {any} */ (rows).terminal;
+  assert.deepEqual(Object.keys(term), ['landscape']);
+  assert.equal(term.landscape.default.face, 'mono');
+  assert.equal(term.landscape.default.w, (1824 - 1058) - 2 * PANEL_TERM.landscape.pad);
+  assert.deepEqual(term.landscape.default.size, [PANEL_TERM.landscape.min, PANEL_TERM.landscape.max]);
   for (const slot of Object.keys(rows)) {
     for (const fmt of Object.keys(/** @type {any} */ (rows)[slot])) {
       assert.deepEqual(Object.keys(/** @type {any} */ (rows)[slot][fmt]), ['default'], `${slot} ${fmt}: no look variant`);
@@ -274,7 +311,12 @@ test('the catalogue\'s key_terms slots are slotRows exactly once the template is
     return;
   }
   assert.equal(spec.implemented, true);
+  // the side-panel slice added the `terminal` row; until the integrator applies its templates.py change and
+  // regenerates the catalogue, that one row is not there yet (the same handshake as `implemented` above)
+  const pending = Object.keys(want).filter((slot) => !Object.prototype.hasOwnProperty.call(cat, slot));
+  assert.deepEqual(pending.filter((slot) => slot !== 'terminal'), [], 'only the new `terminal` row may be pending');
   for (const slot of Object.keys(want)) {
+    if (pending.includes(slot)) continue;
     for (const fmt of Object.keys(want[slot])) {
       for (const variant of Object.keys(want[slot][fmt])) {
         const got = cat[slot][fmt][variant];
@@ -284,17 +326,158 @@ test('the catalogue\'s key_terms slots are slotRows exactly once the template is
       }
     }
   }
-  assert.deepEqual(Object.keys(cat).sort(), Object.keys(want).sort());
-  // the forms per kind (B2c review CG-5): a card for a reveal and for the icon's draw, a term or the card for the cue
-  assert.deepEqual(spec.consumes.forms, { reveal: ['item'], draw: ['item'], cue_term: ['item', 'item:term'] });
+  assert.deepEqual(Object.keys(cat).sort(), Object.keys(want).filter((s) => !pending.includes(s)).sort());
+  // the forms per kind (B2c review CG-5): a card for a reveal and for the icon's draw, a term or the card for the
+  // cue. The side-panel slice adds the panel's own forms (`panel`, `panel:row`) and its `output` kind with the
+  // integrator's templates.py change; until then the B2c forms stand alone.
+  const forms = /** @type {any} */ (spec.consumes.forms);
+  assert.deepEqual({ reveal: forms.reveal, draw: forms.draw, cue_term: forms.cue_term },
+    { reveal: ['item'], draw: ['item'], cue_term: ['item', 'item:term'] });
+  for (const kind of Object.keys(forms)) {
+    assert.ok(['reveal', 'draw', 'cue_term', 'look_here', 'output'].includes(kind), `unexpected kind ${kind}`);
+  }
 });
 
-test('mediaBox: none (this template shows no medium)', () => {
+test('mediaBox: none without a panel; the panel\'s whole box for slot `panel` (16:9)', () => {
+  const fixes = { safe: false, slots: {} };
   for (const fmt of /** @type {const} */ (['landscape', 'portrait'])) {
     for (const slot of ['main', 'panel', undefined]) {
-      assert.equal(keyTerms.mediaBox?.(/** @type {any} */ ({ board: [] }), ZONES[fmt], 'render', slot, { safe: false, slots: {} }), null);
+      assert.equal(keyTerms.mediaBox?.(/** @type {any} */ ({ board: [] }), ZONES[fmt], 'render', slot, fixes), null);
     }
   }
+  const scene = /** @type {any} */ ({
+    board: [{ id: 'a', kind: 'definition', term: 'One', text: 'first' }],
+    side_panel: { panel: { kind: 'image', title: 'P' }, media: { kind: 'image', url: '/p.png', width: 800, height: 600 }, show_at: 0 },
+  });
+  const b = /** @type {any} */ (boxes('landscape', ZONES.landscape, true)).visual;
+  assert.deepEqual(keyTerms.mediaBox?.(scene, ZONES.landscape, 'render', 'panel', fixes), { w: b.x1 - b.x0, h: b.y1 - b.y0 });
+  assert.equal(keyTerms.mediaBox?.(scene, ZONES.landscape, 'render', 'main', fixes), null, 'only the panel slot');
+  // a terminal or a title card asks for no medium at all
+  const terminal = { ...scene, side_panel: { panel: { kind: 'terminal', terminal: { command: 'ls' } }, media: null, show_at: 0 } };
+  assert.equal(keyTerms.mediaBox?.(/** @type {any} */ (terminal), ZONES.landscape, 'render', 'panel', fixes), null);
+  // 9:16 hands the scene to board_generic, whose box it must then report (so mediaPlan and ctx.media agree)
+  assert.deepEqual(keyTerms.mediaBox?.(scene, ZONES.portrait, 'render', 'panel', fixes),
+    boardGeneric.mediaBox?.(scene, ZONES.portrait, 'render', 'panel', fixes));
+});
+
+test('16:9 panel: the cards share the left 55%, the panel takes the right 45% from the cards\' top down', async () => {
+  const tl = load('key_terms.landscape.json');
+  const scene = tl.scenes[0];
+  // the fixture's first scene has more terms than fit beside a panel: keep the first two (nothing else changes)
+  scene.board = scene.board.filter((/** @type {any} */ b) => b.kind === 'heading').concat(
+    scene.board.filter((/** @type {any} */ b) => b.kind !== 'heading').slice(0, PANEL_TERMS_MAX));
+  const keep = new Set(scene.board.map((/** @type {any} */ b) => b.id));
+  scene.events = (scene.events || []).filter((/** @type {any} */ e) => keep.has(String(e.target || '').split(':')[0]));
+  for (const beat of scene.beats || []) beat.reveal = (beat.reveal || []).filter((/** @type {any} */ id) => keep.has(id));
+  scene.side_panel = { panel: { kind: 'image', title: 'Pump station' }, media: { kind: 'image', url: '/media/p.png', width: 1600, height: 900 }, show_at: 0 };
+  scene.layout = { ...(scene.layout || {}), show_side_panel: true };
+  const run = spyStage(tl);
+  await run.seekTo(0, 2);
+  const ctx = run.ctx(0);
+  assert.ok(ctx.view.panel, 'the panel was built');
+  assert.equal(run.stage.el.querySelector('.dyn-board'), null, 'key_terms drew it, not board_generic');
+  // jsdom has no layout, so the boxes are read from the styles `layout` wrote
+  const px = (/** @type {string} */ v) => Number.parseFloat(v) || 0;
+  const frame = ctx.view.panel.frame.style;
+  const panel = { x: px(frame.left), y: px(frame.top), w: px(frame.width), h: px(frame.height) };
+  for (const c of ctx.view.cards) {
+    const g = c.el.style;
+    assert.ok(px(g.left) + px(g.width) <= 1034 + 1, 'a card stays in the left 55%');
+  }
+  assert.equal(ctx.view.width, 457, 'two cards in the left 55%');
+  assert.ok(panel.x >= 1058 - 1 && panel.x + panel.w <= 1824 + 1, 'the panel is in the right 45%');
+  assert.ok(panel.y >= ctx.view.cardsTop - 1, 'the panel starts under the heading');
+  assert.equal(Math.round((panel.w / panel.h) * 100), Math.round((1600 / 900) * 100), 'contained at the medium\'s aspect');
+  // the panel is a dim group of its own, and the template never writes its opacity (the stage owns it)
+  assert.ok(keyTerms.dimGroups?.(ctx)?.includes(ctx.view.panel.el));
+  assert.equal(ctx.view.panel.el.style.opacity, '');
+  // look_here on `panel` points at the frame, on whole px, as a shape (jsdom has no layout: rectOf is stubbed)
+  const stub = { ...ctx, rectOf: (/** @type {Element} */ el) => (el === ctx.view.panel.frame ? { x: 1100.4, y: 300.6, w: 680.2, h: 382.4 } : null) };
+  assert.deepEqual(keyTerms.focusRect?.(stub, 'panel'),
+    { rect: { x: 1100, y: 301, w: 681, h: 382 }, shape: 'rect', radius: 24, el: ctx.view.panel.el, kind: 'shape' });
+  assert.equal(keyTerms.focusRect?.(stub, 'panel:row:0'), null, 'a picture panel has no rows');
+  run.done();
+});
+
+test('16:9 terminal panel: the command and its output lines on the card surface, revealed on their own times', async () => {
+  const tl = load('key_terms.landscape.json');
+  const scene = tl.scenes[0];
+  scene.board = scene.board.filter((/** @type {any} */ b) => b.kind === 'heading').concat(
+    scene.board.filter((/** @type {any} */ b) => b.kind !== 'heading').slice(0, PANEL_TERMS_MAX));
+  const keep = new Set(scene.board.map((/** @type {any} */ b) => b.id));
+  scene.events = (scene.events || []).filter((/** @type {any} */ e) => keep.has(String(e.target || '').split(':')[0]));
+  for (const beat of scene.beats || []) beat.reveal = (beat.reveal || []).filter((/** @type {any} */ id) => keep.has(id));
+  scene.side_panel = { panel: { kind: 'terminal', title: 'Check', terminal: { command: 'ohm --v 6 --r 3', output: 'I = 6 / 3\nI = 2.0 A' } }, media: null, show_at: 0 };
+  scene.layout = { ...(scene.layout || {}), show_side_panel: true };
+  const run = spyStage(tl);
+  await run.seekTo(0, 0.01);
+  const ctx = run.ctx(0);
+  const term = ctx.view.panel.term;
+  assert.ok(term, 'a terminal card');
+  assert.equal(term.cmd.textContent, '$ ohm --v 6 --r 3');
+  assert.equal(term.lines.length, 2);
+  // every line's visibility is written on every frame (never ''), so the DOM never depends on paint order
+  for (const line of term.lines) assert.ok(['visible', 'hidden'].includes(line.style.visibility));
+  const early = term.lines.map((/** @type {any} */ l) => l.style.visibility);
+  await run.seekTo(0, tl.scenes[0].duration - 0.1);
+  const late = ctx.view.panel.term.lines.map((/** @type {any} */ l) => l.style.visibility);
+  assert.ok(late.join() !== early.join() || late.every((/** @type {string} */ v) => v === 'visible'),
+    'the lines appear as the schedule reveals them');
+  // its text is reported to preflight in the `terminal` slot, critical, on the card surface
+  const entry = keyTerms.texts?.(ctx)?.find((e) => e.slot === 'terminal');
+  assert.ok(entry && entry.critical && entry.bg === ctx.roles.color('surface'));
+  assert.equal(entry.weight, PANEL_TERM.landscape.weight);
+  assert.ok(/** @type {number} */ (entry.size) >= PANEL_TERM.landscape.min);
+  // look_here on a terminal's n-th output line is a bar on that line (rectOf stubbed: jsdom has no layout)
+  const stub = { ...ctx, rectOf: (/** @type {Element} */ el) => (el === term.lines[1] ? { x: 1090, y: 420, w: 640, h: 56 } : null) };
+  const row = keyTerms.focusRect?.(stub, 'panel:row:1');
+  assert.deepEqual(row, { rect: { x: 1090, y: 420, w: 640, h: 56 }, shape: 'bar', radius: 0, el: ctx.view.panel.el, kind: 'shape' });
+  assert.equal(keyTerms.focusRect?.(stub, 'panel:row:9'), null, 'a row the panel has not got');
+  run.done();
+});
+
+test('16:9 panel with nothing to show: its title on the card surface, reported but not critical', async () => {
+  const tl = load('key_terms.landscape.json');
+  const scene = tl.scenes[0];
+  scene.board = scene.board.filter((/** @type {any} */ b) => b.kind === 'heading').concat(
+    scene.board.filter((/** @type {any} */ b) => b.kind !== 'heading').slice(0, PANEL_TERMS_MAX));
+  const keep = new Set(scene.board.map((/** @type {any} */ b) => b.id));
+  scene.events = (scene.events || []).filter((/** @type {any} */ e) => keep.has(String(e.target || '').split(':')[0]));
+  for (const beat of scene.beats || []) beat.reveal = (beat.reveal || []).filter((/** @type {any} */ id) => keep.has(id));
+  // a graph panel: the Dynamic engine draws no plot anywhere yet (function_plot is unimplemented), so its authored
+  // title stands in for it, exactly as board_generic does for a medium it cannot show
+  scene.side_panel = { panel: { kind: 'graph', title: 'I = V / R (a straight line)', graph: { functions: [{ expr: 'x/2' }] } }, media: null, show_at: 0 };
+  scene.layout = { ...(scene.layout || {}), show_side_panel: true };
+  const run = spyStage(tl);
+  await run.seekTo(0, 2);
+  const ctx = run.ctx(0);
+  assert.ok(ctx.view.panel && ctx.view.panel.label, 'a title card');
+  assert.equal(ctx.view.panel.label.textContent, 'I = V / R (a straight line)');
+  const entry = keyTerms.texts?.(ctx)?.find((e) => e.el === ctx.view.panel.label);
+  assert.ok(entry && entry.critical === false && entry.size === PANEL_LABEL_PX.landscape);
+  assert.equal(panelFor(scene, 'portrait'), null, '9:16 draws no panel');
+  run.done();
+});
+
+test('the panel enters PANEL_DELAY after the scene (or at its own show_at) over PANEL_ENTER, in the personality\'s time', async () => {
+  const tl = load('key_terms.landscape.json');
+  const scene = tl.scenes[0];
+  scene.board = scene.board.filter((/** @type {any} */ b) => b.kind === 'heading').concat(
+    scene.board.filter((/** @type {any} */ b) => b.kind !== 'heading').slice(0, PANEL_TERMS_MAX));
+  const keep = new Set(scene.board.map((/** @type {any} */ b) => b.id));
+  scene.events = (scene.events || []).filter((/** @type {any} */ e) => keep.has(String(e.target || '').split(':')[0]));
+  for (const beat of scene.beats || []) beat.reveal = (beat.reveal || []).filter((/** @type {any} */ id) => keep.has(id));
+  scene.side_panel = { panel: { kind: 'image', title: 'P' }, media: { kind: 'image', url: '/media/p.png', width: 800, height: 600 }, show_at: 0 };
+  scene.layout = { ...(scene.layout || {}), show_side_panel: true };
+  const run = spyStage(tl);
+  const scale = Number(tl.presentation.motion_scale ?? 1) || 1;
+  await run.seekTo(0, PANEL_DELAY - 0.05);
+  const ctx = run.ctx(0);
+  assert.equal(ctx.view.panel.frame.style.visibility, 'hidden', 'nothing before it enters');
+  await run.seekTo(0, PANEL_DELAY + PANEL_ENTER * scale + 0.2);
+  assert.equal(op(ctx.view.panel.frame.style.opacity), 1);
+  assert.equal(ctx.view.panel.frame.style.transform, 'none', 'the rise lands on whole px and ends at none');
+  run.done();
 });
 
 test('drawAt: a draw event on the item moves its icon\'s stroke draw; without one it draws with the card', () => {

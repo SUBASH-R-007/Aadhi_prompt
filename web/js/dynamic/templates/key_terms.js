@@ -8,15 +8,22 @@
  * the icons are ALL OR NOTHING, B2c review V12: with one missing no card takes one, so the terms of a row stay on
  * one line)
  * and at most one `heading` (templates.py `_shape`'s `extra`). Nothing a timeline names is dropped: every item that is
- * not the heading is a term card, with its `term` and its meaning, and a scene with a side panel or a scene medium
- * this template does not draw (`drawsScene`) is handed to board_generic whole, every hook passed on (list_build's and
- * formula_focus's convention).
+ * not the heading is a term card, with its `term` and its meaning; in 16:9 at most PANEL_TERMS_MAX terms may stand
+ * beside the scene's **side panel** (`_shared.js panelOf`: the picture, animation, terminal session or authored title
+ * that illustrates the terms), and a scene with a scene medium, with a panel in 9:16 (the reel's column holds the
+ * rows alone, list_build's rule), with a panel of a kind `_shared.js` does not draw, or with more terms than fit
+ * beside one (`drawsScene`) is handed to board_generic whole, every hook passed on (list_build's and formula_focus's
+ * convention). `_fit_key_terms` refuses exactly the same scenes, so the director never sends one here for the page to
+ * draw as board_generic (B2c review CG-2, the demo review's D5).
  *
  * 16:9 (§4.3 "2-4 cards in a row (card width = (1728 - gutters) / n)"): the cards share the 12-column grid box
  * (x 96-1824, 1728 px) with the grid's 24 px gutters between them, so n cards are `(1728 - 24 (n - 1)) / n` px wide
  * (852 / 560 / 414 for 2 / 3 / 4). Each card is a `surface` card (radius 24, shadow 1) holding the item's stored icon
  * (the catalogue's 96 px card size), its term and its meaning. Every card takes the same height (the tallest card's),
- * so the row reads as one band, and the row is centred in the space under the heading.
+ * so the row reads as one band, and the row is centred in the space under the heading. With a panel the cards share
+ * the left 55% (x 96-1034) instead and the panel takes the right 45%: at PANEL_TERMS_MAX terms a card is then 457 px
+ * wide, still wider than the narrowest card the slot sizes were fitted against (414 px), so the stored sizes stay
+ * upper bounds (list_build's rule).
  *
  * 9:16 (§4.3 "stacked rows in the text column"): rows, not cards - the text column (x 192-780, the part of the stage
  * both critical boxes hold, R-59) is 588 px wide, which a card's padding and a 96 px icon would spend on chrome rather
@@ -46,7 +53,8 @@
  * Emphasis is cues.js's (§4.2, plan §1.4/§1.5): `itemEl` hands it the item's term and meaning elements, in field order
  * (term, text), with their `[[term]]` `.rt-k` spans kept by `_shared.js richWords`, so `cue.term` on `<item>` sweeps
  * every term of the card and `<item>:term:<n>` the n-th across both fields; `focusRect` gives the card (16:9: a shape,
- * so its outline is drawn whole around it) and `dimGroups` the heading and every card. Nothing here writes `outline`,
+ * so its outline is drawn whole around it) and, through `_shared.js panelFocusRect`, the panel (`panel`) and a
+ * terminal's n-th output line (`panel:row:<n>`); `dimGroups` the heading, every card and the panel. Nothing here writes `outline`,
  * `text-decoration`, `filter`, `backdrop-filter` or `will-change`, no structure role colours a term, and no clock,
  * randomness or `.timeline` is read (the source scan, web/tests/dynamic/sourceScan.test.js).
  *
@@ -63,8 +71,9 @@ import { GRID, LAYOUT_TOKENS, fixesOf, fx } from '../core.js';
 import { itemTimings } from '../state.js';
 import boardGeneric from './board_generic.js';
 import {
-  RADIUS, enterAt, fitLines, group, paintRise, paintTextEntrance, region, revealMask, richWords, scrimmedBg, seconds,
-  slotRange, storedIcon,
+  PANEL_TERM, RADIUS, buildPanel, drawsPanel, enterAt, fitLines, group, layoutPanel, paintPanel, paintRise,
+  paintTextEntrance, panelFocusRect, panelMediaBox, panelOf, panelTexts, region, revealMask, richWords, scrimmedBg,
+  seconds, shownPanel, slotRange, storedIcon,
 } from './_shared.js';
 
 /** @typedef {import('./types.js').TemplateContext} TemplateContext */
@@ -184,42 +193,62 @@ export const LAYOUT = Object.freeze({
 export const TERM_WEIGHT = 700;
 
 /**
+ * How many terms may stand beside the scene's panel in 16:9 (`drawsScene`; templates.py `KEY_TERMS_PANEL_MAX`
+ * mirrors it). Two cards in the left 55% are 457 px wide, above the 414 px the slot sizes were fitted against;
+ * three would be 296 px, which R-29's term floor (48 px) cannot be set in. A scene with more terms and a panel is
+ * board_generic's whole.
+ */
+export const PANEL_TERMS_MAX = 2;
+
+/**
  * The boxes of a format (pure; whole stage px): `heading` (where the heading is set), `cards` (the band the cards or
- * rows fill, from the title zone's top: `layout` moves its top under the heading) and `bottom`. 16:9 cards end at the
- * body box's bottom (y 900, board_generic's cards: 24 px above the caption band) and span the grid box; 9:16 rows fill
- * the text column (x 192-780) down to y 1020.
+ * rows fill, from the title zone's top: `layout` moves its top under the heading), `visual` (the scene's panel, 16:9
+ * only; null without one) and `bottom`. 16:9 cards end at the body box's bottom (y 900, board_generic's cards: 24 px
+ * above the caption band) and span the grid box, or the left 55% beside a panel; 9:16 rows fill the text column
+ * (x 192-780) down to y 1020.
  * @param {'landscape' | 'portrait'} format
  * @param {Zones} zones
- * @returns {{heading: Box, cards: Box, bottom: number}}
+ * @param {boolean} [panel]   the scene shows a side panel beside the cards (16:9 only)
+ * @returns {{heading: Box, cards: Box, visual: Box | null, bottom: number}}
  */
-export function boxes(format, zones) {
+export function boxes(format, zones, panel = false) {
   if (format === 'portrait') {
     const col = zones.textColumn;
     return {
       heading: { x0: zones.title.x0, y0: zones.title.y0, x1: zones.title.x1, y1: zones.title.y1 },
       cards: { x0: col.x0, y0: zones.title.y0, x1: col.x1, y1: col.y1 },
+      visual: null,
       bottom: col.y1,
     };
   }
   const band = region({ format }, 'top-band');
-  const grid = GRID.landscape.box;
   const bottom = zones.body.y1;
-  return {
-    heading: { x0: band.x0, y0: zones.title.y0, x1: band.x1, y1: band.y1 },
-    cards: { x0: grid.x0, y0: zones.title.y0, x1: grid.x1, y1: bottom },
-    bottom,
-  };
+  const heading = { x0: band.x0, y0: zones.title.y0, x1: band.x1, y1: band.y1 };
+  if (panel) {
+    const left = region({ format }, 'left-55');
+    const right = region({ format }, 'right-45');
+    return {
+      heading,
+      cards: { x0: left.x0, y0: zones.title.y0, x1: left.x1, y1: bottom },
+      visual: { x0: right.x0, y0: zones.title.y0, x1: right.x1, y1: bottom },
+      bottom,
+    };
+  }
+  const grid = GRID.landscape.box;
+  return { heading, cards: { x0: grid.x0, y0: zones.title.y0, x1: grid.x1, y1: bottom }, visual: null, bottom };
 }
 
 /**
- * The width of one of `n` cards in the 16:9 row (§4.3: the grid box less the gutters between them, divided by n;
- * whole px, the remainder left at the right edge rather than spread over the cards, so every card is equal).
+ * The width of one of `n` cards in the 16:9 row (§4.3: the band less the gutters between them, divided by n; whole
+ * px, the remainder left at the right edge rather than spread over the cards, so every card is equal). `box`: the
+ * band the cards share (the 12-column grid box by default; the left 55% beside a panel).
  * @param {number} n
+ * @param {Box} [box]
  */
-export function cardWidth(n) {
+export function cardWidth(n, box) {
   const count = Math.max(1, n);
-  const grid = GRID.landscape.box;
-  return Math.floor((grid.x1 - grid.x0 - CARD_GUTTER * (count - 1)) / count);
+  const b = box || GRID.landscape.box;
+  return Math.floor((b.x1 - b.x0 - CARD_GUTTER * (count - 1)) / count);
 }
 
 /**
@@ -253,6 +282,7 @@ export function slotRows(landscape, portrait) {
   });
   const landText = cardWidth(4) - 2 * L.pad;
   const portText = port.cards.x1 - port.cards.x0 - 2 * P.pad;
+  const panelBand = /** @type {Box} */ (boxes('landscape', landscape, true).visual);
   return {
     heading: {
       landscape: { default: heading(L.heading, land.heading.x1 - land.heading.x0) },
@@ -265,6 +295,17 @@ export function slotRows(landscape, portrait) {
     meaning: {
       landscape: { default: meaning(L.meaning, landText, L.meaningWeight) },
       portrait: { default: meaning(P.meaning, portText, P.meaningWeight) },
+    },
+    // a terminal panel's card (16:9 only: 9:16 draws no panel), mono, in the panel's box less its padding;
+    // `_shared.js layoutPanel` fits it on the page and `_shared.js panelTexts` reports it in this slot
+    terminal: {
+      landscape: {
+        default: {
+          w: panelBand.x1 - panelBand.x0 - 2 * PANEL_TERM.landscape.pad, max_lines: null,
+          size: [PANEL_TERM.landscape.min, PANEL_TERM.landscape.max], role: 'body', face: 'mono',
+          weight: PANEL_TERM.landscape.weight, line_height: PANEL_TERM.landscape.lh, prefer_lines: null,
+        },
+      },
     },
   };
 }
@@ -306,14 +347,25 @@ export function termItems(scene) {
 }
 
 /**
- * Whether this template draws the scene whole: it draws no medium, so a scene with a shown side panel or a scene
- * medium is board_generic's (`_fit_key_terms` scores such a scene 0, so direct.py never sends it here).
+ * Whether this template draws the scene whole in `format`: it draws no scene medium, and a shown side panel only in
+ * 16:9, of a kind `_shared.js` draws (`drawsPanel`) and beside at most PANEL_TERMS_MAX terms. Anything else is
+ * board_generic's, and `_fit_key_terms` scores such a scene 0, so direct.py never sends it here (B2c review CG-2).
  * @param {TimedScene} scene
+ * @param {'landscape' | 'portrait'} [format]
  */
-export function drawsScene(scene) {
-  const sp = scene.side_panel;
-  if (sp && scene.layout?.show_side_panel !== false) return false;
-  return !scene.media;
+export function drawsScene(scene, format = 'landscape') {
+  if (scene.media) return false;
+  if (!shownPanel(scene)) return true;
+  return format === 'landscape' && drawsPanel(scene) && termItems(scene).terms.length <= PANEL_TERMS_MAX;
+}
+
+/**
+ * The scene's panel as this template draws it (16:9 only; `_shared.js panelOf`), or null. A scene `drawsScene` takes
+ * in 9:16 never has one here.
+ * @param {TimedScene} scene @param {'landscape' | 'portrait'} format @param {'live' | 'render'} [mode]
+ */
+export function panelFor(scene, format, mode = 'live') {
+  return format === 'landscape' ? panelOf(scene, mode) : null;
 }
 
 /**
@@ -468,8 +520,8 @@ export default {
    */
   build(ctx) {
     const { scene, format } = ctx;
-    if (!drawsScene(scene)) {
-      // a medium this template does not draw: board_generic draws the scene whole
+    if (!drawsScene(scene, format)) {
+      // a medium or a panel this template does not draw: board_generic draws the scene whole
       const inner = boardGeneric.build(ctx);
       inner.ktFallback = true;
       return inner;
@@ -594,12 +646,21 @@ export default {
       };
     });
 
+    // the scene's panel beside the cards (16:9 only; `_shared.js` builds, lays out, paints and reports it)
+    /** @type {import('./_shared.js').PanelParts | null} */
+    let panelParts = null;
+    const panel = panelFor(scene, format, ctx.mode);
+    if (panel) {
+      panelParts = buildPanel(ctx, panel);
+      root.appendChild(panelParts.el);
+    }
+
     ctx.root.appendChild(root);
     const ids = cards.map((c) => c.item.id);
     /** @type {Map<string, number>} */
     const enter = new Map(itemTimings(scene).map((timing) => [timing.id, timing.enter]));
     return {
-      root, head, cards, ids, enter, surface, rowScrim,
+      root, head, cards, panel: panelParts, ids, enter, surface, rowScrim,
       draw: new Map(cards.map((c) => [c.item.id, drawAt(scene, c.item.id, enter.get(c.item.id) || 0)])),
       width: 0, cardsTop: 0, sizes: { term: L.term.max, meaning: L.meaning.max },
     };
@@ -619,7 +680,7 @@ export default {
     const v = ctx.view;
     const { format, zones } = ctx;
     const L = LAYOUT[format];
-    const b = boxes(format, zones);
+    const b = boxes(format, zones, !!v.panel);
     let top = b.cards.y0;
     if (v.head) {
       const hd = v.head;
@@ -637,10 +698,12 @@ export default {
       const bottom = hd.el.offsetTop + hd.el.offsetHeight;
       top = Math.round(Math.max(bottom, b.heading.y0 + range.min * hd.lh) + L.headingGap);
     }
+    // the panel, from the cards' top down (16:9 only; list_build's panel box)
+    if (v.panel && b.visual) layoutPanel(ctx, v.panel, { ...b.visual, y0: top });
     v.cardsTop = top;
     const avail = b.bottom - top;
     const cards = v.cards;
-    const width = format === 'landscape' ? cardWidth(cards.length) : b.cards.x1 - b.cards.x0;
+    const width = format === 'landscape' ? cardWidth(cards.length, b.cards) : b.cards.x1 - b.cards.x0;
     v.width = width;
     const term = slotRange(ctx, 'term', { min: L.term.min, max: L.term.max, role: 'title' });
     const meaning = slotRange(ctx, 'meaning', { min: L.meaning.min, max: L.meaning.max, role: 'body' });
@@ -702,15 +765,17 @@ export default {
    * value (never '').
    * @param {TemplateContext} ctx
    * @param {number} t
-   * @param {import('../../shared/types.js').SceneState} _state
+   * @param {import('../../shared/types.js').SceneState} state
    */
-  update(ctx, t, _state) {
+  update(ctx, t, state) {
     if (isFallback(ctx)) {
-      boardGeneric.update(ctx, t, _state);
+      boardGeneric.update(ctx, t, state);
       return;
     }
     const v = ctx.view;
     const p = ctx.paint;
+    // the scene's panel: its entrance, its medium and a terminal's output lines (`_shared.js paintPanel`)
+    if (v.panel) paintPanel(ctx, v.panel, t, state);
 
     if (v.head) {
       const e = enterAt(ctx, t, v.enter.get(v.head.item.id) || 0, HEADING_ENTER);
@@ -755,6 +820,8 @@ export default {
     if (isFallback(ctx)) return typeof boardGeneric.focusRect === 'function' ? boardGeneric.focusRect(ctx, target) : null;
     const v = ctx.view;
     const id = String(target || '').split(':')[0];
+    // `panel` is a reserved target word (plan §1.7), so no board item can have that id
+    if (id === 'panel') return v.panel ? panelFocusRect(ctx, v.panel, String(target || '')) : null;
     const card = v.cards.find((/** @type {any} */ c) => c.item.id === id);
     const el = card ? card.card : v.head && v.head.item.id === id ? v.head.text : null;
     const holder = card ? card.el : v.head && v.head.item.id === id ? v.head.el : null;
@@ -788,15 +855,16 @@ export default {
   },
 
   /**
-   * The content groups a look_here dims (all but the target's): the heading and every card; the same elements at
-   * every t.
+   * The content groups a look_here dims (all but the target's): the heading, every card and the scene's panel; the
+   * same elements at every t.
    * @param {TemplateContext} ctx
    * @returns {Element[]}
    */
   dimGroups(ctx) {
     if (isFallback(ctx)) return typeof boardGeneric.dimGroups === 'function' ? boardGeneric.dimGroups(ctx) : [];
     const v = ctx.view;
-    return [v.head ? v.head.el : null, ...v.cards.map((/** @type {any} */ c) => c.el)].filter(Boolean);
+    return [v.head ? v.head.el : null, ...v.cards.map((/** @type {any} */ c) => c.el), v.panel ? v.panel.el : null]
+      .filter(Boolean);
   },
 
   /**
@@ -810,7 +878,9 @@ export default {
   },
 
   /**
-   * Static: this template shows no medium, so no slot has a box (a scene with one is board_generic's, `drawsScene`).
+   * Static: the only medium this template shows is its panel's, in slot `panel` (16:9): the panel's whole box from
+   * the top of the title zone, the largest it is ever shown in, so the picture only ever downscales (§P). A scene it
+   * hands to board_generic gets board_generic's box, so `mediaPlan` and `ctx.media` agree.
    * @param {TimedScene} scene
    * @param {Zones} zones
    * @param {'live' | 'render'} mode
@@ -819,20 +889,23 @@ export default {
    * @returns {{w: number, h: number} | null}
    */
   mediaBox(scene, zones, mode, slot, fixes) {
-    if (!drawsScene(scene)) {
+    if (!drawsScene(scene, zones.format)) {
       return typeof boardGeneric.mediaBox === 'function' ? boardGeneric.mediaBox(scene, zones, mode, slot, fixes) : null;
     }
-    return null;
+    if (!panelFor(scene, zones.format, mode)) return null;
+    const b = boxes(zones.format, zones, true);
+    return b.visual ? panelMediaBox(scene, b.visual, slot) : null;
   },
 
   /**
-   * Static: every TeX string the template renders for the scene (`texOf`; the same in both formats).
+   * Static: every TeX string the template renders for the scene (`texOf`; the same in both formats). The panel brings
+   * none (a terminal card and a title card are plain text).
    * @param {TimedScene} scene
    * @param {import('../../shared/types.js').ResolvedLook | null} look
    * @param {'landscape' | 'portrait'} fmt
    */
   tex(scene, look, fmt) {
-    if (!drawsScene(scene)) return typeof boardGeneric.tex === 'function' ? boardGeneric.tex(scene, look, fmt) : [];
+    if (!drawsScene(scene, fmt)) return typeof boardGeneric.tex === 'function' ? boardGeneric.tex(scene, look, fmt) : [];
     return texOf(scene);
   },
 
@@ -878,6 +951,8 @@ export default {
         });
       }
     }
+    // the panel's own text: a terminal card (slot `terminal`, critical) or a title card's label (not critical)
+    if (v.panel) out.push(...panelTexts(ctx, v.panel));
     return out;
   },
 };

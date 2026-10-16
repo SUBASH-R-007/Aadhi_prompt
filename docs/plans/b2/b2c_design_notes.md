@@ -125,7 +125,14 @@ through `richWords`, and the cues work. Do not draw emphasis yourself — the so
   above cannot put it there without copying the paragraph's line layout) — plan v1 §1.4's form.
 - A cue without `dur` holds 2 s; cue timings are not scaled by the personality.
 - A clip is never scaled: no push over a clip, and a clip's entrance is a fade.
-- 9:16 `media_split` gives the medium 16–46 % of the stage (owner decision).
+- 9:16 `media_split` gives the medium 16–46 % of the stage (owner decision). Two readings were added after the
+  step-4 review (F3), because the showcase lecture could not be rendered in 9:16 at all: the reel phrase is capped at
+  `templates.py MEDIA_SPLIT_PHRASE_WORDS` = 6 words per text item (measured with `textfit`: six words of average
+  length fit the two 48–64 px lines of the 588 px column at the slot's minimum, seven do not), so a longer scene is
+  `board_generic`'s whole instead of blocking preflight with `text_overflow`; and `media_split.js MEDIA_MIN_SHARE`
+  = 0.4 floors the medium's share of the `stage` region, so a phrase that still does not fit grows over the medium
+  (on its own scrim, and reported as overflow) instead of collapsing it to an unreadable stand-in. Whether the reel
+  should instead get a three-line phrase is an owner decision.
 - `formula_focus` 9:16 may fall back to a one-row legend; R-59's 696 px text column wins over §4.3's 768 px (the
   768 px is the card, deviation 13).
 - `list_build`'s current item uses a 2 px `ink2` inset border (plan §1.5), not §4.3's 3 px outline.
