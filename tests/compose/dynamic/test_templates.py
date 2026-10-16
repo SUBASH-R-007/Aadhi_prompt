@@ -803,3 +803,124 @@ def test_shared_panels_match_the_page() -> None:
                                              "beats": BEAT}))["full_bleed_media"] == 1.0
     assert fits(SimulationScene.model_validate({"id": "m", "type": "simulation", "manim": {"template": "x"},
                                                 "beats": BEAT}))["animation_stage"] == 1.0
+
+
+# --- fit <-> drawsScene parity (B2c review CG-2) -------------------------------------------------------------------
+# A template's Python ``fit`` must refuse every scene its JS ``drawsScene`` refuses. When it does not, the director
+# picks the template and the page quietly hands the scene to ``board_generic``, so the scene's panel or medium is
+# drawn by nobody: that is the demo phase's D5 and D7 and step 4's F1 and F2, each found by eye in a rendered frame
+# rather than by a test. This walks every implemented template over the shapes that caused them.
+#
+# The two sides read DIFFERENT objects, which is why keeping them in step by hand keeps failing: ``fit`` is given the
+# screenplay's scene, ``drawsScene`` the TimedScene the stage receives (``side_panel`` becomes
+# ``ResolvedSidePanel`` -> ``{panel, media, show_at}``, and the panel's medium is resolved by then). The probe
+# therefore builds a real :class:`TimedScene`, so a schema change breaks this test loudly instead of silently
+# making it compare the wrong shape.
+#
+# Only this direction is an invariant. The reverse (``drawsScene`` true while ``fit`` is 0) is ordinary: a template
+# draws any scene of its shape, while ``fit`` also asks whether §4.4's signal rows chose it at all. A panel whose
+# medium was never generated is also a legitimate fallback (``full_bleed_media`` hands an ai_video with no footage to
+# ``board_generic``), so the probe resolves a medium for the kinds that have one, as a real lecture would.
+
+#: Panel kinds that reach the stage with a resolved medium (``compose/timeline.py`` ``_panel_media``).
+_PANEL_MEDIA_KINDS = ("figure", "image", "manim", "gif")
+
+
+def timed(scene: Any, *, index: int = 0) -> Any:
+    """The scene as the stage receives it (``compose/timeline.py`` ``_build_scene``, the fields a template reads)."""
+    from aadhi.schemas.timeline import MediaRef, ResolvedSidePanel, TimedScene
+
+    panel = None
+    if scene.side_panel is not None:
+        media = None
+        if scene.side_panel.kind in _PANEL_MEDIA_KINDS:
+            kind = "video" if scene.side_panel.kind in ("manim", "gif") else "image"
+            media = MediaRef(kind=kind, asset_key="a" * 64, fit="contain", width=1280, height=720)
+        panel = ResolvedSidePanel(panel=scene.side_panel, media=media, show_at=0.0)
+    return TimedScene(
+        scene_id=scene.id, index=index, type=scene.type, title=scene.title, start=0.0, duration=20.0,
+        board=list(getattr(scene, "board", []) or []), side_panel=panel,
+        **({"layout": scene.layout} if getattr(scene, "layout", None) is not None else {}),
+    )
+
+
+def _parity_scenes() -> list[tuple[str, Any]]:
+    """One probe per shape that has silently fallen back before: a panel of each kind, and the panel-less original."""
+    kinds = ("image", "figure", "terminal", "chart", "graph", "graph_titled", "manim", "model_3d", "gif")
+    shapes: list[tuple[str, list[dict[str, Any]], dict[str, Any]]] = [
+        ("definitions", [item("definition", 0), item("definition", 1)], {"role": "pretraining"}),
+        ("steps", [item("example_step", 0), item("example_step", 1)], {"type": "example"}),
+        ("question", [item("question")], {"role": "hook"}),
+        ("recap", [item("question", 0), item("takeaway", 1)], {"type": "recap"}),
+        ("formula", [item("formula")], {}),
+        ("list", [item("bullet", 0), item("bullet", 1), item("bullet", 2)], {}),
+        ("heading", [item("heading")], {}),
+    ]
+    out: list[tuple[str, Any]] = []
+    for name, items, kw in shapes:
+        out.append((name, board(*items, **kw)))
+        for panel in kinds:
+            out.append((f"{name}+panel:{panel}", board(*items, panel=panel, **kw)))
+    return out
+
+
+def _draws_scene_in_node(scenes: list[tuple[str, Any]], templates: list[str],
+                         tmp_path: Path) -> dict[str, dict[str, bool]]:
+    """``drawsScene`` (else ``fitsScene``, else true) per template per scene, from the real JS modules.
+
+    The input goes through a file: the probe set is far past the Windows command-line limit.
+    """
+    import subprocess
+
+    payload = tmp_path / "parity_in.json"
+    payload.write_text(json.dumps({
+        "dir": (JS / "templates").as_uri(),
+        "templates": templates,
+        "scenes": [{"name": n, "scene": json.loads(timed(s).model_dump_json())} for n, s in scenes],
+    }), encoding="utf-8")
+    script = """
+const fs = await import('node:fs/promises');
+const input = JSON.parse(await fs.readFile(process.argv[1], 'utf8'));
+const out = {};
+for (const id of input.templates) {
+  const mod = await import(`${input.dir}/${id}.js`);
+  const draws = mod.drawsScene || mod.fitsScene || null;
+  out[id] = {};
+  for (const s of input.scenes) {
+    for (const fmt of ['landscape', 'portrait']) {
+      out[id][`${s.name}|${fmt}`] = draws ? !!draws(s.scene, fmt) : true;
+    }
+  }
+}
+process.stdout.write(JSON.stringify(out));
+"""
+    proc = subprocess.run(["node", "--input-type=module", "-e", script, str(payload)], cwd=ROOT,
+                          capture_output=True, text=True, encoding="utf-8", timeout=180, check=False)
+    if proc.returncode != 0:
+        pytest.fail(f"node could not evaluate drawsScene: {proc.stderr[-2000:]}")
+    return json.loads(proc.stdout)
+
+
+def test_every_implemented_template_draws_what_its_fit_accepts(tmp_path: Path) -> None:
+    """``fit > 0`` must imply ``drawsScene``, or the page silently falls back and the scene loses its panel."""
+    scenes = _parity_scenes()
+    templates = [t for t in sorted(tp.IMPLEMENTED) if t != "board_generic"]  # the fallback draws everything
+    draws = _draws_scene_in_node(scenes, templates, tmp_path)
+
+    mismatches: list[str] = []
+    checked = 0
+    for name, scene in scenes:
+        for fmt in ("landscape", "portrait"):
+            for tid in templates:
+                spec = tp.TEMPLATES[tid]
+                if fmt not in spec.formats:
+                    continue
+                checked += 1
+                if spec.fit(scene, fmt) > 0 and not draws[tid][f"{name}|{fmt}"]:
+                    mismatches.append(f"{tid} {fmt} {name}: fit={spec.fit(scene, fmt)} but drawsScene is false")
+    assert checked > 500, f"the probe set shrank to {checked} checks"
+    assert not mismatches, (
+        "a template's fit accepts a scene its page refuses, so the director picks it and board_generic draws it "
+        "instead (the scene's panel or medium is then drawn by nobody):"
+        + "".join(f"\n  {m}" for m in mismatches)
+    )

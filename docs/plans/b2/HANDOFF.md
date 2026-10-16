@@ -6,11 +6,31 @@ paste the "Prompt for the next session" block below into a new session.
 
 ## Where things are (2026-10-15, end of the first account's session)
 
-**DEADLINE MODE (owner, 2026-10-15): about 2 days left (target ~2026-10-17). The owner chose a WORKING DEMO over the
-full B2 scope:** end-to-end Dynamic videos that use the new templates, built with a lighter process (one build agent
-per step, parallel agents writing only their own files plus one integrator, ONE review pass, at most ONE fix round, no
-skeptic loops). Push `overhaul/v2` to origin after each landed phase. The rest of this file's heavier review rules are
-superseded where they conflict.
+**THE DEADLINE IS OVER (2026-10-16).** The demo was given on `ac89036` and the owner has no rushed deadline any
+more. Deadline mode (one review pass, at most one fix round, no skeptics or audits) was a trade for those two days,
+not a standing preference: **do not keep using it by default.** Push `overhaul/v2` to origin after each landed phase,
+as before.
+
+**The process from here is matched to risk, not applied flat** (decided 2026-10-16, the owner having left the choice
+to the lead; the evidence is in the review records of the last three phases):
+
+- **Additive work behind strong automatic gates — a new template is the case — keeps the lighter shape:** parallel
+  builders writing only their own files, one integrator, ONE review pass, ONE fix round. The automatic gates here are
+  genuinely load-bearing (the template contract, the source scan, real preflight on every fixture, and the 1x/3x/
+  reverse frame-hash gate in real Chromium), and the single review round found 5 to 7 real defects in each of the
+  last two phases, every one of them fixed at the root.
+- **An AUDIT round is added whenever the fix round touched a shared file** (`_shared.js`, `cues.js`, `state.js`,
+  `core.js`, `templates.py`, `direct.py`, `events.py`, `presentation.py`, the schema or the catalogue) **or changed
+  anything already being drawn.** Every finding that escaped a review in this batch was of that kind (the demo
+  phase's D1, D5 and D7 were all shared-file; B2b-H's audits found four more defects after its first fix round, two
+  of which were rated blockers). A fix to one template's own file does not need it.
+- **A skeptic is used for a finding whose fix would change output that already works** — there, a wrong finding
+  costs a real regression, and in B2a the skeptics refuted 4 of 16 findings. A skeptic per finding, flat, is not
+  worth it for a template nobody has rendered yet.
+- **Prefer a gate over a review round.** The things that actually caught the worst defects of this batch were
+  automatic: the fast suite caught a migration breaking two tests, and real preflight caught the 9:16 blocker the
+  moment the demo renderer was made to run it. When a review finds a whole CLASS of defect, close it with a test
+  rather than with more review rounds.
 
 - **Branch:** `overhaul/v2`. Never `main` without asking.
 - **Landed on `overhaul/v2`:** B0, B1, B2-0, **B2a** (`c3a1e9b`), **B2b** fonts/icons/textfit (`d63ff94`), **B2b-H**
@@ -235,8 +255,8 @@ For later B2 steps (from `reports/a2.json` and `reports/b.json`):
 
 ## Owner rules
 
-- Work must be perfect. Use Workflow orchestration (build -> integrate -> adversarial review -> one skeptic per
-  finding -> fix -> audit) for every substantive step.
+- Work must be perfect. Use Workflow orchestration (build -> integrate -> adversarial review -> fix) for every
+  substantive step, with the audit and skeptic rounds added where "Where things are" says they are worth it.
 - Commit verified work in logical pieces on `overhaul/v2` only (never `main` without asking). Make a rollback
   commit before new work each session.
 - Classic (Aadhi presenter) output must never change: the `tests/invariance` goldens must stay green.
