@@ -1,7 +1,8 @@
 # Session handoff — Batch B2 (Dynamic video visual system)
 
-Updated 2026-10-16 (deadline mode), after STEP 4 landed. NEXT: the five owner decisions listed below, then the
-templates still unbuilt (`myth_fact`, `aadhi_intro`, `outro_next`, `code_walkthrough`, `chart_build`). To continue,
+Updated 2026-10-16, after STEP 4 landed and the five owner decisions were settled ("Owner decisions"). NEXT: STEP 5
+(`docs/plans/b2/step5_workflow.js`): chart_build, aadhi_intro + aadhi_recap, myth_fact, outro_next, code_walkthrough,
+kinetic_statement and the reel adaptations. To continue,
 paste the "Prompt for the next session" block below into a new session.
 
 ## Where things are (2026-10-15, end of the first account's session)
@@ -122,6 +123,17 @@ to the lead; the evidence is in the review records of the last three phases):
   Chromium files in the gate list.
 
 ## Owner decisions
+
+**2026-10-16, the five waiting decisions (settled; carried out in STEP 5):**
+1. **Charts:** build `chart_build` with the vendored Chart.js (marks and gridlines in canvas, every label as page
+   text, bars/points revealed on their beats). Graph/chart panels inside other templates draw real plots too.
+2. **Aadhi:** build `aadhi_intro` (the four 16:9 layouts and the 9:16 card, the presenter frame-extraction cache, the
+   brand wipe) and `aadhi_recap`, so every Dynamic video opens with Aadhi as the design requires.
+3. **A scene with a misconception** (showcase `s5`): `myth_fact` takes it and carries the scene's definitions as
+   supporting lines; `key_terms` stays pure.
+4. **Reels:** a reel `mcq` becomes a two-option check (the correct answer plus the strongest distractor); a reel side
+   panel is drawn as its own short full-stage beat before the steps, never above them.
+
 
 **2026-10-15, deadline:** about 2 days remain; build a WORKING DEMO (new templates in real rendered lectures) with the
 lighter process described in "Where things are". Push `overhaul/v2` after each landed phase.
