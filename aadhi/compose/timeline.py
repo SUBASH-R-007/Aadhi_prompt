@@ -93,7 +93,7 @@ from .chapters import opening_title
 from .presentation import (
     PORTRAIT_CAPTION_LINE_CHARS,
     PORTRAIT_CAPTION_MIN_SECONDS,
-    dynamic_enabled,
+    is_dynamic,
     portrait_caption_cues,
     resolve_looks,
     timeline_presentation,
@@ -751,7 +751,7 @@ def _assemble(
     # Dynamic video (design §6.7): only a screenplay with a presentation, and only while DYNAMIC_ENABLED is on. It has
     # no classic intro, a reel's phrase captions are shorter (R-32), and it is 30 fps whatever RENDER_FPS says
     # (DYNAMIC_FPS), so its word-anchored cues snap to that frame grid. Classic timelines take none of these paths.
-    dynamic = screenplay.presentation is not None and dynamic_enabled(settings)
+    dynamic = is_dynamic(screenplay.presentation, settings)
     ctx = _Ctx(figures={f.id: f for f in screenplay.figures},
                sync=SyncOptions.from_settings(settings, fps=DYNAMIC_FPS if dynamic else None), dynamic=dynamic)
     if dynamic and screenplay.presentation is not None and screenplay.presentation.format == "portrait":

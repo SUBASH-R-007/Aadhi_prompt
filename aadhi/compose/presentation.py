@@ -455,3 +455,34 @@ def dynamic_enabled(settings: Any) -> bool:
 
     override = runtime_flag("dynamic_enabled")
     return env if override is None else bool(override)
+
+
+# --- B3's predicate and legacy markers (B3 plan §1.0) --------------------------------------------------------------
+#
+# The audio pipeline is shared with classic lectures, so every B3 audio seam asks ONE question - "is this a Dynamic
+# lecture?" - through :func:`is_dynamic`, never ``presentation is not None`` alone (a presentation with the Dynamic mode
+# off is built, voiced and mixed as a classic lecture). The two markers tell a B3 lecture from a stored B2-era one:
+# B2's ``authoring.default_presentation`` writes a bare narrator with no calibration and ``MusicChoice(source="off")``
+# (mode left at its default ``"bed"``), and B3 never writes either shape, so a B2-era lecture keeps today's voicing and
+# the B1 mix until the teacher acts (owner decision O-B9). No caller uses the markers before B3a/B3d.
+
+
+def is_dynamic(presentation: Presentation | None, settings: Any) -> bool:
+    """True when a lecture with this ``presentation`` is a Dynamic lecture: it has one AND the Dynamic mode is on
+    (:func:`dynamic_enabled`, the environment merged with the administrator's switch; not consulted at all without a
+    presentation). The ONE predicate of the timeline build, the voicing, the cast stage and the translate re-cast
+    (B3 plan §1.0)."""
+    return presentation is not None and dynamic_enabled(settings)
+
+
+def b3_voiced(presentation: Presentation) -> bool:
+    """True when the cast carries a calibration (a B3 cast always has the narrator's, B3 plan §1.5): such a lecture is
+    voiced by B3's branch. False for a B2-era cast (a bare narrator id, no calibration), voiced by today's code."""
+    return bool(presentation.voices.calibration)
+
+
+def b3_music(presentation: Presentation) -> bool:
+    """True unless the music choice is B2's placeholder ``(source="off", mode="bed")``, which B3 never writes (a
+    deliberate "off" is ``mode="off"``): only a B3 music choice gives the timeline a ``MusicPlan`` (B3 plan §1.0)."""
+    music = presentation.music
+    return not (music.source == "off" and music.mode == "bed")

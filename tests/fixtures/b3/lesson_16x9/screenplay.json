@@ -1,0 +1,1599 @@
+{
+ "schema_version": 3,
+ "subject_name": "Physics",
+ "unit_name": "Unit 3: Waves",
+ "session_number": "Session 4",
+ "session_title": "Wave speed",
+ "language": "en-IN",
+ "board_language": "en-IN",
+ "learning_objectives": [
+  {
+   "id": "obj-1",
+   "text": "Use v = f lambda",
+   "bloom": "understand",
+   "concept_ids": [
+    "speed"
+   ]
+  }
+ ],
+ "concept_map": [
+  {
+   "id": "waves",
+   "title": "What a wave is",
+   "summary": "",
+   "depends_on": [],
+   "kind": "core"
+  },
+  {
+   "id": "speed",
+   "title": "Wave speed",
+   "summary": "",
+   "depends_on": [
+    "waves"
+   ],
+   "kind": "core"
+  }
+ ],
+ "misconceptions": [],
+ "chapters": [
+  {
+   "id": "c1",
+   "title": "What a wave is",
+   "scene_ids": [
+    "hook",
+    "title",
+    "ch1",
+    "carries",
+    "pond",
+    "myth",
+    "slinky"
+   ]
+  },
+  {
+   "id": "c2",
+   "title": "Wave speed",
+   "scene_ids": [
+    "ch2",
+    "lambda",
+    "terms",
+    "equation",
+    "predict",
+    "worked",
+    "speeds",
+    "string",
+    "play",
+    "code",
+    "check",
+    "recap",
+    "summary",
+    "outro"
+   ]
+  }
+ ],
+ "lexicon": [
+  {
+   "written": "SI",
+   "spoken": "S I",
+   "language": null,
+   "keep_in_english": false
+  }
+ ],
+ "scenes": [
+  {
+   "id": "hook",
+   "concept_id": "waves",
+   "chapter_id": null,
+   "title": "Wave speed",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "hook-1",
+     "narration": "Why do you see the lightning before you hear the thunder?",
+     "spoken": null,
+     "board_item_id": "hook-q",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "hook-2",
+     "narration": "By the end of this lesson you will be able to work it out.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": {
+    "goal": "",
+    "key_points": [],
+    "source_refs": [],
+    "narrative_role": "hook",
+    "bridge_in": ""
+   },
+   "notes": "",
+   "type": "content",
+   "board": [
+    {
+     "id": "hook-q",
+     "kind": "question",
+     "text": "Why do you see lightning before the thunder?",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ]
+  },
+  {
+   "id": "title",
+   "concept_id": null,
+   "chapter_id": null,
+   "title": "Wave speed",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "title-1",
+     "narration": "Today we find out how fast a wave travels, and why.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "type": "title",
+   "board": [
+    {
+     "id": "title-h",
+     "kind": "heading",
+     "text": "Wave speed",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ]
+  },
+  {
+   "id": "ch1",
+   "concept_id": null,
+   "chapter_id": null,
+   "title": "What a wave is",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "ch1-1",
+     "narration": "Part 1: What a wave is.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "type": "chapter_card",
+   "chapter_label": "Part 1"
+  },
+  {
+   "id": "carries",
+   "concept_id": "waves",
+   "chapter_id": null,
+   "title": "What a wave carries",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "carries-1",
+     "narration": "A wave carries energy from one place to another.",
+     "spoken": null,
+     "board_item_id": "carries-b1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "carries-2",
+     "narration": "The medium itself only moves back and forth around where it was.",
+     "spoken": null,
+     "board_item_id": "carries-b2",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "carries-3",
+     "narration": "Sound in air and light from the sun are both waves.",
+     "spoken": null,
+     "board_item_id": "carries-b3",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "type": "content",
+   "board": [
+    {
+     "id": "carries-b1",
+     "kind": "bullet",
+     "text": "A wave carries energy from place to place",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "carries-b2",
+     "kind": "bullet",
+     "text": "The medium only moves back and forth",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "carries-b3",
+     "kind": "bullet",
+     "text": "Sound and light are both waves",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ]
+  },
+  {
+   "id": "pond",
+   "concept_id": "waves",
+   "chapter_id": null,
+   "title": "Ripples on a pond",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "pond-1",
+     "narration": "Drop a stone in a pond and ripples spread out.",
+     "spoken": null,
+     "board_item_id": "pond-p",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "pond-2",
+     "narration": "The water stays where it is; the energy moves outwards.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": {
+    "kind": "image",
+    "title": null,
+    "rationale": "real",
+    "show_from_beat_id": null,
+    "figure_id": null,
+    "image_prompt": "ripples spreading on a calm pond",
+    "chart": null,
+    "graph": null,
+    "model_3d": null,
+    "manim": null,
+    "terminal": null,
+    "quiz": null,
+    "gif_query": null,
+    "override_asset_key": null
+   },
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "type": "content",
+   "board": [
+    {
+     "id": "pond-p",
+     "kind": "paragraph",
+     "text": "Each ripple carries energy outwards.",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ]
+  },
+  {
+   "id": "myth",
+   "concept_id": "waves",
+   "chapter_id": null,
+   "title": "A common mix-up",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "myth-1",
+     "narration": "Many people think a louder sound travels faster.",
+     "spoken": null,
+     "board_item_id": "myth-m",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "myth-2",
+     "narration": "It does not: loudness changes the amplitude, and the speed stays the same.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "type": "content",
+   "board": [
+    {
+     "id": "myth-m",
+     "kind": "misconception",
+     "text": "A louder sound travels faster",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": "Loudness changes the amplitude, not the speed",
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ]
+  },
+  {
+   "id": "slinky",
+   "concept_id": "waves",
+   "chapter_id": null,
+   "title": "A slinky",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "slinky-1",
+     "narration": "Watch the pulse travel along the slinky while each coil stays put.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "type": "ai_video",
+   "video_prompt": "a slinky stretched on a table with a pulse travelling along it",
+   "rationale": "motion",
+   "fallback_image_prompt": "a stretched slinky",
+   "fallback_figure_id": null,
+   "override_asset_key": null
+  },
+  {
+   "id": "ch2",
+   "concept_id": null,
+   "chapter_id": null,
+   "title": "Wave speed",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "ch2-1",
+     "narration": "Part 2: Wave speed.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "type": "chapter_card",
+   "chapter_label": "Part 1"
+  },
+  {
+   "id": "lambda",
+   "concept_id": "speed",
+   "chapter_id": null,
+   "title": "Wavelength",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "lambda-1",
+     "narration": "The wavelength is the distance between two neighbouring crests.",
+     "spoken": null,
+     "board_item_id": "lambda-d",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "lambda-2",
+     "narration": "We write it with the Greek letter lambda and measure it in metres.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "type": "content",
+   "board": [
+    {
+     "id": "lambda-d",
+     "kind": "definition",
+     "text": "the distance between two neighbouring crests of a wave",
+     "term": "Wavelength",
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ]
+  },
+  {
+   "id": "terms",
+   "concept_id": "speed",
+   "chapter_id": null,
+   "title": "Three words to know",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "terms-1",
+     "narration": "Frequency is how many waves pass a point each second.",
+     "spoken": null,
+     "board_item_id": "terms-t1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "terms-2",
+     "narration": "The period is the time one wave takes to pass.",
+     "spoken": null,
+     "board_item_id": "terms-t2",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "terms-3",
+     "narration": "Amplitude is how far the medium moves from rest.",
+     "spoken": null,
+     "board_item_id": "terms-t3",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": {
+    "goal": "",
+    "key_points": [],
+    "source_refs": [],
+    "narrative_role": "pretraining",
+    "bridge_in": ""
+   },
+   "notes": "",
+   "type": "content",
+   "board": [
+    {
+     "id": "terms-t1",
+     "kind": "definition",
+     "text": "how many waves pass a point each second",
+     "term": "Frequency",
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "terms-t2",
+     "kind": "definition",
+     "text": "the time one wave takes to pass",
+     "term": "Period",
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "terms-t3",
+     "kind": "definition",
+     "text": "how far the medium moves from rest",
+     "term": "Amplitude",
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ]
+  },
+  {
+   "id": "equation",
+   "concept_id": "speed",
+   "chapter_id": null,
+   "title": "The wave equation",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "equation-1",
+     "narration": "Wave speed equals frequency times wavelength.",
+     "spoken": null,
+     "board_item_id": "equation-f",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "equation-2",
+     "narration": "Speed in metres per second, frequency in hertz, wavelength in metres.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "equation-3",
+     "narration": "Double the frequency at the same speed and the wavelength halves.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "type": "content",
+   "board": [
+    {
+     "id": "equation-f",
+     "kind": "formula",
+     "text": "",
+     "term": null,
+     "latex": "v = f \\lambda",
+     "variables": [
+      {
+       "symbol_latex": "v",
+       "meaning": "wave speed in metres per second",
+       "unit": ""
+      },
+      {
+       "symbol_latex": "f",
+       "meaning": "frequency in hertz",
+       "unit": ""
+      },
+      {
+       "symbol_latex": "\\lambda",
+       "meaning": "wavelength in metres",
+       "unit": ""
+      }
+     ],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ]
+  },
+  {
+   "id": "predict",
+   "concept_id": "speed",
+   "chapter_id": null,
+   "title": "Predict",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "predict-1",
+     "narration": "Before we go on: what happens to the wavelength if the frequency doubles?",
+     "spoken": null,
+     "board_item_id": "predict-q",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "predict-2",
+     "narration": "Hold on to your guess. We will check it in a moment.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": {
+    "goal": "",
+    "key_points": [],
+    "source_refs": [],
+    "narrative_role": "predict",
+    "bridge_in": ""
+   },
+   "notes": "",
+   "type": "content",
+   "board": [
+    {
+     "id": "predict-q",
+     "kind": "question",
+     "text": "What happens to the wavelength if f doubles?",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": true,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ]
+  },
+  {
+   "id": "worked",
+   "concept_id": "speed",
+   "chapter_id": null,
+   "title": "Worked example",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "worked-1",
+     "narration": "Let us try a note of four hundred and forty hertz in air.",
+     "spoken": null,
+     "board_item_id": "worked-h",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "worked-2",
+     "narration": "We know the frequency and the speed of sound, three hundred and forty three.",
+     "spoken": null,
+     "board_item_id": "worked-s1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "worked-3",
+     "narration": "Rearrange the equation so the wavelength is speed over frequency.",
+     "spoken": null,
+     "board_item_id": "worked-s2",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "worked-4",
+     "narration": "Divide, and the wavelength comes out at about seventy eight centimetres.",
+     "spoken": null,
+     "board_item_id": "worked-s3",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "type": "example",
+   "board": [
+    {
+     "id": "worked-h",
+     "kind": "heading",
+     "text": "A 440 hertz note in air",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "worked-s1",
+     "kind": "example_step",
+     "text": "Write what we know: f = 440 Hz, v = 343 m/s",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "worked-s2",
+     "kind": "example_step",
+     "text": "Rearrange: lambda = v / f",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "worked-s3",
+     "kind": "example_step",
+     "text": "Divide: 343 / 440 = 0.78 m",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ]
+  },
+  {
+   "id": "speeds",
+   "concept_id": "speed",
+   "chapter_id": null,
+   "title": "Speed of sound in three media",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "speeds-1",
+     "narration": "Sound moves at about three hundred and forty metres per second in air.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "speeds-2",
+     "narration": "In water it is four times faster, and in steel faster still.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": {
+    "kind": "chart",
+    "title": null,
+    "rationale": "compare speeds",
+    "show_from_beat_id": null,
+    "figure_id": null,
+    "image_prompt": null,
+    "chart": {
+     "chart_type": "bar",
+     "labels": [
+      "Air",
+      "Water",
+      "Steel"
+     ],
+     "datasets": [
+      {
+       "label": "Speed of sound (m/s)",
+       "data": [
+        343.0,
+        1480.0,
+        5960.0
+       ]
+      }
+     ],
+     "x_label": null,
+     "y_label": null
+    },
+    "graph": null,
+    "model_3d": null,
+    "manim": null,
+    "terminal": null,
+    "quiz": null,
+    "gif_query": null,
+    "override_asset_key": null
+   },
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "type": "content",
+   "board": []
+  },
+  {
+   "id": "string",
+   "concept_id": "speed",
+   "chapter_id": null,
+   "title": "A wave on a string",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "string-1",
+     "narration": "Here a wave moves along a string.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": "wave",
+     "source_refs": []
+    },
+    {
+     "id": "string-2",
+     "narration": "Each point only moves up and down.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": "dot",
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "type": "simulation",
+   "manim": {
+    "template": null,
+    "params": {},
+    "code": "class A(AadhiScene):\n    def construct(self):\n        self.finish()"
+   },
+   "override_asset_key": null
+  },
+  {
+   "id": "play",
+   "concept_id": "speed",
+   "chapter_id": null,
+   "title": "Try it",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "play-1",
+     "narration": "Move the slider and watch the wavelength change with the frequency.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "type": "interactive",
+   "p5_code": "function setup(){ createCanvas(400, 200); }",
+   "poster_override_asset_key": null
+  },
+  {
+   "id": "code",
+   "concept_id": "speed",
+   "chapter_id": null,
+   "title": "Computing it",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "code-1",
+     "narration": "Here is the same calculation as a small Python function.",
+     "spoken": null,
+     "board_item_id": "code-c",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "code-2",
+     "narration": "It takes the speed and the frequency and returns their ratio.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "code-3",
+     "narration": "Running it prints about zero point seven eight metres.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "type": "content",
+   "board": [
+    {
+     "id": "code-c",
+     "kind": "code",
+     "text": "",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": "python",
+     "code": "def wavelength(v, f):\n    return v / f\n\nprint(wavelength(343, 440))",
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ]
+  },
+  {
+   "id": "check",
+   "concept_id": "speed",
+   "chapter_id": null,
+   "title": "Quick check",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "check-1",
+     "narration": "Try this one. Pause the video if you need more time.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "type": "quiz_checkpoint",
+   "question": "A wave has a frequency of 2 Hz and a wavelength of 3 m. How fast does it travel?",
+   "options": [
+    "1.5 m/s",
+    "5 m/s",
+    "6 m/s"
+   ],
+   "correct_index": 2,
+   "feedback_wrong": [
+    "",
+    "",
+    ""
+   ],
+   "option_misconception_ids": [
+    null,
+    null,
+    null
+   ],
+   "explanation": "v = f lambda = 2 x 3 = 6 m/s.",
+   "bloom": "understand",
+   "countdown_seconds": 5,
+   "reveal_beats": [
+    {
+     "id": "check-2",
+     "narration": "Six metres per second: two times three.",
+     "spoken": null,
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "source_refs": []
+  },
+  {
+   "id": "recap",
+   "concept_id": "speed",
+   "chapter_id": null,
+   "title": "Recall",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "recap-1",
+     "narration": "Without looking back: what does a wave carry?",
+     "spoken": null,
+     "board_item_id": "recap-q1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "recap-2",
+     "narration": "And how do you find its speed?",
+     "spoken": null,
+     "board_item_id": "recap-q2",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "recap-3",
+     "narration": "Energy, not matter.",
+     "spoken": null,
+     "board_item_id": "recap-t1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "recap-4",
+     "narration": "Speed is frequency times wavelength.",
+     "spoken": null,
+     "board_item_id": "recap-t2",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "recap-5",
+     "narration": "And the medium sets the speed.",
+     "spoken": null,
+     "board_item_id": "recap-t3",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "type": "recap",
+   "board": [
+    {
+     "id": "recap-q1",
+     "kind": "question",
+     "text": "What does a wave carry?",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "recap-q2",
+     "kind": "question",
+     "text": "How do you find a wave's speed?",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "recap-t1",
+     "kind": "takeaway",
+     "text": "Energy, not matter",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "recap-t2",
+     "kind": "takeaway",
+     "text": "v = f lambda",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "recap-t3",
+     "kind": "takeaway",
+     "text": "The medium sets the speed",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ]
+  },
+  {
+   "id": "summary",
+   "concept_id": "speed",
+   "chapter_id": null,
+   "title": "What we learned",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "summary-1",
+     "narration": "A wave carries energy, not matter.",
+     "spoken": null,
+     "board_item_id": "summary-b1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "summary-2",
+     "narration": "Its speed is frequency times wavelength.",
+     "spoken": null,
+     "board_item_id": "summary-b2",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    },
+    {
+     "id": "summary-3",
+     "narration": "And that speed depends on the medium.",
+     "spoken": null,
+     "board_item_id": "summary-b3",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "type": "summary",
+   "board": [
+    {
+     "id": "summary-b1",
+     "kind": "bullet",
+     "text": "A wave carries energy, not matter",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "summary-b2",
+     "kind": "bullet",
+     "text": "v = f lambda",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "summary-b3",
+     "kind": "bullet",
+     "text": "Speed depends on the medium",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ]
+  },
+  {
+   "id": "outro",
+   "concept_id": "speed",
+   "chapter_id": null,
+   "title": "Next: sound",
+   "subtitle": null,
+   "mascot_position": "left",
+   "beats": [
+    {
+     "id": "outro-1",
+     "narration": "Next time we use this to explain how we hear sound. See you then.",
+     "spoken": null,
+     "board_item_id": "outro-t",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "pause_after": 0.0,
+     "visual_cue": null,
+     "source_refs": []
+    }
+   ],
+   "side_panel": null,
+   "objective_ids": [],
+   "intent": null,
+   "notes": "",
+   "type": "summary",
+   "board": [
+    {
+     "id": "outro-t",
+     "kind": "takeaway",
+     "text": "Next time: how we hear sound",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ]
+  }
+ ],
+ "companion_sheet": {
+  "key_formulas": [],
+  "definitions": [],
+  "misconceptions": [],
+  "practice_problems": [],
+  "legacy_markdown": null
+ },
+ "figures": [],
+ "source": {
+  "filename": "",
+  "mime": "",
+  "pages": null,
+  "sha256": null
+ },
+ "presentation": {
+  "style": "dynamic",
+  "format": "landscape",
+  "length_profile": "standard",
+  "reel_profile": "learning",
+  "destination": "messaging",
+  "look_seed": 1111870666,
+  "look_epoch": 0,
+  "layout_epoch": 0,
+  "theme_family": "paper_ink",
+  "personality": "soft",
+  "display_font": "outfit",
+  "caption_style": "clean_pill",
+  "cue_term_style": "marker",
+  "intro_layout": null,
+  "reel_card_x": null,
+  "hook_kind": "challenge",
+  "check_order": [],
+  "greeting_id": null,
+  "asset_style": {
+   "family": "paper_ink",
+   "personality": "soft"
+  },
+  "voices": {
+   "narrator": "en-IN-NeerjaNeural",
+   "aadhi": null,
+   "student": null,
+   "calibration": {}
+  },
+  "music": {
+   "source": "off",
+   "provider": null,
+   "mood": null,
+   "asset_key": null,
+   "mode": "bed",
+   "level": "normal"
+  },
+  "entity_colors": {},
+  "hook": null,
+  "aadhi_recap": true,
+  "captions_burn": true,
+  "sfx": true,
+  "motion": "standard",
+  "pins": []
+ }
+}

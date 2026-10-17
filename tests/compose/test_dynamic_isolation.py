@@ -17,6 +17,15 @@ inside build_timeline").
   (scheduling noise on a busy CI runner does not count) keep it from flaking. CPU time cannot see a blocking wait (a
   file or font read), so the fastest of the three wall-clock runs must hold the budget too: noise only ever adds time,
   so it would have to hit all three runs, while a blocking wait hits every one.
+* B3 (audio, B3 plan §B3-0 and §3.1 item 6): the probe also runs a classic ``build_assets`` (the providers' fake TTS,
+  ffmpeg-free audio) for a classic lecture with the Dynamic mode on and for a lecture WITH a presentation while the
+  mode is off, a classic ``assemble_screenplay``, and a whole classic generation through the orchestrator
+  (``generate_lecture`` with the providers' fakes, where B3's cast stage and music selection will be wired). A leak from
+  ``pipeline/assets.py``, ``pipeline/audio.py``, ``script.py`` or ``orchestrator.py`` is therefore seen too. The
+  forbidden list names every B3 module outside ``aadhi.compose.dynamic`` and ``scipy`` (the procedural music engine's,
+  worker-only). Importing the API app loads none of them, and a Dynamic ``build_timeline`` / ``preview_timeline``
+  loads no ``scipy``, no ``aadhi.providers.music`` and no ``aadhi.compose.bs1770``: the timeline only reads music
+  metadata.
 """
 
 from __future__ import annotations
@@ -39,8 +48,16 @@ from .factories import make_manifest, screenplay_dict
 ROOT = Path(__file__).resolve().parents[2]
 # module prefixes (a name and everything under it); "brotli" also stands for brotlicffi's import name prefix, and
 # "_brotli" is brotli's extension module
+# B3's modules outside the ``aadhi.compose.dynamic`` prefix and the music engine's scipy (B3 plan §B3-0): none of them
+# may load in a classic build, a classic asset build or a classic generation. Named one by one, so the list says
+# exactly what B3 adds (a module that does not exist yet is simply never loaded).
+B3_FORBIDDEN = ("aadhi.providers.tts.personas", "aadhi.providers.tts.delivery", "aadhi.providers.tts.calibration",
+                "aadhi.pipeline.casting", "aadhi.pipeline.history", "aadhi.pipeline.music", "aadhi.pipeline.cast_stage",
+                "aadhi.providers.music", "aadhi.compose.bs1770", "scipy")
+# ... and what a Dynamic timeline build must not load either: it reads music metadata only (B3d's fit and duck are pure)
+DYNAMIC_AUDIO_FORBIDDEN = ("scipy", "aadhi.providers.music", "aadhi.compose.bs1770")
 FORBIDDEN = ("aadhi.compose.dynamic", "aadhi.pipeline.direct", "PIL.ImageFont", "uharfbuzz", "fontTools", "brotli",
-             "_brotli")
+             "_brotli", *B3_FORBIDDEN)
 SHAPING = ("uharfbuzz", "fontTools", "brotli", "_brotli")
 BROTLI = ("brotli", "_brotli")
 # HTTP clients that import brotli themselves when it is installed (and then advertise "br" in Accept-Encoding)
@@ -54,8 +71,13 @@ BUDGET_SECONDS = 0.300  # plan B2 §2: the preview build budget
 SCENES = 40
 
 PROBE = r"""
-import json, sys
+import asyncio, json, os, shutil, sys, tempfile
 from types import SimpleNamespace
+
+# a database and data dir of the probe's own, for the classic asset build's clips (never the session's database)
+_tmp = tempfile.mkdtemp(prefix="b3-isolation-")
+os.environ["DATA_DIR"] = os.path.join(_tmp, "data")
+os.environ["DATABASE_URL"] = "sqlite:///" + os.path.join(_tmp, "probe.db").replace(os.sep, "/")
 
 from aadhi.api.timelines import current_timeline
 from aadhi.compose.timeline import build_timeline, preview_timeline
@@ -66,9 +88,10 @@ from tests.schemas.v3_fixtures import PRESENTATION
 
 FORBIDDEN = tuple(sys.argv[1].split(","))
 HTTP_CLIENTS = tuple(sys.argv[2].split(","))
+B3_FORBIDDEN = tuple(sys.argv[3].split(","))
 
-def loaded():
-    return sorted(m for m in sys.modules if m.startswith(FORBIDDEN))
+def loaded(prefixes=FORBIDDEN):
+    return sorted(m for m in sys.modules if m.startswith(prefixes))
 
 def http():
     return sorted(m for m in HTTP_CLIENTS if m in sys.modules)
@@ -86,15 +109,79 @@ for sp, settings in ((classic, on), (classic, off), (dynamic, off)):
 stored = build_timeline(classic, make_manifest(classic), settings=on).model_dump(mode="json")
 version = SimpleNamespace(timeline=stored, built_revision=1, revision=1, screenplay=classic.model_dump(mode="json"))
 assert current_timeline(version, on) is stored
+
+# B3: a classic asset build (the providers' fake TTS through the real factory; the audio assembly without ffmpeg) of a
+# classic lecture with the mode on and of a lecture with a presentation while the mode is off, then a classic
+# generation's screenplay assembly.
+from aadhi import db
+from aadhi.pipeline import audio
+from aadhi.pipeline.assets import build_assets_detailed
+from aadhi.pipeline.base import GenerationOptions, IngestResult, LecturePlan
+from aadhi.pipeline.script import assemble_screenplay
+from aadhi.storage import get_storage
+from aadhi.storage.assets import AssetStore
+from tests.helpers import FakeJobContext
+from tests.pipeline.fakes import dummy_mp3, wav_decode
+
+audio.decode_pcm, audio.encode_mp3 = wav_decode, dummy_mp3
+db.Base.metadata.create_all(db.get_engine())
+store = AssetStore(get_storage(), db.get_sessionmaker())
+narrated = {"language": "en-IN", "scenes": [
+    {"id": "a", "type": "content", "title": "A", "beats": [{"id": "a1", "narration": "Current flows round a loop."}]},
+    {"id": "q", "type": "quiz_checkpoint", "title": "Q", "question": "Which?", "options": ["x", "y"],
+     "correct_index": 0, "countdown_seconds": 4, "beats": [{"id": "q1", "narration": "Which one is right?"}],
+     "reveal_beats": [{"id": "q2", "narration": "The first one."}]}]}
+with_presentation = {**narrated, "presentation": data["presentation"]}
+for doc, settings in ((narrated, on), (with_presentation, off)):
+    s = settings.model_copy(update={"tts_provider": "fake", "image_provider": "none", "video_provider": "none"})
+    ctx = FakeJobContext(settings=s, assets=store)
+    res = asyncio.run(build_assets_detailed(ctx, Screenplay.model_validate(doc), GenerationOptions()))
+    assert res.manifest.audio["q"].asset_key and not [i for i in res.issues if i.severity == "error"], res.issues
+generated = assemble_screenplay(LecturePlan(), list(classic.scenes), IngestResult(markdown="x"), GenerationOptions(),
+                                [], settings=off)
+assert generated.presentation is None
+
+# ... and a whole classic generation through the orchestrator (generate_lecture: ingest, plan, script, assets and the
+# timeline, with the providers' fakes), where B3's cast stage and music selection will be wired: a module-level or an
+# unconditional import of a B3 module there is a leak into every classic generation.
+import pytest
+from aadhi.pipeline import orchestrator
+from tests.pipeline.dbutil import get_version, seed_project
+from tests.pipeline.fakes import install_providers
+from tests.pipeline.sources import SAMPLE_MARKDOWN
+
+patches = pytest.MonkeyPatch()
+install_providers(patches, real_timeline=True)
+seeded = seed_project(store.storage, SAMPLE_MARKDOWN.encode("utf-8"), "text/markdown", "ohm.md",
+                      options={"target_minutes": 6})
+ctx = FakeJobContext(settings=off.model_copy(update={"tts_provider": "fake", "image_provider": "fake",
+                                                     "video_provider": "none"}), assets=store)
+ctx.project_id, ctx.version_id, ctx.kind = seeded.project_id, seeded.version_id, "generate_lecture"
+ctx.payload = {"source_document_id": seeded.source_id, "options": {"target_minutes": 6}, "base_revision": 1}
+result = asyncio.run(orchestrator.generate_lecture(ctx))
+assert result["issue_counts"]["error"] == 0, result
+version = get_version(seeded.version_id)
+assert version.screenplay and "presentation" not in version.screenplay and version.timeline
+patches.undo()
 before, before_http = loaded(), http()
+
+from aadhi.main import create_app
+
+create_app(off)
+api_b3 = loaded(B3_FORBIDDEN)
+
 assert build_timeline(dynamic, make_manifest(dynamic), settings=on).presentation is not None
-print(json.dumps({"classic": before, "classic_http": before_http, "dynamic": loaded(), "dynamic_http": http()}))
+assert preview_timeline(dynamic, make_manifest(dynamic), settings=on).presentation is not None
+db.get_engine().dispose()
+shutil.rmtree(_tmp, ignore_errors=True)
+print(json.dumps({"classic": before, "classic_http": before_http, "api_b3": api_b3, "dynamic": loaded(),
+                  "dynamic_http": http()}))
 """
 
 
 def test_a_classic_build_loads_no_dynamic_module() -> None:
-    out = subprocess.run([sys.executable, "-c", PROBE, ",".join(FORBIDDEN), ",".join(HTTP_CLIENTS)], cwd=ROOT,
-                         capture_output=True, text=True, timeout=300, check=False)
+    out = subprocess.run([sys.executable, "-c", PROBE, ",".join(FORBIDDEN), ",".join(HTTP_CLIENTS),
+                          ",".join(B3_FORBIDDEN)], cwd=ROOT, capture_output=True, text=True, timeout=300, check=False)
     assert out.returncode == 0, out.stderr[-4000:]
     seen = json.loads(out.stdout.strip().splitlines()[-1])
     assert _leaks(seen["classic"], seen["classic_http"]) == [], seen
@@ -105,6 +192,21 @@ def test_a_classic_build_loads_no_dynamic_module() -> None:
     assert "PIL.ImageFont" not in seen["dynamic"] and "aadhi.compose.dynamic.preflight" not in seen["dynamic"]
     assert not [m for m in _leaks(seen["dynamic"], seen["dynamic_http"]) if m.startswith(SHAPING)
                 or m.startswith("aadhi.compose.dynamic.textfit") or m.startswith("aadhi.compose.dynamic.shaping")], seen
+    # B3: the API process loads no B3 module and no scipy (B3 plan §3.1 item 6; a later step that must load one there
+    # names that module here as an explicit exception); a Dynamic timeline build loads no music engine, no meter and
+    # no scipy
+    assert seen["api_b3"] == [], seen
+    assert not [m for m in seen["dynamic"] if m.startswith(DYNAMIC_AUDIO_FORBIDDEN)], seen
+
+
+def test_the_probe_names_every_b3_module_outside_the_dynamic_prefix() -> None:
+    """The B3 plan's FORBIDDEN gains (§B3-0) are all in the classic list, and the Dynamic build's audio list in it."""
+    assert set(B3_FORBIDDEN) <= set(FORBIDDEN)
+    assert not [m for m in B3_FORBIDDEN if m.startswith("aadhi.compose.dynamic")]
+    assert {"aadhi.providers.tts.personas", "aadhi.providers.tts.delivery", "aadhi.providers.tts.calibration",
+            "aadhi.pipeline.casting", "aadhi.pipeline.history", "aadhi.pipeline.music", "aadhi.pipeline.cast_stage",
+            "aadhi.providers.music", "aadhi.compose.bs1770", "scipy"} == set(B3_FORBIDDEN)
+    assert set(DYNAMIC_AUDIO_FORBIDDEN) <= set(B3_FORBIDDEN)
 
 
 def test_brotli_beside_an_http_client_is_the_clients_and_nothing_else_is_excused() -> None:

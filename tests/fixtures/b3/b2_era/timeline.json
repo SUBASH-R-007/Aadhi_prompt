@@ -1,0 +1,2106 @@
+{
+ "schema_version": 3,
+ "version_id": null,
+ "screenplay_revision": null,
+ "language": "en-IN",
+ "board_language": "en-IN",
+ "fps": 30,
+ "width": 1920,
+ "height": 1080,
+ "meta": {
+  "subject_name": "Physics",
+  "unit_name": "Unit 3: Waves",
+  "session_number": "Session 4",
+  "session_title": "Wave speed",
+  "asset_storage_keys": {
+   "image-15dd5c78a3968133dc7632324e347786a4b84ba9": "assets/image/image-15dd5c78a3968133dc7632324e347786a4b84ba9/IcHty6ssCyxBAO0x.png",
+   "scene_audio-01ac1b1c3a0c35add545f9a72c1d6bdb5791d537": "assets/scene_audio/scene_audio-01ac1b1c3a0c35add545f9a72c1d6bdb5791d537/E1ykjbsxq0SdJZfV.mp3",
+   "scene_audio-269a63483d86f49f2183f2bccebdf12f260f71c7": "assets/scene_audio/scene_audio-269a63483d86f49f2183f2bccebdf12f260f71c7/j2koRfYiUNxGHEoY.mp3",
+   "scene_audio-2e46e4d75799bf95347c38d743bd39330ee8642f": "assets/scene_audio/scene_audio-2e46e4d75799bf95347c38d743bd39330ee8642f/CenxPw8O7duJ3WyL.mp3",
+   "scene_audio-636bf218fcb718dd675b3ac016d1f6ff4e793e27": "assets/scene_audio/scene_audio-636bf218fcb718dd675b3ac016d1f6ff4e793e27/MnyIB7XTdT9ddCtK.mp3",
+   "scene_audio-9f3120528261b83ec94b883b6adbcc31d9831705": "assets/scene_audio/scene_audio-9f3120528261b83ec94b883b6adbcc31d9831705/3sbeQeTfvBNetNj8.mp3",
+   "scene_audio-e75a0146f7b52345f389bab837541f302bf97a10": "assets/scene_audio/scene_audio-e75a0146f7b52345f389bab837541f302bf97a10/JeFLlyLBaQV97MlU.mp3",
+   "scene_audio-f9e5a2ffa4e2306436f856073774ae0b497acebb": "assets/scene_audio/scene_audio-f9e5a2ffa4e2306436f856073774ae0b497acebb/MOGEXMWfBqNvHyuu.mp3"
+  }
+ },
+ "concept_map": [
+  {
+   "id": "waves",
+   "title": "What a wave is",
+   "summary": "",
+   "depends_on": [],
+   "kind": "core"
+  },
+  {
+   "id": "speed",
+   "title": "Wave speed",
+   "summary": "",
+   "depends_on": [
+    "waves"
+   ],
+   "kind": "core"
+  }
+ ],
+ "learning_objectives": [
+  {
+   "id": "obj-1",
+   "text": "Use v = f lambda",
+   "bloom": "understand",
+   "concept_ids": [
+    "speed"
+   ]
+  }
+ ],
+ "intro": null,
+ "scenes": [
+  {
+   "scene_id": "aadhi-intro",
+   "index": 0,
+   "type": "title",
+   "concept_id": null,
+   "chapter_id": null,
+   "title": "Unit 3: Waves",
+   "subtitle": "Physics · Session 4",
+   "chapter_label": null,
+   "start": 0.0,
+   "duration": 5.0,
+   "audio_offset": 0.8,
+   "layout": {
+    "mascot_position": "hidden",
+    "show_side_panel": false,
+    "fullscreen_media": false
+   },
+   "audio_asset_key": null,
+   "audio_url": null,
+   "audio_duration": 0.0,
+   "board": [
+    {
+     "id": "title",
+     "kind": "heading",
+     "text": "Unit 3: Waves",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ],
+   "figures": {},
+   "beats": [],
+   "side_panel": null,
+   "media": null,
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": [],
+   "look": {
+    "template": "aadhi_intro",
+    "variant": "card_left",
+    "tokens": {
+     "struct.accent": "#BE3D70",
+     "bg": "#FDF2DD",
+     "bg-alt": "#F3E8D3",
+     "bg-tint": "#FFEAEF",
+     "surface": "#FFFDFA",
+     "block.base": "#BE3D70",
+     "block.highlight": "#C7537D",
+     "block.ink": "#FFFFFF",
+     "block.ink2": "#F6D9E1",
+     "scrim": "#FDF2DDC7"
+    },
+    "background": {
+     "preset": "mesh_drift",
+     "params": {
+      "tone": "bg"
+     },
+     "seed": 98972672,
+     "frozen_at": null
+    },
+    "transition_in": {
+     "kind": "cut",
+     "seconds": 0.0
+    },
+    "hold_reason": null,
+    "presenter": {
+     "clip_key": "aadhi_left_clean.mp4",
+     "crop": [
+      0,
+      0,
+      720,
+      720
+     ],
+     "rect": [
+      96,
+      180,
+      720,
+      720
+     ],
+     "radius": 40,
+     "t_exit": 4.4,
+     "exit_kind": "wipe",
+     "exit_s": 0.6,
+     "enter_kind": "none",
+     "src_fps": 24,
+     "layout": "card_left"
+    },
+    "text_fit": {},
+    "refs": {
+     "accent_next": "#BE3D70"
+    }
+   }
+  },
+  {
+   "scene_id": "title",
+   "index": 1,
+   "type": "title",
+   "concept_id": null,
+   "chapter_id": null,
+   "title": "Wave speed",
+   "subtitle": null,
+   "chapter_label": null,
+   "start": 5.0,
+   "duration": 4.71,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "left",
+    "show_side_panel": false,
+    "fullscreen_media": false
+   },
+   "audio_asset_key": "scene_audio-636bf218fcb718dd675b3ac016d1f6ff4e793e27",
+   "audio_url": null,
+   "audio_duration": 3.41,
+   "board": [
+    {
+     "id": "title-h",
+     "kind": "heading",
+     "text": "Wave speed",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "title-1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 3.91,
+     "end": 3.91,
+     "narration": "Today we find out how fast a wave travels, and why.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Today",
+       "start": 0.53,
+       "end": 0.78
+      },
+      {
+       "text": "we",
+       "start": 0.84,
+       "end": 1.09
+      },
+      {
+       "text": "find",
+       "start": 1.15,
+       "end": 1.4
+      },
+      {
+       "text": "out",
+       "start": 1.46,
+       "end": 1.71
+      },
+      {
+       "text": "how",
+       "start": 1.77,
+       "end": 2.02
+      },
+      {
+       "text": "fast",
+       "start": 2.08,
+       "end": 2.33
+      },
+      {
+       "text": "a",
+       "start": 2.39,
+       "end": 2.64
+      },
+      {
+       "text": "wave",
+       "start": 2.7,
+       "end": 2.95
+      },
+      {
+       "text": "travels,",
+       "start": 3.01,
+       "end": 3.26
+      },
+      {
+       "text": "and",
+       "start": 3.32,
+       "end": 3.57
+      },
+      {
+       "text": "why.",
+       "start": 3.63,
+       "end": 3.88
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.53,
+       "end": 3.91,
+       "text": "Today we find out how fast\na wave travels, and why."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": null,
+   "media": null,
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": [],
+   "look": {
+    "template": "kinetic_statement",
+    "variant": null,
+    "tokens": {
+     "struct.accent": "#BE3D70",
+     "bg": "#FDF2DD",
+     "bg-alt": "#F3E8D3",
+     "bg-tint": "#FFEAEF",
+     "surface": "#FFFDFA",
+     "block.base": "#BE3D70",
+     "block.highlight": "#C7537D",
+     "block.ink": "#FFFFFF",
+     "block.ink2": "#F6D9E1",
+     "scrim": "#FDF2DDC7"
+    },
+    "background": {
+     "preset": "mesh_drift",
+     "params": {
+      "tone": "bg-alt"
+     },
+     "seed": 400613239,
+     "frozen_at": null
+    },
+    "transition_in": {
+     "kind": "crossfade",
+     "seconds": 0.45
+    },
+    "hold_reason": null,
+    "presenter": null,
+    "text_fit": {}
+   }
+  },
+  {
+   "scene_id": "ch1",
+   "index": 2,
+   "type": "chapter_card",
+   "concept_id": null,
+   "chapter_id": null,
+   "title": "Waves",
+   "subtitle": null,
+   "chapter_label": "Part 1",
+   "start": 9.71,
+   "duration": 2.23,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "left",
+    "show_side_panel": false,
+    "fullscreen_media": false
+   },
+   "audio_asset_key": "scene_audio-f9e5a2ffa4e2306436f856073774ae0b497acebb",
+   "audio_url": null,
+   "audio_duration": 0.93,
+   "board": [],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "ch1-1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 1.43,
+     "end": 1.43,
+     "narration": "Part 1: Waves.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Part",
+       "start": 0.53,
+       "end": 0.78
+      },
+      {
+       "text": "1:",
+       "start": 0.84,
+       "end": 1.09
+      },
+      {
+       "text": "Waves.",
+       "start": 1.15,
+       "end": 1.4
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.53,
+       "end": 1.43,
+       "text": "Part 1: Waves."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": null,
+   "media": null,
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": [],
+   "look": {
+    "template": "chapter_bumper",
+    "variant": null,
+    "tokens": {
+     "struct.accent": "#A16600",
+     "bg": "#FDF2DD",
+     "bg-alt": "#F3E8D3",
+     "bg-tint": "#FDEDDC",
+     "surface": "#FFFDFA",
+     "block.base": "#A16600",
+     "block.highlight": "#AB752E",
+     "block.ink": "#FFFFFF",
+     "block.ink2": "#EDE0D1",
+     "scrim": "#FDF2DDC7"
+    },
+    "background": {
+     "preset": "colour_block",
+     "params": {
+      "tone": "bg"
+     },
+     "seed": 1097544131,
+     "frozen_at": null
+    },
+    "transition_in": {
+     "kind": "crossfade",
+     "seconds": 0.45
+    },
+    "hold_reason": null,
+    "presenter": null,
+    "text_fit": {}
+   }
+  },
+  {
+   "scene_id": "carries",
+   "index": 3,
+   "type": "content",
+   "concept_id": "waves",
+   "chapter_id": null,
+   "title": "What a wave carries",
+   "subtitle": null,
+   "chapter_label": null,
+   "start": 11.94,
+   "duration": 11.52,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "left",
+    "show_side_panel": false,
+    "fullscreen_media": false
+   },
+   "audio_asset_key": "scene_audio-269a63483d86f49f2183f2bccebdf12f260f71c7",
+   "audio_url": null,
+   "audio_duration": 10.22,
+   "board": [
+    {
+     "id": "carries-b1",
+     "kind": "bullet",
+     "text": "A wave carries energy from place to place",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "carries-b2",
+     "kind": "bullet",
+     "text": "The medium only moves back and forth",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "carries-b3",
+     "kind": "bullet",
+     "text": "Sound and light are both waves",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "carries-1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 3.29,
+     "end": 3.29,
+     "narration": "A wave carries energy from one place to another.",
+     "board_item_id": "carries-b1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "A",
+       "start": 0.53,
+       "end": 0.78
+      },
+      {
+       "text": "wave",
+       "start": 0.84,
+       "end": 1.09
+      },
+      {
+       "text": "carries",
+       "start": 1.15,
+       "end": 1.4
+      },
+      {
+       "text": "energy",
+       "start": 1.46,
+       "end": 1.71
+      },
+      {
+       "text": "from",
+       "start": 1.77,
+       "end": 2.02
+      },
+      {
+       "text": "one",
+       "start": 2.08,
+       "end": 2.33
+      },
+      {
+       "text": "place",
+       "start": 2.39,
+       "end": 2.64
+      },
+      {
+       "text": "to",
+       "start": 2.7,
+       "end": 2.95
+      },
+      {
+       "text": "another.",
+       "start": 3.01,
+       "end": 3.26
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.53,
+       "end": 3.29,
+       "text": "A wave carries energy\nfrom one place to another."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "carries-2",
+     "index": 1,
+     "phase": "main",
+     "start": 3.44,
+     "speech_end": 7.16,
+     "end": 7.16,
+     "narration": "The medium itself only moves back and forth around where it was.",
+     "board_item_id": "carries-b2",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "The",
+       "start": 3.47,
+       "end": 3.72
+      },
+      {
+       "text": "medium",
+       "start": 3.78,
+       "end": 4.03
+      },
+      {
+       "text": "itself",
+       "start": 4.09,
+       "end": 4.34
+      },
+      {
+       "text": "only",
+       "start": 4.4,
+       "end": 4.65
+      },
+      {
+       "text": "moves",
+       "start": 4.71,
+       "end": 4.96
+      },
+      {
+       "text": "back",
+       "start": 5.02,
+       "end": 5.27
+      },
+      {
+       "text": "and",
+       "start": 5.33,
+       "end": 5.58
+      },
+      {
+       "text": "forth",
+       "start": 5.64,
+       "end": 5.89
+      },
+      {
+       "text": "around",
+       "start": 5.95,
+       "end": 6.2
+      },
+      {
+       "text": "where",
+       "start": 6.26,
+       "end": 6.51
+      },
+      {
+       "text": "it",
+       "start": 6.57,
+       "end": 6.82
+      },
+      {
+       "text": "was.",
+       "start": 6.88,
+       "end": 7.13
+      }
+     ],
+     "captions": [
+      {
+       "start": 3.47,
+       "end": 7.16,
+       "text": "The medium itself only moves back\nand forth around where it was."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "carries-3",
+     "index": 2,
+     "phase": "main",
+     "start": 7.31,
+     "speech_end": 10.72,
+     "end": 10.72,
+     "narration": "Sound in air and light from the sun are both waves.",
+     "board_item_id": "carries-b3",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Sound",
+       "start": 7.34,
+       "end": 7.59
+      },
+      {
+       "text": "in",
+       "start": 7.65,
+       "end": 7.9
+      },
+      {
+       "text": "air",
+       "start": 7.96,
+       "end": 8.21
+      },
+      {
+       "text": "and",
+       "start": 8.27,
+       "end": 8.52
+      },
+      {
+       "text": "light",
+       "start": 8.58,
+       "end": 8.83
+      },
+      {
+       "text": "from",
+       "start": 8.89,
+       "end": 9.14
+      },
+      {
+       "text": "the",
+       "start": 9.2,
+       "end": 9.45
+      },
+      {
+       "text": "sun",
+       "start": 9.51,
+       "end": 9.76
+      },
+      {
+       "text": "are",
+       "start": 9.82,
+       "end": 10.07
+      },
+      {
+       "text": "both",
+       "start": 10.13,
+       "end": 10.38
+      },
+      {
+       "text": "waves.",
+       "start": 10.44,
+       "end": 10.69
+      }
+     ],
+     "captions": [
+      {
+       "start": 7.34,
+       "end": 10.72,
+       "text": "Sound in air and light from\nthe sun are both waves."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": null,
+   "media": null,
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": [],
+   "look": {
+    "template": "list_build",
+    "variant": null,
+    "tokens": {
+     "struct.accent": "#A16600",
+     "bg": "#FDF2DD",
+     "bg-alt": "#F3E8D3",
+     "bg-tint": "#FDEDDC",
+     "surface": "#FFFDFA",
+     "block.base": "#A16600",
+     "block.highlight": "#AB752E",
+     "block.ink": "#FFFFFF",
+     "block.ink2": "#EDE0D1",
+     "scrim": "#FDF2DDC7"
+    },
+    "background": {
+     "preset": "mesh_drift",
+     "params": {
+      "tone": "bg-alt"
+     },
+     "seed": 1393616217,
+     "frozen_at": null
+    },
+    "transition_in": {
+     "kind": "crossfade",
+     "seconds": 0.45
+    },
+    "hold_reason": null,
+    "presenter": null,
+    "text_fit": {}
+   },
+   "events": [
+    {
+     "t": 0.38,
+     "kind": "reveal",
+     "target": "carries-b1",
+     "dur": null,
+     "anchored": true,
+     "sfx": null,
+     "words": ""
+    },
+    {
+     "t": 3.32,
+     "kind": "reveal",
+     "target": "carries-b2",
+     "dur": null,
+     "anchored": true,
+     "sfx": null,
+     "words": ""
+    },
+    {
+     "t": 7.19,
+     "kind": "reveal",
+     "target": "carries-b3",
+     "dur": null,
+     "anchored": true,
+     "sfx": null,
+     "words": ""
+    }
+   ]
+  },
+  {
+   "scene_id": "pond",
+   "index": 4,
+   "type": "content",
+   "concept_id": "waves",
+   "chapter_id": null,
+   "title": "Ripples on a pond",
+   "subtitle": null,
+   "chapter_label": null,
+   "start": 23.46,
+   "duration": 7.65,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "left",
+    "show_side_panel": true,
+    "fullscreen_media": false
+   },
+   "audio_asset_key": "scene_audio-2e46e4d75799bf95347c38d743bd39330ee8642f",
+   "audio_url": null,
+   "audio_duration": 6.35,
+   "board": [
+    {
+     "id": "pond-p",
+     "kind": "paragraph",
+     "text": "Each ripple carries energy outwards.",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "pond-1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 3.6,
+     "end": 3.6,
+     "narration": "Drop a stone in a pond and ripples spread out.",
+     "board_item_id": "pond-p",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Drop",
+       "start": 0.53,
+       "end": 0.78
+      },
+      {
+       "text": "a",
+       "start": 0.84,
+       "end": 1.09
+      },
+      {
+       "text": "stone",
+       "start": 1.15,
+       "end": 1.4
+      },
+      {
+       "text": "in",
+       "start": 1.46,
+       "end": 1.71
+      },
+      {
+       "text": "a",
+       "start": 1.77,
+       "end": 2.02
+      },
+      {
+       "text": "pond",
+       "start": 2.08,
+       "end": 2.33
+      },
+      {
+       "text": "and",
+       "start": 2.39,
+       "end": 2.64
+      },
+      {
+       "text": "ripples",
+       "start": 2.7,
+       "end": 2.95
+      },
+      {
+       "text": "spread",
+       "start": 3.01,
+       "end": 3.26
+      },
+      {
+       "text": "out.",
+       "start": 3.32,
+       "end": 3.57
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.53,
+       "end": 3.6,
+       "text": "Drop a stone in a pond\nand ripples spread out."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "pond-2",
+     "index": 1,
+     "phase": "main",
+     "start": 3.75,
+     "speech_end": 6.85,
+     "end": 6.85,
+     "narration": "The water stays where it is; the energy moves outwards.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "The",
+       "start": 3.78,
+       "end": 4.03
+      },
+      {
+       "text": "water",
+       "start": 4.09,
+       "end": 4.34
+      },
+      {
+       "text": "stays",
+       "start": 4.4,
+       "end": 4.65
+      },
+      {
+       "text": "where",
+       "start": 4.71,
+       "end": 4.96
+      },
+      {
+       "text": "it",
+       "start": 5.02,
+       "end": 5.27
+      },
+      {
+       "text": "is;",
+       "start": 5.33,
+       "end": 5.58
+      },
+      {
+       "text": "the",
+       "start": 5.64,
+       "end": 5.89
+      },
+      {
+       "text": "energy",
+       "start": 5.95,
+       "end": 6.2
+      },
+      {
+       "text": "moves",
+       "start": 6.26,
+       "end": 6.51
+      },
+      {
+       "text": "outwards.",
+       "start": 6.57,
+       "end": 6.82
+      }
+     ],
+     "captions": [
+      {
+       "start": 3.78,
+       "end": 6.85,
+       "text": "The water stays where it is;\nthe energy moves outwards."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": {
+    "panel": {
+     "kind": "image",
+     "title": null,
+     "rationale": "real",
+     "show_from_beat_id": null,
+     "figure_id": null,
+     "image_prompt": "ripples spreading on a calm pond",
+     "chart": null,
+     "graph": null,
+     "model_3d": null,
+     "manim": null,
+     "terminal": null,
+     "quiz": null,
+     "gif_query": null,
+     "override_asset_key": null
+    },
+    "media": {
+     "kind": "image",
+     "asset_key": "image-15dd5c78a3968133dc7632324e347786a4b84ba9",
+     "url": null,
+     "mime": "image/png",
+     "duration": null,
+     "width": 64,
+     "height": 48,
+     "fit": "contain",
+     "end_behavior": "loop",
+     "ken_burns": null,
+     "attribution": null,
+     "link_url": null,
+     "render_in_mp4": true
+    },
+    "show_at": 0.0
+   },
+   "media": null,
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": [],
+   "look": {
+    "template": "media_split",
+    "variant": "media_left",
+    "tokens": {
+     "struct.accent": "#A16600",
+     "bg": "#FDF2DD",
+     "bg-alt": "#F3E8D3",
+     "bg-tint": "#FDEDDC",
+     "surface": "#FFFDFA",
+     "block.base": "#A16600",
+     "block.highlight": "#AB752E",
+     "block.ink": "#FFFFFF",
+     "block.ink2": "#EDE0D1",
+     "scrim": "#FDF2DDC7"
+    },
+    "background": {
+     "preset": "mesh_drift",
+     "params": {
+      "tone": "bg-tint"
+     },
+     "seed": 53076759,
+     "frozen_at": null
+    },
+    "transition_in": {
+     "kind": "cut",
+     "seconds": 0.0
+    },
+    "hold_reason": null,
+    "presenter": null,
+    "text_fit": {}
+   },
+   "events": [
+    {
+     "t": 0.38,
+     "kind": "reveal",
+     "target": "pond-p",
+     "dur": null,
+     "anchored": true,
+     "sfx": null,
+     "words": ""
+    }
+   ]
+  },
+  {
+   "scene_id": "equation",
+   "index": 5,
+   "type": "content",
+   "concept_id": "speed",
+   "chapter_id": null,
+   "title": "The wave equation",
+   "subtitle": null,
+   "chapter_label": null,
+   "start": 31.11,
+   "duration": 10.28,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "left",
+    "show_side_panel": false,
+    "fullscreen_media": false
+   },
+   "audio_asset_key": "scene_audio-e75a0146f7b52345f389bab837541f302bf97a10",
+   "audio_url": null,
+   "audio_duration": 8.98,
+   "board": [
+    {
+     "id": "equation-f",
+     "kind": "formula",
+     "text": "",
+     "term": null,
+     "latex": "v = f \\lambda",
+     "variables": [
+      {
+       "symbol_latex": "v",
+       "meaning": "wave speed in metres per second",
+       "unit": ""
+      },
+      {
+       "symbol_latex": "f",
+       "meaning": "frequency in hertz",
+       "unit": ""
+      },
+      {
+       "symbol_latex": "\\lambda",
+       "meaning": "wavelength in metres",
+       "unit": ""
+      }
+     ],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "equation-1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 2.36,
+     "end": 2.36,
+     "narration": "Wave speed equals frequency times wavelength.",
+     "board_item_id": "equation-f",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Wave",
+       "start": 0.53,
+       "end": 0.78
+      },
+      {
+       "text": "speed",
+       "start": 0.84,
+       "end": 1.09
+      },
+      {
+       "text": "equals",
+       "start": 1.15,
+       "end": 1.4
+      },
+      {
+       "text": "frequency",
+       "start": 1.46,
+       "end": 1.71
+      },
+      {
+       "text": "times",
+       "start": 1.77,
+       "end": 2.02
+      },
+      {
+       "text": "wavelength.",
+       "start": 2.08,
+       "end": 2.33
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.53,
+       "end": 2.36,
+       "text": "Wave speed equals\nfrequency times wavelength."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "equation-2",
+     "index": 1,
+     "phase": "main",
+     "start": 2.51,
+     "speech_end": 5.92,
+     "end": 5.92,
+     "narration": "Speed in metres per second, frequency in hertz, wavelength in metres.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Speed",
+       "start": 2.54,
+       "end": 2.79
+      },
+      {
+       "text": "in",
+       "start": 2.85,
+       "end": 3.1
+      },
+      {
+       "text": "metres",
+       "start": 3.16,
+       "end": 3.41
+      },
+      {
+       "text": "per",
+       "start": 3.47,
+       "end": 3.72
+      },
+      {
+       "text": "second,",
+       "start": 3.78,
+       "end": 4.03
+      },
+      {
+       "text": "frequency",
+       "start": 4.09,
+       "end": 4.34
+      },
+      {
+       "text": "in",
+       "start": 4.4,
+       "end": 4.65
+      },
+      {
+       "text": "hertz,",
+       "start": 4.71,
+       "end": 4.96
+      },
+      {
+       "text": "wavelength",
+       "start": 5.02,
+       "end": 5.27
+      },
+      {
+       "text": "in",
+       "start": 5.33,
+       "end": 5.58
+      },
+      {
+       "text": "metres.",
+       "start": 5.64,
+       "end": 5.89
+      }
+     ],
+     "captions": [
+      {
+       "start": 2.54,
+       "end": 5.92,
+       "text": "Speed in metres per second, frequency\nin hertz, wavelength in metres."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "equation-3",
+     "index": 2,
+     "phase": "main",
+     "start": 6.07,
+     "speech_end": 9.48,
+     "end": 9.48,
+     "narration": "Double the frequency at the same speed and the wavelength halves.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Double",
+       "start": 6.1,
+       "end": 6.35
+      },
+      {
+       "text": "the",
+       "start": 6.41,
+       "end": 6.66
+      },
+      {
+       "text": "frequency",
+       "start": 6.72,
+       "end": 6.97
+      },
+      {
+       "text": "at",
+       "start": 7.03,
+       "end": 7.28
+      },
+      {
+       "text": "the",
+       "start": 7.34,
+       "end": 7.59
+      },
+      {
+       "text": "same",
+       "start": 7.65,
+       "end": 7.9
+      },
+      {
+       "text": "speed",
+       "start": 7.96,
+       "end": 8.21
+      },
+      {
+       "text": "and",
+       "start": 8.27,
+       "end": 8.52
+      },
+      {
+       "text": "the",
+       "start": 8.58,
+       "end": 8.83
+      },
+      {
+       "text": "wavelength",
+       "start": 8.89,
+       "end": 9.14
+      },
+      {
+       "text": "halves.",
+       "start": 9.2,
+       "end": 9.45
+      }
+     ],
+     "captions": [
+      {
+       "start": 6.1,
+       "end": 9.48,
+       "text": "Double the frequency at the same\nspeed and the wavelength halves."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": null,
+   "media": null,
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": [],
+   "sync_cues": [
+    {
+     "kind": "var",
+     "start": 1.46,
+     "end": null,
+     "item_id": "equation-f",
+     "part": "var:1",
+     "beat_id": "equation-1",
+     "words": "frequency"
+    },
+    {
+     "kind": "var",
+     "start": 2.08,
+     "end": null,
+     "item_id": "equation-f",
+     "part": "var:2",
+     "beat_id": "equation-1",
+     "words": "wavelength"
+    }
+   ],
+   "look": {
+    "template": "formula_focus",
+    "variant": null,
+    "tokens": {
+     "struct.accent": "#A16600",
+     "bg": "#FDF2DD",
+     "bg-alt": "#F3E8D3",
+     "bg-tint": "#FDEDDC",
+     "surface": "#FFFDFA",
+     "block.base": "#A16600",
+     "block.highlight": "#AB752E",
+     "block.ink": "#FFFFFF",
+     "block.ink2": "#EDE0D1",
+     "scrim": "#FDF2DDC7"
+    },
+    "background": {
+     "preset": "mesh_drift",
+     "params": {
+      "tone": "bg"
+     },
+     "seed": 352477952,
+     "frozen_at": 0.0
+    },
+    "transition_in": {
+     "kind": "cut",
+     "seconds": 0.0
+    },
+    "hold_reason": null,
+    "presenter": null,
+    "text_fit": {}
+   },
+   "events": [
+    {
+     "t": 0.38,
+     "kind": "reveal",
+     "target": "equation-f",
+     "dur": null,
+     "anchored": true,
+     "sfx": null,
+     "words": ""
+    },
+    {
+     "t": 1.34,
+     "kind": "var",
+     "target": "equation-f:var:f",
+     "dur": null,
+     "anchored": true,
+     "sfx": null,
+     "words": "frequency"
+    },
+    {
+     "t": 1.96,
+     "kind": "var",
+     "target": "equation-f:var:\\lambda",
+     "dur": null,
+     "anchored": true,
+     "sfx": null,
+     "words": "wavelength"
+    },
+    {
+     "t": 2.36,
+     "kind": "draw",
+     "target": "equation-f",
+     "dur": null,
+     "anchored": false,
+     "sfx": null,
+     "words": ""
+    }
+   ]
+  },
+  {
+   "scene_id": "check",
+   "index": 6,
+   "type": "quiz_checkpoint",
+   "concept_id": "speed",
+   "chapter_id": null,
+   "title": "Quick check",
+   "subtitle": null,
+   "chapter_label": null,
+   "start": 41.39,
+   "duration": 13.03,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "left",
+    "show_side_panel": false,
+    "fullscreen_media": false
+   },
+   "audio_asset_key": "scene_audio-01ac1b1c3a0c35add545f9a72c1d6bdb5791d537",
+   "audio_url": null,
+   "audio_duration": 10.73,
+   "board": [],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "check-1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 3.91,
+     "end": 3.91,
+     "narration": "Try this one. Pause the video if you need more time.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Try",
+       "start": 0.53,
+       "end": 0.78
+      },
+      {
+       "text": "this",
+       "start": 0.84,
+       "end": 1.09
+      },
+      {
+       "text": "one.",
+       "start": 1.15,
+       "end": 1.4
+      },
+      {
+       "text": "Pause",
+       "start": 1.46,
+       "end": 1.71
+      },
+      {
+       "text": "the",
+       "start": 1.77,
+       "end": 2.02
+      },
+      {
+       "text": "video",
+       "start": 2.08,
+       "end": 2.33
+      },
+      {
+       "text": "if",
+       "start": 2.39,
+       "end": 2.64
+      },
+      {
+       "text": "you",
+       "start": 2.7,
+       "end": 2.95
+      },
+      {
+       "text": "need",
+       "start": 3.01,
+       "end": 3.26
+      },
+      {
+       "text": "more",
+       "start": 3.32,
+       "end": 3.57
+      },
+      {
+       "text": "time.",
+       "start": 3.63,
+       "end": 3.88
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.53,
+       "end": 3.91,
+       "text": "Try this one. Pause the\nvideo if you need more time."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "check-2",
+     "index": 1,
+     "phase": "reveal",
+     "start": 9.06,
+     "speech_end": 11.23,
+     "end": 11.23,
+     "narration": "Six metres per second: two times three.",
+     "board_item_id": null,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Six",
+       "start": 9.09,
+       "end": 9.34
+      },
+      {
+       "text": "metres",
+       "start": 9.4,
+       "end": 9.65
+      },
+      {
+       "text": "per",
+       "start": 9.71,
+       "end": 9.96
+      },
+      {
+       "text": "second:",
+       "start": 10.02,
+       "end": 10.27
+      },
+      {
+       "text": "two",
+       "start": 10.33,
+       "end": 10.58
+      },
+      {
+       "text": "times",
+       "start": 10.64,
+       "end": 10.89
+      },
+      {
+       "text": "three.",
+       "start": 10.95,
+       "end": 11.2
+      }
+     ],
+     "captions": [
+      {
+       "start": 9.09,
+       "end": 11.23,
+       "text": "Six metres per second: two times three."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": null,
+   "media": null,
+   "quiz": {
+    "question": "A wave has a frequency of 2 Hz and a wavelength of 3 m. How fast does it travel?",
+    "options": [
+     "1.5 m/s",
+     "5 m/s",
+     "6 m/s"
+    ],
+    "correct_index": 2,
+    "feedback_wrong": [
+     "",
+     "",
+     ""
+    ],
+    "explanation": "v = f lambda = 2 x 3 = 6 m/s.",
+    "countdown_start": 4.06,
+    "countdown_seconds": 5,
+    "reveal_start": 9.06
+   },
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": [],
+   "look": {
+    "template": "check",
+    "variant": "mcq",
+    "tokens": {
+     "struct.accent": "#A16600",
+     "bg": "#FDF2DD",
+     "bg-alt": "#F3E8D3",
+     "bg-tint": "#FDEDDC",
+     "surface": "#FFFDFA",
+     "block.base": "#A16600",
+     "block.highlight": "#AB752E",
+     "block.ink": "#FFFFFF",
+     "block.ink2": "#EDE0D1",
+     "scrim": "#FDF2DDC7"
+    },
+    "background": {
+     "preset": "mesh_drift",
+     "params": {
+      "tone": "bg-alt"
+     },
+     "seed": 560661726,
+     "frozen_at": null
+    },
+    "transition_in": {
+     "kind": "cut",
+     "seconds": 0.0
+    },
+    "hold_reason": null,
+    "presenter": null,
+    "text_fit": {}
+   }
+  },
+  {
+   "scene_id": "summary",
+   "index": 7,
+   "type": "summary",
+   "concept_id": "speed",
+   "chapter_id": null,
+   "title": "What we learned",
+   "subtitle": null,
+   "chapter_label": null,
+   "start": 54.42,
+   "duration": 7.49,
+   "audio_offset": 0.5,
+   "layout": {
+    "mascot_position": "left",
+    "show_side_panel": false,
+    "fullscreen_media": false
+   },
+   "audio_asset_key": "scene_audio-9f3120528261b83ec94b883b6adbcc31d9831705",
+   "audio_url": null,
+   "audio_duration": 6.19,
+   "board": [
+    {
+     "id": "summary-b1",
+     "kind": "bullet",
+     "text": "A wave carries energy, not matter",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "summary-b2",
+     "kind": "bullet",
+     "text": "v = f lambda",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    },
+    {
+     "id": "summary-b3",
+     "kind": "bullet",
+     "text": "Speed depends on the medium",
+     "term": null,
+     "latex": null,
+     "variables": [],
+     "language": null,
+     "code": null,
+     "headers": null,
+     "rows": null,
+     "figure_id": null,
+     "caption": null,
+     "justification": null,
+     "blank": false,
+     "misconception_id": null,
+     "source_refs": []
+    }
+   ],
+   "figures": {},
+   "beats": [
+    {
+     "beat_id": "summary-1",
+     "index": 0,
+     "phase": "main",
+     "start": 0.5,
+     "speech_end": 2.36,
+     "end": 2.36,
+     "narration": "A wave carries energy, not matter.",
+     "board_item_id": "summary-b1",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "A",
+       "start": 0.53,
+       "end": 0.78
+      },
+      {
+       "text": "wave",
+       "start": 0.84,
+       "end": 1.09
+      },
+      {
+       "text": "carries",
+       "start": 1.15,
+       "end": 1.4
+      },
+      {
+       "text": "energy,",
+       "start": 1.46,
+       "end": 1.71
+      },
+      {
+       "text": "not",
+       "start": 1.77,
+       "end": 2.02
+      },
+      {
+       "text": "matter.",
+       "start": 2.08,
+       "end": 2.33
+      }
+     ],
+     "captions": [
+      {
+       "start": 0.53,
+       "end": 2.36,
+       "text": "A wave carries energy, not matter."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "summary-2",
+     "index": 1,
+     "phase": "main",
+     "start": 2.51,
+     "speech_end": 4.37,
+     "end": 4.37,
+     "narration": "Its speed is frequency times wavelength.",
+     "board_item_id": "summary-b2",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "Its",
+       "start": 2.54,
+       "end": 2.79
+      },
+      {
+       "text": "speed",
+       "start": 2.85,
+       "end": 3.1
+      },
+      {
+       "text": "is",
+       "start": 3.16,
+       "end": 3.41
+      },
+      {
+       "text": "frequency",
+       "start": 3.47,
+       "end": 3.72
+      },
+      {
+       "text": "times",
+       "start": 3.78,
+       "end": 4.03
+      },
+      {
+       "text": "wavelength.",
+       "start": 4.09,
+       "end": 4.34
+      }
+     ],
+     "captions": [
+      {
+       "start": 2.54,
+       "end": 4.37,
+       "text": "Its speed is frequency times wavelength."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    },
+    {
+     "beat_id": "summary-3",
+     "index": 2,
+     "phase": "main",
+     "start": 4.52,
+     "speech_end": 6.69,
+     "end": 6.69,
+     "narration": "And that speed depends on the medium.",
+     "board_item_id": "summary-b3",
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "words": [
+      {
+       "text": "And",
+       "start": 4.55,
+       "end": 4.8
+      },
+      {
+       "text": "that",
+       "start": 4.86,
+       "end": 5.11
+      },
+      {
+       "text": "speed",
+       "start": 5.17,
+       "end": 5.42
+      },
+      {
+       "text": "depends",
+       "start": 5.48,
+       "end": 5.73
+      },
+      {
+       "text": "on",
+       "start": 5.79,
+       "end": 6.04
+      },
+      {
+       "text": "the",
+       "start": 6.1,
+       "end": 6.35
+      },
+      {
+       "text": "medium.",
+       "start": 6.41,
+       "end": 6.66
+      }
+     ],
+     "captions": [
+      {
+       "start": 4.55,
+       "end": 6.69,
+       "text": "And that speed depends on the medium."
+      }
+     ],
+     "visual_cue": null,
+     "estimated": false
+    }
+   ],
+   "side_panel": null,
+   "media": null,
+   "quiz": null,
+   "p5_code": null,
+   "poster": null,
+   "objective_ids": [],
+   "look": {
+    "template": "list_build",
+    "variant": null,
+    "tokens": {
+     "struct.accent": "#A16600",
+     "bg": "#FDF2DD",
+     "bg-alt": "#F3E8D3",
+     "bg-tint": "#FDEDDC",
+     "surface": "#FFFDFA",
+     "block.base": "#A16600",
+     "block.highlight": "#AB752E",
+     "block.ink": "#FFFFFF",
+     "block.ink2": "#EDE0D1",
+     "scrim": "#FDF2DDC7"
+    },
+    "background": {
+     "preset": "mesh_drift",
+     "params": {
+      "tone": "bg-tint"
+     },
+     "seed": 513921444,
+     "frozen_at": null
+    },
+    "transition_in": {
+     "kind": "cut",
+     "seconds": 0.0
+    },
+    "hold_reason": null,
+    "presenter": null,
+    "text_fit": {}
+   },
+   "events": [
+    {
+     "t": 0.38,
+     "kind": "reveal",
+     "target": "summary-b1",
+     "dur": null,
+     "anchored": true,
+     "sfx": null,
+     "words": ""
+    },
+    {
+     "t": 2.39,
+     "kind": "reveal",
+     "target": "summary-b2",
+     "dur": null,
+     "anchored": true,
+     "sfx": null,
+     "words": ""
+    },
+    {
+     "t": 4.4,
+     "kind": "reveal",
+     "target": "summary-b3",
+     "dur": null,
+     "anchored": true,
+     "sfx": null,
+     "words": ""
+    }
+   ]
+  }
+ ],
+ "total_duration": 61.91,
+ "chapters": [
+  {
+   "start": 0.0,
+   "title": "Introduction"
+  },
+  {
+   "start": 9.71,
+   "title": "Waves"
+  }
+ ],
+ "captions": [
+  {
+   "start": 5.53,
+   "end": 8.91,
+   "text": "Today we find out how fast\na wave travels, and why."
+  },
+  {
+   "start": 10.24,
+   "end": 11.14,
+   "text": "Part 1: Waves."
+  },
+  {
+   "start": 12.47,
+   "end": 15.23,
+   "text": "A wave carries energy\nfrom one place to another."
+  },
+  {
+   "start": 15.41,
+   "end": 19.1,
+   "text": "The medium itself only moves back\nand forth around where it was."
+  },
+  {
+   "start": 19.28,
+   "end": 22.66,
+   "text": "Sound in air and light from\nthe sun are both waves."
+  },
+  {
+   "start": 23.99,
+   "end": 27.06,
+   "text": "Drop a stone in a pond\nand ripples spread out."
+  },
+  {
+   "start": 27.24,
+   "end": 30.31,
+   "text": "The water stays where it is;\nthe energy moves outwards."
+  },
+  {
+   "start": 31.64,
+   "end": 33.47,
+   "text": "Wave speed equals\nfrequency times wavelength."
+  },
+  {
+   "start": 33.65,
+   "end": 37.03,
+   "text": "Speed in metres per second, frequency\nin hertz, wavelength in metres."
+  },
+  {
+   "start": 37.21,
+   "end": 40.59,
+   "text": "Double the frequency at the same\nspeed and the wavelength halves."
+  },
+  {
+   "start": 41.92,
+   "end": 45.3,
+   "text": "Try this one. Pause the\nvideo if you need more time."
+  },
+  {
+   "start": 50.48,
+   "end": 52.62,
+   "text": "Six metres per second: two times three."
+  },
+  {
+   "start": 54.95,
+   "end": 56.78,
+   "text": "A wave carries energy, not matter."
+  },
+  {
+   "start": 56.96,
+   "end": 58.79,
+   "text": "Its speed is frequency times wavelength."
+  },
+  {
+   "start": 58.97,
+   "end": 61.11,
+   "text": "And that speed depends on the medium."
+  }
+ ],
+ "branding": {
+  "mascot_clips": {
+   "left": "/branding/aadhi_left_clean.mp4",
+   "right": "/branding/aadhi_right_clean.mp4",
+   "center": "/branding/aadhi_center_clean.mp4",
+   "popup_bottom_left": "/branding/aadhi_popup_clean.mp4",
+   "popup_bottom_right": "/branding/aadhi_popup_clean.mp4",
+   "hidden": "/branding/no_aadhi_clean.mp4"
+  },
+  "static_background_url": "/branding/static_background.png",
+  "bgm_url": "/branding/bgm.mp3",
+  "bgm_volume": 0.06,
+  "tick_url": null,
+  "ding_url": null,
+  "mascot_rig_url": null
+ },
+ "transition_seconds": 0.4,
+ "estimated": false,
+ "presentation": {
+  "style": "dynamic",
+  "format": "landscape",
+  "safe_zone": "universal",
+  "content": {
+   "ink": "#141822",
+   "ink2": "#484D58",
+   "entity:0": "#0267C7",
+   "entity:1": "#80369E",
+   "entity:2": "#870C62",
+   "warn": "#9F4503",
+   "ok": "#016F50",
+   "mark": "#F2D935",
+   "focus": "#141822"
+  },
+  "fonts": {
+   "display": "outfit",
+   "body": "inter",
+   "mono": "jetbrains_mono",
+   "indic": "noto_sans"
+  },
+  "personality": "soft",
+  "caption_style": "clean_pill",
+  "cue_term_style": "marker",
+  "captions_burn": true,
+  "sfx": true,
+  "motion": "standard",
+  "generated_seconds": 61.91,
+  "engine_version": 5,
+  "content_alt": {
+   "ink": "#F3F5F9",
+   "ink2": "#B9BEC7",
+   "entity:0": "#0FE3FE",
+   "entity:1": "#C4A4FE",
+   "entity:2": "#FEACE3",
+   "warn": "#F8A87F",
+   "ok": "#5DD8AA",
+   "mark": "#F2D935",
+   "focus": "#F2D935"
+  },
+  "family": "paper_ink",
+  "mode": "light",
+  "motion_scale": 1.15,
+  "text_entrance": "fade_rise"
+ }
+}

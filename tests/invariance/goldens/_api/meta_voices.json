@@ -1,0 +1,408 @@
+{
+ "languages": [
+  {
+   "code": "en-IN",
+   "label": "English (India)"
+  },
+  {
+   "code": "en-US",
+   "label": "English (US)"
+  },
+  {
+   "code": "en-GB",
+   "label": "English (UK)"
+  },
+  {
+   "code": "ta-IN",
+   "label": "Tamil"
+  },
+  {
+   "code": "hi-IN",
+   "label": "Hindi"
+  },
+  {
+   "code": "te-IN",
+   "label": "Telugu"
+  },
+  {
+   "code": "kn-IN",
+   "label": "Kannada"
+  },
+  {
+   "code": "ml-IN",
+   "label": "Malayalam"
+  }
+ ],
+ "tts_providers": [
+  {
+   "id": "edge",
+   "label": "Microsoft Edge (free)",
+   "word_timings": true,
+   "voices": [
+    {
+     "id": "en-IN-NeerjaNeural",
+     "label": "Neerja",
+     "language": "en-IN",
+     "gender": "Female"
+    },
+    {
+     "id": "en-IN-PrabhatNeural",
+     "label": "Prabhat",
+     "language": "en-IN",
+     "gender": "Male"
+    },
+    {
+     "id": "en-IN-NeerjaExpressiveNeural",
+     "label": "Neerja (expressive)",
+     "language": "en-IN",
+     "gender": "Female"
+    },
+    {
+     "id": "en-US-AndrewMultilingualNeural",
+     "label": "Andrew (multilingual)",
+     "language": "en-US",
+     "gender": "Male"
+    },
+    {
+     "id": "en-US-AvaMultilingualNeural",
+     "label": "Ava (multilingual)",
+     "language": "en-US",
+     "gender": "Female"
+    },
+    {
+     "id": "en-US-EmmaMultilingualNeural",
+     "label": "Emma (multilingual)",
+     "language": "en-US",
+     "gender": "Female"
+    },
+    {
+     "id": "en-US-BrianMultilingualNeural",
+     "label": "Brian (multilingual)",
+     "language": "en-US",
+     "gender": "Male"
+    },
+    {
+     "id": "en-US-JennyNeural",
+     "label": "Jenny",
+     "language": "en-US",
+     "gender": "Female"
+    },
+    {
+     "id": "en-US-GuyNeural",
+     "label": "Guy",
+     "language": "en-US",
+     "gender": "Male"
+    },
+    {
+     "id": "en-US-AriaNeural",
+     "label": "Aria",
+     "language": "en-US",
+     "gender": "Female"
+    },
+    {
+     "id": "en-GB-RyanNeural",
+     "label": "Ryan",
+     "language": "en-GB",
+     "gender": "Male"
+    },
+    {
+     "id": "en-GB-SoniaNeural",
+     "label": "Sonia",
+     "language": "en-GB",
+     "gender": "Female"
+    },
+    {
+     "id": "en-GB-LibbyNeural",
+     "label": "Libby",
+     "language": "en-GB",
+     "gender": "Female"
+    },
+    {
+     "id": "en-GB-ThomasNeural",
+     "label": "Thomas",
+     "language": "en-GB",
+     "gender": "Male"
+    },
+    {
+     "id": "ta-IN-PallaviNeural",
+     "label": "Pallavi",
+     "language": "ta-IN",
+     "gender": "Female"
+    },
+    {
+     "id": "ta-IN-ValluvarNeural",
+     "label": "Valluvar",
+     "language": "ta-IN",
+     "gender": "Male"
+    },
+    {
+     "id": "hi-IN-SwaraNeural",
+     "label": "Swara",
+     "language": "hi-IN",
+     "gender": "Female"
+    },
+    {
+     "id": "hi-IN-MadhurNeural",
+     "label": "Madhur",
+     "language": "hi-IN",
+     "gender": "Male"
+    },
+    {
+     "id": "te-IN-ShrutiNeural",
+     "label": "Shruti",
+     "language": "te-IN",
+     "gender": "Female"
+    },
+    {
+     "id": "te-IN-MohanNeural",
+     "label": "Mohan",
+     "language": "te-IN",
+     "gender": "Male"
+    },
+    {
+     "id": "kn-IN-SapnaNeural",
+     "label": "Sapna",
+     "language": "kn-IN",
+     "gender": "Female"
+    },
+    {
+     "id": "kn-IN-GaganNeural",
+     "label": "Gagan",
+     "language": "kn-IN",
+     "gender": "Male"
+    },
+    {
+     "id": "ml-IN-SobhanaNeural",
+     "label": "Sobhana",
+     "language": "ml-IN",
+     "gender": "Female"
+    },
+    {
+     "id": "ml-IN-MidhunNeural",
+     "label": "Midhun",
+     "language": "ml-IN",
+     "gender": "Male"
+    }
+   ]
+  },
+  {
+   "id": "gemini",
+   "label": "Google Gemini TTS",
+   "word_timings": false,
+   "voices": [
+    {
+     "id": "Kore",
+     "label": "Kore (firm)",
+     "language": "multi",
+     "gender": "Female"
+    },
+    {
+     "id": "Charon",
+     "label": "Charon (informative)",
+     "language": "multi",
+     "gender": "Male"
+    },
+    {
+     "id": "Puck",
+     "label": "Puck (upbeat)",
+     "language": "multi",
+     "gender": "Male"
+    },
+    {
+     "id": "Zephyr",
+     "label": "Zephyr (bright)",
+     "language": "multi",
+     "gender": "Female"
+    },
+    {
+     "id": "Aoede",
+     "label": "Aoede (breezy)",
+     "language": "multi",
+     "gender": "Female"
+    },
+    {
+     "id": "Leda",
+     "label": "Leda (youthful)",
+     "language": "multi",
+     "gender": "Female"
+    },
+    {
+     "id": "Orus",
+     "label": "Orus (firm)",
+     "language": "multi",
+     "gender": "Male"
+    },
+    {
+     "id": "Fenrir",
+     "label": "Fenrir (excitable)",
+     "language": "multi",
+     "gender": "Male"
+    },
+    {
+     "id": "Iapetus",
+     "label": "Iapetus (clear)",
+     "language": "multi",
+     "gender": "Male"
+    },
+    {
+     "id": "Erinome",
+     "label": "Erinome (clear)",
+     "language": "multi",
+     "gender": "Female"
+    },
+    {
+     "id": "Sadaltager",
+     "label": "Sadaltager (knowledgeable)",
+     "language": "multi",
+     "gender": "Male"
+    },
+    {
+     "id": "Sulafat",
+     "label": "Sulafat (warm)",
+     "language": "multi",
+     "gender": "Female"
+    },
+    {
+     "id": "Achird",
+     "label": "Achird (friendly)",
+     "language": "multi",
+     "gender": "Male"
+    },
+    {
+     "id": "Despina",
+     "label": "Despina (smooth)",
+     "language": "multi",
+     "gender": "Female"
+    }
+   ]
+  },
+  {
+   "id": "openai",
+   "label": "OpenAI TTS",
+   "word_timings": false,
+   "voices": [
+    {
+     "id": "nova",
+     "label": "Nova",
+     "language": "multi",
+     "gender": "Female"
+    },
+    {
+     "id": "alloy",
+     "label": "Alloy",
+     "language": "multi",
+     "gender": "Neutral"
+    },
+    {
+     "id": "ash",
+     "label": "Ash",
+     "language": "multi",
+     "gender": "Male"
+    },
+    {
+     "id": "coral",
+     "label": "Coral",
+     "language": "multi",
+     "gender": "Female"
+    },
+    {
+     "id": "echo",
+     "label": "Echo",
+     "language": "multi",
+     "gender": "Male"
+    },
+    {
+     "id": "fable",
+     "label": "Fable",
+     "language": "multi",
+     "gender": "Male"
+    },
+    {
+     "id": "onyx",
+     "label": "Onyx",
+     "language": "multi",
+     "gender": "Male"
+    },
+    {
+     "id": "sage",
+     "label": "Sage",
+     "language": "multi",
+     "gender": "Female"
+    },
+    {
+     "id": "shimmer",
+     "label": "Shimmer",
+     "language": "multi",
+     "gender": "Female"
+    }
+   ]
+  },
+  {
+   "id": "elevenlabs",
+   "label": "ElevenLabs",
+   "word_timings": true,
+   "voices": [
+    {
+     "id": "21m00Tcm4TlvDq8ikWAM",
+     "label": "Rachel",
+     "language": "multi",
+     "gender": "Female"
+    },
+    {
+     "id": "pNInz6obpgDQGcFmaJgB",
+     "label": "Adam",
+     "language": "multi",
+     "gender": "Male"
+    },
+    {
+     "id": "EXAVITQu4vr4xnSDxMaL",
+     "label": "Sarah",
+     "language": "multi",
+     "gender": "Female"
+    },
+    {
+     "id": "JBFqnCBsd6RMkjVDRZzb",
+     "label": "George",
+     "language": "multi",
+     "gender": "Male"
+    },
+    {
+     "id": "onwK4e9ZLuTAKqWW03F9",
+     "label": "Daniel",
+     "language": "multi",
+     "gender": "Male"
+    },
+    {
+     "id": "pFZP5JQG7iQjIQuC4Bku",
+     "label": "Lily",
+     "language": "multi",
+     "gender": "Female"
+    },
+    {
+     "id": "XrExE9yKIg1WjnnlVkGX",
+     "label": "Matilda",
+     "language": "multi",
+     "gender": "Female"
+    },
+    {
+     "id": "nPczCjzI2devNBz1zQrb",
+     "label": "Brian",
+     "language": "multi",
+     "gender": "Male"
+    },
+    {
+     "id": "TX3LPaxmHKxFdv7VOQHJ",
+     "label": "Liam",
+     "language": "multi",
+     "gender": "Male"
+    },
+    {
+     "id": "FGY2WhTYpPnrIDTdsKH5",
+     "label": "Laura",
+     "language": "multi",
+     "gender": "Female"
+    }
+   ]
+  }
+ ]
+}

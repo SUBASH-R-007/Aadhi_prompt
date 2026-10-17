@@ -1,0 +1,233 @@
+{
+ "output": "master.m4a",
+ "audio_list": "ffconcat version 1.0\nfile 'aud_0000.wav'\nfile 'aud_0001.wav'\nfile 'aud_0002.wav'\nfile 'aud_0003.wav'\nfile 'aud_0004.wav'\nfile 'aud_0005.wav'\nfile 'aud_0006.wav'\nfile 'aud_0007.wav'\n",
+ "commands": [
+  {
+   "args": [
+    "-filter_complex_script",
+    "aud_0000.filtergraph",
+    "-map",
+    "[aout]",
+    "-c:a",
+    "pcm_s16le",
+    "-ar",
+    "48000",
+    "-ac",
+    "2",
+    "-vn",
+    "aud_0000.wav"
+   ],
+   "files": {
+    "aud_0000.filtergraph": "anullsrc=r=48000:cl=stereo,apad=whole_len=240000,atrim=end_sample=240000,asetpts=PTS-STARTPTS[aout]\n"
+   }
+  },
+  {
+   "args": [
+    "-protocol_whitelist",
+    "file,pipe",
+    "-i",
+    "<work>/inputs/scene_audio-636bf218fcb718dd675b3ac016d1f6ff4e793e27.mp3",
+    "-filter_complex_script",
+    "aud_0001.filtergraph",
+    "-map",
+    "[aout]",
+    "-c:a",
+    "pcm_s16le",
+    "-ar",
+    "48000",
+    "-ac",
+    "2",
+    "-vn",
+    "aud_0001.wav"
+   ],
+   "files": {
+    "aud_0001.filtergraph": "[0:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,adelay=delays=500:all=1[a0_0];\n[a0_0]apad=whole_len=225600,atrim=end_sample=225600,asetpts=PTS-STARTPTS[aout]\n"
+   }
+  },
+  {
+   "args": [
+    "-protocol_whitelist",
+    "file,pipe",
+    "-i",
+    "<work>/inputs/scene_audio-f9e5a2ffa4e2306436f856073774ae0b497acebb.mp3",
+    "-filter_complex_script",
+    "aud_0002.filtergraph",
+    "-map",
+    "[aout]",
+    "-c:a",
+    "pcm_s16le",
+    "-ar",
+    "48000",
+    "-ac",
+    "2",
+    "-vn",
+    "aud_0002.wav"
+   ],
+   "files": {
+    "aud_0002.filtergraph": "[0:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,adelay=delays=510:all=1[a0_0];\n[a0_0]apad=whole_len=107200,atrim=end_sample=107200,asetpts=PTS-STARTPTS[aout]\n"
+   }
+  },
+  {
+   "args": [
+    "-protocol_whitelist",
+    "file,pipe",
+    "-i",
+    "<work>/inputs/scene_audio-269a63483d86f49f2183f2bccebdf12f260f71c7.mp3",
+    "-filter_complex_script",
+    "aud_0003.filtergraph",
+    "-map",
+    "[aout]",
+    "-c:a",
+    "pcm_s16le",
+    "-ar",
+    "48000",
+    "-ac",
+    "2",
+    "-vn",
+    "aud_0003.wav"
+   ],
+   "files": {
+    "aud_0003.filtergraph": "[0:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,adelay=delays=507:all=1[a0_0];\n[a0_0]apad=whole_len=553600,atrim=end_sample=553600,asetpts=PTS-STARTPTS[aout]\n"
+   }
+  },
+  {
+   "args": [
+    "-protocol_whitelist",
+    "file,pipe",
+    "-i",
+    "<work>/inputs/scene_audio-2e46e4d75799bf95347c38d743bd39330ee8642f.mp3",
+    "-filter_complex_script",
+    "aud_0004.filtergraph",
+    "-map",
+    "[aout]",
+    "-c:a",
+    "pcm_s16le",
+    "-ar",
+    "48000",
+    "-ac",
+    "2",
+    "-vn",
+    "aud_0004.wav"
+   ],
+   "files": {
+    "aud_0004.filtergraph": "[0:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,adelay=delays=493:all=1[a0_0];\n[a0_0]apad=whole_len=366400,atrim=end_sample=366400,asetpts=PTS-STARTPTS[aout]\n"
+   }
+  },
+  {
+   "args": [
+    "-protocol_whitelist",
+    "file,pipe",
+    "-i",
+    "<work>/inputs/scene_audio-e75a0146f7b52345f389bab837541f302bf97a10.mp3",
+    "-filter_complex_script",
+    "aud_0005.filtergraph",
+    "-map",
+    "[aout]",
+    "-c:a",
+    "pcm_s16le",
+    "-ar",
+    "48000",
+    "-ac",
+    "2",
+    "-vn",
+    "aud_0005.wav"
+   ],
+   "files": {
+    "aud_0005.filtergraph": "[0:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,adelay=delays=510:all=1[a0_0];\n[a0_0]apad=whole_len=494400,atrim=end_sample=494400,asetpts=PTS-STARTPTS[aout]\n"
+   }
+  },
+  {
+   "args": [
+    "-protocol_whitelist",
+    "file,pipe",
+    "-i",
+    "<work>/inputs/scene_audio-01ac1b1c3a0c35add545f9a72c1d6bdb5791d537.mp3",
+    "-protocol_whitelist",
+    "file,pipe",
+    "-i",
+    "<work>/sfx_tick.wav",
+    "-protocol_whitelist",
+    "file,pipe",
+    "-i",
+    "<work>/sfx_ding.wav",
+    "-filter_complex_script",
+    "aud_0006.filtergraph",
+    "-map",
+    "[aout]",
+    "-c:a",
+    "pcm_s16le",
+    "-ar",
+    "48000",
+    "-ac",
+    "2",
+    "-vn",
+    "aud_0006.wav"
+   ],
+   "files": {
+    "aud_0006.filtergraph": "[0:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,adelay=delays=490:all=1[a0_0];\n[1:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,asplit=5[s1_0][s1_1][s1_2][s1_3][s1_4];\n[s1_0]volume=0.8000,adelay=delays=4050:all=1[a1_0];\n[s1_1]volume=0.8000,adelay=delays=5050:all=1[a1_1];\n[s1_2]volume=0.8000,adelay=delays=6050:all=1[a1_2];\n[s1_3]volume=0.8000,adelay=delays=7050:all=1[a1_3];\n[s1_4]volume=0.8000,adelay=delays=8050:all=1[a1_4];\n[2:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,volume=0.9000,adelay=delays=9050:all=1[a2_0];\n[a0_0][a1_0][a1_1][a1_2][a1_3][a1_4][a2_0]amix=inputs=7:normalize=0:dropout_transition=0:duration=longest,apad=whole_len=625600,atrim=end_sample=625600,asetpts=PTS-STARTPTS[aout]\n"
+   }
+  },
+  {
+   "args": [
+    "-protocol_whitelist",
+    "file,pipe",
+    "-i",
+    "<work>/inputs/scene_audio-9f3120528261b83ec94b883b6adbcc31d9831705.mp3",
+    "-filter_complex_script",
+    "aud_0007.filtergraph",
+    "-map",
+    "[aout]",
+    "-c:a",
+    "pcm_s16le",
+    "-ar",
+    "48000",
+    "-ac",
+    "2",
+    "-vn",
+    "aud_0007.wav"
+   ],
+   "files": {
+    "aud_0007.filtergraph": "[0:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,adelay=delays=487:all=1[a0_0];\n[a0_0]apad=whole_len=358400,atrim=end_sample=358400,asetpts=PTS-STARTPTS[aout]\n"
+   }
+  },
+  {
+   "args": [
+    "-protocol_whitelist",
+    "file,pipe",
+    "-f",
+    "concat",
+    "-safe",
+    "1",
+    "-i",
+    "audio.ffconcat",
+    "-protocol_whitelist",
+    "file,pipe",
+    "-stream_loop",
+    "-1",
+    "-i",
+    "<branding>/bgm.mp3",
+    "-filter_complex_script",
+    "master.filtergraph",
+    "-map",
+    "[aout]",
+    "-c:a",
+    "aac",
+    "-b:a",
+    "384k",
+    "-ar",
+    "48000",
+    "-ac",
+    "2",
+    "-t",
+    "61.9",
+    "-vn",
+    "-f",
+    "mp4",
+    "master.m4a"
+   ],
+   "files": {
+    "master.filtergraph": "[0:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,asplit=2[narr][key];\n[1:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,volume=0.0600,atrim=duration=61.9,afade=t=in:st=0:d=1,afade=t=out:st=59.9:d=2[music];\n[music][key]sidechaincompress=threshold=0.015:ratio=8:attack=15:release=450:makeup=1[ducked];\n[narr][ducked]amix=inputs=2:normalize=0:duration=first:dropout_transition=0[aout]\n"
+   }
+  }
+ ]
+}
