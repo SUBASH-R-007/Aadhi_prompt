@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from pydantic import SecretStr
+
 from aadhi.compose.dynamic import catalogue as cat
 from aadhi.compose.dynamic import faces, themes
 from aadhi.compose.dynamic.authoring import (
@@ -17,6 +19,7 @@ from aadhi.compose.dynamic.authoring import (
     POOLS,
     default_presentation,
     look_seed_for,
+    narration_choice,
     narrator_for,
     pick,
     rotated,
@@ -143,6 +146,38 @@ def test_the_narrator_is_the_teachers_voice_else_the_languages_default() -> None
     assert narrator_for(None, "gemini", "en") == "Kore"
     # A default presentation may never be the reason a generation fails.
     assert narrator_for(None, "no-such-provider", "en") == "en-IN-NeerjaNeural"
+
+
+def test_the_narrator_follows_the_voice_the_build_will_use() -> None:
+    """OpenAI TTS is the default voice: with an OpenAI key (the job's settings carry the owner's personal key) the
+    narrator is OpenAI's voice for the language; without one the build narrates with the free Edge voice, and so does
+    the narrator. An explicit choice of a configured provider wins, as in the asset build."""
+    keyless = ON.model_copy(update={"tts_provider": "openai", "openai_api_key": SecretStr(""),
+                                    "gemini_api_key": SecretStr(""), "gemini_api_keys": []})
+    keyed = keyless.model_copy(update={"openai_api_key": SecretStr("sk-test-owner-key")})
+    assert narration_choice(None, None, keyed) == (None, "openai")
+    assert narration_choice("onyx", None, keyed) == ("onyx", "openai")
+    assert narration_choice(None, None, keyless) == (None, "edge")
+    assert narration_choice("onyx", "openai", keyless) == (None, "edge")  # never OpenAI's voice cast for Edge
+    assert narration_choice("en-IN-PrabhatNeural", None, keyless) == ("en-IN-PrabhatNeural", "edge")
+    # an Edge voice saved on "Server default" is never cast for OpenAI once the job has an OpenAI key
+    assert narration_choice("en-IN-PrabhatNeural", None, keyed) == (None, "openai")
+    assert narration_choice("nova", "edge", keyed) == (None, "edge")  # an OpenAI voice on a lecture that chose Edge
+    assert narration_choice("en-IN-PrabhatNeural", "edge", keyed) == ("en-IN-PrabhatNeural", "edge")
+    assert narration_choice("Puck", "gemini", keyless.model_copy(update={"gemini_api_key": SecretStr("k")})) == (
+        "Puck", "gemini")
+
+    def narrator(settings: Settings, **options: Any) -> str:
+        plan = _plan()
+        return assemble_screenplay(plan, [], IngestResult(markdown="# Ohm"), GenerationOptions(**options), [], None,
+                                   settings=settings).presentation.voices.narrator
+
+    assert narrator(keyed) == "nova"
+    assert narrator(keyed, language="en-GB") == "nova"
+    assert narrator(keyed, tts_voice="en-IN-PrabhatNeural") == "nova"
+    assert narrator(keyless) == "en-IN-NeerjaNeural"
+    assert narrator(keyless, language="ta-IN") == "ta-IN-PallaviNeural"
+    assert narrator(keyless, tts_provider="openai", tts_voice="onyx") == "en-IN-NeerjaNeural"
 
 
 def test_a_generated_lecture_is_dynamic_only_when_the_flag_is_on() -> None:

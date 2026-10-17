@@ -157,6 +157,59 @@ test('translate: dismissing the dialog while the request runs does not lose the 
   handle.destroy();
 });
 
+/** sampleMeta() on a server whose default voice is OpenAI TTS, configured for this user. */
+function openaiDefaultMeta() {
+  const meta = sampleMeta();
+  meta.tts.default_provider = 'openai';
+  meta.tts.providers.push({ id: 'openai', label: 'OpenAI TTS', configured: true, word_timings: false, voices: [{ id: 'nova', label: 'Nova', language: 'multi', gender: 'Female' }] });
+  return meta;
+}
+
+/** Open the Translate dialog of v1 and return its voice choices (the version's options served by GET /api/versions/9). */
+async function translateVoices(version, project = {}) {
+  fresh();
+  let posted = null;
+  mockFetch({
+    'GET /api/projects/5': { ...detail(), ...project },
+    'GET /api/projects/5/shares': { items: [] },
+    'GET /api/versions/9/renders': { items: [] },
+    'GET /api/versions/9': version,
+    'POST /api/versions/9/translate': ({ init }) => {
+      posted = JSON.parse(init.body);
+      return { status: 202, body: { version: { ...V10, id: 11, number: 3 }, job: null } };
+    },
+  });
+  const { container, handle } = await mountPage(fakeApp({ meta: async () => openaiDefaultMeta() }));
+  await menuPick(container.querySelector('tbody tr'), 'Actions', 'Translate');
+  await waitFor(() => document.querySelector('.modal'));
+  const voice = modalSelectWith('');
+  const voices = [...voice.options].map((o) => o.value).filter(Boolean);
+  if (voices.length) {
+    voice.value = voices[0];
+    clickModal('Translate');
+    await waitFor(() => posted);
+  }
+  closeAllModals();
+  handle.destroy();
+  return { voices, posted };
+}
+
+test('translate offers the voices of the version\'s own voice provider, not the server default\'s', async () => {
+  // The lecture chose Edge; the server default is OpenAI TTS with a key: Edge voices only, and an Edge voice is posted.
+  const edge = await translateVoices({ ...V9, generation_meta: { options: { tts_provider: 'edge', tts_voice: 'en-IN-NeerjaNeural' } } });
+  assert.deepEqual(edge.voices, ['ta-IN-PallaviNeural']);
+  assert.equal(edge.posted.tts_voice, 'ta-IN-PallaviNeural');
+  // "Server default": OpenAI TTS narrates, so its voices.
+  const server = await translateVoices({ ...V9, generation_meta: { options: { tts_provider: null } } });
+  assert.deepEqual(server.voices, ['nova']);
+  // Without the version's options (an old version, or the request failed) the project's options decide, as on the server.
+  const project = await translateVoices({ status: 404, body: { detail: 'not found', code: 'not_found' } }, { options: { tts_provider: 'edge' } });
+  assert.deepEqual(project.voices, ['ta-IN-PallaviNeural']);
+  // A provider that is not configured for this user narrates with the server default's provider instead.
+  const unconfigured = await translateVoices({ ...V9, generation_meta: { options: { tts_provider: 'elevenlabs' } } });
+  assert.deepEqual(unconfigured.voices, ['nova']);
+});
+
 /** The regenerate modal's control for a GenerationOptions field, found by one of its option values. */
 function modalSelectWith(value) {
   return [...document.querySelectorAll('.modal select')].find((s) => [...s.options].some((o) => o.value === value)) || null;

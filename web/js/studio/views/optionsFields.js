@@ -21,6 +21,7 @@ import {
   optionsFormDefaults,
   buildGenerationOptions,
   voicesFor,
+  defaultVoiceProvider,
   OPTION_LIMITS,
   llmEngines,
   engineLabel,
@@ -102,9 +103,12 @@ export function createOptionsForm(meta, opts = {}) {
 
   const tts = (meta && meta.tts) || { providers: [] };
   const defaultProvider = (tts.providers || []).find((/** @type {any} */ p) => p.id === tts.default_provider);
+  // OpenAI TTS is the server default; without an API key (the user's own or the server's) the build narrates with
+  // the free Edge voice, so the default stays selectable and says so.
+  const keyless = defaultProvider && defaultProvider.configured === false && defaultVoiceProvider(meta) !== defaultProvider.id;
   const provider = select({
     options: [
-      { value: '', label: `Server default${defaultProvider ? ` (${defaultProvider.label})` : ''}` },
+      { value: '', label: `Server default${defaultProvider ? ` (${defaultProvider.label}${keyless ? ', no API key: the free Edge voice is used' : ''})` : ''}` },
       ...(tts.providers || []).map((/** @type {any} */ p) => ({ value: p.id, label: p.configured ? p.label : `${p.label} (not configured)`, disabled: !p.configured })),
     ],
     value: String(defaults.tts_provider || ''),

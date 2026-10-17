@@ -251,14 +251,29 @@ def _tts_usable(settings: Settings, keys: ResolvedKeys, key: str | None) -> bool
     return keys.source(key) is not None if key is not None else bool(settings.elevenlabs_api_key.get_secret_value())
 
 
+def _narrating_tts(settings: Settings, keys: ResolvedKeys, requested: str | None) -> str:
+    """The voice provider a job narrates with, chosen as the asset build chooses it
+    (``aadhi.pipeline.assets._Builder._tts_provider``, ``providers.factory.narrating_tts_provider`` with the job's
+    keys): the lecture's ``requested`` provider when it can run, else the server's ``TTS_PROVIDER`` (OpenAI TTS by
+    default) when it can, else the free Edge voice. A free provider (Edge, fake) can always run."""
+    for name in (requested, settings.tts_provider):
+        if name and (name not in _PAID_TTS_KEYS or _tts_usable(settings, keys, _PAID_TTS_KEYS[name])):
+            return name
+    return "edge"
+
+
 def _voice_payers(settings: Settings, keys: ResolvedKeys, opts: Any) -> list[str | None]:
     """Keys that may pay for the narration, including the Dynamic voices' calibration synthesis (§5.4: a usage row
     like any TTS call, made with the cast voices). The lecture's voice provider always counts. Dynamic voice
     preferences (``opts.voice``, when the options carry them) add a pinned paid narrator persona
     (``"<provider>:<voice>"``) and, with premium voices allowed from any provider, every paid voice provider that
-    casting could pick (one whose key resolves)."""
+    casting could pick (one whose key resolves).
+
+    The lecture's voice provider is the one the build narrates with (``_narrating_tts``): a provider without a key for
+    this job (neither the requester's own nor the server's) pays nothing, so it never makes the pre-check refuse a job
+    that the build narrates with the free Edge voice."""
     payers: list[str | None] = []
-    tts = opts.tts_provider or settings.tts_provider
+    tts = _narrating_tts(settings, keys, opts.tts_provider)
     if tts in _PAID_TTS_KEYS:
         payers.append(_PAID_TTS_KEYS[tts])
     voice = getattr(opts, "voice", None)

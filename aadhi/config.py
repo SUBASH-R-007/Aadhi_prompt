@@ -170,7 +170,7 @@ class Settings(BaseSettings):
     credentials_encryption_key: SecretStr = SecretStr("")  # Fernet key (urlsafe base64 of 32 bytes); empty = derived from JWT_SECRET (rotating it then requires re-entering saved keys)
 
     # --- TTS -----------------------------------------------------------------
-    tts_provider: Literal["edge", "gemini", "openai", "elevenlabs", "fake"] = "edge"
+    tts_provider: Literal["edge", "gemini", "openai", "elevenlabs", "fake"] = "openai"  # openai = OpenAI TTS, the primary voice: a job with no OpenAI key (its owner's or the server's) narrates with the free Edge voice and an assets.tts_fallback warning; edge is free; fake = deterministic offline audio
     tts_voice: str = ""  # empty = language default (aadhi.providers.tts.voices)
     tts_rate: str = "+0%"  # edge-tts prosody rate
     tts_max_parallel: int = 6

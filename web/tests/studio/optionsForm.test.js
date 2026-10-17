@@ -5,6 +5,8 @@ import {
   buildGenerationOptions,
   optionsFormDefaults,
   voicesFor,
+  defaultVoiceProvider,
+  narratingVoiceProvider,
   validateSourceFile,
   validateMediaFile,
   engineForModel,
@@ -292,6 +294,52 @@ test('voicesFor filters by provider and language (exact first, then same primary
   assert.deepEqual(voicesFor(meta, 'edge', 'ta-IN').map((v) => v.id), ['ta-IN-PallaviNeural']);
   assert.deepEqual(voicesFor(meta, 'elevenlabs', 'en-IN'), []);
   assert.deepEqual(voicesFor(null, 'edge', 'en-IN'), []);
+});
+
+/** sampleMeta() on a server whose default voice is OpenAI TTS (multilingual voices, listed as language "multi"). */
+function openaiMeta(configured) {
+  const meta = sampleMeta();
+  meta.tts.default_provider = 'openai';
+  meta.tts.providers.push({
+    id: 'openai',
+    label: 'OpenAI TTS',
+    configured,
+    word_timings: false,
+    voices: [
+      { id: 'nova', label: 'Nova', language: 'multi', gender: 'Female' },
+      { id: 'onyx', label: 'Onyx', language: 'multi', gender: 'Male' },
+    ],
+  });
+  return meta;
+}
+
+test('voicesFor lists multilingual voices for every language', () => {
+  const meta = openaiMeta(true);
+  assert.deepEqual(voicesFor(meta, 'openai', 'ta-IN').map((v) => v.id), ['nova', 'onyx']);
+  assert.deepEqual(voicesFor(meta, '', 'en-IN').map((v) => v.id), ['nova', 'onyx'], 'server default: OpenAI TTS');
+  assert.equal(defaultVoiceProvider(meta), 'openai');
+});
+
+test('without an OpenAI key the server default offers the Edge voices that will narrate', () => {
+  const meta = openaiMeta(false);
+  assert.equal(defaultVoiceProvider(meta), 'edge');
+  assert.deepEqual(voicesFor(meta, '', 'en-IN').map((v) => v.id), ['en-IN-NeerjaNeural', 'en-US-AriaNeural']);
+  assert.deepEqual(voicesFor(meta, 'openai', 'en-IN').map((v) => v.id), ['nova', 'onyx']);
+  assert.equal(defaultVoiceProvider(sampleMeta()), 'edge');
+  assert.equal(defaultVoiceProvider(null), '');
+});
+
+test('narratingVoiceProvider: a lecture\'s own configured provider, else the server default\'s narrator', () => {
+  const keyed = openaiMeta(true);
+  assert.equal(narratingVoiceProvider(keyed, 'edge'), 'edge', 'an explicit Edge lecture keeps Edge voices');
+  assert.equal(narratingVoiceProvider(keyed, null), 'openai');
+  assert.equal(narratingVoiceProvider(keyed, ''), 'openai');
+  assert.equal(narratingVoiceProvider(keyed, 'elevenlabs'), 'openai', 'not configured: the server default narrates');
+  assert.equal(narratingVoiceProvider(keyed, 'no-such-provider'), 'openai');
+  const keyless = openaiMeta(false);
+  assert.equal(narratingVoiceProvider(keyless, 'openai'), 'edge', 'no OpenAI key: the free Edge voice narrates');
+  assert.equal(narratingVoiceProvider(keyless, null), 'edge');
+  assert.equal(narratingVoiceProvider(null, 'edge'), '');
 });
 
 test('validateSourceFile checks type and size', () => {

@@ -386,6 +386,25 @@ def test_budget_precheck_counts_voices_and_images_the_server_pays_for(keys_api):
     assert c.post(f"/api/versions/{version.id}/build", json={"scene_ids": None}).status_code == 202
 
 
+def test_a_keyless_openai_voice_never_makes_the_budget_precheck_refuse(keys_api):
+    """OpenAI TTS is the default voice. Without an OpenAI key (hers or the server's) the build narrates with the free
+    Edge voice, so a job paid entirely with her own keys is not refused for its voice; her own OpenAI key pays for
+    itself; a server OpenAI key would bill the server, so the budget is checked again."""
+    keys_api.settings.tts_provider = "openai"
+    keys_api.settings.openai_api_key = SecretStr("")
+    alice, c = keys_api.editor("alice")
+    over_budget(keys_api, alice)
+    c.put("/api/keys/anthropic", json={"api_key": PERSONAL})
+    assert create(c, {"llm_provider": "anthropic"}).status_code == 201  # Edge narrates: nothing billed to the server
+    assert create(c, {"llm_provider": "anthropic", "tts_provider": "openai"}).status_code == 201  # chosen: the same
+    assert c.put("/api/keys/openai", json={"api_key": OPENAI_PERSONAL}).status_code == 200
+    assert create(c, {"llm_provider": "anthropic"}).status_code == 201  # her own OpenAI key pays
+    assert c.delete("/api/keys/openai").status_code == 204
+    keys_api.settings.openai_api_key = SecretStr(OPENAI_PERSONAL.replace("personal", "server"))
+    refused = create(c, {"llm_provider": "anthropic"})
+    assert refused.status_code == 429 and refused.json()["code"] == "budget"  # OpenAI voices on the server's key
+
+
 def test_retry_checks_the_engine_with_the_requesters_keys(keys_api):
     """A retry runs under the requester's keys: refused up front (409) when they cannot run the job's
     engine, before the old job is claimed, instead of failing in the worker."""

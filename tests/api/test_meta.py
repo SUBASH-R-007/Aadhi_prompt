@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from pydantic import SecretStr
+
+from aadhi.config import Settings
+
 
 def test_meta_shape(api):
     _, c = api.editor("alice")
@@ -29,6 +33,27 @@ def test_meta_shape(api):
     assert body["generation_defaults"]["prefer_library_visuals"] is False
     for t in body["manim_templates"]:
         assert set(t) == {"name", "title", "description", "steps_hint", "params_schema", "example_params"}
+
+
+def test_openai_tts_is_the_studios_default_voice(api):
+    """The server default (the Studio's "Server default" voice) is OpenAI TTS; ``configured`` says whether this user
+    has a key for it (their own or the server's): without one the Studio says the free Edge voice is used."""
+    assert Settings.model_fields["tts_provider"].default == "openai"
+    api.settings.tts_provider = Settings.model_fields["tts_provider"].default
+    api.settings.openai_api_key = SecretStr("")
+    api.settings.stored_api_keys_enabled = api.settings.user_api_keys_enabled = True
+    _, c = api.editor("alice")
+
+    def openai() -> dict:
+        tts = c.get("/api/meta").json()["tts"]
+        assert tts["default_provider"] == "openai"
+        return next(p for p in tts["providers"] if p["id"] == "openai")
+
+    keyless = openai()
+    assert keyless["configured"] is False and keyless["label"] == "OpenAI TTS"
+    assert {"nova", "fable"} <= {v["id"] for v in keyless["voices"]}
+    assert c.put("/api/keys/openai", json={"api_key": "sk-proj-openai-personal-key-EEEEEE-5555"}).status_code == 200
+    assert openai()["configured"] is True  # her own key
 
 
 def test_meta_allowlist_only_for_admins(api):

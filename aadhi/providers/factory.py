@@ -240,6 +240,20 @@ def get_tts(name: str | None = None, settings: Settings | None = None) -> TTSPro
     return _cached(settings, "tts", name, build)
 
 
+KEYLESS_TTS_PROVIDER = "edge"  # free: narrates when neither the lecture's voice provider nor TTS_PROVIDER has a key
+
+
+def narrating_tts_provider(requested: str | None, settings: Settings) -> str:
+    """The voice provider that narrates a lecture asking for ``requested`` (None: the server's ``TTS_PROVIDER``, by
+    default ``openai``), as the asset build picks it (``aadhi.pipeline.assets._Builder._tts_provider``): the requested
+    provider when it is configured, else ``TTS_PROVIDER`` when it is, else the free, keyless Edge voice. ``settings``
+    are the job's effective settings (``aadhi.credentials.resolve_keys``), so the job owner's personal key counts."""
+    for name in (requested, settings.tts_provider):
+        if name and name in TTS_PROVIDERS and tts_configured(name, settings):
+            return name
+    return KEYLESS_TTS_PROVIDER
+
+
 def available_tts_providers(settings: Settings) -> list[dict[str, Any]]:
     """``[{id, label, configured, word_timings, voices}]`` for ``GET /api/meta``.
 

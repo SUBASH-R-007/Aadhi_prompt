@@ -31,7 +31,7 @@ import { href } from '../router.js';
 import { formatDate, formatDuration, formatUsd, formatBytes, formatRelative, copyText, absoluteUrl } from '../util.js';
 import { JOB_KIND_LABELS, isActive } from '../lib/jobStages.js';
 import { dynamicRender } from '../lib/renderOptions.js';
-import { voicesFor } from '../lib/optionsForm.js';
+import { voicesFor, narratingVoiceProvider } from '../lib/optionsForm.js';
 import { loadDraft } from '../lib/draftStore.js';
 import { showTechnical } from '../lib/debug.js';
 import { projectStage } from '../lib/lessonStage.js';
@@ -518,13 +518,18 @@ export function mount(container, { app, params, query }) {
       app.toast('No other languages are available.', { kind: 'warning' });
       return;
     }
+    // The translation keeps the version's voice provider (its generation options, else the project's: the server's
+    // version_options), so only the voices of the provider that will narrate it are offered.
+    const version = await get(`/api/versions/${v.id}`).catch(() => null);
+    const options = (version && version.generation_meta && version.generation_meta.options) || data.options || {};
+    const provider = narratingVoiceProvider(meta, options.tts_provider);
     const lang = select({ options: langs.map((/** @type {any} */ l) => ({ value: l.code, label: l.label })), value: langs[0].code });
     const voice = select({ options: [{ value: '', label: 'Default voice' }] });
     const board = checkbox({ label: 'Translate the board text too', checked: false, hint: 'Off keeps formulas and board text in the original language; narration is always translated.' });
     const fillVoices = () => {
       clear(voice);
       voice.appendChild(h('option', { value: '' }, 'Default voice'));
-      for (const vo of voicesFor(meta, '', lang.value)) voice.appendChild(h('option', { value: vo.id }, `${vo.label} (${vo.language})`));
+      for (const vo of voicesFor(meta, provider, lang.value)) voice.appendChild(h('option', { value: vo.id }, `${vo.label} (${vo.language})`));
     };
     lang.addEventListener('change', fillVoices);
     fillVoices();

@@ -14,7 +14,7 @@ from aadhi.providers.base import (
     TTSProvider,
     VideoProvider,
 )
-from aadhi.providers.tts.voices import LANGUAGES, default_voice, is_known_voice, voices_for
+from aadhi.providers.tts.voices import LANGUAGES, OPENAI_VOICES, default_voice, is_known_voice, voice_fits, voices_for
 
 # --- voices -----------------------------------------------------------------------------------
 
@@ -61,6 +61,43 @@ def test_multilingual_providers(provider: str) -> None:
     assert {v["language"] for v in all_voices} == {"multi"}
     assert {v["language"] for v in voices_for(provider, "ta-IN")} == {"ta-IN"}
     assert is_known_voice(provider, default_voice(provider, "hi-IN"))
+
+
+@pytest.mark.parametrize(
+    ("language", "voice"),
+    [("en-IN", "nova"), ("en-US", "nova"), ("en-GB", "nova"), ("ta-IN", "nova"), ("hi-IN", "nova"),
+     ("te-IN", "nova"), ("kn-IN", "nova"), ("ml-IN", "nova"), ("en_gb", "nova"), ("fr-FR", "nova"), ("", "nova")],
+)
+def test_openai_voice_follows_the_lectures_language(language: str, voice: str) -> None:
+    """OpenAI TTS is the default provider: its voice for each lecture language (every one a catalogue voice, which
+    every /v1/audio/speech model accepts); Edge keeps its own per-language voices for the keyless fallback. Nova for
+    every language: OpenAI lectures without a chosen voice had Nova before OpenAI became the default, and a different
+    default would re-voice them (at TTS cost) on their next full build."""
+    assert default_voice("openai", language) == voice
+    assert voice in {v["id"] for v in OPENAI_VOICES}
+
+
+def test_voice_fits_spots_another_providers_voice() -> None:
+    assert voice_fits("openai", "nova") and voice_fits("openai", "") and voice_fits("edge", "en-IN-PrabhatNeural")
+    assert not voice_fits("openai", "en-IN-PrabhatNeural")  # an Edge TTS_VOICE left over from the old default
+    assert not voice_fits("openai", "en-US-SomeUncataloguedNeural")  # Edge-shaped, even outside the catalogue
+    assert not voice_fits("edge", "nova") and voice_fits("gemini", "Puck")
+    assert not voice_fits("openai", "Kore")  # a Gemini voice
+    assert voice_fits("elevenlabs", "AbCdEfGh12345678")  # unknown ids of the right shape pass: a cloned voice
+    assert voice_fits("openai", "a-new-voice") and voice_fits("edge", "en-IN-AaravNeural")
+    # a shape the provider's adapter refuses never fits (it would fail every beat)
+    assert not voice_fits("edge", "a-custom-cloned-voice-id") and not voice_fits("elevenlabs", "a-custom-voice")
+    assert not voice_fits("edge", "nova") and not voice_fits("openai", "Nova") and not voice_fits("gemini", "kore-2")
+
+
+@pytest.mark.parametrize("provider", ["edge", "openai", "gemini", "elevenlabs"])
+def test_voice_shapes_are_the_adapters_own(provider: str) -> None:
+    import importlib
+
+    from aadhi.providers.tts.voices import VOICE_SHAPES
+
+    adapter = importlib.import_module(f"aadhi.providers.tts.{provider}")
+    assert VOICE_SHAPES[provider].pattern == adapter._VOICE_RE.pattern
 
 
 def test_unknown_provider_raises() -> None:
@@ -128,6 +165,22 @@ def test_configured_real_providers(make_settings) -> None:
     assert factory.get_gif(s).name == "giphy"
     s2 = make_settings(llm_provider="gemini", gemini_api_key="AIzaTEST-123456789", image_provider="gemini")
     assert factory.get_llm(s2).name == "gemini" and factory.get_image(s2).name == "gemini"
+
+
+def test_the_narrating_voice_provider_is_openai_else_edge(make_settings) -> None:
+    """OpenAI TTS narrates when the job has an OpenAI key; without one, the free Edge voice (never a failure); an
+    explicit choice of a configured provider wins."""
+    keyless = make_settings(tts_provider="openai", openai_api_key="", gemini_api_key="AIzaTEST-123456789")
+    assert factory.narrating_tts_provider(None, keyless) == "edge"
+    assert factory.narrating_tts_provider("openai", keyless) == "edge"
+    assert factory.narrating_tts_provider("gemini", keyless) == "gemini"
+    assert factory.narrating_tts_provider("elevenlabs", keyless) == "edge"  # no ElevenLabs key either
+    keyed = make_settings(tts_provider="openai", openai_api_key="sk-test-123456789")
+    assert factory.narrating_tts_provider(None, keyed) == "openai"
+    assert factory.narrating_tts_provider("edge", keyed) == "edge"
+    assert factory.narrating_tts_provider("gemini", keyed) == "openai"  # the choice has no key: the server's voice
+    with pytest.raises(ProviderNotConfigured):
+        factory.get_tts(settings=keyless)  # the factory itself still refuses; the asset build falls back
 
 
 def test_fake_tts_only_in_tests_or_when_selected(make_settings) -> None:

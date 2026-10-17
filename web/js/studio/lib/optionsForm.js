@@ -435,18 +435,53 @@ function clampInt(raw, key, fallback) {
   return Math.min(lim.max, Math.max(lim.min, n));
 }
 
+/** The free voice provider that narrates when the server's default voice provider has no API key. */
+export const KEYLESS_TTS_PROVIDER = 'edge';
+
+/**
+ * The voice provider that narrates a lecture left on "Server default": the server's provider
+ * (OpenAI TTS by default) when it is configured for this user (their own key or the server's),
+ * else the free Edge voice (the build then adds a warning; aadhi.pipeline.assets).
+ * @param {any} meta
+ * @returns {string}
+ */
+export function defaultVoiceProvider(meta) {
+  const tts = meta && meta.tts;
+  const id = String((tts && tts.default_provider) || '');
+  const info = tts && Array.isArray(tts.providers) ? tts.providers.find((/** @type {any} */ p) => p.id === id) : null;
+  return info && info.configured === false ? KEYLESS_TTS_PROVIDER : id;
+}
+
+/**
+ * The voice provider that narrates a lecture whose options ask for `providerId` (as the asset build
+ * picks it, aadhi.providers.factory.narrating_tts_provider): that provider when it is configured for
+ * this user, else the server default's narrator (defaultVoiceProvider). Voices offered for an existing
+ * lecture (the Translate dialog) must be this provider's: the version keeps its provider, and a voice
+ * of another one is not used (the build speaks the provider's own voice for the language instead).
+ * @param {any} meta
+ * @param {string | null | undefined} providerId   ''/null = server default
+ * @returns {string}
+ */
+export function narratingVoiceProvider(meta, providerId) {
+  const id = String(providerId || '');
+  const tts = meta && meta.tts;
+  const info = id && tts && Array.isArray(tts.providers) ? tts.providers.find((/** @type {any} */ p) => p.id === id) : null;
+  return info && info.configured !== false ? id : defaultVoiceProvider(meta);
+}
+
 /**
  * Voices of a TTS provider for a language (matching on the primary subtag as fallback,
- * e.g. "en-IN" voices first, then other "en-*" voices).
+ * e.g. "en-IN" voices first, then other "en-*" voices, then the multilingual voices that read
+ * every language: OpenAI, Gemini and ElevenLabs list theirs as language "multi").
  * @param {any} meta
- * @param {string} providerId   '' = server default provider
+ * @param {string} providerId   '' = server default provider (Edge when it has no API key)
  * @param {string} language
  * @returns {{ id: string, label: string, language: string, gender?: string }[]}
  */
 export function voicesFor(meta, providerId, language) {
   const tts = meta && meta.tts;
   if (!tts || !Array.isArray(tts.providers)) return [];
-  const pid = providerId || tts.default_provider;
+  const pid = providerId || defaultVoiceProvider(meta);
   const provider = tts.providers.find((/** @type {any} */ p) => p.id === pid);
   if (!provider || !Array.isArray(provider.voices)) return [];
   const exact = provider.voices.filter((/** @type {any} */ v) => v.language === language);
@@ -454,7 +489,8 @@ export function voicesFor(meta, providerId, language) {
   const related = provider.voices.filter(
     (/** @type {any} */ v) => v.language !== language && String(v.language || '').split('-')[0] === primary,
   );
-  return [...exact, ...related];
+  const multilingual = provider.voices.filter((/** @type {any} */ v) => v.language === 'multi' && v.language !== language);
+  return [...exact, ...related, ...multilingual];
 }
 
 /** Allowed source documents for POST /api/projects. */

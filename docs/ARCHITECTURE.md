@@ -379,8 +379,17 @@ worker: render_video  tool check → timeline (rebuilt for include_intro) → pr
   `assert_llm_compatible` = no oneOf/discriminator/prefixItems/additionalProperties:true), Pydantic
   validation, then the semantic `validate` hook; all problems go back to the model in the re-ask.
 * Errors are redacted (`Settings.redact`), carry status + provider only.
-* TTS: `edge` (free; word boundaries), `elevenlabs` (`/with-timestamps`), `openai`, `gemini`, `fake`
-  (deterministic WAV with exact word timings). Voices per language in `tts/voices.py`. Speech text =
+* TTS: `openai` (the default `TTS_PROVIDER`, OpenAI TTS: the primary voice), `edge` (free; word boundaries; the
+  keyless fallback), `elevenlabs` (`/with-timestamps`), `gemini`, `fake` (deterministic WAV with exact word timings).
+  A job narrates with OpenAI when it has an OpenAI key (the job owner's personal key, else the server's
+  `OPENAI_API_KEY` or Studio key); without one it narrates with the free Edge voice for the lecture's language and
+  one lecture-level `assets.tts_fallback` warning (never a failed job; the budget pre-check bills the voice the build
+  narrates with, so it counts no OpenAI cost then), and the Dynamic narrator is cast the same way
+  (`authoring.narration_choice`). A lecture's explicit choice of another configured provider wins.
+  `factory.narrating_tts_provider` states the rule. A saved voice is used only by the provider it belongs to
+  (`voices.voice_fits`); otherwise the narrating provider's default for the language narrates, with a lecture-level
+  info note `assets.tts_voice_replaced`. Voices per language in `tts/voices.py` (OpenAI's per language:
+  `OPENAI_DEFAULTS`; Edge keeps its own per-language voices). Speech text =
   `normalize_for_speech(lexicon(beat.spoken or beat.narration))`; captions keep `narration`.
 * Images: `gemini`, `pollinations`, `none`, `fake`. Video: `veo` (B-roll without the mascot — the
   mascot is the background layer), `omni` (Gemini Omni through the Interactions API, Veo 3.1's successor; same
@@ -470,6 +479,9 @@ worker: render_video  tool check → timeline (rebuilt for include_intro) → pr
   review's `SourceOverrides` (`effective_brief`, `without_chunks`).
 * `assets.build_assets(...) -> AssetManifest` — incremental by per-scene content hash; graceful
   degradation (simulation → content fallback board, ai_video → Ken-Burns still) reported as issues.
+  The voice provider is the lecture's choice, else `TTS_PROVIDER` (OpenAI TTS by default), else, when neither has
+  an API key for the job, the free Edge voice with one lecture-level `assets.tts_fallback` warning ("OpenAI TTS ...
+  has no API key; the free Edge voice ... was used instead"); the job does not fail.
   A voice model the provider no longer serves (`ModelUnavailable`: a retired `GEMINI_TTS_MODEL`, or
   `OPENAI_TTS_MODEL` once OpenAI retires its speech models) never leaves the lecture silent: the build switches once
   to the free Edge voice for the lecture's language (`fallback_voice_config`) with one lecture-level

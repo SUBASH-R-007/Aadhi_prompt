@@ -6,6 +6,7 @@ import asyncio
 from typing import Any
 
 import pytest
+from pydantic import SecretStr
 
 from aadhi.compose.base import SCENE_LEAD_SECONDS, SCENE_TAIL_SECONDS
 from aadhi.pipeline.assets import build_assets, build_assets_detailed, scene_hash, stale_scene_ids
@@ -393,6 +394,12 @@ def test_the_edge_voice_follows_the_servers_edge_voice_and_the_lectures_language
     server_gemini = base.model_copy(update={"tts_provider": "gemini", "tts_voice": "Kore"})
     assert fallback_voice_config(server_gemini, "en-IN", edge, "+0%").voice == "en-IN-NeerjaNeural"  # never "Kore"
     assert fallback_voice_config(server_gemini, "hi-IN", edge, "+0%").voice == "hi-IN-SwaraNeural"
+    # an Edge TTS_VOICE kept from a server that ran on Edge before OpenAI TTS became the default still applies to Edge
+    server_openai = base.model_copy(update={"tts_provider": "openai", "tts_voice": "en-IN-PrabhatNeural"})
+    assert fallback_voice_config(server_openai, "en-IN", edge, "+0%").voice == "en-IN-PrabhatNeural"
+    assert fallback_voice_config(server_openai, "ta-IN", edge, "+0%").voice == "ta-IN-PallaviNeural"
+    own = base.model_copy(update={"tts_provider": "openai", "tts_voice": "onyx"})
+    assert fallback_voice_config(own, "en-IN", edge, "+0%").voice == "en-IN-NeerjaNeural"  # never OpenAI's "onyx"
 
 
 def test_edge_failing_the_same_way_is_a_narration_failure_not_a_loop(env, monkeypatch):
@@ -460,6 +467,175 @@ def test_a_retired_openai_speech_model_narrates_with_edge_too(env, monkeypatch):
     logs = [e["message"] for e in env["ctx"].events if e["type"] == "log" and e["level"] == "warning"]
     switch = [msg for msg in logs if "free Edge voice en-IN-NeerjaNeural" in msg]
     assert len(switch) == 1 and "'tts-1'" in switch[0] and "model_not_found" in switch[0]  # OpenAI's reason kept
+
+
+# --- OpenAI TTS is the primary voice; without an OpenAI key the free Edge voice narrates (owner, 2026-10-17) ----------
+
+
+def keyed_voices(env: dict[str, Any], monkeypatch, **settings: Any) -> dict[str, Any]:
+    """The provider seam as the real factory decides it (``factory.tts_configured``: a keyed provider needs its key in
+    the job's settings, which carry the owner's personal key), with offline fakes in place of the real adapters. The
+    server's voice provider is the built-in default (``TTS_PROVIDER`` unset): OpenAI TTS."""
+    from aadhi.config import Settings
+    from aadhi.pipeline import integrations
+    from aadhi.providers import factory
+    from aadhi.providers.base import ProviderNotConfigured
+    from tests.pipeline.fakes import FakeTTS
+
+    voices = {name: FakeTTS(name=name) for name in ("openai", "gemini", "edge")}
+
+    def get_tts(name, settings):
+        name = name or settings.tts_provider
+        if not factory.tts_configured(name, settings):
+            raise ProviderNotConfigured(f"{name}: TTS provider is not configured", provider=name)
+        return voices[name]
+
+    monkeypatch.setattr(integrations, "get_tts", get_tts)
+    env["ctx"].settings = env["ctx"].settings.model_copy(update={
+        "tts_provider": Settings.model_fields["tts_provider"].default, "tts_voice": "", "openai_api_key": SecretStr(""), "gemini_api_key": SecretStr(""),
+        "gemini_api_keys": [], **settings})
+    return voices
+
+
+def voiced_by(res: Any, env: dict[str, Any]) -> set[tuple[str, str]]:
+    return {(res.manifest.audio[s.id].provider, res.manifest.audio[s.id].voice) for s in env["sp"].scenes
+            if s.all_beats()}
+
+
+def tts_fallbacks(res: Any) -> list[Any]:
+    return [i for i in res.issues if i.code == "assets.tts_fallback"]
+
+
+def test_openai_narrates_by_default_with_the_owners_or_the_servers_key(env, monkeypatch):
+    voices = keyed_voices(env, monkeypatch, openai_api_key=SecretStr("sk-test-owner-or-server"))
+    res = build(env)
+    assert voiced_by(res, env) == {("openai", "nova")}  # en-IN: OpenAI's voice for the language
+    assert voices["openai"].texts and not voices["edge"].texts
+    assert not tts_fallbacks(res)
+    # an explicit per-lecture choice of another configured provider still wins
+    voices = keyed_voices(env, monkeypatch, openai_api_key=SecretStr("sk-test-owner-or-server"),
+                          gemini_api_key=SecretStr("test-gemini-key"))
+    env["opts"] = env["opts"].model_copy(update={"tts_provider": "gemini", "tts_voice": "Puck"})
+    gemini = build(env)
+    assert voiced_by(gemini, env) == {("gemini", "Puck")} and not tts_fallbacks(gemini)
+    assert voices["gemini"].texts and not voices["openai"].texts and not voices["edge"].texts
+    env["opts"] = env["opts"].model_copy(update={"tts_provider": "edge", "tts_voice": None})
+    edge = build(env)  # Edge chosen while an OpenAI key exists: Edge, no warning
+    assert voiced_by(edge, env) == {("edge", "en-IN-NeerjaNeural")} and not tts_fallbacks(edge)
+
+
+def test_without_an_openai_key_the_free_edge_voice_narrates_with_one_warning(env, monkeypatch):
+    voices = keyed_voices(env, monkeypatch, stored_api_keys_enabled=True, user_api_keys_enabled=True)
+    res = build(env)
+    assert voiced_by(res, env) == {("edge", "en-IN-NeerjaNeural")}  # Edge's own voice for the lecture's language
+    assert voices["edge"].texts and not voices["openai"].texts
+    assert not [i for i in res.issues if i.code == "assets.tts_failed"]
+    assert set(res.manifest.scene_hashes) == {s.id for s in env["sp"].scenes}  # complete: the job did not fail
+    fallback = tts_fallbacks(res)
+    assert len(fallback) == 1 and fallback[0].scene_id is None and fallback[0].severity == "warning"
+    message = fallback[0].message
+    assert message.startswith("OpenAI TTS (the server's voice provider 'openai') has no API key")
+    assert "the free Edge voice 'en-IN-NeerjaNeural' was used instead" in message
+    assert "your own under API keys, or the server's OPENAI_API_KEY" in message
+    # the Edge clips are keyed exactly like an Edge lecture's: choosing Edge later synthesises nothing again
+    n_edge = len(voices["edge"].texts)
+    env["opts"] = env["opts"].model_copy(update={"tts_provider": "edge"})
+    chosen = build(env)
+    assert len(voices["edge"].texts) == n_edge and not tts_fallbacks(chosen)
+    assert chosen.manifest.audio == res.manifest.audio
+
+
+def test_an_explicit_openai_choice_without_a_key_does_not_fail_either(env, monkeypatch):
+    keyed_voices(env, monkeypatch, user_api_keys_enabled=False)
+    env["opts"] = env["opts"].model_copy(update={"tts_provider": "openai", "tts_voice": "onyx", "tts_rate": "+10%"})
+    res = build(env)
+    assert voiced_by(res, env) == {("edge", "en-IN-NeerjaNeural")}  # never OpenAI's "onyx" sent to Edge
+    assert {res.manifest.audio["intro"].provider} == {"edge"}
+    assert len(tts_fallbacks(res)) == 1 and "OpenAI TTS" in tts_fallbacks(res)[0].message
+    assert "(the server's OPENAI_API_KEY)" in tts_fallbacks(res)[0].message  # personal keys are off on this server
+
+
+def test_an_edge_voice_picked_while_openai_has_no_key_is_kept(env, monkeypatch):
+    keyed_voices(env, monkeypatch)
+    env["opts"] = env["opts"].model_copy(update={"tts_voice": "en-IN-PrabhatNeural"})
+    res = build(env)
+    assert voiced_by(res, env) == {("edge", "en-IN-PrabhatNeural")}
+    assert "'en-IN-PrabhatNeural' was used instead" in tts_fallbacks(res)[0].message
+
+
+def test_an_unconfigured_choice_and_a_keyless_openai_fall_to_edge_with_one_warning(env, monkeypatch):
+    keyed_voices(env, monkeypatch)
+    env["opts"] = env["opts"].model_copy(update={"tts_provider": "gemini", "tts_voice": "Puck"})
+    res = build(env)
+    assert voiced_by(res, env) == {("edge", "en-IN-NeerjaNeural")}
+    fallback = tts_fallbacks(res)
+    assert len(fallback) == 1
+    assert fallback[0].message.startswith("The voice provider 'gemini' is not configured on this server, and OpenAI "
+                                          "TTS (the server's voice provider 'openai') has no API key")
+
+
+def test_a_saved_edge_voice_on_server_default_is_not_sent_to_openai(env, monkeypatch):
+    """A lecture saved on "Server default" with an Edge voice (the Studio listed Edge voices there while Edge was the
+    default, and still does while OpenAI has no key): once the job has an OpenAI key, OpenAI narrates with its own
+    voice for the language (its adapter would refuse the Edge name on every beat), with an info note saying so."""
+    voices = keyed_voices(env, monkeypatch, openai_api_key=SecretStr("sk-test-owner-or-server"))
+    env["opts"] = env["opts"].model_copy(update={"tts_voice": "en-IN-PrabhatNeural"})
+    res = build(env)
+    assert voiced_by(res, env) == {("openai", "nova")}
+    assert voices["openai"].texts and not voices["edge"].texts
+    assert not [i for i in res.issues if i.code == "assets.tts_failed"] and not tts_fallbacks(res)
+    note = [i for i in res.issues if i.code == "assets.tts_voice_replaced"]
+    assert len(note) == 1 and note[0].severity == "info" and note[0].scene_id is None
+    assert "'en-IN-PrabhatNeural' is not a voice of OpenAI TTS" in note[0].message and "'nova'" in note[0].message
+    # an OpenAI voice saved on "Server default" is OpenAI's: kept, no note
+    env["opts"] = env["opts"].model_copy(update={"tts_voice": "onyx"})
+    onyx = build(env)
+    assert voiced_by(onyx, env) == {("openai", "onyx")}
+    assert not [i for i in onyx.issues if i.code == "assets.tts_voice_replaced"]
+
+
+def test_a_voice_of_another_provider_never_reaches_the_lectures_chosen_provider(env, monkeypatch):
+    """The Translate dialog offered the server default's voices: 'nova' saved on a lecture that chose Edge narrates
+    with Edge's voice for the language (Edge refuses 'nova'), not silently."""
+    keyed_voices(env, monkeypatch, openai_api_key=SecretStr("sk-test-owner-or-server"))
+    env["opts"] = env["opts"].model_copy(update={"tts_provider": "edge", "tts_voice": "nova"})
+    res = build(env)
+    assert voiced_by(res, env) == {("edge", "en-IN-NeerjaNeural")}
+    assert len([i for i in res.issues if i.code == "assets.tts_voice_replaced"]) == 1
+
+
+def test_without_an_openai_key_an_edge_tts_voice_still_narrates(env, monkeypatch):
+    """An upgraded server that ran on Edge with TTS_VOICE set and has no OpenAI key: its default-language lectures keep
+    that voice (the same clips as before), other languages Edge's voice for the language."""
+    voices = keyed_voices(env, monkeypatch, tts_voice="en-IN-PrabhatNeural", default_language="en-IN")
+    res = build(env)
+    assert voiced_by(res, env) == {("edge", "en-IN-PrabhatNeural")}
+    assert "the free Edge voice 'en-IN-PrabhatNeural' was used instead" in tts_fallbacks(res)[0].message
+    n_edge = len(voices["edge"].texts)
+    env["opts"] = env["opts"].model_copy(update={"tts_provider": "edge"})  # as on the server before the upgrade
+    before = build(env)
+    assert before.manifest.audio == res.manifest.audio and len(voices["edge"].texts) == n_edge
+    # an OpenAI voice saved on "Server default" while OpenAI had a key: Edge's voice instead, never "onyx" sent to Edge
+    env["opts"] = env["opts"].model_copy(update={"tts_provider": None, "tts_voice": "onyx"})
+    assert voiced_by(build(env), env) == {("edge", "en-IN-PrabhatNeural")}
+
+
+def test_an_edge_tts_voice_is_not_sent_to_openai(env):
+    """TTS_VOICE set for Edge before OpenAI became the default: OpenAI speaks its own voice for the language."""
+    from types import SimpleNamespace
+
+    from aadhi.pipeline.assets import voice_config
+
+    openai = SimpleNamespace(name="openai", default_voice=lambda language: "unused")
+    settings = env["ctx"].settings.model_copy(update={"tts_provider": "openai", "default_language": "en-IN",
+                                                      "tts_voice": "en-IN-PrabhatNeural"})
+    opts = GenerationOptions()
+    assert voice_config(settings, opts, "en-IN", openai).voice == "nova"
+    assert voice_config(settings, opts, "en-GB", openai).voice == "nova"  # as before OpenAI became the default
+    own = settings.model_copy(update={"tts_voice": "onyx"})
+    assert voice_config(own, opts, "en-IN", openai).voice == "onyx"  # an OpenAI TTS_VOICE is used
+    edge = SimpleNamespace(name="edge", default_voice=lambda language: "unused")
+    assert voice_config(settings, opts, "en-IN", edge).voice == "en-IN-PrabhatNeural"  # still Edge's own
 
 
 def test_cached_ai_video_is_reused_without_a_budget_check(env):

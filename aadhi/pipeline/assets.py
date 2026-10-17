@@ -18,7 +18,10 @@ were (dropped if gone) and it is never listed stale. Job-level conditions (cance
 limits, a provider refusing the job owner's personal API key) propagate: a refused personal key
 fails the job (``personal_key_rejected``) instead of quietly building a lecture without media.
 
-Narration voice: one per build (``voice_config``: the lecture's TTS provider and voice, else the server's). A voice
+Narration voice: one per build (``voice_config``: the lecture's TTS provider and voice, else the server's
+``TTS_PROVIDER``, by default OpenAI TTS). A voice provider without an API key (neither the job owner's personal key nor
+the server's) never fails the job: the build narrates with the free Edge voice for the lecture's language and adds one
+lecture-level ``assets.tts_fallback`` warning naming the provider that has no key (``_Builder._tts_provider``). A voice
 model the provider no longer serves (``ModelUnavailable``, e.g. a retired ``GEMINI_TTS_MODEL``, or ``OPENAI_TTS_MODEL``
 after OpenAI's 2027-01-06 speech-model retirement; design §10.3 H0) never leaves the lecture silent: the build
 switches to the free Edge voice for the lecture's language (``fallback_voice_config``) with a lecture-level
@@ -96,7 +99,7 @@ from typing import Any
 
 from ..compose.base import SCENE_LEAD_SECONDS, SCENE_TAIL_SECONDS
 from ..config import Settings
-from ..credentials import billed_to, personal_key_rejection
+from ..credentials import billed_to, personal_key_rejection, personal_keys_enabled
 from ..jobs.base import BudgetExceeded, JobCancelled
 from ..providers.base import (
     ContentBlocked,
@@ -120,6 +123,7 @@ from ..providers.operations import (
     SUBMITTING,
     OperationStore,
 )
+from ..providers.tts.voices import is_known_voice, voice_fits
 from ..schemas.manifest import AssetManifest, MediaInfo, SceneAudio, SceneMedia
 from ..schemas.screenplay import (
     AIVideoScene,
@@ -308,7 +312,23 @@ class VoiceConfig:
     language: str
 
 
-FALLBACK_TTS_PROVIDER = "edge"  # free and keyless: narrates when the chosen voice model is no longer served (H0)
+# Free and keyless: narrates when the voice provider has no API key, or when its voice model is no longer served (H0).
+FALLBACK_TTS_PROVIDER = "edge"  # = providers.factory.KEYLESS_TTS_PROVIDER (not imported here: integrations seam)
+# Keyed voice providers -> (display name, server setting, personal keys possible); the keyless warning's hint.
+_TTS_KEYS = {
+    "openai": ("OpenAI", "OPENAI_API_KEY", True),
+    "gemini": ("Gemini", "GEMINI_API_KEY", True),
+    "elevenlabs": ("ElevenLabs", "ELEVENLABS_API_KEY", False),
+}
+
+
+def _key_hint(settings: Any, provider: str) -> str:
+    """How to give the keyless voice ``provider`` its key (the end of the ``assets.tts_fallback`` warning)."""
+    if provider not in _TTS_KEYS:
+        return ""
+    name, setting, personal = _TTS_KEYS[provider]
+    own = "your own under API keys, or " if personal and personal_keys_enabled(settings) else ""
+    return f" Add {'an' if name[0] in 'AEIOU' else 'a'} {name} API key ({own}the server's {setting}) to narrate with {name}."
 
 
 def _tts_model(settings: Any, provider: str) -> str:
@@ -318,8 +338,15 @@ def _tts_model(settings: Any, provider: str) -> str:
 
 
 def voice_config(settings: Any, options: GenerationOptions, language: str, tts: Any) -> VoiceConfig:
+    """The build's voice: the lecture's voice, else ``TTS_VOICE`` for the server's language, else the provider's
+    default for the language. Each of the first two counts only when it is a voice of the narrating provider
+    (``voices.voice_fits``): a voice is saved for the provider that was narrating when it was picked, so an Edge voice
+    saved on "Server default" (or an Edge ``TTS_VOICE``) from before OpenAI became the default is not sent to OpenAI,
+    and an OpenAI voice is not sent to Edge; the adapter would refuse it on every beat (``_Builder`` says so in an
+    ``assets.tts_voice_replaced`` note)."""
     provider = getattr(tts, "name", None) or options.tts_provider or settings.tts_provider
-    voice = options.tts_voice or (settings.tts_voice if language == settings.default_language else "") or ""
+    server = settings.tts_voice if language == settings.default_language else ""
+    voice = next((v for v in (options.tts_voice or "", server) if v and voice_fits(provider, v)), "")
     voice = voice or integrations.default_voice(provider, language, tts)
     return VoiceConfig(provider=provider, voice=voice, rate=options.tts_rate or settings.tts_rate or "+0%",
                        model=_tts_model(settings, provider), language=language)
@@ -328,12 +355,14 @@ def voice_config(settings: Any, options: GenerationOptions, language: str, tts: 
 def fallback_voice_config(settings: Any, language: str, tts: Any, rate: str) -> VoiceConfig:
     """The Edge voice that narrates when the lecture's voice model is no longer served (``_Builder._model_fallback``).
 
-    ``TTS_VOICE`` when Edge is the server's provider and the lecture speaks ``DEFAULT_LANGUAGE`` (as ``voice_config``
-    picks it), else Edge's default voice for the lecture's language: never the lecture's own voice choice, which
-    names a voice of the provider that failed. Same rate as the failed voice, and keyed exactly like an Edge
-    lecture's clips (``clip_key``), so they are shared with it and never stored under the failed voice's keys."""
+    ``TTS_VOICE`` when it is an Edge voice (``voices.voice_fits``: Edge was the server's provider, or still names
+    the Edge voice of a server that ran on Edge before OpenAI became the default) and the lecture speaks
+    ``DEFAULT_LANGUAGE`` (as ``voice_config`` picks it), else Edge's default voice for the lecture's language: never
+    the lecture's own voice choice, which names a voice of the provider that failed. Same rate as the failed voice,
+    and keyed exactly like an Edge lecture's clips (``clip_key``), so they are shared with it and never stored under
+    the failed voice's keys."""
     provider = getattr(tts, "name", None) or FALLBACK_TTS_PROVIDER
-    server = settings.tts_provider == provider and language == settings.default_language
+    server = language == settings.default_language and voice_fits(provider, settings.tts_voice)
     server_voice = settings.tts_voice if server else ""
     return VoiceConfig(provider=provider, voice=server_voice or integrations.default_voice(provider, language, tts),
                        rate=rate, model=_tts_model(settings, provider), language=language)
@@ -382,8 +411,7 @@ class _Builder:
         self.language = sp.language
         self.board_language = sp.board_language or sp.language
         self.issues: list[Issue] = []
-        self.tts = self._tts_provider()
-        self.voice = voice_config(self.settings, self.options, self.language, self.tts)
+        self.tts, self.voice = self._tts_provider()
         self.tts_sem = asyncio.Semaphore(max(1, int(self.settings.tts_max_parallel)))
         self.video_scene_ids = self._video_allowance()
         self.retry_scene_ids: set[str] = set()  # scenes with transient media failures (no hash stored)
@@ -401,20 +429,80 @@ class _Builder:
         self._library_lock = asyncio.Lock()
         self._owner_started: bool | None = None  # the job's user owns the lecture (libraries are personal)
 
-    def _tts_provider(self) -> Any:
-        """The requested TTS provider, else the server default (reported) when it is not configured."""
+    def _tts_provider(self) -> tuple[Any, VoiceConfig]:
+        """The build's voice provider and voice (``factory.narrating_tts_provider`` decides the same way).
+
+        The lecture's provider (``GenerationOptions.tts_provider``), else the server's ``TTS_PROVIDER`` (OpenAI TTS by
+        default), else the free Edge voice: a provider is skipped when it is not configured for this job (no API key:
+        neither the job owner's personal key nor the server's). Each step down adds ONE lecture-level
+        ``assets.tts_fallback`` warning, so a lecture never fails, and never goes silent, only because its voice
+        provider has no key. The voice is picked by ``voice_config`` for the provider that narrates: the lecture's own
+        voice, else ``TTS_VOICE`` for ``DEFAULT_LANGUAGE``, each only when it is a voice of that provider, else that
+        provider's default for the language. A saved voice of another provider (an Edge voice saved on "Server default"
+        before OpenAI became the default or got its key) is replaced, with an ``assets.tts_voice_replaced`` note when
+        no ``assets.tts_fallback`` warning already names the voice used. Edge itself not being configured still raises."""
         requested = self.options.tts_provider
+        default = self.settings.tts_provider
         try:
-            return integrations.get_tts(requested, self.settings)
-        except ProviderNotConfigured:
-            if not requested or requested == self.settings.tts_provider:
-                raise
+            tts = integrations.get_tts(requested, self.settings)
+        except ProviderNotConfigured as exc:
+            unavailable = exc
+        else:
+            voice = voice_config(self.settings, self.options, self.language, tts)
+            self._note_replaced_voice(voice)
+            return tts, voice
+        chosen = requested if requested and requested != default else None  # a choice other than the server's
+        if chosen is not None:
+            try:
+                tts = integrations.get_tts(None, self.settings)
+            except ProviderNotConfigured as exc:
+                unavailable = exc
+            else:
+                self._narrate_with(tts)
+                self.issues.append(Issue(
+                    code="assets.tts_fallback", severity="warning", source="assets", fixable=False,
+                    message=f"The voice provider '{chosen}' is not configured on this server; "
+                            f"'{default}' was used instead."))
+                return tts, voice_config(self.settings, self.options, self.language, tts)
+        if default == FALLBACK_TTS_PROVIDER:  # Edge is the server's provider and is not configured: nothing to fall to
+            raise unavailable
+        tts = integrations.get_tts(FALLBACK_TTS_PROVIDER, self.settings)
+        self._narrate_with(tts)
+        # The lecture's Edge voice, else an Edge TTS_VOICE for DEFAULT_LANGUAGE (kept from a server that ran on Edge),
+        # else Edge's voice for the language: exactly the voice an Edge lecture gets, so the clips are shared with it.
+        voice = voice_config(self.settings, self.options, self.language, tts)
+        from ..providers.factory import TTS_LABELS
+
+        label = TTS_LABELS.get(default, default)
+        lead = f"The voice provider '{chosen}' is not configured on this server, and {label}" if chosen else label
         self.issues.append(Issue(
             code="assets.tts_fallback", severity="warning", source="assets", fixable=False,
-            message=f"The voice provider '{requested}' is not configured on this server; "
-                    f"'{self.settings.tts_provider}' was used instead."))
-        self.options = self.options.model_copy(update={"tts_provider": None, "tts_voice": None})
-        return integrations.get_tts(None, self.settings)
+            message=f"{lead} (the server's voice provider '{default}') has no API key; the free Edge voice "
+                    f"'{voice.voice}' was used instead.{_key_hint(self.settings, default)}"))
+        return tts, voice
+
+    def _narrate_with(self, tts: Any) -> None:
+        """The lecture's provider choice gave way to ``tts``: its voice, picked for the provider it asked for, is kept
+        only when it is one of ``tts``'s catalogue voices (an Edge voice picked on "Server default" while OpenAI had no
+        key), never because it merely could be sent to ``tts``."""
+        voice = self.options.tts_voice or ""
+        keep = bool(voice) and is_known_voice(getattr(tts, "name", "") or "", voice)
+        self.options = self.options.model_copy(update={"tts_provider": None, "tts_voice": voice if keep else None})
+
+    def _note_replaced_voice(self, voice: VoiceConfig) -> None:
+        """An info note when the lecture's saved voice is not one of the narrating provider's (``voice_config`` left it
+        out): it was picked for another provider, typically an Edge voice saved on "Server default" while Edge was the
+        server's voice, now that OpenAI TTS narrates."""
+        saved = self.options.tts_voice or ""
+        if not saved or voice_fits(voice.provider, saved):
+            return
+        from ..providers.factory import TTS_LABELS
+
+        label = TTS_LABELS.get(voice.provider, voice.provider)
+        self.issues.append(Issue(
+            code="assets.tts_voice_replaced", severity="info", source="assets", fixable=False,
+            message=f"The lecture's voice '{saved}' is not a voice of {label}, which narrates it; {label}'s voice "
+                    f"'{voice.voice}' was used instead. Choose a voice in the lecture's Voice settings to change it."))
 
     # --- personal API keys ------------------------------------------------------------
     def _key_sources(self) -> dict[str, str | None]:

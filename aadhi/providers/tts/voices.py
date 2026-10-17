@@ -7,6 +7,7 @@ whatever language the text is in), so they are listed for every language.
 
 from __future__ import annotations
 
+import re
 from typing import TypedDict
 
 LANGUAGES = ("en-IN", "en-US", "en-GB", "ta-IN", "hi-IN", "te-IN", "kn-IN", "ml-IN")
@@ -117,11 +118,35 @@ EDGE_DEFAULTS: dict[str, str] = {
     "ml-IN": "ml-IN-SobhanaNeural",
 }
 EDGE_FALLBACK = "en-US-AndrewMultilingualNeural"  # multilingual: reads most languages acceptably
+# OpenAI TTS (the server's default provider): the lecture's language picks its voice. Every OpenAI voice reads every
+# language, in the accent of the text, so every language keeps Nova, the voice OpenAI lectures without a chosen voice
+# had before OpenAI became the default (their cached narration stays reusable; a different default here would re-voice
+# them, at TTS cost, on their next full build). Change a language's entry only knowing that. Only voices every
+# /v1/audio/speech model accepts (OPENAI_VOICES) are used.
+OPENAI_DEFAULTS: dict[str, str] = {
+    "en-IN": "nova",
+    "en-US": "nova",
+    "en-GB": "nova",
+    "ta-IN": "nova",
+    "hi-IN": "nova",
+    "te-IN": "nova",
+    "kn-IN": "nova",
+    "ml-IN": "nova",
+}
 MULTILINGUAL_DEFAULTS: dict[str, str] = {
     "openai": "nova",
     "gemini": "Kore",
     "elevenlabs": "21m00Tcm4TlvDq8ikWAM",
     "fake": "fake-female",
+}
+_EDGE_VOICE_ID = re.compile(r"^[a-z]{2,3}-[A-Z]{2,4}-\w+Neural$")  # Edge / Azure voice names: "en-IN-NeerjaNeural"
+# The voice ids each adapter accepts (its own ``_VOICE_RE``, kept equal by tests/providers/test_voices_factory.py): a voice
+# of another shape is refused by that adapter on every beat, so it never fits that provider.
+VOICE_SHAPES: dict[str, re.Pattern[str]] = {
+    "edge": re.compile(r"^[A-Za-z]{2,3}-[A-Za-z0-9]{2,8}(?:-[A-Za-z0-9]+)+$"),
+    "openai": re.compile(r"^[a-z][a-z0-9_-]{1,31}$"),
+    "gemini": re.compile(r"^[A-Za-z]{2,32}$"),
+    "elevenlabs": re.compile(r"^[A-Za-z0-9]{8,64}$"),
 }
 
 
@@ -153,6 +178,8 @@ def default_voice(provider: str, language: str) -> str:
         if primary == "en":
             return EDGE_DEFAULTS["en-US"]
         return EDGE_FALLBACK
+    if provider == "openai":
+        return OPENAI_DEFAULTS.get(_normalise_language(language), MULTILINGUAL_DEFAULTS["openai"])
     if provider in MULTILINGUAL_DEFAULTS:
         return MULTILINGUAL_DEFAULTS[provider]
     raise KeyError(f"unknown TTS provider {provider!r}")
@@ -179,3 +206,22 @@ def voices_for(provider: str, language: str | None = None) -> list[dict[str, str
 
 def is_known_voice(provider: str, voice: str) -> bool:
     return any(v["id"] == voice for v in CATALOGUE.get((provider or "").lower(), ()))
+
+
+def voice_fits(provider: str, voice: str) -> bool:
+    """Whether ``voice`` can be sent to ``provider``: False when it is evidently another provider's voice (one of another
+    provider's catalogue voices, or an Edge-style name such as ``en-IN-NeerjaNeural`` for a provider other than Edge) or
+    has a shape ``provider``'s adapter refuses (``VOICE_SHAPES``: "nova" for Edge). A voice is saved for the provider
+    that was narrating when it was picked: ``TTS_VOICE`` for the server's provider, a lecture's voice for its provider
+    or, on "Server default", for whatever the server's provider was then. When the narrating provider is another one
+    (the default became ``openai``; a key was added or is missing), that provider speaks with its own default for the
+    language instead of failing every beat. Ids outside the catalogue of the right shape fit (a cloned voice)."""
+    provider = (provider or "").lower()
+    if not voice or is_known_voice(provider, voice):
+        return True
+    shape = VOICE_SHAPES.get(provider)
+    if shape is not None and not shape.match(voice):
+        return False
+    if provider != "edge" and _EDGE_VOICE_ID.match(voice):
+        return False
+    return not any(is_known_voice(other, voice) for other in CATALOGUE if other != provider)

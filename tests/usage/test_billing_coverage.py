@@ -41,8 +41,46 @@ def test_classic_options_are_judged_as_before(app_env: Settings) -> None:
     assert _media_billed_to_server(settings, mine, options()) is False  # no Dynamic preferences: same answer
     assert _media_billed_to_server(settings, keys(gemini="server"), GenerationOptions(tts_provider="gemini")) is True
     assert _media_billed_to_server(settings, mine, GenerationOptions(tts_provider="gemini")) is False
-    assert _media_billed_to_server(settings, mine, GenerationOptions(tts_provider="elevenlabs")) is True  # server-only
+    eleven = settings.model_copy(update={"elevenlabs_api_key": SecretStr("test-eleven-key")})
+    assert _media_billed_to_server(eleven, mine, GenerationOptions(tts_provider="elevenlabs")) is True  # server-only
+    # ElevenLabs chosen without its key narrates with the server's (free) voice: nothing billed (the build's choice)
+    no_eleven = settings.model_copy(update={"elevenlabs_api_key": SecretStr("")})
+    assert _media_billed_to_server(no_eleven, mine, GenerationOptions(tts_provider="elevenlabs")) is False
     assert _media_billed_to_server(settings, mine, None) is False
+
+
+def test_a_keyless_default_voice_bills_nothing(app_env: Settings) -> None:
+    """OpenAI TTS is the server's default voice. Without an OpenAI key for the job the build narrates with the free
+    Edge voice (``assets._Builder._tts_provider``), so the pre-check never counts it, chosen explicitly or not."""
+    settings = free_settings(app_env).model_copy(update={"tts_provider": "openai"})
+    for options_ in (None, GenerationOptions(), GenerationOptions(tts_provider="openai")):
+        assert _media_billed_to_server(settings, keys(gemini="personal"), options_) is False
+        assert _media_billed_to_server(settings, keys(openai="personal"), options_) is False  # her own key pays
+        assert _media_billed_to_server(settings, keys(openai="env"), options_) is True  # the server's key pays
+        assert _media_billed_to_server(settings, keys(openai="server"), options_) is True
+    # another provider chosen explicitly is judged as before: Gemini on the server's key counts
+    assert _media_billed_to_server(settings, keys(gemini="server"), GenerationOptions(tts_provider="gemini")) is True
+    keyless_gemini = settings.model_copy(update={"tts_provider": "gemini"})  # any keyed default without its key
+    assert _media_billed_to_server(keyless_gemini, keys(), GenerationOptions()) is False
+
+
+def test_the_precheck_bills_the_voice_the_build_narrates_with(app_env: Settings) -> None:
+    """The payer is chosen as the build chooses the voice (``factory.narrating_tts_provider``): the lecture's provider
+    when it can run, else the server's when it can, else the free Edge voice. A stale choice of a provider without a
+    key, on a server whose OpenAI default has no key either, narrates with Edge and bills nothing."""
+    settings = free_settings(app_env).model_copy(update={"tts_provider": "openai",
+                                                         "elevenlabs_api_key": SecretStr("")})
+    for chosen in ("gemini", "elevenlabs"):
+        assert _media_billed_to_server(settings, keys(), GenerationOptions(tts_provider=chosen)) is False
+        assert _media_billed_to_server(settings, keys(openai="personal"), GenerationOptions(tts_provider=chosen)) is False
+        # the chosen provider has no key: the server's OpenAI voice narrates, on the server's key
+        assert _media_billed_to_server(settings, keys(openai="env"), GenerationOptions(tts_provider=chosen)) is True
+    # a chosen provider that can run is counted as before, even when another would be free
+    assert _media_billed_to_server(settings, keys(gemini="server"), GenerationOptions(tts_provider="gemini")) is True
+    assert _media_billed_to_server(settings, keys(gemini="personal"), GenerationOptions(tts_provider="gemini")) is False
+    eleven = settings.model_copy(update={"elevenlabs_api_key": SecretStr("test-eleven-key")})
+    assert _media_billed_to_server(eleven, keys(), GenerationOptions(tts_provider="elevenlabs")) is True
+    assert _media_billed_to_server(settings, keys(), GenerationOptions(tts_provider="edge")) is False
 
 
 def test_generated_music_counts_on_the_gemini_key(app_env: Settings) -> None:

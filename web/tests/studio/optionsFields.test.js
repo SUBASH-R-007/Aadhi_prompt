@@ -93,6 +93,25 @@ test('an unconfigured server default is labelled and the picker starts on a conf
   assert.equal(form.build().errors.llm_provider, 'The server default AI engine is not configured. Choose another engine.');
 });
 
+test('the server default voice is OpenAI TTS, and says so when it has no API key', () => {
+  const meta = sampleMeta();
+  meta.tts.default_provider = 'openai';
+  const openai = { id: 'openai', label: 'OpenAI TTS', configured: true, word_timings: false, voices: [{ id: 'nova', label: 'Nova', language: 'multi', gender: 'Female' }] };
+  meta.tts.providers.push(openai);
+  let form = mountForm(meta, {});
+  let provider = control(form.el, 'Voice provider');
+  assert.equal(provider.options[0].textContent, 'Server default (OpenAI TTS)');
+  assert.equal(provider.value, '');
+  assert.deepEqual([...control(form.el, 'Voice').options].map((o) => o.value), ['', 'nova']);
+  openai.configured = false;
+  form = mountForm(meta, {});
+  provider = control(form.el, 'Voice provider');
+  assert.equal(provider.options[0].textContent, 'Server default (OpenAI TTS, no API key: the free Edge voice is used)');
+  assert.equal(provider.value, '');
+  assert.deepEqual([...control(form.el, 'Voice').options].map((o) => o.value), ['', 'en-IN-NeerjaNeural', 'en-US-AriaNeural']);
+  assert.deepEqual(form.build().errors, {}, 'the keyless default stays selectable: the build narrates with Edge');
+});
+
 test('the model hint follows the selected (or default) engine', () => {
   const form = mountForm(engineMeta(), {});
   const engine = control(form.el, 'Engine');

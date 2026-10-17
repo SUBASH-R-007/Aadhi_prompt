@@ -383,15 +383,18 @@ def _default_presentation(plan: LecturePlan, options: GenerationOptions, setting
 
     if not dynamic_enabled(settings):
         return None
-    from ..compose.dynamic.authoring import default_presentation
+    from ..compose.dynamic.authoring import default_presentation, narration_choice
 
+    # The narrator the build will really use: OpenAI TTS by default, the free Edge voice when it has no key (the job's
+    # settings carry the owner's personal keys).
+    voice, provider = narration_choice(options.tts_voice, options.tts_provider, settings)
     return default_presentation(
         subject_name=plan.subject_name,
         unit_name=plan.unit_name,
         session_number=plan.session_number,
         session_title=plan.session_title,
-        narrator_voice=options.tts_voice,
-        tts_provider=options.tts_provider or getattr(settings, "tts_provider", None),
+        narrator_voice=voice,
+        tts_provider=provider,
         language=options.language,
     )
 

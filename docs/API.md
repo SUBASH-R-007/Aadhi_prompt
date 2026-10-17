@@ -170,8 +170,13 @@ lectures serialise exactly as before.
 ```jsonc
 {"version": "2.0.0",
  "languages": [{"code":"en-IN","label":"English (India)"}, ...],
- "tts": {"default_provider":"edge","providers":[{"id":"edge","label":"Microsoft Edge (free)","configured":true,
-          "word_timings": true, "voices":[{"id":"en-IN-NeerjaNeural","label":"Neerja","language":"en-IN","gender":"Female"}]}]},
+ // tts.default_provider = TTS_PROVIDER (OpenAI TTS by default); "configured" is judged with this user's keys. A
+ // default without a key still works: the build narrates with the free Edge voice and warns (assets.tts_fallback).
+ "tts": {"default_provider":"openai",
+         "providers":[{"id":"edge","label":"Microsoft Edge (free)","configured":true,"word_timings":true,
+                       "voices":[{"id":"en-IN-NeerjaNeural","label":"Neerja","language":"en-IN","gender":"Female"}]},
+                      {"id":"openai","label":"OpenAI TTS","configured":false,"word_timings":false,
+                       "voices":[{"id":"nova","label":"Nova","language":"multi","gender":"Female"}]}]},
  "image": {"default_provider":"pollinations",                   // IMAGE_PROVIDER; providers: [] when it is none
            "providers":[{"id":"gemini","label":"Google Gemini / Imagen","configured":false,"paid":true},
                         {"id":"pollinations","label":"Pollinations","configured":true,"paid":false}]},

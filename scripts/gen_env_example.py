@@ -210,7 +210,6 @@ EXTRA_DESCRIPTIONS: dict[str, str] = {
     "anthropic_model_script": "Claude engine: scene writing (claude-sonnet-5-5 is a cheaper option)",
     "anthropic_model_critic": "Claude engine: critic / judge (claude-sonnet-5-5 is a cheaper option)",
     "anthropic_model_fast": "Claude engine: small utility calls (claude-sonnet-5-5 is a cheaper option)",
-    "tts_provider": "edge is free; fake = deterministic offline audio",
     "elevenlabs_api_key": "ElevenLabs key (TTS with timestamps)",
     "image_provider": "pollinations needs no key (its endpoint may ask for payment: HTTP 402, see IMAGE_FALLBACK_PROVIDERS); none disables generated images",
     "video_provider": "veo generates B-roll within MAX_AI_VIDEOS_PER_LECTURE and the budget",

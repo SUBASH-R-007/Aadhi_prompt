@@ -316,9 +316,19 @@ assets.build_assets(ctx, screenplay, options, *, previous: AssetManifest | None 
 #   Libraries (prefer_library_visuals, LIBRARY_AUTO_SAVE_GENERATED) only when the job's user owns the lecture.
 assets.carry_visual_variant(old_scene, new_scene) -> Scene   # keeps variant when the request is unchanged (repair.carry_over)
 assets.voice_config(settings, options, language, tts) -> VoiceConfig(provider, voice, rate, model, language)
+#   options.tts_voice, else TTS_VOICE (language == DEFAULT_LANGUAGE), else the provider's default for the language;
+#   each of the first two only when it is a voice of the narrating provider (tts.voices.voice_fits): an Edge voice
+#   (saved on "Server default" while Edge was the default, or TTS_VOICE) is never sent to OpenAI, the default
+#   TTS_PROVIDER, and an OpenAI voice never to Edge
+#   _Builder._tts_provider() -> (tts, VoiceConfig): options.tts_provider, else TTS_PROVIDER ("openai" by default), else
+#   Edge when neither is configured for the job (no API key: the owner's personal key or the server's), with ONE
+#   lecture-level warning assets.tts_fallback; the Edge voice is voice_config's (an Edge TTS_VOICE still applies). A
+#   lecture voice of another provider than the one narrating is replaced by that provider's default, with a
+#   lecture-level info note assets.tts_voice_replaced when no assets.tts_fallback warning names the voice used.
+#   Edge itself unconfigured: ProviderNotConfigured as before
 assets.FALLBACK_TTS_PROVIDER = "edge" ; assets.fallback_voice_config(settings, language, tts, rate) -> VoiceConfig
-#   the voice narrating once the lecture's voice model is no longer served (ModelUnavailable): TTS_VOICE when Edge is
-#   the server's provider and language == DEFAULT_LANGUAGE, else Edge's default voice for the language; same rate.
+#   the voice narrating once the lecture's voice model is no longer served (ModelUnavailable): TTS_VOICE when it is an
+#   Edge voice (voice_fits) and language == DEFAULT_LANGUAGE, else Edge's default voice for the language; same rate.
 #   The build switches once (lecture-level warning assets.tts_fallback + a job-log warning); the scene that met the
 #   error is narrated again wholly in it. Without Edge on the server: assets.tts_failed as before
 #   _Builder.clip_key(text, voice=None) -> key   # content key of one beat's clip in voice (default: the build's), so
@@ -745,6 +755,10 @@ health.provider_health() -> cooldowns per (provider, key scope) ; operations.PAY
 #   | completed | failed | abandoned | lost | ambiguous; JobCheckpoint.submitted / usage_recorded / sending / not_sent
 #   VeoVideo.reports_sending = True; ResumableVideoProvider.resume(..., checkpoint=None) notes its charge
 factory.available_tts_providers(settings) -> list[dict]       # [{id,label,configured,word_timings,voices}]
+factory.narrating_tts_provider(requested, settings) -> str     # the provider that narrates: requested when configured,
+#   else TTS_PROVIDER (default "openai") when configured, else KEYLESS_TTS_PROVIDER = "edge"; settings = the job's
+#   effective settings (credentials.resolve_keys). GET /api/meta tts.default_provider = TTS_PROVIDER; the Studio's
+#   "Server default" says "no API key: the free Edge voice is used" when that provider is not configured for the user
 base.ModelUnavailable(ProviderUnavailable)   # the provider no longer serves the configured model: HTTP 404 / 410 on a
 #   request naming it (retired, renamed, misspelt; for OpenAI also a model the key may not use: 404 model_not_found);
 #   nothing billed, never retried. Raised by tts.gemini.GeminiTTS.synthesize (GEMINI_TTS_MODEL) and
@@ -756,6 +770,9 @@ llm.anthropic.AnthropicLLM(settings, *, client_factory=None, sleep=None, max_att
 llm.schema.to_provider_schema(model: type[BaseModel], provider: str) -> dict ; llm.schema.assert_llm_compatible(model) -> None
 llm.fake.FakeLLM.register(schema_name: str, responder: Callable[[str, type[BaseModel]], dict | BaseModel]) -> None
 tts.voices.default_voice(provider: str, language: str) -> str ; tts.voices.voices_for(provider, language=None) -> list[dict]
+#   default_voice("openai", language): OPENAI_DEFAULTS (nova for every language, the voice OpenAI lectures had before);
+#   voice_fits(provider, voice): False for another provider's voice or a shape the adapter refuses (VOICE_SHAPES =
+#   each adapter's _VOICE_RE)
 tts.normalize.normalize_for_speech(text: str, language: str) -> str
 tts.normalize.apply_lexicon(text: str, lexicon: list[LexiconEntry], language: str) -> str
 ```

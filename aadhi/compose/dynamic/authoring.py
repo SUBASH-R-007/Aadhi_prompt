@@ -123,6 +123,27 @@ def narrator_for(voice: str | None, provider: str | None, language: str | None) 
     return "en-IN-NeerjaNeural"  # Edge's en-IN default; unreachable while 'edge' stays a provider
 
 
+def narration_choice(voice: str | None, requested: str | None, settings: Any) -> tuple[str | None, str]:
+    """The narrator's ``(voice, provider)`` for :func:`narrator_for`, picked as the asset build picks the lecture's
+    (``aadhi.pipeline.assets._Builder._tts_provider``).
+
+    The provider is the one that will narrate (``providers.factory.narrating_tts_provider``): the lecture's choice,
+    else the server's ``TTS_PROVIDER`` (OpenAI TTS by default), else the free Edge voice when neither has an API key
+    for this job (``settings`` are the job's, with the owner's personal keys). The lecture's ``voice`` is kept only
+    when it is a voice of that provider (``voices.voice_fits``, as ``aadhi.pipeline.assets.voice_config`` keeps it): a
+    voice saved for another provider (an Edge voice saved on "Server default" before OpenAI became the default or got
+    its key, an OpenAI voice while OpenAI has no key) gives None, so the narrating provider's default for the
+    language is cast.
+    """
+    from ...providers.factory import narrating_tts_provider  # lazy, like narrator_for's voice table
+    from ...providers.tts.voices import voice_fits
+
+    provider = narrating_tts_provider(requested, settings)
+    chosen = (voice or "").strip()
+    keep = bool(chosen) and voice_fits(provider, chosen)
+    return (chosen if keep else None), provider
+
+
 def default_presentation(
     *,
     subject_name: str = "",
