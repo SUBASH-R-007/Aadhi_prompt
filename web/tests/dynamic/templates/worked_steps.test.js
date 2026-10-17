@@ -6,6 +6,7 @@
 // number then text, current / past / done, the blank typing in, the think ring, the 9:16 compact stack, the formula's
 // card and its entity tints, the cues the stage draws from the template's geometry, preflight's entries) and the fit,
 // on a fake text layout (jsdom has none).
+import { installChartEnv } from './_chartenv.js';
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -26,7 +27,10 @@ import workedSteps, {
 import boardGeneric from '../../../js/dynamic/templates/board_generic.js';
 import { contractProblems, orderProblems, recordingTex, renderStage } from './_harness.js';
 
-before(() => installDom());
+before(() => {
+  installDom();
+  installChartEnv();
+});
 after(() => uninstallDom());
 
 const FIXTURES = ['worked_steps.landscape.json', 'worked_steps.landscape.light.json', 'worked_steps.portrait.json',
@@ -139,17 +143,24 @@ test('drawsScene: steps plus at most one top line and one formula; anything else
     false, 'two top lines');
   assert.equal(drawsScene(scene([step], { quiz: {} })), false);
   assert.equal(drawsScene(scene([step], { media: {} })), false);
-  // a side panel: 16:9 only, never beside a formula card (the right 45% holds one visual), and only a kind
-  // _shared.js draws - the one question `_fit_worked_steps` must ask too (B2c review CG-2)
+  // a side panel: only a kind _shared.js draws - in 16:9 never beside a formula card (the right 45% holds one visual),
+  // in 9:16 as its own beat before the steps, with or without a formula (owner decision 4) - the one question
+  // `_fit_worked_steps` must ask too (B2c review CG-2)
   const sp = (/** @type {any} */ panel, /** @type {any} */ media = null) => ({ side_panel: { panel, media, show_at: 0 } });
   for (const kind of PANEL_KINDS) {
     const panel = PANEL_TITLED_KINDS.includes(kind) ? { kind, title: 'A plot' } : { kind, title: 'P', terminal: { command: 'ls' } };
     assert.equal(drawsScene(scene([step], sp(panel)), 'landscape'), true, kind);
-    assert.equal(drawsScene(scene([step], sp(panel)), 'portrait'), false, `${kind} in 9:16`);
+    assert.equal(drawsScene(scene([step], sp(panel)), 'portrait'), true, `${kind} in 9:16`);
     assert.equal(drawsScene(scene([step, { id: 'f', kind: 'formula', latex: 'a' }], sp(panel)), 'landscape'), false,
       `${kind} beside a formula`);
+    assert.equal(drawsScene(scene([step, { id: 'f', kind: 'formula', latex: 'a' }], sp(panel)), 'portrait'), true,
+      `${kind} before a formula and its steps in 9:16`);
   }
-  for (const kind of ['skill_tree', 'quiz']) assert.equal(drawsScene(scene([step], sp({ kind })), 'landscape'), false, kind);
+  for (const kind of ['skill_tree', 'quiz']) {
+    for (const f of /** @type {const} */ (['landscape', 'portrait'])) {
+      assert.equal(drawsScene(scene([step], sp({ kind })), f), false, `${kind} ${f}`);
+    }
+  }
   for (const kind of PANEL_TITLED_KINDS) {
     assert.equal(drawsScene(scene([step], sp({ kind })), 'landscape'), false, `${kind} with no title to draw`);
   }
@@ -166,9 +177,9 @@ test('variantOf: 16:9 split with a formula, else centred; 9:16 stack when a step
   // a panel takes the same visual box, so it splits the layout too (16:9 only)
   const panelled = /** @type {any} */ ({ ...noBeats, side_panel: { panel: { kind: 'image' }, media: null, show_at: 0 } });
   assert.equal(variantOf(panelled, 'landscape'), 'split');
-  assert.equal(variantOf(panelled, 'portrait'), 'list', '9:16 draws no panel');
+  assert.equal(variantOf(panelled, 'portrait'), 'list', 'a 9:16 panel is its own beat: the step layout is unchanged');
   assert.ok(panelFor(panelled, 'landscape'));
-  assert.equal(panelFor(panelled, 'portrait'), null);
+  assert.ok(panelFor(panelled, 'portrait'), 'owner decision 4: the reel beat');
   assert.equal(variantOf(noBeats, 'portrait'), 'list');
   assert.equal(variantOf(withBeats, 'portrait'), 'stack');
   assert.equal(anchored(withBeats, ['s2']), true);
@@ -204,8 +215,11 @@ test('slotRows: the step and justification boxes, R-29 sizes, the formula as a p
   assert.equal(rows.formula.landscape.default.line_height, 1, 'a TeX picture sets its own height');
   assert.equal(rows.formula.portrait.default.w, (780 - 192) - 2 * LAYOUT.portrait.card.padX);
   assert.equal(rows.heading.portrait.default.w, 696);
-  // the panel's terminal card: 16:9 only (9:16 draws no panel), mono, the right 45% less its padding
-  assert.deepEqual(Object.keys(rows.terminal), ['landscape']);
+  // the panel's terminal card, mono: 16:9 the right 45% less its padding, 9:16 the reel beat's card in the text
+  // column less its padding (owner decision 4)
+  assert.deepEqual(Object.keys(rows.terminal), ['landscape', 'portrait']);
+  assert.equal(rows.terminal.portrait.default.w, (780 - 192) - 2 * PANEL_TERM.portrait.pad);
+  assert.deepEqual(rows.terminal.portrait.default.size, [PANEL_TERM.portrait.min, PANEL_TERM.portrait.max]);
   assert.equal(rows.terminal.landscape.default.face, 'mono');
   assert.equal(rows.terminal.landscape.default.w, (1824 - 1058) - 2 * PANEL_TERM.landscape.pad);
   assert.deepEqual(rows.terminal.landscape.default.size, [PANEL_TERM.landscape.min, PANEL_TERM.landscape.max]);
@@ -250,6 +264,9 @@ test('the catalogue\'s worked_steps slots (templates.py) are slotRows exactly, o
   for (const slot of Object.keys(want)) {
     if (pending.includes(slot)) continue;
     for (const fmt of Object.keys(want[slot])) {
+      // the reel slice (owner decision 4) added `terminal`'s 9:16 row: until the integrator applies its templates.py
+      // change and regenerates the catalogue, that one row may be pending (the same handshake as above)
+      if (slot === 'terminal' && fmt === 'portrait' && !cat[slot][fmt]) continue;
       for (const variant of Object.keys(want[slot][fmt])) {
         const got = cat[slot][fmt][variant];
         assert.deepEqual({ w: got.w, max_lines: got.max_lines, size: got.size, role: got.role, face: got.face, weight: got.weight, line_height: got.line_height, prefer_lines: got.prefer_lines },
@@ -261,8 +278,10 @@ test('the catalogue\'s worked_steps slots (templates.py) are slotRows exactly, o
   // the panel's own forms (`panel`, `panel:row`) and its `output` kind reach `consumes` with the integrator's
   // templates.py change; until then the B2c forms stand
   const forms = /** @type {any} */ (spec.consumes.forms);
-  assert.deepEqual({ reveal: forms.reveal, fill: forms.fill, countdown: forms.countdown },
-    { reveal: ['item'], fill: ['item'], countdown: ['item'] });
+  // the reel slice adds `panel` to the reveal forms (the panel beat's event, reels.py `reel_events`) with the
+  // integrator's templates.py change; until then `item` alone
+  assert.ok(['item', 'item,panel'].includes(String(forms.reveal)), `reveal forms ${forms.reveal}`);
+  assert.deepEqual({ fill: forms.fill, countdown: forms.countdown }, { fill: ['item'], countdown: ['item'] });
   assert.ok(forms.look_here.includes('item') && forms.look_here.includes('item:var') && forms.look_here.includes('item:step'));
   assert.equal(spec.dense, true, 'R-55 / R-49: the background freezes and SFX are off');
 });
@@ -862,10 +881,10 @@ test('16:9 terminal panel: the command and its output lines on the card surface,
 test('16:9 panel with nothing to show: the authored title on the card surface, reported but not critical', async () => {
   const restore = fakeLayout();
   try {
-    // a graph panel: the Dynamic engine draws no plot anywhere yet (function_plot is unimplemented, and
-    // board_generic draws none either), so the panel's own title stands in for it
+    // a model panel: the Dynamic engine draws no model yet (model_spin is unimplemented, and board_generic draws
+    // none either), so the panel's own title stands in for it (a chart or graph is a real plot now)
     const s = spyStage(stepsTimeline('landscape', ['Step 1: I = V / R', 'Step 2: I = 2 A'],
-      { panel: { kind: 'graph', title: 'I = V / R (a straight line)', graph: { functions: [{ expr: 'x/2' }] } } }));
+      { panel: { kind: 'model_3d', title: 'I = V / R (a straight line)', model_3d: { primitives: [{ shape: 'sphere' }] } } }));
     await s.seekTo(0, 1.2);
     const ctx = s.ctx(0);
     assert.ok(ctx.view.panel && ctx.view.panel.label, 'a title card');
@@ -881,12 +900,12 @@ test('16:9 panel with nothing to show: the authored title on the card surface, r
   }
 });
 
-test('a panel in 9:16, beside a formula, or of a kind nobody draws sends the whole scene to board_generic (CG-2)', async () => {
+test('a 16:9 panel beside a formula, or a panel of a kind nobody draws, sends the whole scene to board_generic (CG-2)', async () => {
   const restore = fakeLayout();
   try {
     /** @type {[string, 'landscape' | 'portrait', any][]} */
     const cases = [
-      ['a panel in 9:16', 'portrait', { panel: { kind: 'figure', title: 'P' } }],
+      ['a skill-tree panel in 9:16', 'portrait', { panel: { kind: 'skill_tree', title: 'P' } }],
       ['a panel beside a formula', 'landscape', { panel: { kind: 'figure', title: 'P' }, formula: true }],
       ['a skill-tree panel', 'landscape', { panel: { kind: 'skill_tree', title: 'P' } }],
       ['a graph with no title', 'landscape', { panel: { kind: 'graph', graph: { functions: [] } } }],

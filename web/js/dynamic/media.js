@@ -22,6 +22,7 @@ import { h, safeUrl } from '../shared/dom.js';
 import { kenBurnsAt, kenBurnsTransform } from '../player/kenburns.js';
 import { Hasher, canvas2d, fx, stageInfo, sceneIndexOfFrame, timelineFps } from './core.js';
 import { transitionAt } from './transitions.js';
+import { presenterFrame, presenterShown, presenterSpec } from './presenter.js';
 
 /** @typedef {import('../shared/types.js').MediaRef} MediaRef */
 /** @typedef {import('../shared/types.js').TimedScene} TimedScene */
@@ -184,6 +185,8 @@ export function sceneClips(scene) {
  * @property {number | null} duration
  * @property {string} end_behavior
  * @property {number} trim_in
+ * @property {number[]} [crop]   'aadhi' only, when the look stores one: the source rect [x, y, w, h] the worker crops
+ *                               before scaling to `size` (B2 plan §1.12; presenter.js presenterKey hashes it into `key`)
  */
 
 /**
@@ -206,16 +209,17 @@ export function mediaPlan(timeline, f0, f1, boxFor) {
   const byKey = new Map();
   /**
    * @param {'video' | 'aadhi'} kind @param {MediaRef} ref @param {string} assetKey @param {[number, number]} size
-   * @param {number} srcFps @param {number} n
+   * @param {number} srcFps @param {number} n @param {string} [own] the frames' key when the medium names its own
+   * (the presenter's, which carries its crop) @param {number[] | null} [crop]
    */
-  const add = (kind, ref, assetKey, size, srcFps, n) => {
-    const key = mediaKey(kind, assetKey, size);
+  const add = (kind, ref, assetKey, size, srcFps, n, own, crop = null) => {
+    const key = own || mediaKey(kind, assetKey, size);
     let e = byKey.get(key);
     if (!e) {
       e = {
         key, kind, srcFps, frames: [], size, asset_key: assetKey, url: ref.url || null,
         duration: Number(ref.duration) > 0 ? Number(ref.duration) : null, end_behavior: String(ref.end_behavior || 'loop'),
-        trim_in: Number(ref.trim_in || 0), set: new Set(),
+        trim_in: Number(ref.trim_in || 0), ...(crop ? { crop: [...crop] } : {}), set: new Set(),
       };
       byKey.set(key, e);
     }
@@ -230,10 +234,11 @@ export function mediaPlan(timeline, f0, f1, boxFor) {
       const size = mediaSize(clip.ref, box);
       add('video', clip.ref, String(clip.ref.asset_key), size, srcFps, sourceFrame(clip.ref, sceneT - clip.start, srcFps));
     }
-    const p = presenterOf(scene);
-    if (p && sceneT < p.t_exit) {
+    // the presenter (presenter.js): planned while he is on screen, his exit included, under the key that names his crop
+    const p = presenterSpec(scene);
+    if (p && presenterShown(p, sceneT)) {
       add('aadhi', /** @type {any} */ ({ duration: null, end_behavior: 'clamp' }), p.clip_key, p.size, p.src_fps,
-        Math.floor(sceneT * p.src_fps + 1e-6));
+        presenterFrame(p, sceneT), p.key, p.crop);
     }
   };
   const lo = Math.max(0, Math.floor(f0));
@@ -253,24 +258,13 @@ export function mediaPlan(timeline, f0, f1, boxFor) {
 }
 
 /**
- * The presenter clip of a scene's look (`ResolvedLook.presenter`, resolved by B2), normalised; null without one.
+ * The presenter clip of a scene's look (`ResolvedLook.presenter`), normalised; null without one. presenter.js
+ * `presenterSpec` (step 5: the crop, the exit and the entrance; the same values as before for a presenter without them).
  * @param {TimedScene} scene
- * @returns {{clip_key: string, rect: Rect, t_exit: number, src_fps: number, size: [number, number], url: string | null} | null}
+ * @returns {import('./presenter.js').PresenterSpec | null}
  */
 export function presenterOf(scene) {
-  const p = scene.look && scene.look.presenter;
-  if (!p || typeof p.clip_key !== 'string' || !p.clip_key || !Array.isArray(p.rect) || p.rect.length !== 4) return null;
-  const [x, y, w, hh] = p.rect.map(Number);
-  if (![x, y, w, hh].every(Number.isFinite) || w <= 0 || hh <= 0) return null;
-  const tExit = Number(p.t_exit);
-  return {
-    clip_key: p.clip_key,
-    rect: { x, y, w, h: hh },
-    t_exit: Number.isFinite(tExit) ? tExit : Number(scene.duration),
-    src_fps: Number(p.src_fps) > 0 ? Number(p.src_fps) : 24,
-    size: [even(w), even(hh)],
-    url: typeof p.url === 'string' ? p.url : null,
-  };
+  return presenterSpec(scene);
 }
 
 // ---------------------------------------------------------------------------------------------

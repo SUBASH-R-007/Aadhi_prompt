@@ -3195,6 +3195,83 @@ fallback's reason), `docs/plans/b2/demo_frames/index.html`.
   `aadhi_intro` is the one that would put the Aadhi presenter back into a Dynamic video, which no template does
   today.
 
+**Status (B2 step 5, 2026-10-17): the owner's four decisions, seven more templates, engine generation 5.** Built by
+`docs/plans/b2/step5_workflow.js` (seven parallel builders, one integrator). **Twenty-one of the 23 R1 templates now
+draw** (unbuilt: `thumbnail`, `interactive_poster`). Record: `final_videos/demo_b2/README.md` (the per-scene table and
+every remaining fallback's reason), `docs/plans/b2/demo_frames/index.html`, the deviation register (plan §D, 37-44).
+- **Built.** `aadhi_intro` (the four 16:9 layouts and the 9:16 card, the presenter frame-extraction cache under
+  `RENDER_WORK_DIR/derivatives/aadhi`, the brand wipe into the next scene's colour) and `aadhi_recap`
+  (`dynamic/presenter.py`, `web/js/dynamic/presenter.js`); `chart_build` with a reusable chart engine (`_charts.js`,
+  `charts.py`: Chart.js draws marks and gridlines only, every label is page text); `myth_fact`; `outro_next`;
+  `code_walkthrough`; `kinetic_statement`; and the reel adaptations in `check`, `key_terms`, `worked_steps` and
+  `_shared.js` (`reels.py`).
+- **Wired in.** The timeline builder synthesises Aadhi's intro for every Dynamic video (and, in 16:9, his recap card
+  before the lecture's retrieval recap when `Presentation.aadhi_recap`; `DYNAMIC_AADHI_INTRO=false` turns both off); the
+  director forces the presenter templates on those scenes, tries §4.4's positional "Last scene" row first (so a
+  closing takeaway ends on `outro_next`), gives the graph row `chart_build` while `function_plot` is unbuilt, and
+  rewrites a 9:16 panelled scene's events for its panel beat; the timeline gives that scene a narration lead, holds an
+  `end_screen` outro to 15 s and writes `refs.next` from a caller's `next_title` only; the resolver stores
+  `code.surface` on `code_walkthrough`'s scenes; `events.py` reveals a chart's bar or point on the word that names it
+  and walks a code hold line by line; `cues.js` colours a look_here outline on the dark editor from `content_alt`
+  (`TemplateModule.cueMode`); chart and graph panels are plots in every template that draws panels through
+  `_shared.js` (`job.py` stops warning for those); `QuizTiming.option_misconception_ids` (Dynamic builds only).
+  `ENGINE_VERSION` is 5 (presentation.py, engine.js and every pin), so stored Dynamic timelines rebuild when served.
+- **Found by the integration and fixed at the root: the reels decision blocked the 9:16 showcase.** With a reel quiz
+  drawn as a two-option `check` and a reel side panel as `worked_steps`' own beat, the first 9:16 render was refused
+  by preflight: s9's 23-word question and 15-word explanation and s11 / s12's 17- and 13-word headings do not fit the
+  reel's slots at their minimum sizes (the F3 lesson again: the fits took the shape, not the text). The fits now take a
+  9:16 scene only when its text fits (`templates.py REEL_WRAP`: a greedy word wrap at per-slot capacities measured with
+  textfit, never fewer lines than the certified fit on 1,900 samples per slot, pinned by a test), so those three fall
+  back whole and the reel adaptations draw the scenes whose text a reel holds.
+- **The demo.** In 16:9 the showcase lecture opens with Aadhi and draws **12 of its 16 scenes with a B2 template**,
+  plus Aadhi's intro: `s5` is `myth_fact` (owner decision 3) and `s11`'s graph is a real plot. In 9:16 it draws 6
+  plus the intro. All four builds pass preflight with zero findings. (The integration's 16:9 builds also showed the
+  recap card before `s3`; the review's R5-1 below removed it.)
+- **Review fixes (step-5 review, 2026-10-17), each with a test that fails without it.** (R5-1) The 16:9 recap card
+  went before the *first* recap scene, in the showcase `s3` "Previously in ..." (prior knowledge, a `list_build` list),
+  so Aadhi asked "Quick check: what are the 3 big ideas?" before anything was taught. It now goes before the
+  lecture's retrieval recap: the last recap scene `recap_retrieval` draws (`direct.row_template`), never one ahead of
+  the first chapter card; a lecture with none, the showcase included, has no card. (R5-2) A screenplay's own presenter
+  scene with an empty board (the session title as the scene's title) fitted no template, so the video opened with
+  `board_generic` and no Aadhi: `aadhi_intro` takes the scene's own title when the board has no heading (fit and page
+  changed together, the parity gate extended to presenter scenes), and an intro is synthesised before a first
+  presenter scene the template does not draw (a teacher's lock on another template). (R5-3) The render's
+  "cannot be rendered yet (scene N)" message counted timeline positions, one or two past the editor's numbers once the
+  intro (and recap) are in; it names the editor's scene and calls a synthesised appearance "Aadhi's intro" /
+  "Aadhi's recap" (with "shorten the session title" as the action for the intro), and the Studio no longer numbers
+  such an item "Scene 1" (`web/js/studio/lib/sceneName.js`). (R5-4) A lecture opening with its own title scene showed
+  the session title twice in a row; the intro then names the unit (else the subject) and the chip leaves that part
+  out (reading recorded in `presenter.py`: drawing that scene as the presenter scene would put the narrator's voice
+  and an unbounded line on Aadhi, against §5.5 and R-13). (R5-5) The 9:16 intro cut the session title at 32
+  characters ("Ohm's Law - The Rule That Runs…") although the headline holds it: the title is set whole in both
+  formats, and one that does not fit is reported, so preflight asks for a shorter one.
+- **Gates (integration, 2026-10-17; no review round yet).** ruff, `tsc`, `git diff --check` and all ten
+  generated-file checks clean; the fast suite 5,820 passed, 5 skipped, 0 failed; `npm test` 1,934 tests (1,933 pass,
+  1 skipped); real Chromium: `test_template_fixtures` 95 passed and 1 strict `xfail` (the 1x/3x/reverse frame-hash
+  gate on all 96 fixtures; the xfail is the stage defect below), `test_template_pages` 289 passed (real preflight on
+  every fixture as served and with captions burned: zero blocking and zero `type_floor` findings),
+  `test_template_clips` 5, `test_presenter_pages` 8 (Aadhi from the real clip's cached crop, order-independent, drawn
+  1:1), the stage set (`test_board_real_page`, `test_stage_layout`, `test_live_css`, `test_stage_fonts`,
+  `test_preflight_stage`) 35; the classic invariance differential against `8561a44` 16 passed, so classic output is
+  unchanged. The 378 earlier reference frames came out byte-identical; the contact sheet gained 169 frames of the new
+  templates (547).
+- **Open (owner).** (1) **A stage determinism defect** the `outro_next.landscape` fixture reproduces: after a
+  crossfade, a translucent burned caption pill over the next scene blends one colour level differently by seek
+  history (Chromium keeps the layers composited only when the page played through the crossfade). The measured fix,
+  `will-change: opacity` on `.dyn-scene`, makes every order agree but changes 7,314 of 26,112 frames in 67 of the 96
+  template fixtures, so it was not applied; the fixture's gate is a strict `xfail` naming it. (2) `media_split` and
+  `board_generic` still draw a chart or graph panel's title, not the plot (`job.py` warns): wiring the chart engine
+  there needs a measured camera push over a canvas, and `board_generic` must keep B1 timelines' frames (an
+  engine-generation gate). (3) The reel's slots cannot hold the showcase's s9 / s11 / s12 text: a reel-specific text
+  (B4's planner) or larger reel slots. (4) Aadhi is silent until the Aadhi voice and the greeting / sign-on pools
+  (B3 / B4); the logo bug and the sonic logo are not drawn; a 9:16 Aadhi recap needs B4's per-format option; the
+  teacher's last-used intro layout needs the history (§5.3). (5) `refs.next` has no source until B4's series. (6)
+  Every size, limit and timing of the seven templates is a B2 proposal pending the owner's review of the reference
+  frames (plan §D 37-44); pie, doughnut and radar charts are title cards; `kinetic_statement`'s caption blanking is
+  B2d's. (7) Two readings from the review fixes: the intro names the unit when the lecture's first scene already shows
+  the session title (R5-4), and a session title the intro's slot cannot hold now blocks the render until it is
+  shortened, where it used to be cut (R5-5); a lint before TTS (§3.3 `portrait.hook_overflow`) would catch it earlier.
+
 #### B3. Audio system (in parallel with B1–B2)
 
 **Scope**

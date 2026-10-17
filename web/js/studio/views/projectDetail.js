@@ -36,6 +36,7 @@ import { loadDraft } from '../lib/draftStore.js';
 import { showTechnical } from '../lib/debug.js';
 import { projectStage } from '../lib/lessonStage.js';
 import { nameKey, uniqueJoin } from '../lib/names.js';
+import { appearanceName, sceneNumberOf } from '../lib/sceneName.js';
 import { errorMessage } from '../errors.js';
 import { createOptionsForm } from './optionsFields.js';
 import { pageHeader, breadcrumbs, versionPrimaryLink, jobModal, EDITABLE_STATUSES } from './common.js';
@@ -652,28 +653,20 @@ export function mount(container, { app, params, query }) {
     );
   }
 
-  /**
-   * A preflight item's scene number as the editor's scene list shows it (`scene_number`, skipped scenes counted);
-   * older servers and stored render warnings without it: the timeline position.
-   * @param {any} it
-   * @returns {number | null}
-   */
-  function sceneNumberOf(it) {
-    return Number.isInteger(it.scene_number) ? it.scene_number : Number.isInteger(it.scene_index) ? it.scene_index + 1 : null;
-  }
-
   /** @param {any} it quality preflight item */
   function qualityLine(it) {
     if (!it.scene_id && !it.code) return it.message; // "N more ...: see Issues in the editor"
     const num = sceneNumberOf(it);
-    const where = num !== null ? `Scene ${num}${it.title ? ` (${it.title})` : ''}` : it.scene_id ? it.title || it.scene_id : 'Whole lecture';
+    const named = appearanceName(it);
+    const where = num !== null ? `Scene ${num}${it.title ? ` (${it.title})` : ''}` : named ? `${named}${it.title ? ` (${it.title})` : ''}` : it.scene_id ? it.title || it.scene_id : 'Whole lecture';
     return `${it.severity === 'error' ? 'Needs fixing' : 'Please check'}: ${where}: ${it.message}`;
   }
 
   /** @param {any} it preflight item / render warning */
   function sceneNote(it) {
+    // the editor's number; Aadhi's synthesised intro or recap (not in the editor) by its name (lib/sceneName.js)
     const num = sceneNumberOf(it);
-    const where = num !== null ? `Scene ${num}` : 'A scene';
+    const where = num !== null ? `Scene ${num}` : appearanceName(it) || 'A scene';
     return `${where}${it.title ? ` (${it.title})` : ''}: ${it.message || it.reason || ''}`;
   }
 

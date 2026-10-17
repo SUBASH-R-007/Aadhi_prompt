@@ -149,7 +149,7 @@ test('the real stage module loads on demand and paints the lecture', async () =>
 });
 
 test('a Dynamic timeline of a newer look engine is refused before anything is built (timeline_invalid, as the render page)', async () => {
-  for (const v of [5, 9]) {
+  for (const v of [6, 9]) {
     const fake = fakeStage();
     const { player, root } = setup({ createDynamicStage: fake.create });
     const tl = dynamicTimeline('portrait');
@@ -159,8 +159,9 @@ test('a Dynamic timeline of a newer look engine is refused before anything is bu
     assert.equal(player.timeline, null, 'nothing was loaded');
     const stage = /** @type {HTMLElement} */ (root.querySelector('.ap-stage'));
     assert.equal(stage.style.width, '1920px', 'not even resized for the reel');
-    // the same player loads a timeline it can draw afterwards: step 4's, the director's, B2a's and B1's look engines
-    const drawn = [4, 3, 2, 1];
+    // the same player loads a timeline it can draw afterwards: step 5's, step 4's, the director's, B2a's and B1's look
+    // engines
+    const drawn = [5, 4, 3, 2, 1];
     for (const ok of drawn) {
       tl.presentation.engine_version = ok;
       await player.load(tl);
@@ -173,7 +174,7 @@ test('a Dynamic timeline of a newer look engine is refused before anything is bu
   const fake = fakeStage();
   const { player } = setup({ createDynamicStage: fake.create, waitForFonts: false }, { mode: 'render' });
   const tl = dynamicTimeline();
-  tl.presentation.engine_version = 5;
+  tl.presentation.engine_version = 6;
   await player.load(tl);
   assert.equal(fake.rec.created.length, 0);
 });

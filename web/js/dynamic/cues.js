@@ -478,6 +478,24 @@ export function cueNeeds(scene, templateId) {
 }
 
 /**
+ * The colour of a look_here outline on `target`: the `focus` of the palette of the surface the target is drawn on, when
+ * the template says it is not the scene's own (`TemplateModule.cueMode`: code_walkthrough's dark editor in a light
+ * family, whose outline takes `presentation.content_alt`'s focus, the pair themes.py validates on the code surface);
+ * else the scene's `focus`. Decided once per cue at build time: a target's surface never changes with t.
+ * @param {TemplateModule} template @param {TemplateContext} ctx @param {Roles} roles @param {string} target
+ * @param {string} own   the scene's focus colour
+ */
+function outlineColour(template, ctx, roles, target, own) {
+  const mode = typeof template.cueMode === 'function' ? template.cueMode(ctx, target) : null;
+  if (!mode || mode === roles.mode) return own;
+  try {
+    return roles.on(mode).color('focus');
+  } catch {
+    return own; // no palette of that mode in the timeline: the scene's own
+  }
+}
+
+/**
  * @param {object} opts
  * @param {TemplateModule} opts.template
  * @param {TemplateContext} opts.ctx
@@ -505,7 +523,8 @@ export function createCues({ template, ctx, events, layer, camera, termStyle: st
     svgEl.setAttribute('viewBox', `0 0 ${ctx.zones.width} ${ctx.zones.height}`);
     for (let i = 0; i < looks.length; i++) {
       const path = svg('path', {
-        class: 'dyn-cue-outline', fill: 'none', stroke: focusColour, 'stroke-width': String(FOCUS_PX),
+        class: 'dyn-cue-outline', fill: 'none', stroke: outlineColour(template, ctx, roles, looks[i].target, focusColour),
+        'stroke-width': String(FOCUS_PX),
         'stroke-linecap': 'round', 'stroke-linejoin': 'round',
       });
       // hidden until drawn; its style attribute comes first, so the DOM of a frame never depends on the order of seeks

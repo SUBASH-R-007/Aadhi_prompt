@@ -11,6 +11,8 @@
  *     anchor(ctx) -> {el, rect} | null            the shared-element morph's source / target
  *     mediaBox(scene, zones, mode, slot, fixes) -> {w, h} | null   static: the largest box `slot`'s medium is shown in
  *     tex(scene, look, fmt) -> [{tex, display}]   static: every TeX string the template renders for the scene
+ *     cueMode(ctx, target) -> 'dark' | 'light' | null   optional: the colour mode of the surface a look_here target is
+ *                                                 drawn on when it is not the scene's own (cues.js colours its outline)
  *   }
  *
  * `build` creates the DOM (no measuring), `layout` measures and fits it once the fonts, TeX and pictures are in
@@ -133,6 +135,9 @@
  * @property {(scene: import('../../shared/types.js').TimedScene,
  *   look: import('../../shared/types.js').ResolvedLook | null, fmt: 'landscape' | 'portrait')
  *   => {tex: string, display: boolean}[]} [tex]
+ * @property {(ctx: TemplateContext, target: string) => 'dark' | 'light' | null} [cueMode]   the colour mode of the
+ *   surface a look_here target is drawn on when it is not the scene's own (cues.js colours the outline from that
+ *   mode's `focus`); null or absent: the scene's own
  */
 
 /**

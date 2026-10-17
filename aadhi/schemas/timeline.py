@@ -144,6 +144,8 @@ class ResolvedSidePanel(StrictModel):
 
 
 class QuizTiming(StrictModel):
+    V3_FIELDS: ClassVar[dict[str, str]] = {"option_misconception_ids": "presentation"}
+
     question: str
     options: list[str]
     correct_index: int
@@ -152,6 +154,10 @@ class QuizTiming(StrictModel):
     countdown_start: float  # scene-relative
     countdown_seconds: int
     reveal_start: float  # scene-relative
+    # Dynamic builds only (a classic timeline never carries it): the misconception each option diagnoses, in option
+    # order (QuizScene.option_misconception_ids), so a reel's two-option check shows the strongest distractor
+    # (check.js strongestDistractor; owner decision 4). Left out when empty.
+    option_misconception_ids: list[str | None] = Field(default_factory=list, exclude_if=lambda v: not v)
 
 
 class SyncCue(StrictModel):

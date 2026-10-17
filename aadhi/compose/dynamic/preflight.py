@@ -70,6 +70,7 @@ from ..base import timeline_stage
 from ..motion.chunks import scene_frame_bounds, total_frames
 from . import zones
 from .colour import text_contrast
+from .presenter import APPEARANCE_NAMES, appearance_of
 from .stage_page import StageInfo, StagePage, StageScene, placeholder_frames, stage_browser
 
 PREFLIGHT_SCHEMA = 1
@@ -633,23 +634,73 @@ class PreflightResult:
                 "preflight": summary, "problems": list(summary["problems"]), "warnings": list(summary["warnings"])}
 
 
-class PreflightBlocked(FatalJobError):
-    """The render cannot start: a preflight check failed and its remedy did not fix it (teacher action needed)."""
+#: What the teacher does about a block on a synthesised Aadhi appearance: its text is not a scene's (the intro sets the
+#: lecture's session title, else its unit or subject name; ``presenter.intro_title``), so "Shorten text" would send
+#: them looking for a scene that is not in the editor.
+ACTION_SHORTEN_INTRO = "Shorten the lecture's session title (or the unit name Aadhi's intro shows)"
 
-    def __init__(self, result: PreflightResult) -> None:
+
+def where_of(scene_ids: Sequence[str | None], numbers: Mapping[str, int]) -> list[str]:
+    """How the teacher finds each scene of ``scene_ids`` (in order, each once): "scene N" by the editor's numbering
+    (``numbers``: screenplay id -> its 1-based position, hidden scenes counted, as ``api.routers.renders.scene_numbers``
+    and the render job's ``numbers`` give it), or "Aadhi's intro" / "Aadhi's recap" for an appearance the timeline
+    builder synthesised (``presenter.appearance_of``: no screenplay scene, so no number). Never the timeline position:
+    every Dynamic timeline opens with the synthesised intro (and a 16:9 one may hold the recap), so that is one or two
+    past the editor's number (step-5 review R5-3). An id in neither is named by itself (never in a built timeline)."""
+    out: list[str] = []
+    for sid in scene_ids:
+        if not sid:
+            continue
+        kind = _synthesised(sid, numbers)
+        label = (APPEARANCE_NAMES[kind] if kind is not None else f"scene {numbers[sid]}" if sid in numbers
+                 else f"scene {sid}")
+        if label not in out:
+            out.append(label)
+    return out
+
+
+def _synthesised(scene_id: str, numbers: Mapping[str, int]) -> str | None:
+    """``intro`` / ``recap`` for a synthesised Aadhi appearance (no screenplay scene has its id), else None."""
+    return None if scene_id in numbers else appearance_of(scene_id, numbers)
+
+
+def playing_numbers(result: PreflightResult) -> dict[str, int]:
+    """The editor's numbers as far as the timeline alone tells them, for a caller without the screenplay's: each scene
+    by its position among the scenes that play, the synthesised appearances not counted (a hidden scene, which the
+    editor counts and the timeline leaves out, is the one difference)."""
+    out: dict[str, int] = {}
+    for index in sorted(result.scenes):
+        sid = result.scenes[index][0]
+        if sid and appearance_of(sid, ()) is None:
+            out[sid] = len(out) + 1
+    return out
+
+
+class PreflightBlocked(FatalJobError):
+    """The render cannot start: a preflight check failed and its remedy did not fix it (teacher action needed).
+    ``numbers``: the editor's scene numbers (:func:`where_of`; without them, :func:`playing_numbers`), so the message
+    names the scene the teacher sees, and a block on Aadhi's synthesised intro asks for a shorter session title."""
+
+    def __init__(self, result: PreflightResult, numbers: Mapping[str, int] | None = None) -> None:
+        known = dict(numbers) if numbers is not None else playing_numbers(result)
         blocking = [i for i in result.items() if i["blocking"]]
-        scenes = sorted({i["scene_index"] + 1 for i in blocking if i["scene_index"] is not None})
-        where = f" (scene {', '.join(map(str, scenes))})" if scenes else ""
-        super().__init__(f"The video cannot be rendered yet{where}: {blocking[0]['message']} "
-                         f"{blocking[0]['action']} and render again." if blocking else "preflight failed",
-                         code="preflight_blocked")
+        names = where_of([i["scene_id"] for i in blocking], known)  # items() is in scene order
+        where = f" ({', '.join(names)})" if names else ""
+        message = "preflight failed"
+        if blocking:
+            first = blocking[0]
+            intro = bool(first["scene_id"]) and _synthesised(str(first["scene_id"]), known) == "intro"
+            action = ACTION_SHORTEN_INTRO if intro else first["action"]
+            message = f"The video cannot be rendered yet{where}: {first['message']} {action} and render again."
+        super().__init__(message, code="preflight_blocked")
         self.result = result
 
 
-def raise_if_blocked(result: PreflightResult) -> None:
-    """Raise :class:`PreflightBlocked` (a FatalJobError, code ``preflight_blocked``) when anything blocks."""
+def raise_if_blocked(result: PreflightResult, numbers: Mapping[str, int] | None = None) -> None:
+    """Raise :class:`PreflightBlocked` (a FatalJobError, code ``preflight_blocked``) when anything blocks; ``numbers``
+    as there."""
     if not result.ok:
-        raise PreflightBlocked(result)
+        raise PreflightBlocked(result, numbers)
 
 
 # ---------------------------------------------------------------------------

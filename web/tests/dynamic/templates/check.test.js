@@ -158,7 +158,9 @@ test('kindOf / variantOf / showsLetters: the kind comes from the data, and it is
   assert.equal(kindOf(withOptions(3)), 'mcq');
   assert.equal(kindOf(withOptions(4)), 'mcq');
   assert.equal(variantOf(withOptions(4), 'landscape'), 'mcq');
-  assert.equal(variantOf(withOptions(4), 'portrait'), 'free_recall', '9:16 has no mcq variant (§4.3)');
+  // owner decision 4: a reel mcq is drawn as a two-option check (its correct answer and strongest distractor), whose
+  // variant is the two-option `true_false` (9:16 has no mcq variant, §4.3; reels.test.js pins the reduction)
+  assert.equal(variantOf(withOptions(4), 'portrait'), 'true_false');
   assert.equal(variantOf(withOptions(2), 'portrait'), 'true_false');
   assert.equal(variantOf(recall, 'landscape'), 'free_recall');
   assert.ok(showsLetters(withOptions(3)) && showsLetters(withOptions(4)));
@@ -178,7 +180,8 @@ test('drawsScene: a quiz within the format\'s option cap, or one blank question;
   const question = { id: 'q1', kind: 'question', text: 'Name it.', justification: 'The current.', blank: true };
   assert.ok(drawsScene(quiz(4), 'landscape'));
   assert.ok(drawsScene(quiz(2), 'portrait'));
-  assert.ok(!drawsScene(quiz(4), 'portrait'), '§4.3: 9:16 takes two options, and more is board_generic\'s whole scene');
+  // owner decision 4: 9:16 draws two options, and reduces more to the answer and the strongest distractor
+  assert.ok(drawsScene(quiz(4), 'portrait') && drawsScene(quiz(5), 'portrait'), 'a reel mcq is a two-option check');
   assert.ok(!drawsScene(quiz(5), 'landscape'), 'the schema allows 5 options; §4.3 draws at most 4');
   assert.deepEqual({ ...MAX_OPTIONS }, { landscape: 4, portrait: 2 }, 'templates.py CHECK_MAX_OPTIONS');
   assert.ok(!drawsScene(/** @type {any} */ ({ quiz: { question: '', options: ['a', 'b'], correct_index: 0, explanation: '' } }), 'landscape'), 'no question');
@@ -203,21 +206,22 @@ test('drawsScene: a quiz within the format\'s option cap, or one blank question;
 });
 
 test('a scene this template does not draw is drawn by board_generic whole, every hook handed on', async () => {
-  // the 9:16 build of a four-option lesson quiz: more options than §4.3 gives the reel, so board_generic's stack
-  // draws it (nothing is dropped, plan §1.4 invariant 2)
-  const tl = load('check.portrait.json');
+  // a five-option lesson quiz in 16:9 (the schema allows 5): more options than §4.3's mcq takes, so board_generic's
+  // stack draws it (nothing is dropped, plan §1.4 invariant 2). (A 9:16 quiz of any size is the reel's two-option
+  // check since owner decision 4: reels.test.js.)
+  const tl = load('check.landscape.json');
   const i = forms(tl).quiz;
-  tl.scenes[i].quiz.options = ['It stays the same', 'It doubles', 'It halves', 'It is used up faster'];
-  tl.scenes[i].quiz.feedback_wrong = ['', '', '', ''];
-  assert.ok(!drawsScene(tl.scenes[i], 'portrait'));
+  tl.scenes[i].quiz.options = ['It stays the same', 'It doubles', 'It halves', 'It is used up faster', 'It reverses'];
+  tl.scenes[i].quiz.feedback_wrong = ['', '', '', '', ''];
+  assert.ok(!drawsScene(tl.scenes[i], 'landscape'));
   const run = renderStage(tl, { templates: { check }, renderTex: recordingTex().renderTex });
   await run.stage.seek(Math.round(tl.scenes[i].start * tl.fps) + 30);
   assert.ok(run.stage.el.querySelector('.dyn-board'), 'board_generic drew it');
   assert.equal(run.stage.el.querySelector('.dyn-ck'), null);
-  assert.deepEqual(check.tex?.(tl.scenes[i], tl.scenes[i].look, 'portrait'),
-    boardGeneric.tex?.(tl.scenes[i], tl.scenes[i].look, 'portrait'));
-  assert.deepEqual(check.mediaBox?.(tl.scenes[i], ZONES.portrait, 'render', 'main', { safe: false, slots: {} }),
-    boardGeneric.mediaBox?.(tl.scenes[i], ZONES.portrait, 'render', 'main', { safe: false, slots: {} }));
+  assert.deepEqual(check.tex?.(tl.scenes[i], tl.scenes[i].look, 'landscape'),
+    boardGeneric.tex?.(tl.scenes[i], tl.scenes[i].look, 'landscape'));
+  assert.deepEqual(check.mediaBox?.(tl.scenes[i], ZONES.landscape, 'render', 'main', { safe: false, slots: {} }),
+    boardGeneric.mediaBox?.(tl.scenes[i], ZONES.landscape, 'render', 'main', { safe: false, slots: {} }));
   run.done();
 });
 

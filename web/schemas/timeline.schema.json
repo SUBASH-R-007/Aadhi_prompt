@@ -1693,6 +1693,20 @@
     "reveal_start": {
      "title": "Reveal Start",
      "type": "number"
+    },
+    "option_misconception_ids": {
+     "items": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "title": "Option Misconception Ids",
+     "type": "array"
     }
    },
    "required": [

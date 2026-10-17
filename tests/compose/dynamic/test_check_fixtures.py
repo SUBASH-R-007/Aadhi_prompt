@@ -101,7 +101,10 @@ def test_every_board_scene_is_one_the_template_prefers() -> None:
             board = BoardScene(id=scene.scene_id, type="content", title=scene.title, board=items,
                                intent=SceneIntent(narrative_role="check"),
                                beats=[Beat(id="b0", narration="x", board_item_id=items[0].id)])
-            for fmt in ("landscape", "portrait"):
+            # in 16:9 every board check; in 9:16 the ones written for the reel (step 5: a 16:9 fixture's longer text
+            # is past the reel's slots, templates.py REEL_WRAP, and the reel takes such a scene to board_generic)
+            fmts = ("landscape", "portrait") if tl.presentation.format == "portrait" else ("landscape",)
+            for fmt in fmts:
                 assert spec.fit(board, fmt) == tp.FIT_PREFERRED, f"{name}: {scene.scene_id} in {fmt}"
 
 

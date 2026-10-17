@@ -1,0 +1,603 @@
+{
+  "board_language": "en-IN",
+  "branding": {
+    "bgm_url": "/branding/bgm.mp3",
+    "bgm_volume": 0.06,
+    "ding_url": null,
+    "mascot_clips": {
+      "center": "/branding/aadhi_center_clean.mp4",
+      "hidden": "/branding/no_aadhi_clean.mp4",
+      "left": "/branding/aadhi_left_clean.mp4",
+      "popup_bottom_left": "/branding/aadhi_popup_clean.mp4",
+      "popup_bottom_right": "/branding/aadhi_popup_clean.mp4",
+      "right": "/branding/aadhi_right_clean.mp4"
+    },
+    "mascot_rig_url": null,
+    "static_background_url": "/branding/static_background.png",
+    "tick_url": null
+  },
+  "captions": [
+    {
+      "end": 11.9,
+      "start": 10.5,
+      "text": "What makes current flow? Think about it."
+    },
+    {
+      "end": 13.65,
+      "start": 12.65,
+      "text": "Voltage pushes, current\nflows, resistance limits."
+    }
+  ],
+  "chapters": [
+    {
+      "start": 0.0,
+      "title": "Introduction"
+    },
+    {
+      "start": 10.0,
+      "title": "Ohm's Law"
+    }
+  ],
+  "concept_map": [
+    {
+      "depends_on": [],
+      "id": "basics",
+      "kind": "core",
+      "summary": "",
+      "title": "Charge and Current"
+    },
+    {
+      "depends_on": [
+        "basics"
+      ],
+      "id": "ohm",
+      "kind": "core",
+      "summary": "",
+      "title": "Ohm's Law"
+    }
+  ],
+  "estimated": false,
+  "fps": 30,
+  "height": 1080,
+  "intro": null,
+  "language": "en-IN",
+  "learning_objectives": [],
+  "meta": {
+    "asset_storage_keys": {
+      "scene_audio-s-recap": "assets/scene_audio/scene_audio-s-recap/x.mp3"
+    },
+    "session_number": "Session 3",
+    "session_title": "Ohm's Law",
+    "subject_name": "Basic Electrical Engineering",
+    "unit_name": "Unit 2: DC Circuits"
+  },
+  "presentation": {
+    "caption_style": "clean_pill",
+    "captions_burn": true,
+    "content": {
+      "entity:0": "#0FE3FE",
+      "entity:1": "#C4A4FE",
+      "entity:2": "#FEACE3",
+      "focus": "#F2D935",
+      "ink": "#F3F5F9",
+      "ink2": "#B9BEC7",
+      "mark": "#F2D935",
+      "ok": "#5DD8AA",
+      "warn": "#F8A87F"
+    },
+    "content_alt": {
+      "entity:0": "#0267C7",
+      "entity:1": "#80369E",
+      "entity:2": "#870C62",
+      "focus": "#141822",
+      "ink": "#141822",
+      "ink2": "#484D58",
+      "mark": "#F2D935",
+      "ok": "#016F50",
+      "warn": "#9F4503"
+    },
+    "cue_term_style": "marker",
+    "engine_version": 5,
+    "entity_colors": {
+      "I": 1,
+      "R": 2,
+      "V": 0
+    },
+    "family": "deep_teal",
+    "fonts": {
+      "body": "inter",
+      "display": "outfit",
+      "indic": "noto_sans",
+      "mono": "jetbrains_mono"
+    },
+    "format": "landscape",
+    "generated_seconds": 14.45,
+    "mode": "dark",
+    "motion": "calm",
+    "motion_scale": 1.15,
+    "personality": "soft",
+    "safe_zone": "universal",
+    "sfx": false,
+    "style": "dynamic",
+    "text_entrance": "fade_rise"
+  },
+  "scenes": [
+    {
+      "audio_asset_key": null,
+      "audio_duration": 0.0,
+      "audio_offset": 0.8,
+      "audio_url": null,
+      "beats": [],
+      "board": [
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "title",
+          "justification": null,
+          "kind": "heading",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "Ohm's Law",
+          "variables": []
+        }
+      ],
+      "chapter_id": null,
+      "chapter_label": null,
+      "concept_id": null,
+      "duration": 5.0,
+      "figures": {},
+      "index": 0,
+      "layout": {
+        "fullscreen_media": false,
+        "mascot_position": "hidden",
+        "show_side_panel": false
+      },
+      "look": {
+        "background": {
+          "frozen_at": null,
+          "params": {
+            "tone": "bg"
+          },
+          "preset": "mesh_drift",
+          "seed": 1738420021
+        },
+        "hold_reason": null,
+        "presenter": {
+          "clip_key": "aadhi_left_clean.mp4",
+          "crop": [
+            0,
+            0,
+            720,
+            720
+          ],
+          "enter_kind": "none",
+          "exit_kind": "wipe",
+          "exit_s": 0.6,
+          "layout": "card_left",
+          "radius": 40,
+          "rect": [
+            96,
+            180,
+            720,
+            720
+          ],
+          "src_fps": 24,
+          "t_exit": 4.4
+        },
+        "refs": {
+          "accent_next": "#7B64A8"
+        },
+        "template": "aadhi_intro",
+        "text_fit": {},
+        "tokens": {
+          "bg": "#001B1C",
+          "bg-alt": "#002527",
+          "bg-tint": "#251118",
+          "block.base": "#7B64A8",
+          "block.highlight": "#A970B6",
+          "block.ink": "#FFFFFF",
+          "block.ink2": "#F1EFF7",
+          "scrim": "#001B1CC7",
+          "struct.accent": "#FF89B0",
+          "surface": "#0E3133"
+        },
+        "transition_in": {
+          "kind": "cut",
+          "seconds": 0.0
+        },
+        "variant": "card_left"
+      },
+      "media": null,
+      "objective_ids": [],
+      "p5_code": null,
+      "poster": null,
+      "quiz": null,
+      "scene_id": "aadhi-intro",
+      "side_panel": null,
+      "start": 0.0,
+      "subtitle": "Unit 2: DC Circuits · Session 3",
+      "title": "Ohm's Law",
+      "type": "title"
+    },
+    {
+      "audio_asset_key": null,
+      "audio_duration": 0.0,
+      "audio_offset": 0.8,
+      "audio_url": null,
+      "beats": [],
+      "board": [
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "prompt",
+          "justification": null,
+          "kind": "question",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "Quick check: what are the 3 big ideas?",
+          "variables": []
+        }
+      ],
+      "chapter_id": null,
+      "chapter_label": null,
+      "concept_id": null,
+      "duration": 5.0,
+      "figures": {},
+      "index": 1,
+      "layout": {
+        "fullscreen_media": false,
+        "mascot_position": "hidden",
+        "show_side_panel": false
+      },
+      "look": {
+        "background": {
+          "frozen_at": null,
+          "params": {
+            "tone": "bg-alt"
+          },
+          "preset": "mesh_drift",
+          "seed": 1209047036
+        },
+        "hold_reason": null,
+        "presenter": {
+          "clip_key": "aadhi_left_clean.mp4",
+          "crop": [
+            0,
+            0,
+            720,
+            720
+          ],
+          "enter_kind": "none",
+          "exit_kind": "fade",
+          "exit_s": 0.3,
+          "layout": "card_left",
+          "radius": 40,
+          "rect": [
+            96,
+            180,
+            720,
+            720
+          ],
+          "src_fps": 24,
+          "t_exit": 4.7
+        },
+        "template": "aadhi_recap",
+        "text_fit": {},
+        "tokens": {
+          "bg": "#001B1C",
+          "bg-alt": "#002527",
+          "bg-tint": "#251118",
+          "block.base": "#7B64A8",
+          "block.highlight": "#A970B6",
+          "block.ink": "#FFFFFF",
+          "block.ink2": "#F1EFF7",
+          "scrim": "#001B1CC7",
+          "struct.accent": "#FF89B0",
+          "surface": "#0E3133"
+        },
+        "transition_in": {
+          "kind": "crossfade",
+          "seconds": 0.45
+        },
+        "variant": "card_left"
+      },
+      "media": null,
+      "objective_ids": [],
+      "p5_code": null,
+      "poster": null,
+      "quiz": null,
+      "scene_id": "aadhi-recap",
+      "side_panel": null,
+      "start": 5.0,
+      "subtitle": null,
+      "title": "",
+      "type": "title"
+    },
+    {
+      "audio_asset_key": "scene_audio-s-recap",
+      "audio_duration": 3.15,
+      "audio_offset": 0.5,
+      "audio_url": null,
+      "beats": [
+        {
+          "beat_id": "s-recap-b1",
+          "board_item_id": "q1",
+          "captions": [
+            {
+              "end": 1.9,
+              "start": 0.5,
+              "text": "What makes current flow? Think about it."
+            }
+          ],
+          "end": 2.5,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 0,
+          "narration": "What makes current flow? Think about it.",
+          "phase": "main",
+          "speech_end": 1.5,
+          "start": 0.5,
+          "visual_cue": null,
+          "words": [
+            {
+              "end": 0.643,
+              "start": 0.5,
+              "text": "What"
+            },
+            {
+              "end": 0.786,
+              "start": 0.643,
+              "text": "makes"
+            },
+            {
+              "end": 0.929,
+              "start": 0.786,
+              "text": "current"
+            },
+            {
+              "end": 1.071,
+              "start": 0.929,
+              "text": "flow?"
+            },
+            {
+              "end": 1.214,
+              "start": 1.071,
+              "text": "Think"
+            },
+            {
+              "end": 1.357,
+              "start": 1.214,
+              "text": "about"
+            },
+            {
+              "end": 1.5,
+              "start": 1.357,
+              "text": "it."
+            }
+          ]
+        },
+        {
+          "beat_id": "s-recap-b2",
+          "board_item_id": "t1",
+          "captions": [
+            {
+              "end": 3.65,
+              "start": 2.65,
+              "text": "Voltage pushes, current\nflows, resistance limits."
+            }
+          ],
+          "end": 3.65,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 1,
+          "narration": "Voltage pushes, current flows, resistance limits.",
+          "phase": "main",
+          "speech_end": 3.65,
+          "start": 2.65,
+          "visual_cue": null,
+          "words": [
+            {
+              "end": 2.817,
+              "start": 2.65,
+              "text": "Voltage"
+            },
+            {
+              "end": 2.983,
+              "start": 2.817,
+              "text": "pushes,"
+            },
+            {
+              "end": 3.15,
+              "start": 2.983,
+              "text": "current"
+            },
+            {
+              "end": 3.317,
+              "start": 3.15,
+              "text": "flows,"
+            },
+            {
+              "end": 3.483,
+              "start": 3.317,
+              "text": "resistance"
+            },
+            {
+              "end": 3.65,
+              "start": 3.483,
+              "text": "limits."
+            }
+          ]
+        }
+      ],
+      "board": [
+        {
+          "blank": true,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "q1",
+          "justification": null,
+          "kind": "question",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "What makes current flow?",
+          "variables": []
+        },
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "t1",
+          "justification": null,
+          "kind": "takeaway",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "Voltage pushes",
+          "variables": []
+        },
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "t2",
+          "justification": null,
+          "kind": "takeaway",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "Current flows",
+          "variables": []
+        },
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "t3",
+          "justification": null,
+          "kind": "takeaway",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "Resistance limits",
+          "variables": []
+        }
+      ],
+      "chapter_id": null,
+      "chapter_label": null,
+      "concept_id": "ohm",
+      "duration": 4.45,
+      "events": [
+        {
+          "anchored": true,
+          "dur": null,
+          "kind": "reveal",
+          "sfx": null,
+          "t": 0.38,
+          "target": "q1",
+          "words": ""
+        },
+        {
+          "anchored": true,
+          "dur": null,
+          "kind": "reveal",
+          "sfx": null,
+          "t": 2.53,
+          "target": "t1",
+          "words": ""
+        }
+      ],
+      "figures": {},
+      "index": 2,
+      "layout": {
+        "fullscreen_media": false,
+        "mascot_position": "left",
+        "show_side_panel": false
+      },
+      "look": {
+        "background": {
+          "frozen_at": null,
+          "params": {
+            "tone": "bg"
+          },
+          "preset": "mesh_drift",
+          "seed": 990888306
+        },
+        "hold_reason": null,
+        "presenter": null,
+        "template": "recap_retrieval",
+        "text_fit": {},
+        "tokens": {
+          "bg": "#001B1C",
+          "bg-alt": "#002527",
+          "bg-tint": "#221505",
+          "block.base": "#6C7B23",
+          "block.highlight": "#998A0A",
+          "block.ink": "#14161C",
+          "block.ink2": "#162E3B",
+          "scrim": "#001B1CC7",
+          "struct.accent": "#F49F1E",
+          "surface": "#0E3133"
+        },
+        "transition_in": {
+          "kind": "crossfade",
+          "seconds": 0.45
+        },
+        "variant": null
+      },
+      "media": null,
+      "objective_ids": [],
+      "p5_code": null,
+      "poster": null,
+      "quiz": null,
+      "scene_id": "s-recap",
+      "side_panel": null,
+      "start": 10.0,
+      "subtitle": null,
+      "title": "Recap",
+      "type": "recap"
+    }
+  ],
+  "schema_version": 3,
+  "screenplay_revision": null,
+  "total_duration": 14.45,
+  "transition_seconds": 0.4,
+  "version_id": null,
+  "width": 1920
+}

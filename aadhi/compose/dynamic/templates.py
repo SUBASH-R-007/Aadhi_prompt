@@ -28,7 +28,7 @@ in ``formats``, or its §4.3 data requirements are not met (``data_fit``: the it
 panel it draws, the scene type it is forced for). Otherwise its value comes from the §4.4 rows the scene matches
 (:func:`signals`): :data:`FIT_PREFERRED` when a row names the template as preferred (or forced), :data:`FIT_ALTERNATIVE`
 when a row names it as an alternative, else ``0`` (variety never crosses a claim, §4.1 principle 3), capped at
-:data:`FIT_STRETCHED` when the data exceeds a text limit §4.3 states (words per item, code lines): the page measures
+:data:`FIT_STRETCHED` when the data exceeds a text limit §4.3 states (words per item): the page measures
 the pixels (plan §1.11), so such a scene still renders, but is never a post-pass swap target (``fit >= 0.6``, §4.4).
 ``board_generic`` is :data:`FIT_PREFERRED` for a board scene no other row claims (the §4.4 fallback row) and
 :data:`FIT_FALLBACK` for any other scene it can draw (B1 draws every non-clip scene type with it). Count limits that
@@ -40,6 +40,7 @@ Positional rows (the last scene's ``outro_next``; ``takeaway_stamp`` at a chapte
 
 from __future__ import annotations
 
+import math
 import re
 from collections import Counter
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -60,6 +61,8 @@ from ...schemas.screenplay import (
 )
 from ...schemas.timeline import TimedScene, VisualEvent, VisualEventKind
 from . import zones as zn
+from .charts import chart_build_slot_rows, chart_problem, draws_chart
+from .presenter import intro_slots, recap_slots
 from .themes import DERIVED_KEYS, PERSONALITIES
 from .zones import FORMATS, Format
 
@@ -488,11 +491,13 @@ def _panel(scene: SceneBase) -> str | None:
     return scene.side_panel.kind if scene.side_panel is not None else None
 
 
-def _draws_panel(scene: SceneBase) -> bool:
-    """Whether ``_shared.js drawsPanel`` draws the scene's side panel: it has none, or one of :data:`SHARED_PANELS` -
-    a ``chart`` / ``graph`` / ``model_3d`` panel only when it has the title that is all the shared helper can draw for
-    it. A template whose page uses the helper must ask exactly this in its ``fit`` (B2c review CG-2: a fit that takes
-    a scene the page refuses makes the director pick the template and the page silently draw board_generic)."""
+def _draws_panel(scene: SceneBase, fmt: Format = "landscape") -> bool:
+    """Whether ``_shared.js drawsPanel(scene, fmt)`` draws the scene's side panel: it has none, or one of
+    :data:`SHARED_PANELS` - a ``chart`` / ``graph`` drawn as a real plot when the chart engine takes it in the format's
+    layout (``charts.draws_chart``: 16:9 the template's side box, 9:16 the reel beat's column; owner decision 1), else
+    like a ``model_3d`` panel only when it has the title that is all the shared helper can draw for it. A template
+    whose page uses the helper must ask exactly this in its ``fit`` (B2c review CG-2: a fit that takes a scene the page
+    refuses makes the director pick the template and the page silently draw board_generic)."""
     panel = scene.side_panel
     if panel is None:
         return True
@@ -501,6 +506,10 @@ def _draws_panel(scene: SceneBase) -> bool:
         return False
     if kind == "terminal":
         return panel.terminal is not None
+    # a chart or graph the chart engine draws as a plot (_shared.js panelOf's layout: the reel beat's column in 9:16,
+    # the template's side box in 16:9)
+    if kind in ("chart", "graph") and draws_chart(panel, "portrait" if fmt == "portrait" else "panel"):
+        return True
     if kind in SHARED_PANEL_TITLED:
         return bool((panel.title or "").strip())
     return True
@@ -632,14 +641,15 @@ def signals(scene: SceneBase, *, last: bool = False, chapter_end: bool = False) 
     if _panel(scene) == "chart":
         out.append(Signal("chart", "quantity", "chart_build"))
     if _panel(scene) == "graph":
-        out.append(Signal("graph", "quantity", "function_plot"))
+        # chart_build draws a graph as a real plot while function_plot (W2) is unbuilt (owner decision 1, 2026-10-16)
+        out.append(Signal("graph", "quantity", "function_plot", ("chart_build",)))
     if _shape(scene, {"formula": (1, 1)}):
         out.append(Signal("formula", "formula", "formula_focus"))
     if _worked_shape(scene):
         out.append(Signal("example", "procedure", "worked_steps"))
     if _shape(scene, {"code": (1, 1)}):
         out.append(Signal("code", "code", "code_walkthrough"))
-    if _shape(scene, {"misconception": (1, 1)}):
+    if _myth_fact_shape(scene):
         out.append(Signal("misconception", "refutation", "myth_fact"))
     if role in ("predict", "check") and any(q.blank for q in _of(scene, "question")):
         out.append(Signal(role, "prompt", role))
@@ -670,13 +680,58 @@ def _never(scene: SceneBase, fmt: Format) -> float:
     return FIT_NONE
 
 
+# The words a presenter scene's hook / prompt may have (§3.3: 16:9 the intro's hook is part of Aadhi's <= 16 words; the
+# 9:16 headline <= 8 words; the recap prompt <= 12 / 10 words): beyond them the scene is stretched (the page measures).
+AADHI_HOOK_WORDS: Final[Mapping[Format, int]] = MappingProxyType({"landscape": 16, "portrait": 8})
+AADHI_PROMPT_WORDS: Final[Mapping[Format, int]] = MappingProxyType({"landscape": 12, "portrait": 10})
+
+
+def _presenter_board(scene: SceneBase) -> tuple[list[BoardItem], list[BoardItem], int] | None:
+    """(headings with text, questions with text, other items) of a presenter scene's board - aadhi_intro.js /
+    aadhi_recap.js ``introItems`` / ``recapItems``: any item of another kind counts (a figure has no text and is still
+    content), a heading or question without text draws nothing - or None for a scene that is not a presenter board
+    scene with no side panel."""
+    if not (isinstance(scene, BoardScene) and _presenter(scene)) or _panel(scene) is not None:
+        return None
+    heads: list[BoardItem] = []
+    questions: list[BoardItem] = []
+    others = 0
+    for item in _items(scene):
+        kind = str(getattr(item.kind, "value", item.kind))
+        has_text = bool((item.text or "").strip())
+        if kind not in ("heading", "question"):
+            others += 1
+        elif has_text:
+            (heads if kind == "heading" else questions).append(item)
+    return heads, questions, others
+
+
 def _fit_aadhi_intro(scene: SceneBase, fmt: Format) -> float:
-    # the opening BoardScene with look.presenter (Aadhi's words are linted on the beats: R-12, R-13)
-    return FIT_PREFERRED if isinstance(scene, BoardScene) and _presenter(scene) and scene.type != "recap" else FIT_NONE
+    # the opening BoardScene with look.presenter (Aadhi's words are linted on the beats: R-12, R-13): at most one
+    # heading (the title) and one question (the hook) with text, at least one of them, nothing else and no side panel
+    # (aadhi_intro.js drawsScene; B2c review CG-2). A board with no heading takes the scene's own title as the title
+    # (aadhi_intro.js introItems): a screenplay's presenter scene often carries the session title there with an empty
+    # board, and refusing it drew the opening with board_generic and no Aadhi (owner decision 2; step-5 review R5-2)
+    board = _presenter_board(scene)
+    if board is None or scene.type == "recap":
+        return FIT_NONE
+    heads, questions, others = board
+    titled = bool(heads) or bool((scene.title or "").strip())
+    if others or len(heads) > 1 or len(questions) > 1 or not (titled or questions):
+        return FIT_NONE
+    return _ok(not questions or _words(questions[0].text) <= AADHI_HOOK_WORDS[fmt])
 
 
 def _fit_aadhi_recap(scene: SceneBase, fmt: Format) -> float:
-    return FIT_PREFERRED if isinstance(scene, BoardScene) and _presenter(scene) and scene.type == "recap" else FIT_NONE
+    # a recap BoardScene with look.presenter: exactly one question with text (the prompt), nothing else, no side panel
+    # (aadhi_recap.js drawsScene; CG-2)
+    board = _presenter_board(scene)
+    if board is None or scene.type != "recap":
+        return FIT_NONE
+    heads, questions, others = board
+    if others or heads or len(questions) != 1:
+        return FIT_NONE
+    return _ok(_words(questions[0].text) <= AADHI_PROMPT_WORDS[fmt])
 
 
 def _fit_hook_question(scene: SceneBase, fmt: Format) -> float:
@@ -691,13 +746,15 @@ def _fit_hook_question(scene: SceneBase, fmt: Format) -> float:
 
 
 def _fit_key_terms(scene: SceneBase, fmt: Format) -> float:
-    # 2-4 definition items: term <= 3 words, meaning <= 8 words. key_terms.js draws the scene's side panel in 16:9
-    # only, of a kind _shared.js draws, and beside at most KEY_TERMS_PANEL_MAX terms (`drawsScene`); anything else is
-    # board_generic's whole, and this fit refuses exactly what the page refuses (B2c review CG-2).
+    # 2-4 definition items: term <= 3 words, meaning <= 8 words. key_terms.js draws the scene's side panel only of a
+    # kind _shared.js draws: in 16:9 beside at most KEY_TERMS_PANEL_MAX terms, in 9:16 as its own beat before any
+    # number of terms (owner decision 4, 2026-10-16; `drawsScene`); anything else is board_generic's whole, and this
+    # fit refuses exactly what the page refuses (B2c review CG-2).
     if not _shape(scene, {"definition": (2, 4)}):
         return FIT_NONE
     if scene.side_panel is not None and (
-            fmt != "landscape" or not _draws_panel(scene) or len(_of(scene, "definition")) > KEY_TERMS_PANEL_MAX):
+            not _draws_panel(scene, fmt)
+            or (fmt == "landscape" and len(_of(scene, "definition")) > KEY_TERMS_PANEL_MAX)):
         return FIT_NONE
     return _ok(all(_words(d.term) <= 3 and _words(d.text) <= 8 for d in _of(scene, "definition")))
 
@@ -722,12 +779,15 @@ def _fit_recap_retrieval(scene: SceneBase, fmt: Format) -> float:
 
 
 def _fit_outro_next(scene: SceneBase, fmt: Format) -> float:
-    # closure, no new content (R-11): at most one takeaway, paragraph or heading
-    if not isinstance(scene, BoardScene):
+    # closure, no new content (R-11): at most one takeaway, paragraph or heading (OUTRO_KINDS), and something to show -
+    # that item (the schema gives each of these kinds text) or the scene's title. outro_next.js draws no side panel and
+    # no medium, so a scene with a panel is board_generic's whole: its drawsScene refuses exactly that (B2c review CG-2)
+    if not isinstance(scene, BoardScene) or scene.side_panel is not None:
         return FIT_NONE
     items = _items(scene)
-    return FIT_PREFERRED if len(items) <= 1 and all(
-        str(getattr(i.kind, "value", i.kind)) in ("takeaway", "paragraph", "heading") for i in items) else FIT_NONE
+    if len(items) > 1 or any(str(getattr(i.kind, "value", i.kind)) not in OUTRO_KINDS for i in items):
+        return FIT_NONE
+    return FIT_PREFERRED if items or scene.title.strip() else FIT_NONE
 
 
 def _fit_definition_card(scene: SceneBase, fmt: Format) -> float:
@@ -741,13 +801,33 @@ def _fit_definition_card(scene: SceneBase, fmt: Format) -> float:
     return FIT_PREFERRED if _shape(scene, {"definition": (1, 1)}, {"bullet": 1}) else FIT_NONE
 
 
+# kinetic_statement.js MAX_WORDS: the most words the page sets as one statement. Measured with ``textfit`` on the
+# vendored faces: ordinary English statements of 19-22 words fill the 16:9 statement's four lines at its 100 px floor
+# (1436 px measure), and of 9-11 words the 9:16 one's four lines at 88 px (696 px column), so the caps sit at or below
+# the worst case seen. Between §4.3's limit (12; 8 in 9:16) and the cap a statement is FIT_STRETCHED; past the cap it
+# is board_generic's whole, so a long statement never blocks a render with "Shorten text" (the B2 review's F3 lesson,
+# MEDIA_SPLIT_PHRASE_WORDS). kinetic_statement.test.js pins the two against each other. A B2 reading, pending the
+# owner's review.
+KINETIC_STATEMENT_WORDS: Final[Mapping[Format, int]] = MappingProxyType({"landscape": 18, "portrait": 9})
+
+
 def _fit_kinetic_statement(scene: SceneBase, fmt: Format) -> float:
-    # one takeaway, paragraph, heading or callout_* item of <= 12 words (<= 8 in 9:16); a quote as the quote row's
-    # alternative
+    # one takeaway, paragraph, heading or callout_* item with text, of <= 12 words (<= 8 in 9:16); a quote as the quote
+    # row's alternative. Typography only: kinetic_statement.js drawsScene hands a scene with a side panel, any second
+    # item, an item without text or a statement past KINETIC_STATEMENT_WORDS to board_generic whole, and this fit
+    # refuses exactly those (B2c review CG-2: the fit and the page agree, or the director picks a template that then
+    # falls back)
+    if _panel(scene) is not None:
+        return FIT_NONE
     items = _items(scene)
     if len(items) != 1 or str(getattr(items[0].kind, "value", items[0].kind)) not in STATEMENT_KINDS | {"quote"}:
         return FIT_NONE
-    return _ok(_words(items[0].text) <= (12 if fmt == "landscape" else 8))
+    if not (items[0].text or "").strip():
+        return FIT_NONE
+    words = _words(items[0].text)
+    if words > KINETIC_STATEMENT_WORDS[fmt]:
+        return FIT_NONE
+    return _ok(words <= (12 if fmt == "landscape" else 8))
 
 
 # list_build.js PICTURE_PANELS: the side panels list_build draws beside the list, in 16:9 only (a picture or a clip; a
@@ -870,26 +950,83 @@ def _fit_worked_steps(scene: SceneBase, fmt: Format) -> float:
     # ``callout_info``, so without this the demo's worked examples would all fall back to board_generic). At most one
     # of the three: two such items send the scene to board_generic (B2 reading, pending the owner's review).
     # ``_worked_shape`` is the §4.4 ``example`` row's own question, so the row and this fit never drift apart (D1).
-    # The page draws the scene's side panel in 16:9 only, never beside a formula card (the right 45% holds one
-    # visual) and only of a kind _shared.js draws (worked_steps.js `drawsScene`); anything else is board_generic's
-    # whole (CG-2).
+    # The page draws the scene's side panel only of a kind _shared.js draws: in 16:9 beside the steps, never beside a
+    # formula card (the right 45% holds one visual); in 9:16 as its own beat before the steps, with or without a
+    # formula (owner decision 4, 2026-10-16; worked_steps.js `drawsScene`); anything else is board_generic's whole
+    # (CG-2).
     if scene.side_panel is not None and (
-            fmt != "landscape" or _kinds(scene).get("formula", 0) > 0 or not _draws_panel(scene)):
+            not _draws_panel(scene, fmt) or (fmt == "landscape" and _kinds(scene).get("formula", 0) > 0)):
         return FIT_NONE
-    return FIT_PREFERRED if _worked_shape(scene) else FIT_NONE
+    if not _worked_shape(scene):
+        return FIT_NONE
+    # 9:16: only text the reel's step column sets whole (REEL_WRAP; else board_generic, never a blocked render)
+    return FIT_PREFERRED if fmt != "portrait" or _reel_steps_fit(scene) else FIT_NONE
 
 
-# §4.3 code_walkthrough with deviation 13 (R-29 wins: 36 px in 16:9): <= 17 lines of <= 60 chars; 9:16 <= 10 lines of
-# <= 28 chars (else lint portrait.code_too_wide).
-CODE_LIMITS: Final[Mapping[Format, tuple[int, int]]] = MappingProxyType({"landscape": (17, 60), "portrait": (10, 28)})
+# code_walkthrough.js LAYOUT / codeBox / codeLines / codeFits (deviation 13: R-29's floor wins over §4.3's 34 px): the
+# code is set in whole-pixel line boxes, one pitch per line (the Indic one when the program holds Indic text, plan §2),
+# and the program must fit the editor whole at the slot's minimum size, or the page hands the scene to board_generic -
+# so the fit refuses exactly those programs (the CG-2 rule; tests/compose/dynamic/test_code_walkthrough_fixtures.py runs
+# the page's functions under node against these). Per format: the px the line boxes may take without and below a
+# heading, a line's box at the minimum size (Latin, Indic), and the characters per line (alone, beside a terminal
+# panel; 9:16 draws no panel). 16:9: 17 / 13 Latin lines (14 / 11 Indic) of 60 characters (38 beside a terminal);
+# 9:16: 10 / 8 (8 / 6) of 28.
+CODE_TAB: Final = 4
+CODE_INDIC: Final = re.compile("[\u0900-\u0DFF]")  # Devanagari to Sinhala (code_walkthrough.js)
+
+
+@dataclass(frozen=True)
+class CodeBox:
+    """code_walkthrough.js ``codeBox(format)``: the editor's line-box budget and line width in one format."""
+
+    lines_px: int
+    headed_px: int
+    pitch: int
+    pitch_indic: int
+    chars: int
+    chars_panel: int | None
+
+
+CODE_BOX: Final[Mapping[Format, CodeBox]] = MappingProxyType({
+    "landscape": CodeBox(lines_px=740, headed_px=596, pitch=43, pitch_indic=52, chars=60, chars_panel=38),
+    "portrait": CodeBox(lines_px=484, headed_px=388, pitch=48, pitch_indic=58, chars=28, chars_panel=None),
+})
+
+
+def code_lines(code: str) -> list[str]:
+    """A program's lines as the page draws them (code_walkthrough.js ``codeLines``): ``str.splitlines``, tabs expanded
+    to :data:`CODE_TAB` columns."""
+    return [line.expandtabs(CODE_TAB) for line in code.splitlines()]
+
+
+def code_fits(code: str, fmt: Format, *, headed: bool, panel: bool) -> bool:
+    """Whether a program fits the editor whole at the minimum size (code_walkthrough.js ``codeFits``): at least one
+    line, every line within the format's characters (beside a terminal panel: ``chars_panel``), and its line boxes
+    within the px the format allows with (``headed``) or without a heading."""
+    box = CODE_BOX[fmt]
+    lines = code_lines(code)
+    chars = box.chars_panel if panel else box.chars
+    if not lines or chars is None:
+        return False
+    pitch = box.pitch_indic if CODE_INDIC.search(code) else box.pitch
+    if len(lines) * pitch > (box.headed_px if headed else box.lines_px):
+        return False
+    return all(len(line) <= chars for line in lines)
 
 
 def _fit_code_walkthrough(scene: SceneBase, fmt: Format) -> float:
+    # one code item and at most one heading; a side panel only in 16:9 and only a terminal (code_walkthrough.js
+    # `drawsScene`: the terminal slides up beside the editor; 9:16 draws no panel); and a program that fits the editor
+    # whole (`code_fits`). Anything else is board_generic's whole: never FIT_STRETCHED, since the page refuses what it
+    # cannot lay out whole (CG-2) - a longer or wider program is board_generic's, and lint portrait.code_too_wide says why.
     if not _shape(scene, {"code": (1, 1)}):
         return FIT_NONE
-    lines = (_of(scene, "code")[0].code or "").splitlines()
-    max_lines, max_chars = CODE_LIMITS[fmt]
-    return _ok(len(lines) <= max_lines and all(len(line) <= max_chars for line in lines))
+    panel = scene.side_panel
+    if panel is not None and (fmt != "landscape" or str(getattr(panel.kind, "value", panel.kind)) != "terminal"
+                              or panel.terminal is None):
+        return FIT_NONE
+    fits = code_fits(_of(scene, "code")[0].code or "", fmt, headed=bool(_of(scene, "heading")), panel=panel is not None)
+    return FIT_PREFERRED if fits else FIT_NONE
 
 
 def _panel_only(scene: SceneBase, kind: str) -> float:
@@ -898,7 +1035,12 @@ def _panel_only(scene: SceneBase, kind: str) -> float:
 
 
 def _fit_chart_build(scene: SceneBase, fmt: Format) -> float:
-    return _panel_only(scene, "chart")
+    # the panel is the content (at most a heading beside it), drawn as a real plot: a chart, or a graph while
+    # function_plot is unbuilt (the graph row names chart_build as its alternative). chart_build.js drawsScene draws
+    # exactly the panels charts.chart_problem accepts (_charts.js chartPlan's refusals, B2c review CG-2)
+    if _panel(scene) not in ("chart", "graph") or not _shape(scene, {}) or scene.side_panel is None:
+        return FIT_NONE
+    return FIT_PREFERRED if chart_problem(scene.side_panel, fmt) is None else FIT_NONE
 
 
 def _fit_function_plot(scene: SceneBase, fmt: Format) -> float:
@@ -932,11 +1074,76 @@ def _fit_clip_scene(scene: SceneBase, fmt: Format) -> float:
     return FIT_PREFERRED if isinstance(scene, ClipScene) else FIT_NONE
 
 
+# web/js/dynamic/templates/myth_fact.js SUPPORT_MAX: how many definitions a misconception scene may carry as supporting
+# lines (16:9 two: the showcase lecture's s5; 9:16 none: the reel's column holds the two cards alone).
+MYTH_FACT_SUPPORT_MAX: Final[Mapping[Format, int]] = MappingProxyType({"landscape": 2, "portrait": 0})
+# The text the page has room for, in words as _words counts them (a $TeX$ span one word), each word weighted by how
+# wide it draws: measured with textfit on the vendored faces at the slots' minimum sizes, a Tamil word draws about
+# twice an English word's width, a Malayalam word about 3.5 times, a Telugu or Kannada word about 1.6 times, a
+# Devanagari word (and the other Indic scripts' words) no wider; a word in capitals ("SAME", "ENERGY") 1.3 times. The
+# caps are the most English words of this repo's screenplays that kept their line budget in every one of 300
+# samples (textfit at each slot's minimum size and width, myth_fact.js LAYOUT): 16:9 a 1-line heading 5, a 3-line
+# supporting line 18, a 4-line belief 15, a 4-line correction 20; 9:16 a 3-line belief 8, a 4-line correction 10, a
+# 3-line one at the Indic line heights 7. With those budgets the composition fits its band at the minimum sizes in
+# every case (myth_fact.js LAYOUT's comment). A heading takes the room of a supporting line (one beside a heading).
+# Past a cap the scene is board_generic's whole: a page that reports the excess makes Dynamic preflight block the
+# render (B2 review F3, MEDIA_SPLIT_PHRASE_WORDS' reading). B2 proposals, pending the owner's review.
+MYTH_FACT_WORDS: Final[Mapping[Format, Mapping[str, int]]] = MappingProxyType({
+    "landscape": MappingProxyType({"heading": 5, "support": 18, "myth": 15, "fact": 20}),
+    "portrait": MappingProxyType({"myth": 8, "fact": 10, "fact_indic": 7}),
+})
+# (Malayalam, Tamil, then Telugu and Kannada; a word with none of them is English-wide, or 1.3 in capitals)
+_MYTH_FACT_SCRIPT_WEIGHTS: Final = ((re.compile("[\u0D00-\u0D7F]"), 3.5), (re.compile("[\u0B80-\u0BFF]"), 2.0),
+                                    (re.compile("[\u0C00-\u0CFF]"), 1.6))
+_MYTH_FACT_INDIC: Final = re.compile("[\u0900-\u0DFF]")  # Devanagari to Sinhala (myth_fact.js INDIC): taller lines
+
+
+def _myth_fact_words(text: str | None) -> float:
+    """``_words`` with each word weighted by how wide it draws (see ``MYTH_FACT_WORDS``)."""
+    total = 0.0
+    for word in _TEX.sub(" x ", text or "").split():
+        weight = next((k for rx, k in _MYTH_FACT_SCRIPT_WEIGHTS if rx.search(word)), None)
+        if weight is None:
+            weight = 1.3 if len(re.findall("[A-Z]", word)) >= 2 and not re.search("[a-z]", word) else 1.0
+        total += weight
+    return total
+
+
+def _myth_fact_shape(scene: SceneBase, fmt: Format = "landscape") -> bool:
+    """The board ``myth_fact.js`` draws in ``fmt``: one misconception, at most ``MYTH_FACT_SUPPORT_MAX`` definitions
+    and (16:9) at most one heading. The §4.4 ``misconception`` row asks it for 16:9, the widest, so the row is never
+    narrower than the fit (B2-demo review D1: a shape only one of them takes scores 0)."""
+    extra: Mapping[str, int] = MappingProxyType({"heading": 1} if fmt == "landscape" else {})
+    return _shape(scene, {"misconception": (1, 1), "definition": (0, MYTH_FACT_SUPPORT_MAX[fmt])}, extra)
+
+
 def _fit_myth_fact(scene: SceneBase, fmt: Format) -> float:
-    # a misconception item with its correction (justification): the fact card is the final frame (R-63)
-    if not _shape(scene, {"misconception": (1, 1)}):
+    # a misconception item with its correction (justification): the fact card is the final frame (R-63). Owner
+    # decision 3 (2026-10-16): beside it, in 16:9, the scene's definitions are drawn as supporting lines (the showcase's
+    # s5), with one heading; key_terms stays pure (its fit refuses a misconception). myth_fact.js drawsScene refuses
+    # every other shape, a 9:16 heading, definition or panel, a 16:9 panel _shared.js does not draw and a scene medium
+    # (a board scene has none); this fit refuses the same (B2c review CG-2) and, past them, text over the measured
+    # caps and a heading beside two supporting lines (MYTH_FACT_WORDS), so the director never sends a scene whose page
+    # would report overflow and block preflight
+    if not _myth_fact_shape(scene, fmt):
         return FIT_NONE
-    return FIT_PREFERRED if (_of(scene, "misconception")[0].justification or "").strip() else FIT_NONE
+    myth = _of(scene, "misconception")[0]
+    if not (myth.text.strip() and (myth.justification or "").strip()):
+        return FIT_NONE
+    if scene.side_panel is not None and (fmt != "landscape" or not _draws_panel(scene, fmt)):
+        return FIT_NONE
+    caps = MYTH_FACT_WORDS[fmt]
+    definitions = _of(scene, "definition")
+    headings = _of(scene, "heading")
+    if headings and (len(definitions) > 1 or _myth_fact_words(headings[0].text) > caps["heading"]):
+        return FIT_NONE
+    if any(_myth_fact_words(d.term) + _myth_fact_words(d.text) > caps["support"] for d in definitions):
+        return FIT_NONE
+    indic = fmt == "portrait" and bool(_MYTH_FACT_INDIC.search(f"{myth.text} {myth.justification}"))
+    if (_myth_fact_words(myth.text) > caps["myth"]
+            or _myth_fact_words(myth.justification) > caps["fact_indic" if indic else "fact"]):
+        return FIT_NONE
+    return FIT_PREFERRED
 
 
 def _blank_question(scene: SceneBase) -> bool:
@@ -951,7 +1158,8 @@ def _fit_predict(scene: SceneBase, fmt: Format) -> float:
     return FIT_PREFERRED if _blank_question(scene) else FIT_NONE
 
 
-# check: mcq <= 4 options in 16:9 only; reels use free recall or true / false (2 options).
+# check: the most options a format DRAWS - mcq <= 4 in 16:9 (more: board_generic); 9:16 two, a reel quiz of more
+# reduced to the correct answer and the strongest distractor (owner decision 4).
 CHECK_MAX_OPTIONS: Final[Mapping[Format, int]] = MappingProxyType({"landscape": 4, "portrait": 2})
 
 
@@ -965,8 +1173,114 @@ def _fit_check(scene: SceneBase, fmt: Format) -> float:
     if _panel(scene) is not None:
         return FIT_NONE
     if isinstance(scene, QuizScene):
+        # 16:9: mcq <= CHECK_MAX_OPTIONS (more is board_generic's whole scene); 9:16: any quiz - check.js draws a reel quiz
+        # of more than two options as two (the answer and the strongest distractor, owner decision 4, reels.py)
+        if fmt == "portrait":
+            return FIT_PREFERRED if _reel_check_fit(scene) else FIT_NONE
         return FIT_PREFERRED if len(scene.options) <= CHECK_MAX_OPTIONS[fmt] else FIT_NONE
-    return FIT_PREFERRED if _blank_question(scene) else FIT_NONE
+    if not _blank_question(scene):
+        return FIT_NONE
+    return FIT_PREFERRED if fmt != "portrait" or _reel_check_fit(scene) else FIT_NONE
+
+
+# --- the reel's text budget (step 5 integration): what a 9:16 check / worked_steps page holds -----------------------
+# Owner decision 4 brought 9:16 quizzes of more than two options and 9:16 panelled worked examples to these two
+# templates; the showcase lecture's s9 / s11 / s12 then blocked 9:16 preflight with text_overflow (a 23-word question,
+# a 15-word explanation, a 17-word heading and a 14-word step), which board_generic had held before. So the fits take a
+# 9:16 scene only when its text fits the page's slots at their minimum sizes (the F3 lesson, MEDIA_SPLIT_PHRASE_WORDS):
+# a longer one is board_generic's whole. The build may not load the shaping libraries (test_dynamic_isolation), so the
+# lines are estimated by a greedy word wrap at REEL_WRAP characters per line - measured with textfit against the
+# slots: on 1,900 sample texts per slot from this repo's screenplays, the estimate never gave fewer lines than the
+# certified fit. A word of an Indic script counts wider (myth_fact's measured weights: Tamil x2, Malayalam x3.5, Telugu /
+# Kannada x1.6); a $TeX$ span counts the characters it draws (commands and braces dropped). B2 reading, pending the
+# owner's review; B2e's measured fit supersedes it.
+REEL_WRAP: Final[Mapping[str, int]] = MappingProxyType({
+    "ws_heading": 24, "ws_step": 15, "ws_row": 22, "ws_why": 20,      # worked_steps: 56 / 56 / 40 / 44 px
+    "ck_question": 23, "ck_explain": 26, "ck_option": 19,             # check: 48 / 40 / 40 px
+})
+_REEL_TEX_COMMAND = re.compile(r"\\[A-Za-z]+|[{}]|\\(?=\s)")  # \cmd, a brace, the backslash of "\ "
+
+
+def _reel_text(text: str | None) -> list[float]:
+    """The word widths (characters, Indic words weighted) a reel slot sets: [[term]] marks and rich-lite stars dropped,
+    each $TeX$ span reduced to the characters it draws."""
+    plain = _TEX.sub(lambda m: _REEL_TEX_COMMAND.sub("", m.group(0)[1:-1]), (text or "").replace("[[", "").replace("]]", ""))
+    plain = plain.replace("**", "").replace("__", "")
+    out: list[float] = []
+    for word in plain.split():
+        weight = next((k for rx, k in _MYTH_FACT_SCRIPT_WEIGHTS if rx.search(word)), 1.0)
+        out.append(len(word) * weight)
+    return out
+
+
+def _reel_lines(text: str | None, capacity: int) -> int:
+    """Lines of ``text`` in a greedy word wrap of ``capacity`` characters (a longer word breaks over several)."""
+    lines, used = 0, 0.0
+    for w in _reel_text(text):
+        if used and used + 1 + w <= capacity:
+            used += 1 + w
+            continue
+        whole = max(1, math.ceil(w / capacity))
+        lines += whole
+        used = w - (whole - 1) * capacity
+    return max(lines, 1)
+
+
+# worked_steps.js LAYOUT.portrait and boxes(): the heading at the title box's top (y 340), 2 lines at most, 28 px above
+# the steps; the formula card (padY 24, the formula at <= 88 px, its meaning in <= 2 lines of 44 px, 12 px between,
+# 24 px below it); the steps down to the text column's foot (y 1020): each step's card PAD 12 px above and below at
+# 56 px (its justification 4 px under it, <= 2 lines of 44 px), the steps already through it compact (4 px, 40 px),
+# 12 px apart.
+REEL_STEPS: Final = MappingProxyType({"top": 340, "bottom": 1020, "heading_lh": 56 * 1.15, "heading_gap": 28,
+                                      "formula_card": 24 + 88 + 12 + 2 * 44 * 1.35 + 24 + 24, "pad": 12,
+                                      "step_lh": 56 * 1.35, "why_gap": 4, "why_lh": 44 * 1.35, "pad_compact": 4,
+                                      "row_lh": 40 * 1.35, "gap": 12})
+
+
+def _reel_steps_fit(scene: SceneBase) -> bool:
+    """Whether a 9:16 ``worked_steps`` page sets the scene's text whole (see ``REEL_WRAP``): the top line in two lines,
+    each justification in two, and the step stack below the top line and the formula card, every step large (with its
+    justification) under the compact ones before it."""
+    L = REEL_STEPS
+    top = float(L["top"])
+    heads = [i for i in _items(scene) if str(getattr(i.kind, "value", i.kind)) in WORKED_TOP]
+    if heads:
+        n = _reel_lines(heads[0].text, REEL_WRAP["ws_heading"])
+        if n > 2:
+            return False
+        top += n * L["heading_lh"] + L["heading_gap"]
+    if _of(scene, "formula"):
+        top += L["formula_card"]
+    avail = L["bottom"] - top
+    above = 0.0
+    for step in _of(scene, "example_step"):
+        why = (step.justification or "").strip()
+        why_lines = _reel_lines(why, REEL_WRAP["ws_why"]) if why else 0
+        if why_lines > 2:
+            return False
+        large = 2 * L["pad"] + _reel_lines(step.text, REEL_WRAP["ws_step"]) * L["step_lh"] + (
+            L["why_gap"] + why_lines * L["why_lh"] if why_lines else 0)
+        if above + large > avail:
+            return False
+        above += 2 * L["pad_compact"] + _reel_lines(step.text, REEL_WRAP["ws_row"]) * L["row_lh"] + L["gap"]
+    return True
+
+
+def _reel_check_fit(scene: SceneBase) -> bool:
+    """Whether a 9:16 ``check`` page sets the scene's text whole (see ``REEL_WRAP``; check.js slots: the question in
+    four lines, the explanation in two, each drawn option in two - a quiz of more than two options draws the answer and
+    its strongest distractor, ``reels.reel_options``)."""
+    if isinstance(scene, QuizScene):
+        from .reels import reel_options  # lazy: reels reads this module lazily too
+
+        shown = reel_options(scene.options, scene.correct_index, scene.feedback_wrong, scene.option_misconception_ids)
+        return (_reel_lines(scene.question, REEL_WRAP["ck_question"]) <= 4
+                and _reel_lines(scene.explanation, REEL_WRAP["ck_explain"]) <= 2
+                and all(_reel_lines(scene.options[i], REEL_WRAP["ck_option"]) <= 2 for i in shown))
+    question = _of(scene, "question")[0]
+    why = (question.justification or "").strip()
+    return (_reel_lines(question.text, REEL_WRAP["ck_question"]) <= 4
+            and (not why or _reel_lines(why, REEL_WRAP["ck_explain"]) <= 2))
 
 
 def _fit_takeaway_stamp(scene: SceneBase, fmt: Format) -> float:
@@ -1207,6 +1521,15 @@ def _full_bleed_media_slots() -> SlotTable:
     })
 
 
+# --- chart_build's slots (B2 R1): web/js/dynamic/templates/chart_build.js slotRows() through charts.py; the jsdom test
+# pins the catalogue's rows to them.
+def _chart_build_slots() -> SlotTable:
+    rows = chart_build_slot_rows()
+    return MappingProxyType({
+        slot: MappingProxyType({fmt: MappingProxyType({"default": SlotSpec(**row)}) for fmt, row in per.items()})
+        for slot, per in rows.items()})
+
+
 # --- animation_stage's slots (B2 R1): web/js/dynamic/templates/animation_stage.js LAYOUT, LINE_HEIGHT and boxes();
 # animation_stage.test.js pins the catalogue's rows to them. The widths are the boxes the title and the step label are
 # laid out in: 16:9 the critical box (x 96-1824), 9:16 the headline region (x 192-888) and the lower critical text
@@ -1295,6 +1618,50 @@ def _chapter_bumper_slots() -> SlotTable:
                              for slot, per in out.items()})
 
 
+# --- outro_next's slots (step 5): web/js/dynamic/templates/outro_next.js LAYOUT, plan() and slotRows() (outro_next.test.js
+# pins the catalogue's rows to them). 16:9 `next_up`: the statement in left-55 (938), the "Next up" card in right-45
+# less its padding and edge (664); `end_screen` (§2.5): everything left of the end-screen half less a gutter (840 px
+# column, the card 738 inside it); `default` is the narrowest of the two (a scene without a stored variant). 9:16: the
+# loop line across the hook band (696), the call-to-action card in the text column (588). B2 proposals, pending the
+# owner's review.
+OUTRO_KINDS: Final = ("takeaway", "paragraph", "heading")  # outro_next.js STATEMENT_KINDS
+OUTRO_PAD: Final[Mapping[Format, int]] = MappingProxyType({"landscape": 48, "portrait": 24})
+OUTRO_GUTTER: Final = 24
+
+
+def _outro_next_slots() -> SlotTable:
+    border = int(zn.LAYOUT.border["card"])
+    land = zn.REGIONS["landscape"]
+    column = zn.END_SCREEN.box.x0 - OUTRO_GUTTER - land["full"].x0                          # 840
+    text = {"next_up": land["left-55"].w, "end_screen": column}                              # 938, 840
+    card = {"next_up": land["right-45"].w - 2 * OUTRO_PAD["landscape"] - border,             # 664
+            "end_screen": column - 2 * OUTRO_PAD["landscape"] - border}                      # 738
+    port = {"text": zn.REGIONS["portrait"]["hook"].w, "card": zn.ZONES["portrait"].text_column.w}  # 696, 588
+
+    def label(w: int, size: tuple[float, float], lines: int) -> SlotSpec:
+        return SlotSpec(w=w, max_lines=lines, size=size, role="label", face="body", weight=600, line_height=1.35)
+
+    def title(w: int, size: tuple[float, float], lines: int) -> SlotSpec:
+        return SlotSpec(w=w, max_lines=lines, size=size, role="title", face="display", weight=700, line_height=1.05,
+                        tracking_em=-0.015)
+
+    def per(widths: Mapping[str, int], make: Callable[[int], SlotSpec]) -> dict[str, SlotSpec]:
+        return {"default": make(min(widths.values())), **{v: make(w) for v, w in widths.items()}}
+
+    out = {
+        "kicker": {"landscape": per(text, lambda w: label(w, (40, 48), 2)),
+                   "portrait": {"default": label(port["text"], (44, 48), 2)}},
+        "statement": {"landscape": per(text, lambda w: title(w, (64, 96), 5)),
+                      "portrait": {"default": title(port["text"], (64, 88), 4)}},
+        "label": {"landscape": per(card, lambda w: label(w, (40, 40), 1)),
+                  "portrait": {"default": label(port["card"], (44, 44), 1)}},
+        "next": {"landscape": per(card, lambda w: title(w, (56, 72), 3)),
+                 "portrait": {"default": title(port["card"], (56, 64), 2)}},
+    }
+    return MappingProxyType({slot: MappingProxyType({f: MappingProxyType(v) for f, v in pf.items()})
+                             for slot, pf in out.items()})
+
+
 # --- definition_card's slots (B2 demo): web/js/dynamic/templates/definition_card.js LAYOUT, boxes() and slotRows()
 # (definition_card.test.js pins the catalogue's rows to slotRows). The 16:9 "default" variant is the narrowest of the
 # three (card_image_left), so a size stored without knowing the variant is an upper bound for all of them; 9:16 has one
@@ -1354,6 +1721,15 @@ HOOK_QUESTION_REGION: Final[Mapping[Format, str]] = MappingProxyType(
     {"landscape": "centre-60", "portrait": "hook"})
 
 
+def _aadhi_slots(rows: Mapping[str, Mapping[Format, Mapping[str, Mapping[str, object]]]]) -> SlotTable:
+    """``SlotSpec`` tables of the presenter templates from ``dynamic/presenter.py``'s rows (aadhi_intro.js /
+    aadhi_recap.js ``slotRows``)."""
+    return MappingProxyType({slot: MappingProxyType({fmt: MappingProxyType({v: SlotSpec(**row)  # type: ignore[arg-type]
+                                                                          for v, row in per.items()})
+                                                     for fmt, per in fmts.items()})
+                             for slot, fmts in rows.items()})
+
+
 def _hook_question_slots() -> SlotTable:
     """hook_question's slots: the hook (``question``, per variant), the "True or false?" ``pill`` and the scene
     heading's ``eyebrow`` (one-line labels at R-29's label floor)."""
@@ -1375,6 +1751,45 @@ def _hook_question_slots() -> SlotTable:
         out["question"][fmt] = {"default": question(lines), "true_false": question(pill_lines)}
         out["pill"][fmt] = {"default": label(pill, 700)}
         out["eyebrow"][fmt] = {"default": label(eyebrow, 600)}
+    return MappingProxyType({slot: MappingProxyType({f: MappingProxyType(v) for f, v in per.items()})
+                             for slot, per in out.items()})
+
+
+# --- kinetic_statement's slots (step 5): web/js/dynamic/templates/kinetic_statement.js LAYOUT, COLUMNS, LINE_HEIGHT,
+# TRACKING_EM, boxes() and slotRows() (kinetic_statement.test.js pins the two against each other). The width is the
+# box the statement is set in: 16:9 grid columns 1-10 (1436 px, §4.3 "left-aligned"), 9:16 the hook band's column
+# (the `text-above` region, 696 px: centred on the hook band, growing into the stage, R-59). Four statement lines fit
+# that box at every size in every script, so the line-count fit here and the page's height check agree for a statement
+# alone; the label is a callout's kind (board_generic's word for it), the attribution a quote's caption after an em
+# dash and a space. The sizes are a step-5 proposal pending the owner's review.
+KINETIC_STATEMENT_SIZE: Final[Mapping[Format, tuple[int, int]]] = MappingProxyType(
+    {"landscape": (100, 140), "portrait": (88, 104)})          # §4.3 16:9; R-29's 9:16 `hook` range
+KINETIC_STATEMENT_LINES: Final = 4
+KINETIC_STATEMENT_LABELS: Final[Mapping[Format, tuple[int, int]]] = MappingProxyType(  # label, attribution
+    {"landscape": (40, 48), "portrait": (44, 44)})
+KINETIC_STATEMENT_ATTRIBUTION_LINES: Final = 2
+
+
+def _kinetic_statement_width(fmt: Format) -> int:
+    """The statement's measure: 16:9 grid columns 1-10, 9:16 the `text-above` region (kinetic_statement.js boxes)."""
+    return zn.GRID.span(0, 9).w if fmt == "landscape" else zn.REGIONS[fmt]["text-above"].w
+
+
+def _kinetic_statement_slots() -> SlotTable:
+    """kinetic_statement's slots: the ``statement`` (display 700, four lines), a callout's ``label`` (one line) and a
+    quote's ``attribution`` (two lines), both at R-29's label floor and weight 600 (its 9:16 weight clause)."""
+    out: dict[str, dict[Format, dict[str, SlotSpec]]] = {"statement": {}, "label": {}, "attribution": {}}
+    for fmt in FORMATS:
+        width = _kinetic_statement_width(fmt)
+        label, attribution = KINETIC_STATEMENT_LABELS[fmt]
+        out["statement"][fmt] = {"default": SlotSpec(
+            w=width, max_lines=KINETIC_STATEMENT_LINES, size=KINETIC_STATEMENT_SIZE[fmt], role="title",
+            face="display", weight=700, line_height=1.05, tracking_em=-0.015)}
+        out["label"][fmt] = {"default": SlotSpec(w=width, max_lines=1, size=(label, label), role="label",
+                                                 face="body", weight=600, line_height=1.35)}
+        out["attribution"][fmt] = {"default": SlotSpec(
+            w=width, max_lines=KINETIC_STATEMENT_ATTRIBUTION_LINES, size=(attribution, attribution), role="label",
+            face="body", weight=600, line_height=1.35)}
     return MappingProxyType({slot: MappingProxyType({f: MappingProxyType(v) for f, v in per.items()})
                              for slot, per in out.items()})
 
@@ -1415,10 +1830,12 @@ def _key_terms_slots() -> SlotTable:
                  "portrait": {"default": term(port, (44, 64))}},
         "meaning": {"landscape": {"default": meaning(land, (40, 48), KEY_TERMS_MEANING_WEIGHT["landscape"])},
                     "portrait": {"default": meaning(port, (40, 48), KEY_TERMS_MEANING_WEIGHT["portrait"])}},
-        # the terminal card of a side panel (16:9 only: 9:16 draws no panel), mono, in the panel's own box less its
-        # padding; _shared.js layoutPanel fits it on the page and panelTexts reports it in this slot
+        # the terminal card of a side panel, mono, in the panel's own box less its padding (16:9 the right 45%; 9:16
+        # the reel beat's card in the text column, owner decision 4); _shared.js layoutPanel fits it on the page and
+        # panelTexts reports it in this slot
         "terminal": {"landscape": {"default": _panel_terminal_slot(zn.REGIONS["landscape"]["right-45"].w,
-                                                                   "landscape")}},
+                                                                   "landscape")},
+                     "portrait": {"default": _panel_terminal_slot(zn.ZONES["portrait"].text_column.w, "portrait")}},
     }
     return MappingProxyType({slot: MappingProxyType({f: MappingProxyType(v) for f, v in per.items()})
                              for slot, per in out.items()})
@@ -1644,8 +2061,10 @@ def _worked_steps_slots() -> SlotTable:
                                                   "label", 2)},
                     "portrait": {"default": body(card_p, WORKED_WHY["portrait"], WORKED_WEIGHT["portrait"],
                                                  "label", 2)}},
-        # the terminal card of a side panel (16:9 only: 9:16 draws no panel), in the right-45 box less its padding
-        "terminal": {"landscape": {"default": _panel_terminal_slot(regions["right-45"].w, "landscape")}},
+        # the terminal card of a side panel, less its padding: 16:9 the right-45 box; 9:16 the reel beat's card in
+        # the text column (owner decision 4)
+        "terminal": {"landscape": {"default": _panel_terminal_slot(regions["right-45"].w, "landscape")},
+                     "portrait": {"default": _panel_terminal_slot(zn.ZONES["portrait"].text_column.w, "portrait")}},
     }
     return MappingProxyType({slot: MappingProxyType({f: MappingProxyType(v) for f, v in per.items()})
                              for slot, per in out.items()})
@@ -1654,6 +2073,52 @@ def _worked_steps_slots() -> SlotTable:
 
 # R-19 scene length where §4.3 gives no timing; board_generic, the fallback for every scene kind (worked examples and
 # quizzes included), takes R-19's widest bounds (<= 45 s in 16:9, <= 30 s in 9:16).
+# code_walkthrough.js `slotRows`, value for value (code_walkthrough.test.js pins the catalogue to it once registered)
+CODE_SIZE: Final[Mapping[Format, tuple[float, float]]] = MappingProxyType({"landscape": (36, 48), "portrait": (40, 48)})
+CODE_HEADING: Final[Mapping[Format, tuple[float, float]]] = MappingProxyType(
+    {"landscape": (84, 96), "portrait": (48, 64)})
+CODE_WEIGHT: Final[Mapping[Format, int]] = MappingProxyType({"landscape": 400, "portrait": 700})
+CODE_LINE_HEIGHT: Final = 1.2  # code_walkthrough.js CODE_LH.latin (an Indic program takes 1.45, as textfit's Indic measure)
+CODE_PAD_X: Final = 24
+CODE_GAP: Final = 24
+CODE_GUTTER_EM: Final = 1.2  # two digits of the mono face's 0.6 em advance
+
+
+def _code_walkthrough_slots() -> SlotTable:
+    regions = zn.REGIONS["landscape"]
+    landscape = zn.ZONES["landscape"]
+    portrait = zn.ZONES["portrait"]
+    gutter = math.ceil(CODE_GUTTER_EM * CODE_SIZE["landscape"][0])  # 44 at 36 px
+
+    def heading(fmt: Format, w: int) -> SlotSpec:
+        return SlotSpec(w=w, max_lines=1, size=CODE_HEADING[fmt], role="title", face="display", weight=700,
+                        line_height=1.15)
+
+    def code(fmt: Format, w: int, headed: bool, panel: bool) -> SlotSpec:
+        box = CODE_BOX[fmt]
+        return SlotSpec(w=w, max_lines=(box.headed_px if headed else box.lines_px) // box.pitch, size=CODE_SIZE[fmt],
+                        role="body", face="mono", weight=CODE_WEIGHT[fmt], line_height=CODE_LINE_HEIGHT,
+                        max_chars=box.chars_panel if panel else box.chars)
+
+    alone = regions["full"].w - 2 * CODE_PAD_X - gutter - CODE_GAP          # 1612
+    beside = regions["left-55"].w - 2 * CODE_PAD_X - gutter - CODE_GAP      # 822
+    column = portrait.critical[0].w                                         # 696: the upper critical box
+    out = {
+        "heading": {"landscape": {"default": heading("landscape", landscape.title.w)},
+                    "portrait": {"default": heading("portrait", portrait.title.w)}},
+        "code": {"landscape": {"default": code("landscape", alone, False, False),
+                               "headed": code("landscape", alone, True, False),
+                               "panel": code("landscape", beside, False, True),
+                               "headed_panel": code("landscape", beside, True, True)},
+                 "portrait": {"default": code("portrait", column, False, False),
+                              "headed": code("portrait", column, True, False)}},
+        # the terminal card of a side panel (16:9 only), in the right-45 box less its padding
+        "terminal": {"landscape": {"default": _panel_terminal_slot(regions["right-45"].w, "landscape")}},
+    }
+    return MappingProxyType({slot: MappingProxyType({f: MappingProxyType(v) for f, v in per.items()})
+                             for slot, per in out.items()})
+
+
 SCENE_LENGTH: Final[Mapping[Format, tuple[float, float]]] = MappingProxyType(
     {"landscape": (6.0, 30.0), "portrait": (4.0, 20.0)})
 SCENE_LENGTH_LONG: Final[Mapping[Format, tuple[float, float]]] = MappingProxyType(
@@ -1681,6 +2146,48 @@ def _c(kinds: Iterable[VisualEventKind], targets: Iterable[TargetForm] | None = 
                     tuple((kind, tuple(forms)) for kind, forms in (narrow or {}).items()))
 
 
+# --- myth_fact's slots (step 5): web/js/dynamic/templates/myth_fact.js LAYOUT, boxes() and slotRows();
+# myth_fact.test.js pins the catalogue's rows to slotRows. The cards' text widths are the card boxes less their padding
+# (24) on both sides and their 6 px `warn` / `ok` edge: 16:9 the myth in grid columns 1-5 (706 px) and the fact in 6-12
+# (998 px); 9:16 both the text column (588 px) exactly. The heading spans the top band (1728), the supporting lines
+# left-55 (938), measured at their bold term's weight (an upper bound on the regular meaning beside it). The label is
+# one line at a fixed size. 9:16 draws no heading, supporting line or panel. B2 proposals, pending the owner's review.
+MYTH_FACT_PAD: Final = 24
+MYTH_FACT_EDGE: Final = 6  # the catalogue's border.card
+MYTH_FACT_LABEL: Final[Mapping[Format, int]] = MappingProxyType({"landscape": 48, "portrait": 52})
+MYTH_FACT_WEIGHT: Final[Mapping[Format, int]] = MappingProxyType({"landscape": 400, "portrait": 600})
+
+
+def _myth_fact_slots() -> SlotTable:
+    def body(w: int, size: tuple[float, float], weight: int) -> SlotSpec:
+        return SlotSpec(w=w, max_lines=None, size=size, role="body", face="body", weight=weight, line_height=1.35)
+
+    def label(w: int, px: int) -> SlotSpec:
+        return SlotSpec(w=w, max_lines=1, size=(px, px), role="label", face="body", weight=700, line_height=1.2)
+
+    inner = 2 * MYTH_FACT_PAD + MYTH_FACT_EDGE
+    myth_w = zn.GRID.span(0, 4).w - inner                                                  # 652 (columns 1-5)
+    fact_w = zn.GRID.span(5, 11).w - inner                                                 # 944 (columns 6-12)
+    port = zn.ZONES["portrait"].text_column.w                                               # 588
+    out = {
+        "heading": {"landscape": {"default": SlotSpec(
+            w=zn.REGIONS["landscape"]["top-band"].w, max_lines=2, size=(84, 96), role="title", face="display",
+            weight=700, line_height=1.15, prefer_lines=1)}},
+        "support": {"landscape": {"default": body(zn.REGIONS["landscape"]["left-55"].w, (40, 48), 700)}},
+        "label": {"landscape": {"default": label(myth_w, MYTH_FACT_LABEL["landscape"])},
+                  "portrait": {"default": label(port, MYTH_FACT_LABEL["portrait"])}},
+        "myth": {"landscape": {"default": body(myth_w, (44, 52), MYTH_FACT_WEIGHT["landscape"])},
+                 "portrait": {"default": body(port, (44, 52), MYTH_FACT_WEIGHT["portrait"])}},
+        "fact": {"landscape": {"default": body(fact_w, (48, 56), MYTH_FACT_WEIGHT["landscape"])},
+                 "portrait": {"default": body(port, (48, 56), MYTH_FACT_WEIGHT["portrait"])}},
+        # a side panel's terminal card (16:9 only), mono, in right-45 less its padding: the narrowest box it is drawn in
+        "terminal": {"landscape": {"default": _panel_terminal_slot(zn.REGIONS["landscape"]["right-45"].w,
+                                                                   "landscape")}},
+    }
+    return MappingProxyType({slot: MappingProxyType({f: MappingProxyType(v) for f, v in per.items()})
+                             for slot, per in out.items()})
+
+
 _R19 = _d(SCENE_LENGTH["landscape"], SCENE_LENGTH["portrait"])
 # Which templates may carry hold_reason "diagram" (the specs below that name _DIAGRAM): A2 proposal, pending owner
 # review; not in the design (R-16 lists the reasons and §4.2 gives every template a ``holds`` field, but names no
@@ -1690,9 +2197,15 @@ _THINK: Final[tuple[HoldReason, ...]] = ("think",)
 
 _SPECS: Final[tuple[TemplateSpec, ...]] = (
     # A. Bookends and structure
-    TemplateSpec("aadhi_intro", "structure", False, "R1", _d((5.0, 8.0)), _c(("reveal", "cue_term", "exit")),
-                 _fit_aadhi_intro, variants=_v(("fullframe", "card_left", "pip", "split"), ("card",))),
-    TemplateSpec("aadhi_recap", "structure", False, "R1", _d((5.0, 8.0)), _c(("reveal", "exit")), _fit_aadhi_recap),
+    # Aadhi (§3.3; dynamic/presenter.py): the presenter is the stage's medium, the templates draw the text around him.
+    # The exit is the presenter's own choreography (look.presenter.t_exit: the brand wipe, the card's slide or fade),
+    # not an event. The hook's keyword takes cue_term (§3.3); a reveal is the whole item.
+    TemplateSpec("aadhi_intro", "structure", False, "R1", _d((5.0, 8.0)),
+                 _c(("reveal", "cue_term"), ("item", "item:term"), {"reveal": ("item",)}),
+                 _fit_aadhi_intro, implemented=True, variants=_v(("fullframe", "card_left", "pip", "split"), ("card",)),
+                 slots=_aadhi_slots(intro_slots())),
+    TemplateSpec("aadhi_recap", "structure", False, "R1", _d((5.0, 8.0)), _c(("reveal",)), _fit_aadhi_recap,
+                 implemented=True, slots=_aadhi_slots(recap_slots())),
     # the cue_term reaches a single term of the hook (``<item>:term:<n>``) as well as all of them; a reveal is the
     # whole item (B2c review CG-5: the forms are per kind). ``mystery`` stays in the variants (deviation 16: the page
     # draws it as a plain question until B4's blurred asset).
@@ -1710,7 +2223,7 @@ _SPECS: Final[tuple[TemplateSpec, ...]] = (
                  # cue_term is narrowed explicitly now that `targets` is wider (B2c review CG-5)
                  _c(("reveal", "draw", "cue_term", "look_here", "output"),
                     ("item", "item:term", "panel", "panel:row"),
-                    {"reveal": ("item",), "draw": ("item",), "cue_term": ("item", "item:term"),
+                    {"reveal": ("item", "panel"), "draw": ("item",), "cue_term": ("item", "item:term"),
                      "look_here": ("panel", "panel:row"), "output": ("panel",)}),
                  _fit_key_terms, implemented=True, slots=_key_terms_slots()),
     TemplateSpec("chapter_bumper", "structure", False, "R1", _d((2.0, 3.0), (1.2, 1.8)), _c(()), _fit_chapter_bumper,
@@ -1724,7 +2237,8 @@ _SPECS: Final[tuple[TemplateSpec, ...]] = (
     # end-screen space (§2.5)
     TemplateSpec("outro_next", "structure", False, "R1",
                  MappingProxyType({"landscape": Duration(6.0, 10.0, end_screen=zn.END_SCREEN.seconds),
-                                   "portrait": Duration(3.0, 5.0)}), _c(("reveal",)), _fit_outro_next),
+                                   "portrait": Duration(3.0, 5.0)}), _c(("reveal",)), _fit_outro_next,
+                 implemented=True, variants=_v(("next_up", "end_screen"), ()), slots=_outro_next_slots()),
     TemplateSpec("thumbnail", "structure", True, "R1", MappingProxyType({"landscape": Duration(0.0, 0.0)}), _c(()),
                  _never, formats=("landscape",), variants=MappingProxyType({"landscape": ()})),
     # B. Explanation
@@ -1734,8 +2248,11 @@ _SPECS: Final[tuple[TemplateSpec, ...]] = (
                  _fit_definition_card, implemented=True,
                  variants=_v(("card_icon_right", "card_image_left", "centred")),
                  slots=_definition_card_slots()),
+    # the cue_term reaches a single term of the statement (``<item>:term:<n>``) as well as all of them; a reveal is the
+    # whole item (hook_question's forms). No look variants (§4.3 names none), not dense, never pushed (typography).
     TemplateSpec("kinetic_statement", "statement", False, "R1", _d((3.0, 7.0), (2.0, 5.0)),
-                 _c(("reveal", "cue_term")), _fit_kinetic_statement),
+                 _c(("reveal", "cue_term"), ("item", "item:term"), {"reveal": ("item",)}),
+                 _fit_kinetic_statement, implemented=True, slots=_kinetic_statement_slots()),
     TemplateSpec("list_build", "enumeration", False, "R1", _d((3.0, 5.0), per_item=True),
                  _c(("reveal", "cue_term", "look_here"), ("item", "item:term"), {"reveal": ("item",)}),
                  _fit_list_build, implemented=True, slots=_list_build_slots()),
@@ -1779,16 +2296,20 @@ _SPECS: Final[tuple[TemplateSpec, ...]] = (
                  # the shared panel helper adds the panel's own look_here targets and its `output` beat
                  _c(("reveal", "fill", "countdown", "look_here", "output"),
                     ("item", "item:var", "item:step", "panel", "panel:row"),
-                    {"reveal": ("item",), "fill": ("item",), "countdown": ("item",),
+                    {"reveal": ("item", "panel"), "fill": ("item",), "countdown": ("item",),
                      "look_here": ("item", "item:var", "item:step", "panel", "panel:row"),
                      "output": ("panel",)}), _fit_worked_steps,
                  implemented=True, holds=("formula", "think"), dense=True, slots=_worked_steps_slots()),
+    # a bar on a line (no zoom, §4.3: push_ok stays False); the shared panel helper adds the terminal's own targets
     TemplateSpec("code_walkthrough", "code", True, "R1", _d((10.0, 30.0), (8.0, 20.0)),
-                 _c(("reveal", "look_here", "output"), ("item", "item:line", "panel")), _fit_code_walkthrough,
-                 holds=("code",), dense=True),
+                 _c(("reveal", "look_here", "output"), ("item", "item:line", "panel", "panel:row"),
+                    {"reveal": ("item",), "look_here": ("item", "item:line", "panel", "panel:row"),
+                     "output": ("panel",)}),
+                 _fit_code_walkthrough, implemented=True, holds=("code",), dense=True,
+                 slots=_code_walkthrough_slots()),
     TemplateSpec("chart_build", "quantity", True, "R1", _d((8.0, 20.0)),
                  _c(("draw", "count", "look_here"), ("panel", "panel:bar", "panel:point")), _fit_chart_build,
-                 holds=_DIAGRAM),
+                 holds=_DIAGRAM, implemented=True, slots=_chart_build_slots()),
     TemplateSpec("function_plot", "quantity", True, "W2", _d((6.0, 25.0)), _c(("draw", "look_here"),
                                                                               ("panel", "panel:point")),
                  _fit_function_plot, holds=_DIAGRAM),
@@ -1802,8 +2323,15 @@ _SPECS: Final[tuple[TemplateSpec, ...]] = (
                  _fit_animation_stage, implemented=True, forced_for=("simulation",),
                  slots=_animation_stage_slots()),
     # C. Practice and consolidation
+    # the belief's card is struck on `draw` and the fact enters on `answer` (myth_fact.js refuteTimes, when events.py
+    # writes them; the narration's timing otherwise); the shared panel helper adds the panel's own look_here forms and
+    # its `output` beat. No look variant; never a camera push (the outline form)
     TemplateSpec("myth_fact", "refutation", False, "R1", _d((8.0, 14.0), (6.0, 10.0)),
-                 _c(("reveal", "draw", "answer")), _fit_myth_fact),
+                 _c(("reveal", "draw", "answer", "cue_term", "look_here", "output"),
+                    ("item", "item:term", "panel", "panel:row"),
+                    {"reveal": ("item",), "draw": ("item",), "answer": ("item",), "cue_term": ("item", "item:term"),
+                     "look_here": ("item", "panel", "panel:row"), "output": ("panel",)}),
+                 _fit_myth_fact, implemented=True, slots=_myth_fact_slots()),
     # the cue_term reaches a single term of the question (``<item>:term:<n>``) as well as all of them; a reveal and a
     # countdown are the whole item (B2c review CG-5: the forms are per kind). §4.3 gives predict no look variant, and
     # push_ok stays false (R-07: the think ring never moves).

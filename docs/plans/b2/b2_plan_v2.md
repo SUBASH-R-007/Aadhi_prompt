@@ -243,3 +243,35 @@ critical) no longer masks a checked sighting of the same slot (`Finding.merge`);
 9:16 list row that overflowed at their minimums pass. Today's timelines have no finding either way (12 timelines
 checked). The 9:16 media_split phrase column (x 192-780, less push room) holds at most 2 lines at 48 px, so key
 phrases are short (the Tamil and long fixtures were shortened to fit; preflight blocks a longer one).
+
+Step 5 additions (2026-10-16; the owner's four decisions and seven templates). 37 §4.4's graph row names `chart_build`
+as its alternative while `function_plot` (W2) is unbuilt (owner decision 1): a graph is a statically sampled real plot,
+its curve drawn in. Chart.js draws marks and gridlines only; every label is page text reported through `texts()`.
+9:16 draws a one-series bar chart as a labelled bar list (category labels under narrow vertical bars cannot hold
+R-29's 44 px in the 588 px column); pie / doughnut / radar charts stay title cards. Chart and graph panels in the
+templates that use `_shared.js`'s panel helper are plots too (`key_terms`, `worked_steps`, `myth_fact`); `board_generic`
+and `media_split` still draw such a panel's title (job.py keeps warning for those). 38 Aadhi (owner decision 2): the
+intro (and the 16:9 retrieval recap's card) are synthesised scenes with no screenplay scene behind them
+(`dynamic/presenter.py`), silent until B3/B4's Aadhi voice and line pools; the intro folds into the first chapter (no
+5 s "Introduction" chapter); the clamp(t_exit + exit, 5, 8) rule moves t_exit, so a silent intro is exactly 5.0 s; the
+9:16 settle is a whole-pixel 16 px rise (no 0.96 scale, deviation 28); the recap exits by a 300 ms fade; the chip is
+at R-29's 40 / 44 px floor (§3.3: 36 px); the 16:9 title is 72-120 px in <= 4 lines; a presenter recap scene that also
+carries the full retrieval board falls to `board_generic` (its row has no alternative). `DYNAMIC_AADHI_INTRO=false`
+(white-label / test deployments) turns both off. 39 `myth_fact` takes a misconception scene and carries up to two of
+its definitions (16:9) as supporting lines with one heading (owner decision 3; `key_terms` stays pure); its shrink stops
+at R-29's floors (0.83 in 16:9, 0.85-0.91 in 9:16) instead of §4.3's 70 %; 9:16 draws the two cards alone. 40 Reels
+(owner decision 4): a 9:16 quiz of more than two options is `check`'s two-option check (the answer and the strongest
+distractor: a misconception-tagged option, else one with a written rationale, else the first wrong one, in stored
+order; the variant stored is `true_false`); a 9:16 side panel in `worked_steps` / `key_terms` is its own 2-4 s
+full-stage beat before the content, with a narration lead (`reels.reel_lead_for`, `TimedScene.audio_offset`) so no
+narrated item is held back (R-17). `QuizTiming.option_misconception_ids` is written for Dynamic builds only. 41
+`outro_next`: §4.4's positional "Last scene" row is tried before the class rows, so a closing takeaway ends on the
+outro rather than on `kinetic_statement`; the YouTube destination stores `end_screen` and the timeline holds that
+outro to exactly 15 s (`hold_seconds`); `refs.next` is written only from a caller's `next_title` (series, B4), never
+invented. 42 `code_walkthrough`: the editor surface is the stored token `code.surface` (`themes.code_surface`) on its
+scenes only; the code line height is the editor's own 1.2 (R-29's 1.35 would hold 15 lines, deviation 13 needs 17);
+lines appear one by one (no typing); syntax colour is comments in ink2 and lesson-entity identifiers only; a look_here
+outline on the dark editor in a light family takes `content_alt`'s focus (`TemplateModule.cueMode`). 43
+`kinetic_statement`: the 9:16 statement is centred on the hook band and grows into `text-above`; a statement between
+§4.3's 12 (8) words and `KINETIC_STATEMENT_WORDS` 18 (9) is FIT_STRETCHED, past it `board_generic`'s; completed lines
+wait for a term cue on them before they dim. 44 `ENGINE_VERSION` 5 (one bump for the whole step).

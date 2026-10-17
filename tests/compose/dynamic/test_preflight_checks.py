@@ -542,6 +542,47 @@ def test_raise_if_blocked() -> None:
     raise_if_blocked(res)  # warnings and fixes never block
 
 
+def _dynamic_result(*blocks: tuple[int, str]) -> PreflightResult:
+    """A Dynamic timeline's result: the synthesised intro first, then the teacher's scenes (one of them hidden in the
+    editor, so the timeline skips its number), and blocking findings on ``(scene_index, slot)``."""
+    findings = [Finding("text_overflow", i, slot, slot, 10, [100, 100, 900, 300], None, status="block")
+                for i, slot in blocks]
+    return PreflightResult(format="landscape", frames=900, fps=30, sampled=[0], rounds=1, seconds=0.1, webgl=False,
+                           findings=findings, remedies=[], stats={},
+                           scenes={0: ("aadhi-intro", "Ohm's Law"), 1: ("s-hook", "Why?"), 2: ("s-law", "The law"),
+                                   3: ("aadhi-recap", ""), 4: ("s-recap", "Recap")})
+
+
+def test_a_block_names_the_editors_scene_never_the_timeline_position() -> None:
+    """Step-5 review R5-3: every Dynamic timeline opens with Aadhi's synthesised intro (and a 16:9 one may hold his
+    recap), so the timeline position is one or two past the editor's number. The message names the scene by the
+    editor's numbering, and a synthesised appearance by what it is."""
+    numbers = {"s-hook": 1, "s-hidden": 2, "s-law": 3, "s-recap": 4}  # the editor counts the hidden scene
+    with pytest.raises(PreflightBlocked) as ei:
+        raise_if_blocked(_dynamic_result((2, "body"), (4, "title")), numbers)
+    text = str(ei.value)
+    assert "(scene 3, scene 4)" in text, text  # timeline indices 2 and 4: "scene 3, scene 5" before the fix
+    assert "Shorten text and render again." in text
+    with pytest.raises(PreflightBlocked) as ei:
+        raise_if_blocked(_dynamic_result((0, "title"), (2, "body")), numbers)
+    text = str(ei.value)
+    assert "(Aadhi's intro, scene 3)" in text, text  # "scene 1, scene 3" before the fix: scene 1 is the teacher's
+    assert pf.ACTION_SHORTEN_INTRO in text, "the intro's text is the session title, not a scene the editor shows"
+    with pytest.raises(PreflightBlocked) as ei:
+        raise_if_blocked(_dynamic_result((3, "prompt")), numbers)
+    assert "(Aadhi's recap)" in str(ei.value) and "Shorten text" in str(ei.value)
+    # a screenplay scene that happens to be named like an appearance is the screenplay's (it has a number)
+    own = dict(numbers, **{"aadhi-intro": 1})
+    with pytest.raises(PreflightBlocked) as ei:
+        raise_if_blocked(_dynamic_result((0, "title")), own)
+    assert "(scene 1)" in str(ei.value) and pf.ACTION_SHORTEN_INTRO not in str(ei.value)
+    # without the editor's numbers (a caller that has none): the playing position, the appearances not counted
+    with pytest.raises(PreflightBlocked) as ei:
+        raise_if_blocked(_dynamic_result((0, "title"), (2, "body"), (4, "title")))
+    assert "(Aadhi's intro, scene 2, scene 3)" in str(ei.value), str(ei.value)
+    assert pf.playing_numbers(_dynamic_result()) == {"s-hook": 1, "s-law": 2, "s-recap": 3}
+
+
 # --- run_preflight on a stand-in page: the caption layer the render burns, the stage's frame count ---------------
 
 

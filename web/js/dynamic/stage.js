@@ -24,25 +24,33 @@ import { h } from '../shared/dom.js';
 import { sceneIndexAt } from '../player/schedule.js';
 import { composite, contrastRatio } from '../motion/color.js';
 import { hashSeed, mulberry32 } from '../motion/random.js';
-import { Painter, entityRole, fixesOf, makeRoles, sceneIndexOfFrame, stageInfo, toneColor, zonesFor } from './core.js';
+import { Painter, entityRole, fixesOf, fx, makeRoles, sceneIndexOfFrame, stageInfo, toneColor, zonesFor } from './core.js';
 import { cameraAround, createCues, cueLayer, cueNeeds } from './cues.js';
 import { engineProblem } from './engine.js';
 import { fontStacks } from './fonts.js';
 import { backgroundTime, captionAt, chapterTitleAt, dynamicStateAt, freezeProgress } from './state.js';
 import { paintTransition, transitionAt } from './transitions.js';
 import { CaptionLayer, captionStyle } from './captions.js';
-import { LIVE_DRIFT, MediaView, mediaPlan as planMedia, presenterOf, frameUrl, mediaKey } from './media.js';
+import { LIVE_DRIFT, MediaView, mediaPlan as planMedia, frameUrl } from './media.js';
+import { liveVideoBox, presenterFrame, presenterPaint, presenterSpec } from './presenter.js';
+import aadhiIntro from './templates/aadhi_intro.js';
+import aadhiRecap from './templates/aadhi_recap.js';
 import animationStage from './templates/animation_stage.js';
 import boardGeneric from './templates/board_generic.js';
 import chapterBumper from './templates/chapter_bumper.js';
+import chartBuild from './templates/chart_build.js';
 import check from './templates/check.js';
+import codeWalkthrough from './templates/code_walkthrough.js';
 import definitionCard from './templates/definition_card.js';
 import formulaFocus from './templates/formula_focus.js';
 import fullBleedMedia from './templates/full_bleed_media.js';
 import hookQuestion from './templates/hook_question.js';
 import keyTerms from './templates/key_terms.js';
+import kineticStatement from './templates/kinetic_statement.js';
 import listBuild from './templates/list_build.js';
 import mediaSplit from './templates/media_split.js';
+import mythFact from './templates/myth_fact.js';
+import outroNext from './templates/outro_next.js';
 import predict, { buildChip, chipTexts, layoutChip, paintChip } from './templates/predict.js';
 import recapRetrieval from './templates/recap_retrieval.js';
 import workedSteps from './templates/worked_steps.js';
@@ -61,25 +69,33 @@ import colourBlock from './backgrounds/colour_block.js';
 /**
  * Templates by id (B1: board_generic; B2c: the pilots formula_focus, list_build and media_split; the demo phase:
  * chapter_bumper, definition_card, hook_question, key_terms, recap_retrieval and worked_steps; step 4:
- * animation_stage, check, full_bleed_media and predict; an unknown or
- * unreleased id falls back to board_generic). The catalogue's registry lists exactly these as `implemented`
+ * animation_stage, check, full_bleed_media and predict; step 5: aadhi_intro, aadhi_recap, chart_build,
+ * code_walkthrough, kinetic_statement, myth_fact and outro_next; an unknown or unreleased id falls back to
+ * board_generic). The catalogue's registry lists exactly these as `implemented`
  * (web/tests/dynamic/catalogue.test.js, tests/compose/dynamic/test_templates.py). The resolver asks
  * `compose/dynamic/direct.py` which of them draws each scene (presentation.TEMPLATES), so a real lecture now uses
  * them; `direct.candidate` is the gate, so a template joins the resolver's set by flipping `implemented`.
  * @type {Readonly<Record<string, TemplateModule>>}
  */
 export const TEMPLATES = Object.freeze({
+  aadhi_intro: aadhiIntro,
+  aadhi_recap: aadhiRecap,
   animation_stage: animationStage,
   board_generic: boardGeneric,
   chapter_bumper: chapterBumper,
+  chart_build: chartBuild,
   check: check,
+  code_walkthrough: codeWalkthrough,
   definition_card: definitionCard,
   formula_focus: formulaFocus,
   full_bleed_media: fullBleedMedia,
   hook_question: hookQuestion,
   key_terms: keyTerms,
+  kinetic_statement: kineticStatement,
   list_build: listBuild,
   media_split: mediaSplit,
+  myth_fact: mythFact,
+  outro_next: outroNext,
   predict: predict,
   recap_retrieval: recapRetrieval,
   worked_steps: workedSteps,
@@ -311,23 +327,35 @@ class Slot {
     return view;
   }
 
-  /** The presenter clip (ResolvedLook.presenter, B2): frames in render mode, a muted clip live. */
+  /**
+   * The presenter clip (ResolvedLook.presenter; presenter.js): in render mode the worker's frames of its crop at its box
+   * size (drawn 1:1, never scaled), live a muted clip placed so its crop fills the box. Below the template's content.
+   */
   _presenter() {
-    const p = presenterOf(this.scene);
+    const p = presenterSpec(this.scene);
     if (!p) return null;
     /** @type {HTMLImageElement | HTMLVideoElement | null} */
     let media = null;
-    const key = mediaKey('aadhi', p.clip_key, p.size);
     if (this.stage.mode === 'render') media = h('img', { class: 'dyn-media-el', alt: '', decoding: 'sync' });
     else if (p.url) {
       // determinism-allow video: live player only; render mode shows the worker's pre-extracted frames as <img>
       media = h('video', { class: 'dyn-media-el', src: p.url, preload: 'auto', playsinline: true });
       media.muted = true;
+      const box = liveVideoBox(p);
+      if (box) {
+        Object.assign(media.style, {
+          position: 'absolute', left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`,
+          height: `${box.height}px`, objectFit: 'fill',
+        });
+      }
     }
     if (!media) return null;
-    const el = h('div', { class: 'dyn-presenter', style: { left: p.rect.x, top: p.rect.y, width: p.rect.w, height: p.rect.h } }, media);
+    const el = h('div', {
+      class: 'dyn-presenter',
+      style: { left: p.rect.x, top: p.rect.y, width: p.rect.w, height: p.rect.h, ...(p.radius !== null ? { borderRadius: `${p.radius}px` } : {}) },
+    }, media);
     this.el.insertBefore(el, this.el.children[1] || null);
-    return { el, media, spec: p, key };
+    return { el, media, spec: p, key: p.key };
   }
 
   /** Wait for TeX, pictures and fonts, then measure (once). Never rejects. */
@@ -371,12 +399,16 @@ class Slot {
     if (this.cues) this.cues.update(paint, sceneT);
     const pr = this.presenter;
     if (pr) {
-      const on = sceneT < pr.spec.t_exit;
-      paint.style(pr.el, 'visibility', on ? 'visible' : 'hidden');
+      // presenter.js: visible through his exit, a whole-pixel settle / slide and a fade, all functions of t; the frame
+      // painted on every frame (none once he is gone), so the DOM never depends on the frames painted before
+      const look = presenterPaint(pr.spec, sceneT, { reducedMotion: this.stage.reducedMotion, stageHeight: this.stage.zones.height });
+      paint.style(pr.el, 'visibility', look.visible ? 'visible' : 'hidden');
+      paint.style(pr.el, 'transform', look.dy ? `translate(0px, ${look.dy}px)` : 'none');
+      paint.style(pr.el, 'opacity', fx(look.opacity));
       if (pr.media instanceof HTMLImageElement) {
-        if (on && !frameInfo.noFrames) paint.attr(pr.media, 'src', frameUrl(pr.key, Math.floor(sceneT * pr.spec.src_fps + 1e-6)));
+        if (!frameInfo.noFrames) paint.attr(pr.media, 'src', look.visible ? frameUrl(pr.key, presenterFrame(pr.spec, sceneT)) : null);
       } else {
-        syncClip(/** @type {HTMLVideoElement} */ (pr.media), sceneT, on && !!frameInfo.playing, frameInfo);
+        syncClip(/** @type {HTMLVideoElement} */ (pr.media), sceneT, look.visible && !!frameInfo.playing, frameInfo);
       }
     }
   }

@@ -165,7 +165,9 @@ def build(case: str, fmt: str) -> dict[str, Any]:
                 terms[scene["id"]] = None
     sp = Screenplay.model_validate(data)
     with _hook_question_resolved():
-        tl = build_timeline(sp, make_manifest(sp), settings=Settings(_env_file=None, dynamic_enabled=True))
+        # a template fixture: without Aadhi's synthesised appearances (step 5; their own fixtures are make_aadhi_fixtures)
+        tl = build_timeline(sp, make_manifest(sp), settings=Settings(_env_file=None, dynamic_enabled=True,
+                                                                    dynamic_aadhi_intro=False))
     for s in tl.scenes:
         s.events = _events(s, terms.get(s.scene_id))
         if s.look is not None:

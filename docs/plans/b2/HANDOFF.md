@@ -1,8 +1,10 @@
 # Session handoff — Batch B2 (Dynamic video visual system)
 
-Updated 2026-10-16, after STEP 4 landed and the five owner decisions were settled ("Owner decisions"). NEXT: STEP 5
-(`docs/plans/b2/step5_workflow.js`): chart_build, aadhi_intro + aadhi_recap, myth_fact, outro_next, code_walkthrough,
-kinetic_statement and the reel adaptations. To continue,
+Updated 2026-10-17, after STEP 5 was built and integrated (`docs/plans/b2/step5_workflow.js`: chart_build,
+aadhi_intro + aadhi_recap, myth_fact, outro_next, code_walkthrough, kinetic_statement and the reel adaptations; the
+integration is in the working tree, uncommitted, for the review round). NEXT: step 5's ONE review pass and ONE fix
+round, plus an AUDIT round (the integration touched shared files: `_shared.js`, `cues.js`, `templates.py`,
+`direct.py`, `events.py`, `presentation.py`, `timeline.py`, the schema and the catalogue), then commit. To continue,
 paste the "Prompt for the next session" block below into a new session.
 
 ## Where things are (2026-10-15, end of the first account's session)
@@ -69,7 +71,17 @@ to the lead; the evidence is in the review records of the last three phases):
   had been skipping preflight entirely, so earlier portrait MP4s were rendered with overflowing text and an
   unreadable 196x110 chart stand-in. Both fixed; the renderer now runs `run_preflight` + `raise_if_blocked`.
   Record: design §10.3 B2 "Status (B2 step 4)".
-- **OWNER DECISIONS WAITING (they block nothing; each is a layout question only the owner can settle):**
+- **STEP 5 INTEGRATED (2026-10-17, uncommitted).** 21 of the 23 R1 templates draw; Aadhi opens every Dynamic video;
+  `ENGINE_VERSION` 5. Record: design §10.3 B2 "Status (B2 step 5)" (what was built and wired, the gates, the open
+  items), plan §D 37-44, `final_videos/demo_b2/README.md`. **New owner decisions waiting** (they block nothing):
+  1. **A stage determinism defect** (`outro_next.landscape` reproduces it; its gate is a strict `xfail`): a burned
+     caption pill after a crossfade blends one level differently by seek history. The measured fix (`will-change:
+     opacity` on `.dyn-scene`) changes 7,314 of 26,112 frames in 67 of the 96 template fixtures: accept that change?
+  2. **The reel's text room.** The showcase's s9 / s11 / s12 do not fit the 9:16 `check` / `worked_steps` slots, so
+     they stay `board_generic` (`templates.py REEL_WRAP`, measured): reel-specific text (B4) or larger reel slots?
+  3. **Charts in `media_split` / `board_generic`** are still title cards (see the status block for why).
+  4. Review the seven templates' sizes and timings in `docs/plans/b2/demo_frames/index.html` (plan §D 37-44).
+- **The five decisions settled 2026-10-16 (carried out in step 5; the list below is kept as it was asked):**
   1. **No chart path exists at all.** A `graph` / `chart` / `model_3d` panel is drawn as its authored TITLE on a card,
      not as a plot, so the worked example's graph is a card reading "I = V / R (straight line!)". `chart_build` is
      the template that would draw it (Chart.js is vendored and B2-0 measured it order-independent).
@@ -333,30 +345,17 @@ Environment notes:
 ## Prompt for the next session
 
 > Continue the Dynamic video mode (Aadhi EduEngine), repository `C:/Users/SUBASH/OneDrive/Documents/GitHub/Aadhi_prompt`,
-> branch `overhaul/v2`. Read `docs/plans/b2/HANDOFF.md` first ("Where things are" and "Owner decisions"), then
-> `docs/plans/b2/README.md`, `b2_plan_v2.md` §A/§1/§2, and `b2c_review.md` / `b2c_design_notes.md` if they exist.
+> branch `overhaul/v2`. Read `docs/plans/b2/HANDOFF.md` first ("Where things are": the process is matched to risk;
+> no deadline), then design §10.3 B2 "Status (B2 step 5)" and plan §D 37-44.
 >
-> DEADLINE MODE: about 2 days remain (target ~2026-10-17). The owner chose a WORKING DEMO: real generated lectures must
-> render with the new Dynamic templates. Use the lighter process: parallel build agents that write only their own
-> files plus one integrator, ONE review pass, at most ONE fix round, no skeptic loops. Do not stall; push
-> `overhaul/v2` to origin after each landed phase and report briefly.
->
-> 1. `git fetch`; `git status`; `git log --oneline -5` on `overhaul/v2` and `git -C C:/t/b2c log --oneline -5`.
->    Make a WIP rollback commit of anything uncommitted.
-> 2. If B2c is not merged yet: in the worktree `C:/t/b2c` (branch `b2c`), make sure the review fixes are complete
->    (run `npm test`, `npx tsc -p tsconfig.json`, ruff, the generated-file checks and the B2c slow tests
->    `tests/determinism/test_template_pages.py test_template_fixtures.py test_template_clips.py`), fix what fails,
->    write `docs/plans/b2/b2c_review.md` and `b2c_design_notes.md` if missing, commit "B2c: ...", then in the main repo
->    `git merge b2c` into `overhaul/v2` (resolve conflicts; the main tree has the B2b-H HarfBuzz commit `65e6f1d`),
->    paste the B2c design notes into `docs/DYNAMIC_VIDEO_DESIGN.md`, run the full gates on the merged tree (fast suite
->    in the background, npm test, tsc, ruff, generated-file checks, the slow template/stage tests), commit, push. Remove
->    the worktree (first `cmd /c rmdir C:\t\b2c\node_modules`, then `git worktree remove --force C:/t/b2c`).
-> 3. Launch the demo phase: Workflow with `scriptPath: docs/plans/b2/demo_workflow.js`,
->    `args: {base: "<HEAD after step 2>"}`. When it returns: check the demo MP4s in `final_videos/demo_b2/` (extract a
->    few stills with ffmpeg and look at them), fix any blocker yourself, run the gates, commit, push, report.
-> 4. Then, as time allows, in priority order: the remaining R1 templates the demo needs (aadhi_intro, outro_next,
->    myth_fact, check/predict, code_walkthrough, chart_build), kinetic captions (B2d), backgrounds/transitions (B2f).
->    Keep classic (Aadhi presenter) output unchanged (tests/invariance) and every frame deterministic.
+> Step 5 is built and integrated in the working tree, uncommitted. 1. `git status`; make a rollback commit of the
+> working tree first. 2. Run step 5's ONE review pass (correctness of the seven templates and the integration; the
+> CG-2 fit <-> drawsScene gate and the reel text budget `templates.py REEL_WRAP`), ONE fix round and, because the
+> integration touched shared files, an AUDIT round. 3. Run every gate (HANDOFF "Gates", plus
+> `tests/determinism/test_template_pages.py test_template_fixtures.py test_template_clips.py test_presenter_pages.py`
+> and `AADHI_INVARIANCE_BASE=<base> pytest -m slow tests/invariance/test_render_slow.py`), commit, push. 4. Bring the
+> new owner decisions (HANDOFF "STEP 5 INTEGRATED") to the owner.
 >
 > Environment: use `.venv/Scripts/python.exe` (pytest-xdist is not installed; `--basetemp=C:/t/<label>`); never read
-> `.env`; never call paid APIs in tests; no many-minute checks in CI.
+> `.env`; never call paid APIs in tests; no many-minute checks in CI; never block one tool call longer than ~9 min
+> (run long suites in the background).

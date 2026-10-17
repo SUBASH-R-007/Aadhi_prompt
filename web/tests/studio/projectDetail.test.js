@@ -252,6 +252,32 @@ test('renders: the preflight list shows what the video would show differently, b
   handle.destroy();
 });
 
+test('renders: an item on Aadhi\'s synthesised intro is named, not numbered by its timeline position (R5-3)', async () => {
+  fresh();
+  mockFetch({
+    'GET /api/projects/5': detail(),
+    'GET /api/projects/5/shares': { items: [] },
+    'GET /api/versions/9/renders': { items: [] },
+    'GET /api/versions/9/render/preflight': {
+      version_id: 9,
+      has_timeline: true,
+      timeline_stale: false,
+      blocking: false,
+      items: [
+        // a Dynamic timeline opens with the synthesised intro (timeline index 0, no screenplay scene: no number)
+        { scene_index: 0, scene_id: 'aadhi-intro', scene_number: null, title: "Ohm's Law", reason: 'panel_media_missing', blocking: false, message: 'Only the panel title is shown.' },
+        { scene_index: 3, scene_id: 's4', scene_number: 3, title: '', reason: 'panel_media_missing', blocking: false, message: 'Only the panel title is shown.' },
+      ],
+    },
+  });
+  const { container, handle } = await mountPage(fakeApp());
+  const section = container.querySelector('[data-section="renders"]');
+  await waitFor(() => section.querySelector('[data-preflight]'));
+  const items = [...section.querySelectorAll('[data-preflight] li')].map((li) => li.textContent);
+  assert.deepEqual(items, ["Aadhi's intro (Ohm's Law): Only the panel title is shown.", 'Scene 3: Only the panel title is shown.']);
+  handle.destroy();
+});
+
 test('renders: the quality check is listed under its own heading, apart from how the video differs', async () => {
   fresh();
   mockFetch({

@@ -289,6 +289,19 @@ def sweep_legacy_temp(*, max_age_hours: float, now: float | None = None, temp_di
     return removed
 
 
+def _sweep_presenter_cache(settings: Settings, root: Path) -> list[Path]:
+    """The Dynamic presenter's frame cache (``<root>/derivatives/aadhi``, ``compose.dynamic.presenter``): the sets of
+    clips that are no longer the current branding files (a re-encoded clip gets a fresh set) and temporary directories
+    a killed worker left. Only when the cache exists, so a host that never rendered a Dynamic video imports nothing."""
+    if not (root / "derivatives" / "aadhi").is_dir():
+        return []
+    from .dynamic import presenter  # lazy: a Dynamic module
+
+    branding = Path(settings.branding_dir)
+    keep = [presenter.clip_digest(branding / name) for name in presenter.CLIPS.values() if (branding / name).is_file()]
+    return presenter.sweep_cache(root, keep)
+
+
 def sweep_stale(settings: Settings, statuses: Callable[[list[int]], Mapping[int, str | None]], *,
                 exclude: Iterable[int] = ()) -> int:
     """Best-effort housekeeping of this host's render files; returns how many directories were removed.
@@ -305,6 +318,7 @@ def sweep_stale(settings: Settings, statuses: Callable[[list[int]], Mapping[int,
                                    keep_failed_hours=max(0, settings.render_keep_failed_hours))
         removed += sweep_legacy_temp(max_age_hours=max(24, settings.render_keep_failed_hours),
                                      temp_dir=scratch_root(settings))
+        removed += _sweep_presenter_cache(settings, root)
     except Exception as exc:  # noqa: BLE001 - housekeeping only
         log.warning("render workspace sweep failed: %s", type(exc).__name__)
         return 0

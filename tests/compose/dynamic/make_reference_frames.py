@@ -79,22 +79,45 @@ CHOSEN: dict[tuple[str, str], tuple[str, ...]] = {
     ("hook_question", "portrait"): ("hook_question.portrait.json", "hook_question.portrait.light.json",
                                     "hook_question.portrait.stress.json"),
     ("key_terms", "landscape"): ("key_terms.landscape.json", "key_terms.landscape.tamil.json"),
-    ("key_terms", "portrait"): ("key_terms.portrait.json", "key_terms.portrait.hindi.json"),
+    ("key_terms", "portrait"): ("key_terms.portrait.json", "key_terms.portrait.hindi.json",
+                                "key_terms.portrait.reel.json"),
     ("recap_retrieval", "landscape"): ("recap_retrieval.landscape.json", "recap_retrieval.landscape.tamil.json"),
     ("recap_retrieval", "portrait"): ("recap_retrieval.portrait.json", "recap_retrieval.portrait.hindi.json"),
     ("worked_steps", "landscape"): ("worked_steps.landscape.json", "worked_steps.landscape.light.json"),
-    ("worked_steps", "portrait"): ("worked_steps.portrait.json", "worked_steps.portrait.light.json"),
+    ("worked_steps", "portrait"): ("worked_steps.portrait.json", "worked_steps.portrait.light.json",
+                                   "worked_steps.portrait.reel.json"),
     # step 4's four (the templates the showcase's fallback scenes needed), same shape: a dark typical case plus its
     # light / Indic case
     ("animation_stage", "landscape"): ("animation_stage.landscape.json", "animation_stage.landscape.light.json"),
     ("animation_stage", "portrait"): ("animation_stage.portrait.json", "animation_stage.portrait.indic.json"),
     ("check", "landscape"): ("check.landscape.json", "check.landscape.light.json"),
-    ("check", "portrait"): ("check.portrait.json", "check.portrait.hindi.json"),
+    ("check", "portrait"): ("check.portrait.json", "check.portrait.hindi.json", "check.portrait.reel.json"),
     ("full_bleed_media", "landscape"): ("full_bleed_media.landscape.json",
                                         "full_bleed_media.landscape.light.json"),
     ("full_bleed_media", "portrait"): ("full_bleed_media.portrait.json", "full_bleed_media.portrait.indic.json"),
     ("predict", "landscape"): ("predict.landscape.json", "predict.landscape.tamil.json"),
     ("predict", "portrait"): ("predict.portrait.json", "predict.portrait.hindi.json"),
+    # step 5's seven (the reel adaptations of owner decision 4 are their templates' third 9:16 case above)
+    ("aadhi_intro", "landscape"): ("aadhi_intro.landscape.json", "aadhi_intro.landscape.light.json",
+                                   "aadhi_intro.landscape.hook.json", "aadhi_intro.landscape.card.json"),
+    ("aadhi_intro", "portrait"): ("aadhi_intro.portrait.json", "aadhi_intro.portrait.hook.json"),
+    ("aadhi_recap", "landscape"): ("aadhi_recap.landscape.json",),
+    ("aadhi_recap", "portrait"): ("aadhi_recap.portrait.json",),
+    ("chart_build", "landscape"): ("chart_build.landscape.json", "chart_build.landscape.light.json",
+                                   "chart_build.landscape.graph.json"),
+    ("chart_build", "portrait"): ("chart_build.portrait.json", "chart_build.portrait.light.json",
+                                  "chart_build.portrait.graph.json"),
+    ("code_walkthrough", "landscape"): ("code_walkthrough.landscape.json", "code_walkthrough.landscape.light.json",
+                                        "code_walkthrough.landscape.long.json"),
+    ("code_walkthrough", "portrait"): ("code_walkthrough.portrait.json", "code_walkthrough.portrait.hindi.json"),
+    ("kinetic_statement", "landscape"): ("kinetic_statement.landscape.json", "kinetic_statement.landscape.light.json",
+                                         "kinetic_statement.landscape.stress.json"),
+    ("kinetic_statement", "portrait"): ("kinetic_statement.portrait.json", "kinetic_statement.portrait.light.json",
+                                        "kinetic_statement.portrait.stress.json"),
+    ("myth_fact", "landscape"): ("myth_fact.landscape.json", "myth_fact.landscape.tamil.json"),
+    ("myth_fact", "portrait"): ("myth_fact.portrait.json", "myth_fact.portrait.hindi.json"),
+    ("outro_next", "landscape"): ("outro_next.landscape.json", "outro_next.landscape.endscreen.json"),
+    ("outro_next", "portrait"): ("outro_next.portrait.json", "outro_next.portrait.hindi.json"),
 }
 CLIP = "+clip"
 
@@ -136,6 +159,33 @@ def _slug(text: str) -> str:
     return "".join(c if c.isalnum() else "-" for c in text.lower()).strip("-")[:40] or "x"
 
 
+async def _presenter_frames(settings: Any, base: str, served: dict[str, Any], tl: Any) -> Any:
+    """Aadhi's real frames for a fixture with a presenter, served as the worker serves them (the page's media plan, each
+    crop extracted from ``video_template/`` by the presenter cache: tests/determinism/test_presenter_pages.py)."""
+    from aadhi.compose.dynamic import presenter as pr
+    from aadhi.compose.dynamic.stage_page import open_stage, placeholder_frames
+    from aadhi.compose.motion import media as mm
+    from aadhi.compose.motion.chunks import scene_frame_bounds
+    from tests.determinism.test_presenter_pages import BRANDING, FRAME_RE
+
+    total = scene_frame_bounds(tl)[-1][1]
+    async with open_stage(settings, size=(tl.width, tl.height), token=TOKEN, base_url=base, served_timeline=served,
+                          frames=placeholder_frames) as page:
+        raw = await page.page.evaluate(f"() => window.aadhiStage.mediaPlan(0, {total})")
+    work = Path(tempfile.mkdtemp(prefix="b2-presenter-"))
+    sets = {req.key: pr.ensure_frames(work, BRANDING / req.asset, crop=req.crop, size=req.size)
+            for req in mm.parse_media_plan(raw, stage=(tl.width, tl.height)) if req.kind == "aadhi" and req.crop}
+
+    def serve(path: str) -> Path | None:
+        m = FRAME_RE.match(path)
+        if m is None or m["key"] not in sets:
+            return None
+        directory, n = sets[m["key"]]
+        return directory / pr.frame_name(min(int(m["n"]), n - 1))
+
+    return serve
+
+
 async def _capture(settings: Any, base: str, name: str, out: Path) -> list[Shot]:
     from PIL import Image
 
@@ -160,6 +210,8 @@ async def _capture(settings: Any, base: str, name: str, out: Path) -> list[Shot]
     else:
         served = json.loads((FIXTURE_DIR / file).read_text("utf-8"))
     tl = Timeline.model_validate(served)
+    if frames is None and any(s.look is not None and s.look.presenter for s in tl.scenes):
+        frames = await _presenter_frames(settings, base, served, tl)
     burn = bool(tl.presentation and tl.presentation.captions_burn)
     shots: list[Shot] = []
     async with open_stage(settings, size=(tl.width, tl.height), token=TOKEN, base_url=base,

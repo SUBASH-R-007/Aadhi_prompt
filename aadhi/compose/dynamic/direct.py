@@ -41,8 +41,23 @@ choice deterministic and reviewable.
   ``board_generic`` rather than planning a template the page would then draw with the fallback.
 * ``predict`` is an ordinary class candidate of the ``prompt`` row (a board with one blank ``question`` item), nudged
   by ``INTENT_TEMPLATES["predict"]``.
-* ``worked_steps`` / ``key_terms`` now draw a **side panel** in 16:9, so their fits take a panelled scene there (and
-  refuse it in 9:16): the §4.4 rows are unchanged, only what their fits accept.
+* ``worked_steps`` / ``key_terms`` draw a **side panel** in 16:9 beside the content and (step 5, owner decision 4) in
+  9:16 as its own short beat before it, so their fits take a panelled scene in both formats: the §4.4 rows are
+  unchanged, only what their fits accept. For such a 9:16 scene :func:`plan` rewrites the events for the beat
+  (``reels.reel_events``: the ``reveal`` on ``panel`` and the deferred entrances).
+
+**Step 5's templates** are again reached through the existing machinery, with three additions, each deterministic:
+
+* ``aadhi_intro`` / ``aadhi_recap``: the timeline builder synthesises Aadhi's opening scene (and the 16:9 retrieval
+  recap's card) with no screenplay scene behind it (``dynamic/presenter.py``); :func:`plan` gives such a timed scene
+  the presenter template ``presenter.plan_for`` names, forced. ``presenter=False`` (``DYNAMIC_AADHI_INTRO`` off)
+  never chooses a presenter template (:func:`_without_presenter`).
+* ``outro_next``: §4.4's positional "Last scene" row is tried before the class rows, so a closing takeaway ends the
+  video on its outro rather than on ``kinetic_statement``; any last scene that is not R-11's closure shape keeps its
+  class row (the outro's fit refuses it). Its variant follows the destination (:func:`variant_for`).
+* ``myth_fact``, ``code_walkthrough``, ``kinetic_statement`` and ``chart_build`` are ordinary class candidates of
+  their rows (the graph row names ``chart_build`` while ``function_plot`` is unbuilt); a 9:16 quiz of more than two
+  options is ``check``'s two-option reel check (stored ``true_false``).
 
 The "Your prediction?" chip of §4.3's ``predict`` belongs to whichever template explains the outcome, so it is not a
 template choice at all: ``web/js/dynamic/stage.js`` builds it in a layer of its own on any scene whose look carries
@@ -77,6 +92,7 @@ from typing import Final
 from ...schemas.screenplay import Presentation, SceneBase, Screenplay
 from ...schemas.timeline import Chapter, TimedScene, VisualEvent
 from . import events as ev
+from . import reels
 from .templates import DEFINITION_PANELS, FALLBACK_TEMPLATE, TEMPLATES, Signal, TemplateSpec, signals
 from .zones import Format
 
@@ -237,12 +253,31 @@ def _locked(scene: SceneBase, fmt: Format, *, last: bool, chapter_end: bool) -> 
     return (spec.id, fit) if fit > 0 else None
 
 
+#: The presenter's templates: never chosen while ``DYNAMIC_AADHI_INTRO`` is off (§3.4).
+PRESENTER_TEMPLATES: Final = ("aadhi_intro", "aadhi_recap")
+
+
+def _without_presenter(row: Signal) -> Signal:
+    """A §4.4 row with Aadhi switched off (§3.4): the presenter row's alternative (``hook_question``) is preferred, and a
+    presenter recap scene is the retrieval recap's (the row a recap scene without the presenter matches)."""
+    if row.preferred == "aadhi_intro":
+        return Signal(row.id, row.semantic_class, row.alternatives[0], row.alternatives[1:], row.forced)
+    if row.preferred == "aadhi_recap":
+        return Signal("recap", "prompt", "recap_retrieval")
+    return row
+
+
 def choose(scene: SceneBase, ctx: _Context, presentation: Presentation | None, *, last: bool = False,
-           chapter_end: bool = False) -> tuple[str, float, str, bool, bool]:
-    """``(template, fit, semantic_class, forced, locked)`` for one screenplay scene (§4.4's algorithm, steps 1-5)."""
+           chapter_end: bool = False, presenter: bool = True) -> tuple[str, float, str, bool, bool]:
+    """``(template, fit, semantic_class, forced, locked)`` for one screenplay scene (§4.4's algorithm, steps 1-5).
+    ``presenter``: Aadhi may appear (``DYNAMIC_AADHI_INTRO``); off, his templates are never chosen."""
     fmt = ctx.fmt
     rows = signals(scene, last=last, chapter_end=chapter_end)
+    if not presenter:
+        rows = tuple(_without_presenter(r) for r in rows)
     locked = _locked(scene, fmt, last=last, chapter_end=chapter_end)
+    if locked is not None and not presenter and locked[0] in PRESENTER_TEMPLATES:
+        locked = None
     if locked is not None:
         tid, fit = locked
         row = next((r for r in rows if tid in _row_templates(r)), None)
@@ -256,7 +291,10 @@ def choose(scene: SceneBase, ctx: _Context, presentation: Presentation | None, *
                 return tid, fit, forced_row.semantic_class, True, False
         return _fall_back(scene, fmt, last=last, chapter_end=chapter_end)
     continues = scene.look is not None and scene.look.continues_from is not None
-    for row in rows:
+    # §4.4 "Last scene -> outro_next" is positional: its row is tried before the class rows (which keep the table's
+    # order). Otherwise a closing takeaway would go to the statement row's kinetic_statement and no video would end on
+    # its outro. outro_next's fit takes only R-11's closure shape, so any other last scene keeps its class row.
+    for row in sorted(rows, key=lambda r: r.id != "last"):  # stable: the other rows keep their order
         scored: list[tuple[float, int, str, float]] = []
         for order, tid in enumerate(_row_templates(row)):
             spec = candidate(tid, fmt)
@@ -281,6 +319,19 @@ def _fall_back(scene: SceneBase, fmt: Format, *, last: bool, chapter_end: bool) 
             False, False)
 
 
+def row_template(scene: SceneBase, fmt: Format, presentation: Presentation | None, *, last: bool = False,
+                 presenter: bool = True) -> str:
+    """The template :func:`plan` gives ``scene`` (a screenplay scene) when the answer does not depend on its
+    neighbours: :func:`choose` with none. The neighbours (R-20's repeat penalty, the share, the recent-use bonus) only
+    move the score between the templates of one row; which row is taken, a lock, and a forced row's choice (taken in
+    the row's own order) never depend on them. So this is :func:`plan`'s answer whenever the chosen row holds one
+    candidate or is forced: ``recap_retrieval`` (the only template of the recap row) and ``aadhi_intro`` (the forced
+    presenter row), which is what ``presenter.plan_appearances`` asks before the timeline exists. ``chapter_end`` is
+    taken as False: it only adds ``takeaway_stamp`` (unimplemented, never a candidate) to the statement row."""
+    ctx = _Context(fmt=fmt, total=1)
+    return choose(scene, ctx, presentation, last=last, presenter=presenter)[0]
+
+
 # --- variants -------------------------------------------------------------------------------------------------------
 
 
@@ -296,7 +347,10 @@ def variant_for(template_id: str, fmt: Format, presentation: Presentation | None
     * ``aadhi_intro`` / ``hook_question``: the teacher's stored choice (``Presentation.intro_layout``,
       ``hook_kind``) when it names one of the template's variants in this format.
     * ``check``: ``free_recall`` without options, ``true_false`` with two, else ``mcq`` (§4.3's data; 9:16 has only
-      the first two).
+      the first two): a 9:16 quiz of more than two options is the reel's two-option check (owner decision 4: the
+      answer and the strongest distractor, ``reels.py``), stored as ``true_false``.
+    * ``outro_next``: ``end_screen`` for the YouTube destination (§2.5 / §2.6: the right half clean for the end screen;
+      ``compose/timeline.py`` then holds the outro to exactly ``Duration.end_screen``), else ``next_up``.
     * ``definition_card``: exactly what ``definition_card.js variantOf`` draws - ``card_image_left`` when the scene
       brings a picture the page shows (16:9 only; 9:16 holds the card alone), ``card_icon_right`` when the resolved
       look has an icon for the definition item (``icons``), else ``centred``. The resolver writes no ``look.icons``
@@ -321,7 +375,7 @@ def variant_for(template_id: str, fmt: Format, presentation: Presentation | None
         return str(stored)
     if template_id == "check":
         count = len(getattr(scene, "options", ()) or ())
-        wanted = "free_recall" if count == 0 else "true_false" if count == 2 else "mcq"
+        wanted = "free_recall" if count == 0 else "true_false" if count == 2 or fmt == "portrait" else "mcq"
         if wanted in options:
             return wanted
     if template_id == "definition_card":
@@ -334,6 +388,12 @@ def variant_for(template_id: str, fmt: Format, presentation: Presentation | None
                      if str(getattr(i.kind, "value", i.kind)) == "definition"), None)
         icon = item is not None and icons is not None and item.id in icons
         wanted = "card_image_left" if picture else "card_icon_right" if icon else "centred"
+        if wanted in options:
+            return wanted
+    if template_id == "outro_next":
+        # §2.5 / §2.6: the YouTube destination keeps end-screen space, the outro's right half clean for its last 15 s
+        # (16:9 only: 9:16 has no variant); compose/timeline.py then holds the outro to exactly Duration.end_screen
+        wanted = "end_screen" if getattr(presentation, "destination", None) == "youtube" else "next_up"
         if wanted in options:
             return wanted
     return options[0]
@@ -357,7 +417,8 @@ def chapter_of(scenes: Sequence[TimedScene], chapters: Sequence[Chapter] | None)
 
 
 def plan(screenplay: Screenplay, scenes: Sequence[TimedScene], fmt: Format | None = None,
-         chapters: Sequence[Chapter] | None = None, *, fallback_events: bool = True) -> list[ScenePlan]:
+         chapters: Sequence[Chapter] | None = None, *, fallback_events: bool = True,
+         presenter: bool = True) -> list[ScenePlan]:
     """One :class:`ScenePlan` per timed scene, in order: its template, variant and visual events.
 
     ``fmt``: the lecture's format (``screenplay.presentation.format`` when not given). ``chapters``:
@@ -389,18 +450,34 @@ def plan(screenplay: Screenplay, scenes: Sequence[TimedScene], fmt: Format | Non
     out: list[ScenePlan] = []
     for i, timed in enumerate(scenes):
         scene = source.get(timed.scene_id)
-        if scene is None:  # a timed scene with no screenplay scene (never in a built timeline)
+        if scene is None:
+            # a scene the timeline builder synthesised: Aadhi's intro or recap (dynamic/presenter.py), forced; any
+            # other timed scene without a screenplay scene falls back (never in a built timeline)
+            from .presenter import plan_for  # lazy: only a Dynamic build with an appearance asks
+
+            synth = plan_for(timed, screenplay, fmt) if presenter else None
+            if synth is not None and candidate(synth[0], fmt) is not None:
+                out.append(ScenePlan(timed.scene_id, synth[0], synth[1], (), 1.0, "structure", forced=True))
+                previous = synth[0]
+                used[previous] = used.get(previous, 0) + 1
+                recent = [*recent, previous][-RECENT_SCENES:]
+                continue
             out.append(ScenePlan(timed.scene_id, FALLBACK_TEMPLATE, None, (), 0.0, "fallback"))
             previous = FALLBACK_TEMPLATE
             continue
         ctx = _Context(fmt=fmt, total=len(scenes), previous=previous, recent=tuple(recent), used=used)
         last = i == len(scenes) - 1
         chapter_end = last or numbers[i + 1] != numbers[i]
-        template, fit, klass, forced, locked = choose(scene, ctx, presentation, last=last, chapter_end=chapter_end)
+        template, fit, klass, forced, locked = choose(scene, ctx, presentation, last=last, chapter_end=chapter_end,
+                                                      presenter=presenter)
         spec = TEMPLATES[template]
         hold = scene.look.hold_reason if scene.look is not None else None
         events = ([] if template == FALLBACK_TEMPLATE and not fallback_events
                   else ev.scene_events(timed, accepts=spec.consumes.accepts, hold_reason=hold, terms=terms))
+        if (fmt == "portrait" and template in reels.REEL_PANEL_TEMPLATES and timed.side_panel is not None
+                and timed.layout.show_side_panel):
+            # owner decision 4: the reel side panel is its own beat before the content (reels.py)
+            events = reels.reel_events(timed, events, accepts=spec.consumes.accepts)
         out.append(ScenePlan(scene_id=timed.scene_id, template=template,
                              variant=variant_for(template, fmt, presentation, chapter=numbers[i], scene=scene),
                              events=tuple(events), fit=fit, semantic_class=klass, forced=forced, locked=locked))
@@ -418,5 +495,5 @@ def template_counts(plans: Sequence[ScenePlan]) -> dict[str, int]:
     return out
 
 
-__all__ = ["ScenePlan", "candidate", "candidates", "chapter_of", "choose", "plan", "score", "seed_for",
+__all__ = ["ScenePlan", "candidate", "candidates", "chapter_of", "choose", "plan", "row_template", "score", "seed_for",
            "template_counts", "variant_for"]

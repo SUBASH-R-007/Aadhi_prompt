@@ -1,0 +1,358 @@
+{
+ "board_language": "en-IN",
+ "branding": {
+  "bgm_url": null,
+  "bgm_volume": 0.06,
+  "ding_url": null,
+  "mascot_clips": {},
+  "mascot_rig_url": null,
+  "static_background_url": null,
+  "tick_url": null
+ },
+ "captions": [
+  {
+   "end": 1.3,
+   "start": 0.5,
+   "text": "Here is one to think about. Pause now if you need more time."
+  },
+  {
+   "end": 5.2,
+   "start": 4.6,
+   "text": "Here is the answer."
+  },
+  {
+   "end": 7.3,
+   "start": 6.5,
+   "text": "Here is one to think about. Pause now if you need more time."
+  },
+  {
+   "end": 11.2,
+   "start": 10.6,
+   "text": "Here is the answer."
+  }
+ ],
+ "chapters": [
+  {
+   "start": 0.0,
+   "title": "Quick check"
+  },
+  {
+   "start": 6.0,
+   "title": "Quick check"
+  }
+ ],
+ "concept_map": [],
+ "estimated": false,
+ "fps": 30,
+ "height": 1920,
+ "intro": null,
+ "language": "en-IN",
+ "learning_objectives": [],
+ "meta": {
+  "session_number": "Session 3",
+  "session_title": "Circuits",
+  "subject_name": "Basic Electrical Engineering",
+  "unit_name": "Unit 2: DC Circuits"
+ },
+ "presentation": {
+  "caption_style": "clean_pill",
+  "captions_burn": true,
+  "content": {
+   "entity:0": "#0FE3FE",
+   "entity:1": "#C4A4FE",
+   "entity:2": "#FEACE3",
+   "focus": "#F2D935",
+   "ink": "#F3F5F9",
+   "ink2": "#B9BEC7",
+   "mark": "#F2D935",
+   "ok": "#5DD8AA",
+   "warn": "#F8A87F"
+  },
+  "content_alt": {
+   "entity:0": "#0267C7",
+   "entity:1": "#80369E",
+   "entity:2": "#870C62",
+   "focus": "#141822",
+   "ink": "#141822",
+   "ink2": "#484D58",
+   "mark": "#F2D935",
+   "ok": "#016F50",
+   "warn": "#9F4503"
+  },
+  "cue_term_style": "marker",
+  "engine_version": 5,
+  "family": "deep_teal",
+  "fonts": {
+   "body": "inter",
+   "display": "outfit",
+   "indic": "noto_sans",
+   "mono": "jetbrains_mono"
+  },
+  "format": "portrait",
+  "generated_seconds": 12.0,
+  "mode": "dark",
+  "motion": "standard",
+  "motion_scale": 0.85,
+  "personality": "crisp",
+  "safe_zone": "universal",
+  "sfx": false,
+  "style": "dynamic",
+  "text_entrance": "baseline_reveal"
+ },
+ "scenes": [
+  {
+   "audio_asset_key": null,
+   "audio_duration": 5.0,
+   "audio_offset": 0.5,
+   "audio_url": null,
+   "beats": [
+    {
+     "beat_id": "ck-r-four-0",
+     "board_item_id": null,
+     "captions": [
+      {
+       "end": 1.3,
+       "start": 0.5,
+       "text": "Here is one to think about. Pause now if you need more time."
+      }
+     ],
+     "end": 1.6,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 0,
+     "narration": "Here is one to think about. Pause now if you need more time.",
+     "phase": "main",
+     "speech_end": 1.3,
+     "start": 0.5,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "ck-r-four-1",
+     "board_item_id": null,
+     "captions": [
+      {
+       "end": 5.2,
+       "start": 4.6,
+       "text": "Here is the answer."
+      }
+     ],
+     "end": 5.5,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 1,
+     "narration": "Here is the answer.",
+     "phase": "reveal",
+     "speech_end": 5.2,
+     "start": 4.6,
+     "visual_cue": null,
+     "words": []
+    }
+   ],
+   "board": [],
+   "chapter_id": null,
+   "chapter_label": null,
+   "concept_id": null,
+   "duration": 6.0,
+   "figures": {},
+   "index": 0,
+   "layout": {
+    "fullscreen_media": false,
+    "mascot_position": "left",
+    "show_side_panel": true
+   },
+   "look": {
+    "background": {
+     "frozen_at": null,
+     "params": {
+      "tone": "bg"
+     },
+     "preset": "mesh_drift",
+     "seed": 9000
+    },
+    "hold_reason": null,
+    "presenter": null,
+    "template": "check",
+    "text_fit": {},
+    "tokens": {
+     "bg": "#001B1C",
+     "bg-alt": "#002527",
+     "bg-tint": "#251118",
+     "block.base": "#7B64A8",
+     "block.highlight": "#A970B6",
+     "block.ink": "#FFFFFF",
+     "block.ink2": "#F1EFF7",
+     "scrim": "#001B1CC7",
+     "struct.accent": "#FF89B0",
+     "surface": "#0E3133"
+    },
+    "transition_in": {
+     "kind": "cut",
+     "seconds": 0.0
+    },
+    "variant": null
+   },
+   "media": null,
+   "objective_ids": [],
+   "p5_code": null,
+   "poster": null,
+   "quiz": {
+    "correct_index": 1,
+    "countdown_seconds": 3,
+    "countdown_start": 1.6,
+    "explanation": "It doubles: $I = V / R$.",
+    "feedback_wrong": [
+     "",
+     "",
+     "",
+     "Current is never used up: it always comes home."
+    ],
+    "options": [
+     "It stays the same",
+     "It doubles",
+     "It halves",
+     "It is used up faster"
+    ],
+    "question": "Double the voltage across a fixed [[resistance]]. What does the current do?",
+    "reveal_start": 4.6
+   },
+   "scene_id": "ck-r-four",
+   "side_panel": null,
+   "start": 0.0,
+   "subtitle": null,
+   "title": "Quick check",
+   "type": "quiz_checkpoint"
+  },
+  {
+   "audio_asset_key": null,
+   "audio_duration": 5.0,
+   "audio_offset": 0.5,
+   "audio_url": null,
+   "beats": [
+    {
+     "beat_id": "ck-r-three-0",
+     "board_item_id": null,
+     "captions": [
+      {
+       "end": 1.3,
+       "start": 0.5,
+       "text": "Here is one to think about. Pause now if you need more time."
+      }
+     ],
+     "end": 1.6,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 0,
+     "narration": "Here is one to think about. Pause now if you need more time.",
+     "phase": "main",
+     "speech_end": 1.3,
+     "start": 0.5,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "ck-r-three-1",
+     "board_item_id": null,
+     "captions": [
+      {
+       "end": 5.2,
+       "start": 4.6,
+       "text": "Here is the answer."
+      }
+     ],
+     "end": 5.5,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 1,
+     "narration": "Here is the answer.",
+     "phase": "reveal",
+     "speech_end": 5.2,
+     "start": 4.6,
+     "visual_cue": null,
+     "words": []
+    }
+   ],
+   "board": [],
+   "chapter_id": null,
+   "chapter_label": null,
+   "concept_id": null,
+   "duration": 6.0,
+   "figures": {},
+   "index": 1,
+   "layout": {
+    "fullscreen_media": false,
+    "mascot_position": "left",
+    "show_side_panel": true
+   },
+   "look": {
+    "background": {
+     "frozen_at": null,
+     "params": {
+      "tone": "bg"
+     },
+     "preset": "mesh_drift",
+     "seed": 9001
+    },
+    "hold_reason": null,
+    "presenter": null,
+    "template": "check",
+    "text_fit": {},
+    "tokens": {
+     "bg": "#001B1C",
+     "bg-alt": "#002527",
+     "bg-tint": "#221505",
+     "block.base": "#6C7B23",
+     "block.highlight": "#998A0A",
+     "block.ink": "#14161C",
+     "block.ink2": "#162E3B",
+     "scrim": "#001B1CC7",
+     "struct.accent": "#F49F1E",
+     "surface": "#0E3133"
+    },
+    "transition_in": {
+     "kind": "crossfade",
+     "seconds": 0.45
+    },
+    "variant": null
+   },
+   "media": null,
+   "objective_ids": [],
+   "p5_code": null,
+   "poster": null,
+   "quiz": {
+    "correct_index": 2,
+    "countdown_seconds": 3,
+    "countdown_start": 1.6,
+    "explanation": "A resistor sets how much flows.",
+    "feedback_wrong": [
+     "",
+     "",
+     ""
+    ],
+    "options": [
+     "A switch",
+     "A battery",
+     "A resistor"
+    ],
+    "question": "Which one limits the current in a loop?",
+    "reveal_start": 4.6
+   },
+   "scene_id": "ck-r-three",
+   "side_panel": null,
+   "start": 6.0,
+   "subtitle": null,
+   "title": "Quick check",
+   "type": "quiz_checkpoint"
+  }
+ ],
+ "schema_version": 3,
+ "screenplay_revision": null,
+ "total_duration": 12.0,
+ "transition_seconds": 0.4,
+ "version_id": null,
+ "width": 1080
+}

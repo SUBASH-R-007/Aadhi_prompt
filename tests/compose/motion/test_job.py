@@ -105,7 +105,9 @@ def test_side_panels_the_stage_does_not_draw_are_reported() -> None:
     assert [it["message"].split("(")[1].split(")")[0] for it in items if it["reason"] == "panel_not_drawn"] == [
         "a chart", "a graph", "a 3D model", "a skill tree", "a quiz question"]
     assert items[2]["message"] == job_mod.DYNAMIC_MESSAGES["panel_media_missing"]
-    assert set(job_mod.UNDRAWN_PANEL_KINDS) == {"chart", "graph", "model_3d", "skill_tree", "quiz"}
+    assert set(job_mod.UNDRAWN_PANEL_KINDS) == {"model_3d", "skill_tree", "quiz"}
+    # a chart or graph is warned unless a template that plots it draws the scene (these scenes are board_generic's)
+    assert set(job_mod.CHART_PANEL_KINDS) == {"chart", "graph"}
     assert job_mod.dynamic_warnings([], _with_panels(["terminal", "image"])) == []  # drawn (or warned as before)
     assert job_mod.dynamic_warnings([]) == []  # without the timeline: the classic items reworded only
 

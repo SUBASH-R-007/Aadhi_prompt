@@ -1116,9 +1116,9 @@ export const CATALOGUE = Object.freeze(freezeInside({
     "aadhi_intro": {
       "class": "structure",
       "consumes": {
-        "forms": {"cue_term": ["item"], "exit": ["item"], "reveal": ["item"]},
-        "kinds": ["reveal", "cue_term", "exit"],
-        "targets": ["item"]
+        "forms": {"cue_term": ["item", "item:term"], "reveal": ["item"]},
+        "kinds": ["reveal", "cue_term"],
+        "targets": ["item", "item:term"]
       },
       "dense": false,
       "duration": {
@@ -1128,16 +1128,264 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "forced_for": [],
       "formats": ["landscape", "portrait"],
       "holds": [],
-      "implemented": false,
+      "implemented": true,
       "push_ok": false,
       "release": "R1",
       "representational": false,
-      "slots": {},
+      "slots": {
+        "chip": {
+          "landscape": {
+            "card_left": {
+              "critical": false,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [40.0, 40.0],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 896,
+              "weight": 600
+            },
+            "fullframe": {
+              "critical": false,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [40.0, 40.0],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 916,
+              "weight": 600
+            },
+            "pip": {
+              "critical": false,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [40.0, 40.0],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 1136,
+              "weight": 600
+            },
+            "split": {
+              "critical": false,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [40.0, 40.0],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 816,
+              "weight": 600
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": false,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [44.0, 44.0],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 696,
+              "weight": 600
+            }
+          }
+        },
+        "eyebrow": {
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [44.0, 44.0],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 696,
+              "weight": 600
+            }
+          }
+        },
+        "headline": {
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 4,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [88.0, 104.0],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 696,
+              "weight": 700
+            }
+          }
+        },
+        "question": {
+          "landscape": {
+            "card_left": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 3,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [60.0, 64.0],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 944,
+              "weight": 700
+            },
+            "fullframe": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 3,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [60.0, 64.0],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 964,
+              "weight": 700
+            },
+            "pip": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 3,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [88.0, 112.0],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 1184,
+              "weight": 700
+            },
+            "split": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 3,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [60.0, 64.0],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 864,
+              "weight": 700
+            }
+          }
+        },
+        "title": {
+          "landscape": {
+            "card_left": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 4,
+              "max_words": null,
+              "prefer_lines": 2,
+              "role": "title",
+              "size": [72.0, 120.0],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 944,
+              "weight": 700
+            },
+            "fullframe": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 4,
+              "max_words": null,
+              "prefer_lines": 2,
+              "role": "title",
+              "size": [72.0, 120.0],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 964,
+              "weight": 700
+            },
+            "pip": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [64.0, 80.0],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 1184,
+              "weight": 700
+            },
+            "split": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 4,
+              "max_words": null,
+              "prefer_lines": 2,
+              "role": "title",
+              "size": [72.0, 120.0],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 864,
+              "weight": 700
+            }
+          }
+        }
+      },
       "variants": {"landscape": ["fullframe", "card_left", "pip", "split"], "portrait": ["card"]}
     },
     "aadhi_recap": {
       "class": "structure",
-      "consumes": {"forms": {"exit": ["item"], "reveal": ["item"]}, "kinds": ["reveal", "exit"], "targets": ["item"]},
+      "consumes": {"forms": {"reveal": ["item"]}, "kinds": ["reveal"], "targets": ["item"]},
       "dense": false,
       "duration": {
         "landscape": {"end_screen": null, "max": 8.0, "min": 5.0, "per_item": false},
@@ -1146,11 +1394,48 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "forced_for": [],
       "formats": ["landscape", "portrait"],
       "holds": [],
-      "implemented": false,
+      "implemented": true,
       "push_ok": false,
       "release": "R1",
       "representational": false,
-      "slots": {},
+      "slots": {
+        "prompt": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 3,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [64.0, 80.0],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 848,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 4,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [88.0, 104.0],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 696,
+              "weight": 700
+            }
+          }
+        }
+      },
       "variants": {"landscape": [], "portrait": []}
     },
     "analogy_bridge": {
@@ -1819,11 +2104,228 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "forced_for": [],
       "formats": ["landscape", "portrait"],
       "holds": ["diagram"],
-      "implemented": false,
+      "implemented": true,
       "push_ok": false,
       "release": "R1",
       "representational": true,
-      "slots": {},
+      "slots": {
+        "axis": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [40, 44],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 1728,
+              "weight": 600
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [44, 48],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 588,
+              "weight": 600
+            }
+          }
+        },
+        "caption": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [44, 52],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 1728,
+              "weight": 600
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [44, 52],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 588,
+              "weight": 700
+            }
+          }
+        },
+        "series": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [40, 44],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 1728,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [44, 48],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 588,
+              "weight": 700
+            }
+          }
+        },
+        "tick": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [40, 44],
+              "tabular_nums": true,
+              "tracking_em": 0.0,
+              "w": 1728,
+              "weight": 400
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [44, 48],
+              "tabular_nums": true,
+              "tracking_em": 0.0,
+              "w": 588,
+              "weight": 600
+            }
+          }
+        },
+        "title": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [64, 96],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 1728,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [56, 88],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 696,
+              "weight": 700
+            }
+          }
+        },
+        "value": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [40, 44],
+              "tabular_nums": true,
+              "tracking_em": 0.0,
+              "w": 1728,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [44, 48],
+              "tabular_nums": true,
+              "tracking_em": 0.0,
+              "w": 588,
+              "weight": 700
+            }
+          }
+        }
+      },
       "variants": {"landscape": [], "portrait": []}
     },
     "check": {
@@ -2071,13 +2573,9 @@ export const CATALOGUE = Object.freeze(freezeInside({
     "code_walkthrough": {
       "class": "code",
       "consumes": {
-        "forms": {
-          "look_here": ["item", "item:line", "panel"],
-          "output": ["item", "item:line", "panel"],
-          "reveal": ["item", "item:line", "panel"]
-        },
+        "forms": {"look_here": ["item", "item:line", "panel", "panel:row"], "output": ["panel"], "reveal": ["item"]},
         "kinds": ["reveal", "look_here", "output"],
-        "targets": ["item", "item:line", "panel"]
+        "targets": ["item", "item:line", "panel", "panel:row"]
       },
       "dense": true,
       "duration": {
@@ -2087,11 +2585,163 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "forced_for": [],
       "formats": ["landscape", "portrait"],
       "holds": ["code"],
-      "implemented": false,
+      "implemented": true,
       "push_ok": false,
       "release": "R1",
       "representational": true,
-      "slots": {},
+      "slots": {
+        "code": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "mono",
+              "line_height": 1.2,
+              "max_chars": 60,
+              "max_lines": 17,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [36, 48],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 1612,
+              "weight": 400
+            },
+            "headed": {
+              "critical": true,
+              "face": "mono",
+              "line_height": 1.2,
+              "max_chars": 60,
+              "max_lines": 13,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [36, 48],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 1612,
+              "weight": 400
+            },
+            "headed_panel": {
+              "critical": true,
+              "face": "mono",
+              "line_height": 1.2,
+              "max_chars": 38,
+              "max_lines": 13,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [36, 48],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 822,
+              "weight": 400
+            },
+            "panel": {
+              "critical": true,
+              "face": "mono",
+              "line_height": 1.2,
+              "max_chars": 38,
+              "max_lines": 17,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [36, 48],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 822,
+              "weight": 400
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "mono",
+              "line_height": 1.2,
+              "max_chars": 28,
+              "max_lines": 10,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [40, 48],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 696,
+              "weight": 700
+            },
+            "headed": {
+              "critical": true,
+              "face": "mono",
+              "line_height": 1.2,
+              "max_chars": 28,
+              "max_lines": 8,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [40, 48],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 696,
+              "weight": 700
+            }
+          }
+        },
+        "heading": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.15,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [84, 96],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 1728,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.15,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [48, 64],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 696,
+              "weight": 700
+            }
+          }
+        },
+        "terminal": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "mono",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [36.0, 44.0],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 702,
+              "weight": 400
+            }
+          }
+        }
+      },
       "variants": {"landscape": [], "portrait": []}
     },
     "concept_tree": {
@@ -2899,7 +3549,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
           "draw": ["item"],
           "look_here": ["panel", "panel:row"],
           "output": ["panel"],
-          "reveal": ["item"]
+          "reveal": ["item", "panel"]
         },
         "kinds": ["reveal", "draw", "cue_term", "look_here", "output"],
         "targets": ["item", "item:term", "panel", "panel:row"]
@@ -3042,6 +3692,23 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "w": 702,
               "weight": 400
             }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "mono",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [40.0, 44.0],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 532,
+              "weight": 700
+            }
           }
         }
       },
@@ -3050,9 +3717,9 @@ export const CATALOGUE = Object.freeze(freezeInside({
     "kinetic_statement": {
       "class": "statement",
       "consumes": {
-        "forms": {"cue_term": ["item"], "reveal": ["item"]},
+        "forms": {"cue_term": ["item", "item:term"], "reveal": ["item"]},
         "kinds": ["reveal", "cue_term"],
-        "targets": ["item"]
+        "targets": ["item", "item:term"]
       },
       "dense": false,
       "duration": {
@@ -3062,11 +3729,120 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "forced_for": [],
       "formats": ["landscape", "portrait"],
       "holds": [],
-      "implemented": false,
+      "implemented": true,
       "push_ok": false,
       "release": "R1",
       "representational": false,
-      "slots": {},
+      "slots": {
+        "attribution": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [48, 48],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 1436,
+              "weight": 600
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [44, 44],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 696,
+              "weight": 600
+            }
+          }
+        },
+        "label": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [40, 40],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 1436,
+              "weight": 600
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [44, 44],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 696,
+              "weight": 600
+            }
+          }
+        },
+        "statement": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 4,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [100, 140],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 1436,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 4,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [88, 104],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 696,
+              "weight": 700
+            }
+          }
+        }
+      },
       "variants": {"landscape": [], "portrait": []}
     },
     "list_build": {
@@ -3415,9 +4191,16 @@ export const CATALOGUE = Object.freeze(freezeInside({
     "myth_fact": {
       "class": "refutation",
       "consumes": {
-        "forms": {"answer": ["item"], "draw": ["item"], "reveal": ["item"]},
-        "kinds": ["reveal", "draw", "answer"],
-        "targets": ["item"]
+        "forms": {
+          "answer": ["item"],
+          "cue_term": ["item", "item:term"],
+          "draw": ["item"],
+          "look_here": ["item", "panel", "panel:row"],
+          "output": ["panel"],
+          "reveal": ["item"]
+        },
+        "kinds": ["reveal", "draw", "answer", "cue_term", "look_here", "output"],
+        "targets": ["item", "item:term", "panel", "panel:row"]
       },
       "dense": false,
       "duration": {
@@ -3427,11 +4210,177 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "forced_for": [],
       "formats": ["landscape", "portrait"],
       "holds": [],
-      "implemented": false,
+      "implemented": true,
       "push_ok": false,
       "release": "R1",
       "representational": false,
-      "slots": {},
+      "slots": {
+        "fact": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [48, 56],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 944,
+              "weight": 400
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [48, 56],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 588,
+              "weight": 600
+            }
+          }
+        },
+        "heading": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.15,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": 1,
+              "role": "title",
+              "size": [84, 96],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 1728,
+              "weight": 700
+            }
+          }
+        },
+        "label": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.2,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [48, 48],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 652,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.2,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [52, 52],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 588,
+              "weight": 700
+            }
+          }
+        },
+        "myth": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [44, 52],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 652,
+              "weight": 400
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [44, 52],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 588,
+              "weight": 600
+            }
+          }
+        },
+        "support": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [40, 48],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 938,
+              "weight": 700
+            }
+          }
+        },
+        "terminal": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "mono",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [36.0, 44.0],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 702,
+              "weight": 400
+            }
+          }
+        }
+      },
       "variants": {"landscape": [], "portrait": []}
     },
     "outro_next": {
@@ -3445,12 +4394,277 @@ export const CATALOGUE = Object.freeze(freezeInside({
       "forced_for": [],
       "formats": ["landscape", "portrait"],
       "holds": [],
-      "implemented": false,
+      "implemented": true,
       "push_ok": false,
       "release": "R1",
       "representational": false,
-      "slots": {},
-      "variants": {"landscape": [], "portrait": []}
+      "slots": {
+        "kicker": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [40, 48],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 840,
+              "weight": 600
+            },
+            "end_screen": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [40, 48],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 840,
+              "weight": 600
+            },
+            "next_up": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [40, 48],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 938,
+              "weight": 600
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [44, 48],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 696,
+              "weight": 600
+            }
+          }
+        },
+        "label": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [40, 40],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 664,
+              "weight": 600
+            },
+            "end_screen": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [40, 40],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 738,
+              "weight": 600
+            },
+            "next_up": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [40, 40],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 664,
+              "weight": 600
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "body",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": 1,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "label",
+              "size": [44, 44],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 588,
+              "weight": 600
+            }
+          }
+        },
+        "next": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 3,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [56, 72],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 664,
+              "weight": 700
+            },
+            "end_screen": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 3,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [56, 72],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 738,
+              "weight": 700
+            },
+            "next_up": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 3,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [56, 72],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 664,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 2,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [56, 64],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 588,
+              "weight": 700
+            }
+          }
+        },
+        "statement": {
+          "landscape": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 5,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [64, 96],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 840,
+              "weight": 700
+            },
+            "end_screen": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 5,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [64, 96],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 840,
+              "weight": 700
+            },
+            "next_up": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 5,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [64, 96],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 938,
+              "weight": 700
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "display",
+              "line_height": 1.05,
+              "max_chars": null,
+              "max_lines": 4,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "title",
+              "size": [64, 88],
+              "tabular_nums": false,
+              "tracking_em": -0.015,
+              "w": 696,
+              "weight": 700
+            }
+          }
+        }
+      },
+      "variants": {"landscape": ["next_up", "end_screen"], "portrait": []}
     },
     "predict": {
       "class": "prompt",
@@ -4069,7 +5283,7 @@ export const CATALOGUE = Object.freeze(freezeInside({
           "fill": ["item"],
           "look_here": ["item", "item:var", "item:step", "panel", "panel:row"],
           "output": ["panel"],
-          "reveal": ["item"]
+          "reveal": ["item", "panel"]
         },
         "kinds": ["reveal", "fill", "countdown", "look_here", "output"],
         "targets": ["item", "item:var", "item:step", "panel", "panel:row"]
@@ -4296,6 +5510,23 @@ export const CATALOGUE = Object.freeze(freezeInside({
               "tracking_em": 0.0,
               "w": 702,
               "weight": 400
+            }
+          },
+          "portrait": {
+            "default": {
+              "critical": true,
+              "face": "mono",
+              "line_height": 1.35,
+              "max_chars": null,
+              "max_lines": null,
+              "max_words": null,
+              "prefer_lines": null,
+              "role": "body",
+              "size": [40.0, 44.0],
+              "tabular_nums": false,
+              "tracking_em": 0.0,
+              "w": 532,
+              "weight": 700
             }
           }
         },

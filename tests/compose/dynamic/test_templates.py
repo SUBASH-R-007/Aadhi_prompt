@@ -161,6 +161,8 @@ def test_variants() -> None:
         "media_split": {"landscape": ("media_left", "media_right"), "portrait": ()},
         "check": {"landscape": ("mcq", "free_recall", "true_false", "apply"),
                   "portrait": ("free_recall", "true_false")},
+        # §4.3 / §2.5: "Next up" beside the takeaway, or end-screen space (the right half clean); 16:9 only
+        "outro_next": {"landscape": ("next_up", "end_screen"), "portrait": ()},
     }
     assert all("safe" not in vs for s in tp.TEMPLATES.values() for vs in s.variants.values())  # plan §1.2
 
@@ -473,8 +475,9 @@ def item(kind: str, n: int = 0, **kw: Any) -> dict[str, Any]:
 
 
 def board(*items: dict[str, Any], type: str = "content", role: str | None = None, intent: str | None = None,
-          panel: str | None = None, sequence: str | None = None, presenter: bool = False) -> BoardScene:
-    data: dict[str, Any] = {"id": "s1", "type": type, "title": "T", "beats": BEAT, "board": list(items)}
+          panel: str | None = None, sequence: str | None = None, presenter: bool = False,
+          title: str = "T") -> BoardScene:
+    data: dict[str, Any] = {"id": "s1", "type": type, "title": title, "beats": BEAT, "board": list(items)}
     if role or intent:
         data["intent"] = {k: v for k, v in (("narrative_role", role), ("visual_intent", intent)) if v}
     if panel:
@@ -505,6 +508,14 @@ def test_fit_presenter_hook_and_pretraining() -> None:
     assert rows(intro) == ["presenter", "hook"] and tp.signals(intro)[0].forced
     assert fits(intro) == {"aadhi_intro": 1.0, "hook_question": 1.0, "board_generic": FIT_FALLBACK}
     assert fits(board(item("heading"), item("question"), presenter=True))["hook_question"] == FIT_ALTERNATIVE
+    # step-5 review R5-2: a presenter scene whose board has no heading takes its own title as the title (aadhi_intro.js
+    # introItems), so a screenplay's presenter scene with an empty board opens the video with Aadhi, not board_generic
+    assert fits(board(type="title", presenter=True)) == {"aadhi_intro": 1.0, "board_generic": FIT_FALLBACK}
+    assert fits(board(type="title", presenter=True), "portrait")["aadhi_intro"] == 1.0
+    assert fits(board(item("question"), presenter=True))["aadhi_intro"] == 1.0
+    assert "aadhi_intro" not in fits(board(type="title", presenter=True, title=" "))  # nothing to set at all
+    assert "aadhi_intro" not in fits(board(item("bullet"), type="title", presenter=True))
+    assert "aadhi_recap" not in fits(board(type="recap", presenter=True)), "the recap's prompt is never the title"
     hook = board(item("question", text=words(12)), role="hook")
     assert fits(hook) == {"hook_question": 1.0, "board_generic": FIT_FALLBACK}
     assert fits(board(item("question", text=words(13)), role="hook"))["hook_question"] == FIT_STRETCHED
@@ -526,13 +537,13 @@ def test_fit_forced_scene_types() -> None:
                                      "correct_index": 0, "beats": BEAT,
                                      "reveal_beats": [{"id": "b2", "narration": "A."}]})
     assert fits(quiz) == {"check": 1.0, "board_generic": FIT_FALLBACK}
-    # §4.3: `mcq` is 16:9 only and 9:16 takes two options (R-06); check.js hands a quiz past the cap to
-    # board_generic whole, so the fit refuses it too (CG-2 parity) and the forced row falls back
-    assert "check" not in fits(quiz, "portrait")
+    # owner decision 4: a reel quiz of any size is the two-option check (the answer and the strongest distractor)
+    assert fits(quiz, "portrait") == {"check": 1.0, "board_generic": FIT_FALLBACK}
     two = quiz.model_copy(update={"options": ["a", "b"]})
     assert fits(two, "portrait") == {"check": 1.0, "board_generic": FIT_FALLBACK}
     five = quiz.model_copy(update={"options": ["a", "b", "c", "d", "e"]})
     assert "check" not in fits(five)  # §4.3 draws at most 4, and the page refuses the rest
+    assert fits(five, "portrait") == {"check": 1.0, "board_generic": FIT_FALLBACK}
     sim = SimulationScene.model_validate({"id": "m", "type": "simulation", "manim": {"template": "x"}, "beats": BEAT})
     ai = AIVideoScene.model_validate({"id": "v", "type": "ai_video", "video_prompt": "a lamp", "beats": BEAT})
     sketch = InteractiveScene.model_validate({"id": "p", "type": "interactive", "p5_code": "x", "beats": BEAT})
@@ -593,6 +604,8 @@ def test_fit_quantity_formula_procedure_code_refutation() -> None:
     assert fits(board(item("stat", text=words(11))))["stat_punch"] == FIT_STRETCHED
     assert fits(board(item("heading"), panel="chart"))["chart_build"] == 1.0
     assert fits(board(item("heading"), panel="graph"))["function_plot"] == 1.0
+    # owner decision 1: the graph row names chart_build as its alternative while function_plot (W2) is unbuilt
+    assert fits(board(item("heading"), panel="graph"))["chart_build"] == FIT_ALTERNATIVE
     beside = board(item("bullet", 1), item("bullet", 2), panel="chart")  # the chart beside bullets: media_split's
     assert rows(beside) == ["list", "chart", "media"] and "chart_build" not in fits(beside)
     # list_build draws a picture or clip panel only (B2c review CG-2): a chart beside the bullets is media_split's
@@ -603,10 +616,10 @@ def test_fit_quantity_formula_procedure_code_refutation() -> None:
     assert fits(worked) == {"worked_steps": 1.0, "board_generic": FIT_FALLBACK}
     code = board(item("code", code="\n".join(["x = 1"] * 10)))
     assert fits(code)["code_walkthrough"] == 1.0 and fits(code, "portrait")["code_walkthrough"] == 1.0
-    long_lines = board(item("code", code="y = " + "1" * 30))  # > 28 chars: portrait.code_too_wide
+    long_lines = board(item("code", code="y = " + "1" * 30))  # > 28 chars: board_generic's whole in 9:16 (CG-2)
     assert fits(long_lines)["code_walkthrough"] == 1.0
-    assert fits(long_lines, "portrait")["code_walkthrough"] == FIT_STRETCHED
-    assert fits(board(item("code", code="\n".join(["x"] * 18))))["code_walkthrough"] == FIT_STRETCHED  # <= 17 lines
+    assert "code_walkthrough" not in fits(long_lines, "portrait")
+    assert "code_walkthrough" not in fits(board(item("code", code="\n".join(["x"] * 18))))  # > 17 lines
     assert fits(board(item("misconception"))) == {"myth_fact": 1.0, "board_generic": FIT_FALLBACK}
     assert fits(board(item("misconception", justification=None))) == {"board_generic": FIT_FALLBACK}  # no fact card
 
@@ -647,7 +660,8 @@ def test_worked_steps_fit_and_the_example_row_accept_the_same_shapes() -> None:
     assert "worked_steps" not in fits(two_tops) and rows(two_tops) == ["fallback"]  # one top line, or board_generic
     # worked_steps.js draws no takeaway tile and no side panel: such a scene is board_generic's whole (CG-2)
     assert "worked_steps" not in fits(board(item("callout_info"), *steps, item("takeaway"), type="example"))
-    assert "worked_steps" not in fits(board(item("callout_info"), *steps, type="example", panel="graph"))
+    assert fits(board(item("callout_info"), *steps, type="example", panel="graph"))["worked_steps"] == 1.0  # a plot
+    assert "worked_steps" not in fits(board(item("callout_info"), *steps, type="example", panel="skill_tree"))
 
 
 @pytest.mark.parametrize("source", EXAMPLE_SOURCES)
@@ -671,7 +685,11 @@ def test_fit_prompts_and_recap() -> None:
     assert rows(board(item("question"), role="predict")) == ["fallback"]  # a predict question is blank
     recap = [item("question", 1, blank=True), item("question", 2, blank=True)] + [item("takeaway", n) for n in range(3)]
     assert fits(board(*recap, type="recap")) == {"recap_retrieval": 1.0, "board_generic": FIT_FALLBACK}
-    assert fits(board(*recap, type="recap", presenter=True)) == {"aadhi_recap": 1.0, "board_generic": FIT_FALLBACK}
+    # §4.3 aadhi_recap's data: a recap scene with the presenter and one question (the prompt); one carrying the
+    # retrieval board too is not its (aadhi_recap.js draws one prompt and would drop the rest: CG-2)
+    assert fits(board(item("question", 1), type="recap", presenter=True)) == {"aadhi_recap": 1.0,
+                                                                              "board_generic": FIT_FALLBACK}
+    assert fits(board(*recap, type="recap", presenter=True)) == {"board_generic": FIT_FALLBACK}
     assert fits(board(*recap, item("takeaway", 7), type="recap"))["recap_retrieval"] == FIT_STRETCHED
     assert "recap_retrieval" not in fits(board(*recap, item("bullet"), type="recap"))
     # recap_retrieval.js draws no medium and plans no media box, so a recap carrying a side panel is board_generic's
@@ -774,15 +792,19 @@ def test_shared_panels_match_the_page() -> None:
     for kind in ("figure", "image", "manim", "gif", "terminal", "graph_titled"):
         panelled = board(*steps, panel=kind)
         assert fits(panelled)["worked_steps"] == 1.0, kind
-        assert "worked_steps" not in fits(panelled, "portrait"), kind              # 9:16 draws no panel
+        assert fits(panelled, "portrait")["worked_steps"] == 1.0, kind              # 9:16: its own beat
+        assert fits(board(*steps, item("formula"), panel=kind), "portrait")["worked_steps"] == 1.0, kind
         assert "worked_steps" not in fits(board(*steps, item("formula"), panel=kind)), kind  # one visual box
-    for kind in ("skill_tree", "graph", "chart"):          # nobody's, or no title to draw
+    for kind in ("skill_tree",):                           # nobody's
         assert "worked_steps" not in fits(board(*steps, panel=kind)), kind
+    for kind in ("graph", "chart"):                        # a real plot (owner decision 1), no title needed
+        assert fits(board(*steps, panel=kind))["worked_steps"] == 1.0, kind
     # key_terms reaches a panelled scene only through a row that names it (the §4.4 ``pretraining`` row): on a plain
     # content board, two definitions beside a picture are the ``media`` row's, which names media_split
     two = [item("definition", 1), item("definition", 2)]
     assert fits(board(*two, panel="image", role="pretraining"))["key_terms"] == 1.0
-    assert "key_terms" not in fits(board(*two, panel="image", role="pretraining"), "portrait")
+    assert fits(board(*two, panel="image", role="pretraining"), "portrait")["key_terms"] == 1.0
+    assert fits(board(*two, item("definition", 3), panel="image", role="pretraining"), "portrait")["key_terms"] == 1.0
     assert "key_terms" not in fits(board(*two, item("definition", 3), panel="image",
                                          role="pretraining"))                       # KEY_TERMS_PANEL_MAX
     # The two **forced** media templates draw a side panel only when the panel *is* their medium (a board scene's
@@ -855,6 +877,18 @@ def _parity_scenes() -> list[tuple[str, Any]]:
         ("formula", [item("formula")], {}),
         ("list", [item("bullet", 0), item("bullet", 1), item("bullet", 2)], {}),
         ("heading", [item("heading")], {}),
+        ("myth", [item("misconception")], {}),
+        ("myth+definitions", [item("definition", 0), item("definition", 1), item("misconception")], {}),
+        ("code", [item("code")], {}),
+        ("code_heading", [item("heading"), item("code")], {}),
+        ("takeaway", [item("takeaway")], {}),
+        # Aadhi's presenter scenes (step-5 review R5-2: the scene's own title stands in for a missing heading)
+        ("presenter_empty", [], {"type": "title", "presenter": True}),
+        ("presenter_untitled", [], {"type": "title", "presenter": True, "title": " "}),
+        ("presenter_heading", [item("heading")], {"type": "title", "presenter": True}),
+        ("presenter_hook", [item("question")], {"presenter": True, "role": "hook"}),
+        ("presenter_extra", [item("heading"), item("bullet")], {"presenter": True}),
+        ("presenter_recap", [item("question")], {"type": "recap", "presenter": True}),
     ]
     out: list[tuple[str, Any]] = []
     for name, items, kw in shapes:
@@ -915,12 +949,120 @@ def test_every_implemented_template_draws_what_its_fit_accepts(tmp_path: Path) -
                 spec = tp.TEMPLATES[tid]
                 if fmt not in spec.formats:
                     continue
-                checked += 1
-                if spec.fit(scene, fmt) > 0 and not draws[tid][f"{name}|{fmt}"]:
-                    mismatches.append(f"{tid} {fmt} {name}: fit={spec.fit(scene, fmt)} but drawsScene is false")
+                # ``last=True`` too: the positional "last" row is the only one naming outro_next, so without it
+                # that template would score 0 on every probe and the gate could not see it
+                for last in (False, True):
+                    checked += 1
+                    fit = spec.fit(scene, fmt, last=last)
+                    if fit > 0 and not draws[tid][f"{name}|{fmt}"]:
+                        mismatches.append(f"{tid} {fmt} {name} last={last}: fit={fit} but drawsScene is false")
     assert checked > 500, f"the probe set shrank to {checked} checks"
     assert not mismatches, (
         "a template's fit accepts a scene its page refuses, so the director picks it and board_generic draws it "
         "instead (the scene's panel or medium is then drawn by nobody):"
         + "".join(f"\n  {m}" for m in mismatches)
     )
+
+
+# --- kinetic_statement (step 5): the words the page sets, and what it refuses (B2c review CG-2) ----------------------
+
+
+def test_kinetic_statement_takes_one_statement_up_to_the_words_its_page_sets() -> None:
+    """§4.3's limit is 12 words (8 in 9:16); past it a statement is FIT_STRETCHED up to KINETIC_STATEMENT_WORDS, the
+    most kinetic_statement.js sets (its MAX_WORDS, pinned equal by kinetic_statement.test.js), and past that it is
+    board_generic's whole - the page hands it on (``drawsScene``), so the fit refuses it rather than plan a template
+    that would fall back, or a render that preflight would block with "Shorten text" (the B2 review's F3 lesson)."""
+    assert tp.KINETIC_STATEMENT_WORDS == {"landscape": 18, "portrait": 9}
+    for fmt, limit in (("landscape", 12), ("portrait", 8)):
+        cap = tp.KINETIC_STATEMENT_WORDS[fmt]
+        assert fits(board(item("takeaway", text=words(limit))), fmt)["kinetic_statement"] == 1.0
+        assert fits(board(item("takeaway", text=words(limit + 1))), fmt)["kinetic_statement"] == FIT_STRETCHED
+        assert fits(board(item("paragraph", text=words(cap))), fmt)["kinetic_statement"] == FIT_STRETCHED
+        assert "kinetic_statement" not in fits(board(item("paragraph", text=words(cap + 1))), fmt)
+        quote = board(item("quote", text=words(cap + 1)))
+        assert "kinetic_statement" not in fits(quote, fmt), "the quote row's alternative has the same cap"
+    # a TeX span is one word (``_words``, kinetic_statement.js countWords)
+    tex = "Power is $P = I^2 R$ " + words(15)
+    assert fits(board(item("paragraph", text=tex)))["kinetic_statement"] == FIT_STRETCHED
+
+
+def test_kinetic_statement_refuses_what_its_page_hands_to_board_generic() -> None:
+    """Typography only: any side panel, a second item (an item without text cannot reach it: the schema refuses a
+    statement item without one, and the fit refuses it as well)."""
+    for panel in PANELS:
+        assert "kinetic_statement" not in fits(board(item("takeaway"), panel=panel)), panel
+    assert "kinetic_statement" not in fits(board(item("takeaway"), item("heading")))
+    assert fits(board(item("heading")))["kinetic_statement"] == 1.0
+
+
+def test_kinetic_statement_words_are_what_its_slot_sets_at_the_minimum() -> None:
+    """KINETIC_STATEMENT_WORDS is measured: statements of that many ordinary words fit the slot's lines at its floor
+    (textfit on the vendored faces; the worst of the measured samples was 19 words in 16:9 and 9 in 9:16)."""
+    from aadhi.compose.dynamic import textfit as tf
+
+    fonts = {"display": "outfit", "body": "inter", "mono": "jetbrains_mono", "indic": "noto_sans"}
+    text = ("Energy is never created or destroyed only changed from one form into another kind every single time "
+            "the current through a resistor grows in step with the voltage across it whenever temperature stays "
+            "constant").split()
+    for fmt in ("landscape", "portrait"):
+        spec = tp.TEMPLATES["kinetic_statement"].slots["statement"][fmt]["default"]  # type: ignore[index]
+        cap = tp.KINETIC_STATEMENT_WORDS[fmt]
+        for start in range(0, 12):
+            r = tf.fit_slot(" ".join(text[start:start + cap]), spec, fonts=fonts, language="en-IN")
+            assert r.fits, (fmt, start, r)
+
+
+# --- the reel's text budget (step 5 integration): never a blocked 9:16 render (the F3 lesson) -----------------------
+
+
+def test_reel_wrap_never_promises_fewer_lines_than_the_certified_fit() -> None:
+    """``REEL_WRAP``'s greedy wrap is an upper bound on the lines textfit certifies for the slot at its minimum size
+    (the build may not load the shaping libraries, so the fits estimate; this pins the estimate to the measure)."""
+    from aadhi.compose.dynamic import faces
+    from aadhi.compose.dynamic import textfit as tf
+
+    fonts = faces.resolver_fonts("outfit")
+    texts = ["A circuit runs on a 12 V battery. We swap it for a 24 V battery, keeping the same resistance.",
+             "Ohm's Law says I = V / R. Doubling V while R stays constant exactly doubles I.",
+             "Step 2: Substitute the values - I = 230 / 115, keeping volts and ohms consistent.",
+             "Electromagnetic induction transfers energy without contact", "It gets used up faster",
+             "Because we want the flow, from a known push and opposition."]
+    rows = {"ws_heading": ("worked_steps", "heading"), "ws_step": ("worked_steps", "step"),
+            "ws_row": ("worked_steps", "row"), "ws_why": ("worked_steps", "why"),
+            "ck_question": ("check", "question"), "ck_explain": ("check", "explain"), "ck_option": ("check", "option")}
+    for key, (tid, slot) in rows.items():
+        spec = tp.TEMPLATES[tid].slots[slot]["portrait"]["default"]  # type: ignore[index]
+        size = spec.size[0]
+        for text in texts:
+            m = tf.measure(text, fonts=fonts, role=spec.face, weight=spec.weight, language="en-IN")
+            real = len(tf.layout(m, size, spec.w, None, size).lines)
+            assert tp._reel_lines(text, tp.REEL_WRAP[key]) >= real, (key, text, real)
+
+
+def test_a_reel_takes_only_the_text_its_page_sets_whole() -> None:
+    """The showcase's s9 / s11 / s12 blocked 9:16 preflight once owner decision 4 brought them to check and
+    worked_steps: such text is board_generic's whole in 9:16 (16:9 is unchanged)."""
+    long_heading = item("heading", text="A ceiling fan runs on a 230 V supply and has a resistance of 115 ohms. Find it.")
+    steps = [item("example_step", 1, text="I = V / R"), item("example_step", 2, text="I = 2 A", blank=True)]
+    assert fits(board(long_heading, *steps, type="example"))["worked_steps"] == 1.0
+    assert "worked_steps" not in fits(board(long_heading, *steps, type="example"), "portrait")
+    short = board(item("heading", text="A fan on 230 V"), *steps, type="example", panel="terminal")
+    assert fits(short, "portrait")["worked_steps"] == 1.0
+    wordy = [item("example_step", 1, text="Step 2: Substitute the values - I = 230 / 115, keeping volts and ohms."),
+             item("example_step", 2, text="Step 3: Solve - I = 2 amperes flowing through the fan, as expected."),
+             item("example_step", 3, text="Step 4: Check that the units on both sides agree with each other."),
+             item("example_step", 4, text="Step 5: Compare the answer with a typical fan's current rating.")]
+    assert "worked_steps" not in fits(board(item("heading", text="Fan"), item("formula"), *wordy, type="example"),
+                                      "portrait")
+    quiz = QuizScene.model_validate({
+        "id": "q", "type": "quiz_checkpoint",
+        "question": "A circuit runs on a 12 V battery. We swap it for a 24 V battery, keeping the same resistance. "
+                    "What happens to the current?",
+        "options": ["It stays the same", "It doubles", "It halves", "It gets used up faster"], "correct_index": 1,
+        "explanation": "I = V / R.", "beats": BEAT, "reveal_beats": [{"id": "b2", "narration": "A."}]})
+    assert fits(quiz)["check"] == 1.0
+    assert "check" not in fits(quiz, "portrait")  # a five-line question
+    short_q = quiz.model_copy(update={"question": "Double V at fixed R: the current?"})
+    assert fits(short_q, "portrait")["check"] == 1.0
+    assert "check" not in fits(short_q.model_copy(update={
+        "explanation": "Ohm's Law says I = V / R. Doubling V while R stays constant exactly doubles I."}), "portrait")

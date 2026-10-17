@@ -308,3 +308,49 @@ def test_the_screenplay_and_timed_scene_agree_on_the_board() -> None:
     scene = board_scene("s1", [item("b1", "bullet"), item("b2", "bullet")])
     assert [i.id for i in timed(scene).board] == ["b1", "b2"]
     assert screenplay([scene]).presentation is not None
+
+
+# --- step 5: a chart's marks on their beats, a code walk line by line ------------------------------------------------
+
+CHART = ALL["chart_build"].consumes.accepts
+CODE = ALL["code_walkthrough"].consumes.accepts
+_POWER = {"kind": "chart", "title": "Power",
+          "chart": {"chart_type": "bar", "labels": ["Fan", "AC", "Geyser"],
+                    "datasets": [{"label": "Watts", "data": [60, 1500, 2000]}]}}
+
+
+def _chart_scene(show_at: float = 0.0) -> TimedScene:
+    scene = board_scene("s1", [item("h", "heading")],
+                        beats=[("b0", "A fan needs little power.", None), ("b1", "The AC needs a lot.", None),
+                               ("b2", "The geyser needs the most.", None), ("b3", "Look at the AC again.", None)])
+    return timed(scene, beat_times=[(0.0, 3.0), (4.0, 7.0), (8.0, 11.0), (12.0, 15.0)],
+                 panel={"panel": _POWER, "media": None, "show_at": show_at})
+
+
+def test_a_chart_s_bar_is_drawn_on_the_word_that_names_it() -> None:
+    """chart_build (§4.3): each bar is revealed on its first narrated mention, 120 ms early (R-17) and never before
+    the panel shows; a later mention of the same bar is a ``look_here`` on it (R-26's budget applies)."""
+    out = ev.scene_events(_chart_scene(), accepts=CHART)
+    fan, ac, geyser = (0.4, 4.4, 8.4)  # plan_factories.words: 0.4 s a word from the beat's start
+    assert at(out, "draw", "panel:bar:0:0") == [round(fan - ev.REVEAL_LEAD, 3)]
+    assert at(out, "draw", "panel:bar:0:1") == [round(ac - ev.REVEAL_LEAD, 3)]
+    assert at(out, "draw", "panel:bar:0:2") == [round(geyser - ev.REVEAL_LEAD, 3)]
+    assert all(e.anchored for e in kinds(out, "draw"))
+    assert at(out, "look_here", "panel:bar:0:1") == [13.2]  # "AC" again, on its word
+    late = ev.scene_events(_chart_scene(show_at=5.0), accepts=CHART)
+    assert at(late, "draw", "panel:bar:0:0") == []  # named only before the panel shows
+    assert at(late, "draw", "panel:bar:0:1") == [round(13.2 - ev.REVEAL_LEAD, 3)]  # its first mention once shown
+    assert at(late, "draw", "panel:bar:0:2") == [round(geyser - ev.REVEAL_LEAD, 3)]
+    # a template that consumes neither kind on a mark gets none
+    assert not [e for e in ev.scene_events(_chart_scene(), accepts=MEDIA) if (e.target or "").startswith("panel:bar")]
+
+
+def test_a_code_hold_walks_the_program_line_by_line() -> None:
+    """R-16 on code_walkthrough: the hold's look_here walk reads through the non-blank lines (``<item>:line:<n>``,
+    the page's line indices), not the whole editor."""
+    scene = board_scene("s1", [item("c", "code", code="x = 1\n\ny = x + 1\nprint(y)")],
+                        beats=[("b0", "Here is the program.", "c")])
+    t = timed(scene)
+    assert ev.walk_targets(t, accepts=CODE) == ["c:line:0", "c:line:2", "c:line:3"]
+    walked = [e.target for e in ev.scene_events(t, accepts=CODE, hold_reason="code") if e.kind == "look_here"]
+    assert walked and set(walked) <= {"c:line:0", "c:line:2", "c:line:3"}

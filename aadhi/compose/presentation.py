@@ -45,7 +45,16 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from ..schemas.screenplay import Presentation, Screenplay
-from ..schemas.timeline import CaptionCue, Chapter, ResolvedLook, TimedScene, TimedWord, TimelinePresentation
+from ..schemas.timeline import (
+    CaptionCue,
+    Chapter,
+    LookRefs,
+    RefNext,
+    ResolvedLook,
+    TimedScene,
+    TimedWord,
+    TimelinePresentation,
+)
 from .captions import (
     _CLOSE_GAP_SECONDS,
     _SENTENCE_END,
@@ -65,8 +74,9 @@ if TYPE_CHECKING:
 # The resolver asks ``dynamic.direct`` which template draws each scene (plan §A step 5). This tuple is the set it may
 # answer with (``templates.IMPLEMENTED`` of release R1; pinned equal by a test); ``direct.candidate`` is the gate, so a
 # template joins it by flipping ``implemented`` in ``compose/dynamic/templates.py``.
-TEMPLATES = ("animation_stage", "board_generic", "chapter_bumper", "check", "definition_card", "formula_focus",
-             "full_bleed_media", "hook_question", "key_terms", "list_build", "media_split", "predict",
+TEMPLATES = ("aadhi_intro", "aadhi_recap", "animation_stage", "board_generic", "chapter_bumper", "chart_build",
+             "check", "code_walkthrough", "definition_card", "formula_focus", "full_bleed_media", "hook_question",
+             "key_terms", "kinetic_statement", "list_build", "media_split", "myth_fact", "outro_next", "predict",
              "recap_retrieval", "worked_steps")
 # The dense templates (templates.py ``dense``; pinned equal by a test): their background is frozen from the scene start
 # throughout (R-55), as a hold freezes it.
@@ -85,10 +95,14 @@ TONES = ("bg", "bg-alt", "bg-tint")  # §4.5: the per-scene tone step of the bac
 # generation-2 timeline draws board_generic everywhere where a rebuild would now draw a real template), 4 = step 4's
 # four templates (``animation_stage``, ``check``, ``full_bleed_media``, ``predict``) and the side panel of
 # ``worked_steps`` / ``key_terms``: a stored generation-3 timeline draws board_generic on its ai_video, simulation,
-# quiz and panelled worked-example scenes where a rebuild now draws a real template. The stage contract stays
+# quiz and panelled worked-example scenes where a rebuild now draws a real template, 5 = step 5: Aadhi's synthesised
+# intro (and 16:9 recap) open the video (``dynamic.presenter``), seven more templates (``aadhi_intro``,
+# ``aadhi_recap``, ``chart_build``, ``code_walkthrough``, ``kinetic_statement``, ``myth_fact``, ``outro_next``), chart
+# and graph panels drawn as plots, the reel adaptations (a 9:16 quiz as a two-option check, a 9:16 side panel as its
+# own beat with its narration lead) and the stored ``code.surface`` token and ``refs``. The stage contract stays
 # aadhiStage v3. aadhi.api.timelines rebuilds a stored Dynamic timeline of the current revision built by an older
 # generation, and hashes this into the served timeline's ETag.
-ENGINE_VERSION = 4
+ENGINE_VERSION = 5
 CHAPTER_START_EPS = 1e-3  # a chapter starting within 1 ms of a scene is its chapter (board_generic.kickerOf)
 # Portrait captions: phrase chunks of <= 32 characters in <= 2 lines (R-32), until kinetic.py (B2) measures them.
 PORTRAIT_CAPTION_LINE_CHARS = 16
@@ -235,7 +249,7 @@ def _background_preset(requested: str | None, scene_type: str) -> str:
 
 def resolve_looks(screenplay: Screenplay, scenes: Sequence[TimedScene],
                   chapters: Sequence[Chapter] | None = None,
-                  plans: Sequence[Any] | None = None) -> list[ResolvedLook]:
+                  plans: Sequence[Any] | None = None, *, next_title: str | None = None) -> list[ResolvedLook]:
     """The resolved look of each timed scene (``TimedScene.look``), in order.
 
     ``chapters``: ``Timeline.chapters`` (``compose.timeline.build_chapters(screenplay, scenes)``, computed here when
@@ -253,7 +267,12 @@ def resolve_looks(screenplay: Screenplay, scenes: Sequence[TimedScene],
     ``plans``: ``dynamic.direct.plan``'s :class:`~aadhi.compose.dynamic.direct.ScenePlan` per scene, which decides the
     template and its variant (computed here when not given). A scene with ``look.template`` and ``lock="auto"`` may
     therefore be re-directed (§4.4 "auto may be re-directed on save"); ``pinned`` and ``settled`` locks are honoured by
-    the director, and a lock naming a template the stage has not got is ignored instead of drawing nothing."""
+    the director, and a lock naming a template the stage has not got is ignored instead of drawing nothing.
+
+    ``next_title``: the next step's title (``refs.next``, plan §1.2), written on the scene ``outro_next`` draws (the
+    next part's "Part n+1: ..." in a series, §2.2; the caller's, None when there is none: nothing is invented, and the
+    outro then shows its statement alone). The scene ``code_walkthrough`` draws also stores the editor's surface,
+    ``code.surface`` (``themes.code_surface``: a dark surface in every family, §4.3), in its tokens."""
     from .dynamic import themes
 
     presentation = screenplay.presentation
@@ -285,6 +304,10 @@ def resolve_looks(screenplay: Screenplay, scenes: Sequence[TimedScene],
         tone_step = 0 if (i == 0 or new_chapter) else tone_step + 1
         slot = look.palette_slot if look is not None and look.palette_slot is not None else numbers[i]
         tokens = themes.scene_tokens(family, slot)
+        if template == "code_walkthrough":
+            # §4.3: the editor is a dark surface in every family (themes.code_surface; its text takes content_alt in a
+            # light family). Stored only on the scenes that draw it, so no other scene's tokens change.
+            tokens = {**tokens, "code.surface": themes.code_surface(family)}
         # without palette slots the accent changes exactly at the chapter boundaries (consecutive slots differ, R-52)
         boundary = new_chapter or (previous_accent is not None and tokens["struct.accent"] != previous_accent)
         requested = look.transition_in if look is not None else None
@@ -314,9 +337,17 @@ def resolve_looks(screenplay: Screenplay, scenes: Sequence[TimedScene],
             transition_in={"kind": kind, "seconds": seconds},
             hold_reason=hold,
             continues_from=follows if i > 0 and follows == scenes[i - 1].scene_id else None,
+            refs=(LookRefs(next=RefNext(title=next_title.strip()))
+                  if template == "outro_next" and next_title and next_title.strip() else None),
         ))
         previous_preset = preset
         previous_accent = tokens["struct.accent"]
+    if any(lk.template in ("aadhi_intro", "aadhi_recap") for lk in looks):
+        # Aadhi's scenes (dynamic/presenter.py): the presenter and its layout, the brand wipe's accent_next and the
+        # crossfade of >= 300 ms out of it into the next scene (R-54)
+        from .dynamic.presenter import apply_to_looks  # lazy, like every Dynamic module here
+
+        looks = apply_to_looks(screenplay, scenes, looks)
     return looks
 
 

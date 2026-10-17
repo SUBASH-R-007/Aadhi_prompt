@@ -1,0 +1,458 @@
+{
+ "board_language": "ta-IN",
+ "branding": {
+  "bgm_url": null,
+  "bgm_volume": 0.06,
+  "ding_url": null,
+  "mascot_clips": {},
+  "mascot_rig_url": null,
+  "static_background_url": null,
+  "tick_url": null
+ },
+ "captions": [
+  {
+   "end": 1.0,
+   "start": 0.5,
+   "text": "இதைப் பாருங்கள்."
+  },
+  {
+   "end": 2.3,
+   "start": 1.4,
+   "text": "முதலில் தள்ளும் விசை."
+  },
+  {
+   "end": 5.2,
+   "start": 2.7,
+   "text": "பலர் இப்படி நினைக்கிறார்கள். ஆனால் உண்மை வேறு."
+  },
+  {
+   "end": 9.1,
+   "start": 6.9,
+   "text": "Does the bulb use some up? Measure it."
+  }
+ ],
+ "chapters": [
+  {
+   "start": 0.0,
+   "title": "தவறான நம்பிக்கை"
+  },
+  {
+   "start": 6.4,
+   "title": "Measure it twice"
+  }
+ ],
+ "concept_map": [],
+ "estimated": false,
+ "fps": 30,
+ "height": 1080,
+ "intro": null,
+ "language": "ta-IN",
+ "learning_objectives": [],
+ "meta": {
+  "session_number": "Session 3",
+  "session_title": "Circuits",
+  "subject_name": "Basic Electrical Engineering",
+  "unit_name": "Unit 2: DC Circuits"
+ },
+ "presentation": {
+  "caption_style": "clean_pill",
+  "captions_burn": true,
+  "content": {
+   "entity:0": "#0267C7",
+   "entity:1": "#80369E",
+   "entity:2": "#870C62",
+   "focus": "#141822",
+   "ink": "#141822",
+   "ink2": "#484D58",
+   "mark": "#F2D935",
+   "ok": "#016F50",
+   "warn": "#9F4503"
+  },
+  "content_alt": {
+   "entity:0": "#0FE3FE",
+   "entity:1": "#C4A4FE",
+   "entity:2": "#FEACE3",
+   "focus": "#F2D935",
+   "ink": "#F3F5F9",
+   "ink2": "#B9BEC7",
+   "mark": "#F2D935",
+   "ok": "#5DD8AA",
+   "warn": "#F8A87F"
+  },
+  "cue_term_style": "underline",
+  "engine_version": 5,
+  "family": "paper_ink",
+  "fonts": {
+   "body": "inter",
+   "display": "poppins",
+   "indic": "anek",
+   "mono": "jetbrains_mono"
+  },
+  "format": "landscape",
+  "generated_seconds": 10.3,
+  "mode": "light",
+  "motion": "standard",
+  "motion_scale": 1.15,
+  "personality": "soft",
+  "safe_zone": "universal",
+  "sfx": false,
+  "style": "dynamic",
+  "text_entrance": "fade_rise"
+ },
+ "scenes": [
+  {
+   "audio_asset_key": null,
+   "audio_duration": 5.1,
+   "audio_offset": 0.5,
+   "audio_url": null,
+   "beats": [
+    {
+     "beat_id": "mf-ta-heading-0",
+     "board_item_id": "h1",
+     "captions": [
+      {
+       "end": 1.0,
+       "start": 0.5,
+       "text": "இதைப் பாருங்கள்."
+      }
+     ],
+     "end": 1.4,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 0,
+     "narration": "இதைப் பாருங்கள்.",
+     "phase": "main",
+     "speech_end": 1.0,
+     "start": 0.5,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "mf-ta-heading-1",
+     "board_item_id": "t1",
+     "captions": [
+      {
+       "end": 2.3,
+       "start": 1.4,
+       "text": "முதலில் தள்ளும் விசை."
+      }
+     ],
+     "end": 2.7,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 1,
+     "narration": "முதலில் தள்ளும் விசை.",
+     "phase": "main",
+     "speech_end": 2.3,
+     "start": 1.4,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "mf-ta-heading-2",
+     "board_item_id": "t2",
+     "captions": [
+      {
+       "end": 5.2,
+       "start": 2.7,
+       "text": "பலர் இப்படி நினைக்கிறார்கள். ஆனால் உண்மை வேறு."
+      }
+     ],
+     "end": 5.6,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 2,
+     "narration": "பலர் இப்படி நினைக்கிறார்கள். ஆனால் உண்மை வேறு.",
+     "phase": "main",
+     "speech_end": 5.2,
+     "start": 2.7,
+     "visual_cue": null,
+     "words": []
+    }
+   ],
+   "board": [
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "h1",
+     "justification": null,
+     "kind": "heading",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "தவறான நம்பிக்கை",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "t1",
+     "justification": null,
+     "kind": "definition",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": "[[Voltage]]",
+     "text": "மின்னூட்டத்தைத் தள்ளும் விசை $V$",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "t2",
+     "justification": "அதே மின்னோட்டம் திரும்புகிறது; செலவாவது [[ஆற்றல்]] மட்டுமே",
+     "kind": "misconception",
+     "language": null,
+     "latex": null,
+     "misconception_id": "mc-t2",
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "மின்னோட்டம் சுற்றில் செலவாகிவிடும்",
+     "variables": []
+    }
+   ],
+   "chapter_id": null,
+   "chapter_label": null,
+   "concept_id": null,
+   "duration": 6.4,
+   "events": [
+    {
+     "anchored": true,
+     "dur": 1.0,
+     "kind": "cue_term",
+     "sfx": null,
+     "t": 1.6,
+     "target": "t1",
+     "words": ""
+    },
+    {
+     "anchored": true,
+     "dur": 1.0,
+     "kind": "cue_term",
+     "sfx": null,
+     "t": 4.8,
+     "target": "t2:term:0",
+     "words": ""
+    }
+   ],
+   "figures": {},
+   "index": 0,
+   "layout": {
+    "fullscreen_media": false,
+    "mascot_position": "left",
+    "show_side_panel": true
+   },
+   "look": {
+    "background": {
+     "frozen_at": null,
+     "params": {
+      "tone": "bg"
+     },
+     "preset": "mesh_drift",
+     "seed": 9100
+    },
+    "hold_reason": null,
+    "presenter": null,
+    "template": "myth_fact",
+    "text_fit": {},
+    "tokens": {
+     "bg": "#FDF2DD",
+     "bg-alt": "#F3E8D3",
+     "bg-tint": "#FFEAEF",
+     "block.base": "#BE3D70",
+     "block.highlight": "#C7537D",
+     "block.ink": "#FFFFFF",
+     "block.ink2": "#F6D9E1",
+     "scrim": "#FDF2DDC7",
+     "struct.accent": "#BE3D70",
+     "surface": "#FFFDFA"
+    },
+    "transition_in": {
+     "kind": "cut",
+     "seconds": 0.0
+    },
+    "variant": null
+   },
+   "media": null,
+   "objective_ids": [],
+   "p5_code": null,
+   "poster": null,
+   "quiz": null,
+   "scene_id": "mf-ta-heading",
+   "side_panel": null,
+   "start": 0.0,
+   "subtitle": null,
+   "title": "தவறான நம்பிக்கை",
+   "type": "content"
+  },
+  {
+   "audio_asset_key": null,
+   "audio_duration": 2.6,
+   "audio_offset": 0.5,
+   "audio_url": null,
+   "beats": [
+    {
+     "beat_id": "mf-ta-terminal-0",
+     "board_item_id": "t3",
+     "captions": [
+      {
+       "end": 2.7,
+       "start": 0.5,
+       "text": "Does the bulb use some up? Measure it."
+      }
+     ],
+     "end": 3.1,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 0,
+     "narration": "Does the bulb use some up? Measure it.",
+     "phase": "main",
+     "speech_end": 2.7,
+     "start": 0.5,
+     "visual_cue": null,
+     "words": []
+    }
+   ],
+   "board": [
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "t3",
+     "justification": "The meter reads the [[same current]] on both sides",
+     "kind": "misconception",
+     "language": null,
+     "latex": null,
+     "misconception_id": "mc-t3",
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "The bulb uses up some of the current",
+     "variables": []
+    }
+   ],
+   "chapter_id": null,
+   "chapter_label": null,
+   "concept_id": null,
+   "duration": 3.9,
+   "events": [
+    {
+     "anchored": true,
+     "dur": null,
+     "kind": "draw",
+     "sfx": null,
+     "t": 1.1,
+     "target": "t3",
+     "words": ""
+    },
+    {
+     "anchored": true,
+     "dur": 0.8,
+     "kind": "look_here",
+     "sfx": null,
+     "t": 2.9,
+     "target": "panel",
+     "words": ""
+    }
+   ],
+   "figures": {},
+   "index": 1,
+   "layout": {
+    "fullscreen_media": false,
+    "mascot_position": "left",
+    "show_side_panel": true
+   },
+   "look": {
+    "background": {
+     "frozen_at": null,
+     "params": {
+      "tone": "bg"
+     },
+     "preset": "mesh_drift",
+     "seed": 9101
+    },
+    "hold_reason": null,
+    "presenter": null,
+    "template": "myth_fact",
+    "text_fit": {},
+    "tokens": {
+     "bg": "#FDF2DD",
+     "bg-alt": "#F3E8D3",
+     "bg-tint": "#FDEDDC",
+     "block.base": "#A16600",
+     "block.highlight": "#AB752E",
+     "block.ink": "#FFFFFF",
+     "block.ink2": "#EDE0D1",
+     "scrim": "#FDF2DDC7",
+     "struct.accent": "#A16600",
+     "surface": "#FFFDFA"
+    },
+    "transition_in": {
+     "kind": "crossfade",
+     "seconds": 0.45
+    },
+    "variant": null
+   },
+   "media": null,
+   "objective_ids": [],
+   "p5_code": null,
+   "poster": null,
+   "quiz": null,
+   "scene_id": "mf-ta-terminal",
+   "side_panel": {
+    "media": null,
+    "panel": {
+     "chart": null,
+     "figure_id": null,
+     "gif_query": null,
+     "graph": null,
+     "image_prompt": null,
+     "kind": "terminal",
+     "manim": null,
+     "model_3d": null,
+     "override_asset_key": null,
+     "quiz": null,
+     "rationale": "Shows the same current twice.",
+     "show_from_beat_id": null,
+     "terminal": {
+      "command": "meter --at A --at B",
+      "output": "A: I = 0.50 A\nB: I = 0.50 A"
+     },
+     "title": "Measure it"
+    },
+    "show_at": 0.3
+   },
+   "start": 6.4,
+   "subtitle": null,
+   "title": "Measure it twice",
+   "type": "content"
+  }
+ ],
+ "schema_version": 3,
+ "screenplay_revision": null,
+ "total_duration": 10.3,
+ "transition_seconds": 0.4,
+ "version_id": null,
+ "width": 1920
+}

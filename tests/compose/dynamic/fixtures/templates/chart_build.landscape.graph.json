@@ -1,0 +1,315 @@
+{
+  "board_language": "en-IN",
+  "branding": {
+    "bgm_url": null,
+    "bgm_volume": 0.06,
+    "ding_url": null,
+    "mascot_clips": {},
+    "mascot_rig_url": null,
+    "static_background_url": null,
+    "tick_url": null
+  },
+  "captions": [
+    {
+      "end": 3.1,
+      "start": 0.4,
+      "text": "Double the voltage and the current doubles too."
+    },
+    {
+      "end": 6.1,
+      "start": 3.4,
+      "text": "A bigger resistor gives a flatter line."
+    },
+    {
+      "end": 9.1,
+      "start": 6.4,
+      "text": "At eight volts the two-ohm resistor carries four amperes."
+    }
+  ],
+  "chapters": [
+    {
+      "start": 0.0,
+      "title": "OHM'S LAW AS A PICTURE"
+    }
+  ],
+  "concept_map": [],
+  "estimated": false,
+  "fps": 30,
+  "height": 1080,
+  "intro": null,
+  "language": "en-IN",
+  "learning_objectives": [],
+  "meta": {},
+  "presentation": {
+    "caption_style": "clean_pill",
+    "captions_burn": true,
+    "content": {
+      "entity:0": "#0FE3FE",
+      "entity:1": "#C4A4FE",
+      "entity:2": "#FEACE3",
+      "focus": "#F2D935",
+      "ink": "#F3F5F9",
+      "ink2": "#B9BEC7",
+      "mark": "#F2D935",
+      "ok": "#5DD8AA",
+      "warn": "#F8A87F"
+    },
+    "content_alt": {
+      "entity:0": "#0267C7",
+      "entity:1": "#80369E",
+      "entity:2": "#870C62",
+      "focus": "#141822",
+      "ink": "#141822",
+      "ink2": "#484D58",
+      "mark": "#F2D935",
+      "ok": "#016F50",
+      "warn": "#9F4503"
+    },
+    "cue_term_style": "underline",
+    "engine_version": 5,
+    "family": "deep_teal",
+    "fonts": {
+      "body": "inter",
+      "display": "outfit",
+      "indic": "noto_sans",
+      "mono": "jetbrains_mono"
+    },
+    "format": "landscape",
+    "generated_seconds": 10.0,
+    "mode": "dark",
+    "motion": "standard",
+    "motion_scale": 0.85,
+    "personality": "crisp",
+    "safe_zone": "universal",
+    "sfx": false,
+    "style": "dynamic",
+    "text_entrance": "baseline_reveal"
+  },
+  "scenes": [
+    {
+      "audio_asset_key": null,
+      "audio_duration": 9.2,
+      "audio_offset": 0.4,
+      "audio_url": null,
+      "beats": [
+        {
+          "beat_id": "cb-l-graph-1",
+          "board_item_id": "h1",
+          "captions": [
+            {
+              "end": 3.1,
+              "start": 0.4,
+              "text": "Double the voltage and the current doubles too."
+            }
+          ],
+          "end": 3.4,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 0,
+          "narration": "Double the voltage and the current doubles too.",
+          "phase": "main",
+          "speech_end": 3.1,
+          "start": 0.4,
+          "visual_cue": null,
+          "words": []
+        },
+        {
+          "beat_id": "cb-l-graph-2",
+          "board_item_id": null,
+          "captions": [
+            {
+              "end": 6.1,
+              "start": 3.4,
+              "text": "A bigger resistor gives a flatter line."
+            }
+          ],
+          "end": 6.4,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 1,
+          "narration": "A bigger resistor gives a flatter line.",
+          "phase": "main",
+          "speech_end": 6.1,
+          "start": 3.4,
+          "visual_cue": null,
+          "words": []
+        },
+        {
+          "beat_id": "cb-l-graph-3",
+          "board_item_id": null,
+          "captions": [
+            {
+              "end": 9.1,
+              "start": 6.4,
+              "text": "At eight volts the two-ohm resistor carries four amperes."
+            }
+          ],
+          "end": 9.4,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 2,
+          "narration": "At eight volts the two-ohm resistor carries four amperes.",
+          "phase": "main",
+          "speech_end": 9.1,
+          "start": 6.4,
+          "visual_cue": null,
+          "words": []
+        }
+      ],
+      "board": [
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "h1",
+          "justification": null,
+          "kind": "heading",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "For a fixed resistor, $I = V/R$ is a straight line",
+          "variables": []
+        }
+      ],
+      "chapter_id": null,
+      "chapter_label": null,
+      "concept_id": null,
+      "duration": 10.0,
+      "events": [
+        {
+          "anchored": true,
+          "dur": null,
+          "kind": "draw",
+          "sfx": null,
+          "t": 0.6,
+          "target": "panel",
+          "words": ""
+        },
+        {
+          "anchored": true,
+          "dur": 1.8,
+          "kind": "look_here",
+          "sfx": null,
+          "t": 7.4,
+          "target": "panel:point:2:1",
+          "words": ""
+        }
+      ],
+      "figures": {},
+      "index": 0,
+      "layout": {
+        "fullscreen_media": false,
+        "mascot_position": "left",
+        "show_side_panel": true
+      },
+      "look": {
+        "background": {
+          "frozen_at": null,
+          "params": {
+            "tone": "bg"
+          },
+          "preset": "mesh_drift",
+          "seed": 9303
+        },
+        "hold_reason": null,
+        "presenter": null,
+        "template": "chart_build",
+        "text_fit": {},
+        "tokens": {
+          "bg": "#001B1C",
+          "bg-alt": "#002527",
+          "bg-tint": "#251118",
+          "block.base": "#7B64A8",
+          "block.highlight": "#A970B6",
+          "block.ink": "#FFFFFF",
+          "block.ink2": "#F1EFF7",
+          "scrim": "#001B1CC7",
+          "struct.accent": "#FF89B0",
+          "surface": "#0E3133"
+        },
+        "transition_in": {
+          "kind": "cut",
+          "seconds": 0.0
+        },
+        "variant": null
+      },
+      "media": null,
+      "objective_ids": [],
+      "p5_code": null,
+      "poster": null,
+      "quiz": null,
+      "scene_id": "cb-l-graph",
+      "side_panel": {
+        "media": null,
+        "panel": {
+          "chart": null,
+          "figure_id": null,
+          "gif_query": null,
+          "graph": {
+            "functions": [
+              {
+                "expr": "x/2",
+                "label": "R = 2 ohms"
+              },
+              {
+                "expr": "x/4",
+                "label": "R = 4 ohms"
+              }
+            ],
+            "points": [
+              {
+                "label": "4 V, 2 A",
+                "x": 4.0,
+                "y": 2.0
+              },
+              {
+                "label": "8 V, 4 A",
+                "x": 8.0,
+                "y": 4.0
+              }
+            ],
+            "x_label": "Voltage (V)",
+            "x_range": [
+              0.0,
+              10.0
+            ],
+            "y_label": "Current (A)",
+            "y_range": [
+              0.0,
+              5.0
+            ]
+          },
+          "image_prompt": null,
+          "kind": "graph",
+          "manim": null,
+          "model_3d": null,
+          "override_asset_key": null,
+          "quiz": null,
+          "rationale": "Shows the law as a line.",
+          "show_from_beat_id": null,
+          "terminal": null,
+          "title": "Current against voltage"
+        },
+        "show_at": 0.0
+      },
+      "start": 0.0,
+      "subtitle": null,
+      "title": "OHM'S LAW AS A PICTURE",
+      "type": "content"
+    }
+  ],
+  "schema_version": 3,
+  "screenplay_revision": null,
+  "total_duration": 10.0,
+  "transition_seconds": 0.4,
+  "version_id": null,
+  "width": 1920
+}

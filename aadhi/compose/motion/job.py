@@ -50,14 +50,19 @@ DYNAMIC_MESSAGES = {
 # Side panels the Dynamic stage does not draw yet. board_generic shows a panel's picture or clip and the terminal card
 # (web/js/dynamic/templates/board_generic.js mediaOf, cardSpecs) and lays the scene out without any other panel, in the
 # live player and the MP4 alike; the classic render draws them. Each such panel gets a render warning (G10: nothing is
-# dropped silently). Remove a kind when a template draws it (B2's chart_build: "chart").
+# dropped silently). Remove a kind when a template draws it.
 UNDRAWN_PANEL_KINDS = {
-    "chart": "a chart",
-    "graph": "a graph",
     "model_3d": "a 3D model",
     "skill_tree": "a skill tree",
     "quiz": "a quiz question",
 }
+# A chart or graph panel is drawn as a real plot (owner decision 1, step 5) by chart_build (its own layout, the scene's
+# format) and by the templates that draw panels through _shared.js's panel helper (its side-panel layout: 16:9 the side
+# box, 9:16 the reel beat's column), whenever the chart engine takes it (charts.draws_chart, the page's chartPlan).
+# board_generic and media_split still draw its title only, and a chart past the engine's limits is a title card
+# everywhere: those keep the warning.
+CHART_PANEL_KINDS = {"chart": "a chart", "graph": "a graph"}
+CHART_PANEL_TEMPLATES = ("key_terms", "myth_fact", "worked_steps")
 UNDRAWN_PANEL_REASON = "panel_not_drawn"
 UNDRAWN_PANEL_MESSAGE = ("This side panel ({what}) is not shown in Dynamic videos yet: the scene is laid out without "
                          "it.")
@@ -73,6 +78,15 @@ def undrawn_panel_warnings(timeline: Any, numbers: dict[str, int] | None = None)
         if sp is None or not scene.layout.show_side_panel:
             continue
         what = UNDRAWN_PANEL_KINDS.get(sp.panel.kind)
+        if what is None and sp.panel.kind in CHART_PANEL_KINDS:
+            from ..dynamic.charts import draws_chart  # Dynamic only (this runs for a Dynamic render)
+
+            fmt = timeline.presentation.format if timeline.presentation is not None else "landscape"
+            template = scene.look.template if scene.look is not None else None
+            layout = (fmt if template == "chart_build" else ("portrait" if fmt == "portrait" else "panel")
+                      if template in CHART_PANEL_TEMPLATES else None)
+            drawn = layout is not None and draws_chart(sp.panel, layout)
+            what = None if drawn else CHART_PANEL_KINDS[sp.panel.kind]
         if what is None:
             continue
         item: dict[str, Any] = {"scene_index": scene.index, "scene_id": scene.scene_id,
@@ -189,7 +203,7 @@ async def render_dynamic(ctx: JobContext, job: Any, payload: Any, ws: RenderWork
                     reason=item["check"])
     if not pre.ok:
         await asyncio.to_thread(record_qa, ctx, job.render_id, pre.as_qa())
-        raise_if_blocked(pre)
+        raise_if_blocked(pre, job.numbers)
 
     # --- capture, join, check ------------------------------------------------------------------------
     output = ws.attempt_dir / "output.mp4"

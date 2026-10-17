@@ -1,0 +1,565 @@
+{
+  "board_language": "hi-IN",
+  "branding": {
+    "bgm_url": "/branding/bgm.mp3",
+    "bgm_volume": 0.06,
+    "ding_url": null,
+    "mascot_clips": {
+      "center": "/branding/aadhi_center_clean.mp4",
+      "hidden": "/branding/no_aadhi_clean.mp4",
+      "left": "/branding/aadhi_left_clean.mp4",
+      "popup_bottom_left": "/branding/aadhi_popup_clean.mp4",
+      "popup_bottom_right": "/branding/aadhi_popup_clean.mp4",
+      "right": "/branding/aadhi_right_clean.mp4"
+    },
+    "mascot_rig_url": null,
+    "static_background_url": "/branding/static_background.png",
+    "tick_url": null
+  },
+  "captions": [
+    {
+      "end": 6.5,
+      "start": 5.5,
+      "text": "धारा आवेश\nका प्रवाह है"
+    },
+    {
+      "end": 7.65,
+      "start": 6.65,
+      "text": "इसे एम्पियर\nमें मापते हैं"
+    },
+    {
+      "end": 8.8,
+      "start": 7.8,
+      "text": "इसके लिए बंद\nपरिपथ चाहिए"
+    }
+  ],
+  "chapters": [
+    {
+      "start": 0.0,
+      "title": "Ohm's Law"
+    }
+  ],
+  "concept_map": [
+    {
+      "depends_on": [],
+      "id": "basics",
+      "kind": "core",
+      "summary": "",
+      "title": "Charge and Current"
+    },
+    {
+      "depends_on": [
+        "basics"
+      ],
+      "id": "ohm",
+      "kind": "core",
+      "summary": "",
+      "title": "Ohm's Law"
+    }
+  ],
+  "estimated": false,
+  "fps": 30,
+  "height": 1920,
+  "intro": null,
+  "language": "hi-IN",
+  "learning_objectives": [],
+  "meta": {
+    "asset_storage_keys": {
+      "scene_audio-s-facts": "assets/scene_audio/scene_audio-s-facts/x.mp3"
+    },
+    "session_number": "सत्र 2",
+    "session_title": "ओम का नियम",
+    "subject_name": "विद्युत अभियांत्रिकी",
+    "unit_name": "परिपथ"
+  },
+  "presentation": {
+    "caption_style": "clean_pill",
+    "captions_burn": true,
+    "content": {
+      "entity:0": "#0267C7",
+      "entity:1": "#80369E",
+      "entity:2": "#870C62",
+      "focus": "#141822",
+      "ink": "#141822",
+      "ink2": "#484D58",
+      "mark": "#F2D935",
+      "ok": "#016F50",
+      "warn": "#9F4503"
+    },
+    "content_alt": {
+      "entity:0": "#0FE3FE",
+      "entity:1": "#C4A4FE",
+      "entity:2": "#FEACE3",
+      "focus": "#F2D935",
+      "ink": "#F3F5F9",
+      "ink2": "#B9BEC7",
+      "mark": "#F2D935",
+      "ok": "#5DD8AA",
+      "warn": "#F8A87F"
+    },
+    "cue_term_style": "underline",
+    "engine_version": 5,
+    "entity_colors": {
+      "I": 1,
+      "R": 2,
+      "V": 0
+    },
+    "family": "paper_ink",
+    "fonts": {
+      "body": "inter",
+      "display": "outfit",
+      "indic": "noto_sans",
+      "mono": "jetbrains_mono"
+    },
+    "format": "portrait",
+    "generated_seconds": 9.6,
+    "mode": "light",
+    "motion": "calm",
+    "motion_scale": 0.85,
+    "personality": "crisp",
+    "safe_zone": "universal",
+    "sfx": false,
+    "style": "dynamic",
+    "text_entrance": "baseline_reveal"
+  },
+  "scenes": [
+    {
+      "audio_asset_key": null,
+      "audio_duration": 0.0,
+      "audio_offset": 0.15,
+      "audio_url": null,
+      "beats": [],
+      "board": [
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "title",
+          "justification": null,
+          "kind": "heading",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "ओम का नियम",
+          "variables": []
+        },
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "hook",
+          "justification": null,
+          "kind": "question",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "[[फ़्यूज़]] रोज़ क्यों नहीं पिघलता?",
+          "variables": []
+        }
+      ],
+      "chapter_id": null,
+      "chapter_label": null,
+      "concept_id": null,
+      "duration": 5.0,
+      "events": [
+        {
+          "anchored": true,
+          "dur": null,
+          "kind": "reveal",
+          "sfx": null,
+          "t": 0.03,
+          "target": "hook",
+          "words": ""
+        },
+        {
+          "anchored": true,
+          "dur": 1.0,
+          "kind": "cue_term",
+          "sfx": null,
+          "t": 2.6,
+          "target": "hook:term:0",
+          "words": ""
+        }
+      ],
+      "figures": {},
+      "index": 0,
+      "layout": {
+        "fullscreen_media": false,
+        "mascot_position": "hidden",
+        "show_side_panel": false
+      },
+      "look": {
+        "background": {
+          "frozen_at": null,
+          "params": {
+            "tone": "bg"
+          },
+          "preset": "mesh_drift",
+          "seed": 1738420021
+        },
+        "hold_reason": null,
+        "presenter": {
+          "clip_key": "aadhi_center_clean.mp4",
+          "crop": [
+            280,
+            0,
+            720,
+            720
+          ],
+          "enter_kind": "rise",
+          "exit_kind": "slide_down",
+          "exit_s": 0.3,
+          "layout": "card",
+          "radius": 40,
+          "rect": [
+            240,
+            800,
+            744,
+            744
+          ],
+          "src_fps": 24,
+          "t_exit": 4.7
+        },
+        "refs": {
+          "accent_next": "#BE3D70"
+        },
+        "template": "aadhi_intro",
+        "text_fit": {},
+        "tokens": {
+          "bg": "#FDF2DD",
+          "bg-alt": "#F3E8D3",
+          "bg-tint": "#FFEAEF",
+          "block.base": "#BE3D70",
+          "block.highlight": "#C7537D",
+          "block.ink": "#FFFFFF",
+          "block.ink2": "#F6D9E1",
+          "scrim": "#FDF2DDC7",
+          "struct.accent": "#BE3D70",
+          "surface": "#FFFDFA"
+        },
+        "transition_in": {
+          "kind": "cut",
+          "seconds": 0.0
+        },
+        "variant": "card"
+      },
+      "media": null,
+      "objective_ids": [],
+      "p5_code": null,
+      "poster": null,
+      "quiz": null,
+      "scene_id": "aadhi-intro",
+      "side_panel": null,
+      "start": 0.0,
+      "subtitle": "परिपथ · सत्र 2",
+      "title": "ओम का नियम",
+      "type": "title"
+    },
+    {
+      "audio_asset_key": "scene_audio-s-facts",
+      "audio_duration": 3.3,
+      "audio_offset": 0.5,
+      "audio_url": null,
+      "beats": [
+        {
+          "beat_id": "s-facts-b1",
+          "board_item_id": "b1",
+          "captions": [
+            {
+              "end": 1.5,
+              "start": 0.5,
+              "text": "धारा आवेश\nका प्रवाह है"
+            }
+          ],
+          "end": 1.5,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 0,
+          "narration": "धारा आवेश का प्रवाह है",
+          "phase": "main",
+          "speech_end": 1.5,
+          "start": 0.5,
+          "visual_cue": null,
+          "words": [
+            {
+              "end": 0.7,
+              "start": 0.5,
+              "text": "धारा"
+            },
+            {
+              "end": 0.9,
+              "start": 0.7,
+              "text": "आवेश"
+            },
+            {
+              "end": 1.1,
+              "start": 0.9,
+              "text": "का"
+            },
+            {
+              "end": 1.3,
+              "start": 1.1,
+              "text": "प्रवाह"
+            },
+            {
+              "end": 1.5,
+              "start": 1.3,
+              "text": "है"
+            }
+          ]
+        },
+        {
+          "beat_id": "s-facts-b2",
+          "board_item_id": "b2",
+          "captions": [
+            {
+              "end": 2.65,
+              "start": 1.65,
+              "text": "इसे एम्पियर\nमें मापते हैं"
+            }
+          ],
+          "end": 2.65,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 1,
+          "narration": "इसे एम्पियर में मापते हैं",
+          "phase": "main",
+          "speech_end": 2.65,
+          "start": 1.65,
+          "visual_cue": null,
+          "words": [
+            {
+              "end": 1.85,
+              "start": 1.65,
+              "text": "इसे"
+            },
+            {
+              "end": 2.05,
+              "start": 1.85,
+              "text": "एम्पियर"
+            },
+            {
+              "end": 2.25,
+              "start": 2.05,
+              "text": "में"
+            },
+            {
+              "end": 2.45,
+              "start": 2.25,
+              "text": "मापते"
+            },
+            {
+              "end": 2.65,
+              "start": 2.45,
+              "text": "हैं"
+            }
+          ]
+        },
+        {
+          "beat_id": "s-facts-b3",
+          "board_item_id": "b3",
+          "captions": [
+            {
+              "end": 3.8,
+              "start": 2.8,
+              "text": "इसके लिए बंद\nपरिपथ चाहिए"
+            }
+          ],
+          "end": 3.8,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 2,
+          "narration": "इसके लिए बंद परिपथ चाहिए",
+          "phase": "main",
+          "speech_end": 3.8,
+          "start": 2.8,
+          "visual_cue": null,
+          "words": [
+            {
+              "end": 3.0,
+              "start": 2.8,
+              "text": "इसके"
+            },
+            {
+              "end": 3.2,
+              "start": 3.0,
+              "text": "लिए"
+            },
+            {
+              "end": 3.4,
+              "start": 3.2,
+              "text": "बंद"
+            },
+            {
+              "end": 3.6,
+              "start": 3.4,
+              "text": "परिपथ"
+            },
+            {
+              "end": 3.8,
+              "start": 3.6,
+              "text": "चाहिए"
+            }
+          ]
+        }
+      ],
+      "board": [
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "b1",
+          "justification": null,
+          "kind": "bullet",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "धारा आवेश का प्रवाह है",
+          "variables": []
+        },
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "b2",
+          "justification": null,
+          "kind": "bullet",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "इसे एम्पियर में मापते हैं",
+          "variables": []
+        },
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "b3",
+          "justification": null,
+          "kind": "bullet",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "इसके लिए बंद परिपथ चाहिए",
+          "variables": []
+        }
+      ],
+      "chapter_id": null,
+      "chapter_label": null,
+      "concept_id": "ohm",
+      "duration": 4.6,
+      "events": [
+        {
+          "anchored": true,
+          "dur": null,
+          "kind": "reveal",
+          "sfx": null,
+          "t": 0.38,
+          "target": "b1",
+          "words": ""
+        },
+        {
+          "anchored": true,
+          "dur": null,
+          "kind": "reveal",
+          "sfx": null,
+          "t": 1.53,
+          "target": "b2",
+          "words": ""
+        },
+        {
+          "anchored": true,
+          "dur": null,
+          "kind": "reveal",
+          "sfx": null,
+          "t": 2.68,
+          "target": "b3",
+          "words": ""
+        }
+      ],
+      "figures": {},
+      "index": 1,
+      "layout": {
+        "fullscreen_media": false,
+        "mascot_position": "left",
+        "show_side_panel": false
+      },
+      "look": {
+        "background": {
+          "frozen_at": null,
+          "params": {
+            "tone": "bg-alt"
+          },
+          "preset": "mesh_drift",
+          "seed": 996636479
+        },
+        "hold_reason": null,
+        "presenter": null,
+        "template": "list_build",
+        "text_fit": {},
+        "tokens": {
+          "bg": "#FDF2DD",
+          "bg-alt": "#F3E8D3",
+          "bg-tint": "#FFEAEF",
+          "block.base": "#BE3D70",
+          "block.highlight": "#C7537D",
+          "block.ink": "#FFFFFF",
+          "block.ink2": "#F6D9E1",
+          "scrim": "#FDF2DDC7",
+          "struct.accent": "#BE3D70",
+          "surface": "#FFFDFA"
+        },
+        "transition_in": {
+          "kind": "crossfade",
+          "seconds": 0.45
+        },
+        "variant": null
+      },
+      "media": null,
+      "objective_ids": [],
+      "p5_code": null,
+      "poster": null,
+      "quiz": null,
+      "scene_id": "s-facts",
+      "side_panel": null,
+      "start": 5.0,
+      "subtitle": null,
+      "title": "धारा के बारे में तीन बातें",
+      "type": "content"
+    }
+  ],
+  "schema_version": 3,
+  "screenplay_revision": null,
+  "total_duration": 9.6,
+  "transition_seconds": 0.4,
+  "version_id": null,
+  "width": 1080
+}

@@ -209,7 +209,9 @@ def build(case: str, fmt: str) -> dict[str, Any]:
                     item["variables"] = item["variables"][first:last]
     sp = Screenplay.model_validate(data)
     with _formula_focus_resolved():
-        tl = build_timeline(sp, make_manifest(sp), settings=Settings(_env_file=None, dynamic_enabled=True))
+        # a template fixture: without Aadhi's synthesised appearances (step 5; their own fixtures are make_aadhi_fixtures)
+        tl = build_timeline(sp, make_manifest(sp), settings=Settings(_env_file=None, dynamic_enabled=True,
+                                                                    dynamic_aadhi_intro=False))
     for s in tl.scenes:
         s.events = _events(s, var_events=var_events, reveal_draw=reveal_draw, compact=case == "stress")
     out = Timeline.model_validate(tl.model_dump(mode="json")).model_dump(mode="json")

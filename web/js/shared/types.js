@@ -178,6 +178,8 @@
  * @property {number} countdown_start   scene-relative
  * @property {number} countdown_seconds
  * @property {number} reveal_start      scene-relative
+ * @property {(string | null)[]} [option_misconception_ids]   Dynamic builds only: the misconception each option
+ *   diagnoses, in option order (a reel's two-option check shows the strongest distractor, check.js)
  */
 
 /**

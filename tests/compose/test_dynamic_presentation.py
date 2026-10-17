@@ -31,7 +31,9 @@ HEX = re.compile(r"^#[0-9A-F]{6}$")
 
 @pytest.fixture()
 def flag_on() -> Settings:
-    return Settings(_env_file=None, render_fps=25, dynamic_enabled=True)
+    # Aadhi's appearances (DYNAMIC_AADHI_INTRO) are off here: these tests pin the B1/B2 resolver's choices per screenplay
+    # scene; the appearances have their own tests (tests/compose/dynamic/test_presenter.py)
+    return Settings(_env_file=None, render_fps=25, dynamic_enabled=True, dynamic_aadhi_intro=False)
 
 
 @pytest.fixture()
@@ -129,7 +131,7 @@ def test_presentation_is_resolved(flag_on: Settings) -> None:
                                                "indic": "noto_sans"}  # B2b: the B2 form of B1's faces
     assert (p.personality, p.caption_style, p.cue_term_style) == ("crisp", "clean_pill", "underline")
     assert (p.captions_burn, p.sfx, p.motion) == (True, False, "calm")
-    assert p.engine_version == pres.ENGINE_VERSION == 4  # the look-engine generation of the B2 resolver
+    assert p.engine_version == pres.ENGINE_VERSION == 5  # the look-engine generation of the B2 resolver
     assert p.content_alt == pres.content_tokens("light"), "the other mode's palette (code editor surface)"
     assert (p.family, p.mode, p.motion_scale) == ("midnight_indigo", "dark", 0.85)  # Crisp: x0.85 (§4.8)
     assert p.entity_colors == {"V": 0, "I": 1, "R": 2}  # Presentation.entity_colors, lesson-wide (R-30)
@@ -399,7 +401,8 @@ def _showcase_portrait() -> Timeline:
     data["presentation"] = presentation("portrait", look_seed=20261010)
     sp = Screenplay.model_validate(data)
     return build_timeline(sp, fx.synthetic_manifest(sp, fixture="showcase_ohms_law"),
-                          settings=Settings(_env_file=None, dynamic_enabled=True, render_fps=30))
+                          settings=Settings(_env_file=None, dynamic_enabled=True, render_fps=30,
+                                            dynamic_aadhi_intro=False))
 
 
 def test_the_showcase_reel_never_plans_a_phrase_too_long_for_media_split() -> None:

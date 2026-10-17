@@ -7,19 +7,24 @@
  * Data (§4.3, templates.py `_fit_worked_steps`): one or more `example_step` items (`text` the step, rich-lite with
  * `$TeX$`; `justification` why it holds; `blank` a step withheld until its fill beat), an optional top line (a
  * `heading`, or - what the generator writes for the example's setup - a `callout_info` / `paragraph`) and an optional
- * `formula` item, with - in 16:9, and only without a formula - the scene's **side panel** beside the steps
- * (`_shared.js panelOf`: the example's figure, picture, animation, terminal session, or the authored title of a chart,
- * plot or model the Dynamic engine draws nowhere yet). Nothing a timeline names is silently dropped: a scene with
- * anything else on its board (a second top line, a quiz, a medium, a poster), with a panel of a kind `_shared.js`
- * does not draw, with a panel in 9:16 (the reel's column holds the steps alone, list_build's rule) or with a panel
- * AND a formula (one visual box, which the formula's card takes) is drawn by **board_generic** whole, every hook
- * handed on (`drawsScene`, formula_focus's and list_build's convention), and `_fit_worked_steps` scores such a scene
+ * `formula` item, and the scene's **side panel** (`_shared.js panelOf`: the example's figure, picture, animation,
+ * terminal session, or the authored title of a chart, plot or model the Dynamic engine draws nowhere yet) - in 16:9
+ * beside the steps, only without a formula; in 9:16 as its own short full-stage beat BEFORE the steps (owner decision
+ * 4, 2026-10-16: `_shared.js reelWindow`), with or without a formula, so the step stack keeps the whole column and
+ * R-29's floor. Nothing a timeline names is silently dropped: a scene with anything else on its board (a second top
+ * line, a quiz, a medium, a poster), with a panel of a kind `_shared.js` does not draw, or with a 16:9 panel AND a
+ * formula (one visual box, which the formula's card takes) is drawn by **board_generic** whole, every hook handed
+ * on (`drawsScene`, formula_focus's and list_build's convention), and `_fit_worked_steps` scores such a scene
  * 0, so direct.py never sends it here (B2c review CG-2: a fit that takes a scene the page refuses makes the page
  * silently draw board_generic).
  *
  * 16:9 (§4.3): the steps in the left 55% (`split`) with the formula's card - or the scene's panel - in the right 45%;
  * with neither, the steps are set in the centre 60% (`centred`), so the right side is never left empty (list_build's
  * V12 rule). The top line spans its variant's width above both.
+ *
+ * 9:16 with a side panel: the panel alone on the stage from the scene's start until the first narrated step (2-4 s;
+ * everything that would have entered meanwhile - the top line, the formula's card - enters as it leaves), then
+ * the layout below, unchanged.
  *
  * 9:16 (§4.3, [RV L-13]): the top line, then the formula's card across the text column, then a **persistent compact
  * stack** of the steps: the current step is large (56-64 px) and every step before it is a compact 40 px row (R-29's
@@ -80,8 +85,8 @@ import { brokenTex } from './formula_focus.js';
 import {
   PANEL_TERM, PANEL_TERM_SLOT, RADIUS, STATE_BORDER, STATE_WEIGHT, buildPanel, drawsPanel, enterAt, entityColour,
   fitLines, group, itemStateParts, layoutPanel, paintPanel, paintRise, paintTextEntrance, paintTint, panelFocusRect,
-  panelMediaBox, panelOf, panelTexts, region, revealMask, richWords, scrimmedBg, seconds, shownPanel, slotRange, tex,
-  tintTargets, tintTex,
+  panelMediaBox, panelOf, panelTexts, reelPanelBox, reelTimings, reelWindow, region, revealMask, richWords,
+  scrimmedBg, seconds, shownPanel, slotRange, tex, tintTargets, tintTex,
 } from './_shared.js';
 
 /** @typedef {import('./types.js').TemplateContext} TemplateContext */
@@ -256,6 +261,19 @@ export function boxes(format, variant, zones, visual) {
 }
 
 /**
+ * A side panel's terminal card slot in a panel box `width` px wide (`_shared.js PANEL_TERM`; templates.py
+ * `_panel_terminal_slot`).
+ * @param {'landscape' | 'portrait'} fmt @param {number} width
+ */
+function terminalSlot(fmt, width) {
+  const T = PANEL_TERM[fmt];
+  return {
+    w: width - 2 * T.pad, max_lines: null, size: [T.min, T.max], role: 'body', face: 'mono', weight: T.weight,
+    line_height: T.lh, prefer_lines: null,
+  };
+}
+
+/**
  * The text slots of this template (templates.py SlotSpec, what textfit.py fits; plan §1.6, §1.11):
  * slot -> format -> variant -> {w, max_lines, size, role, face, weight, line_height, prefer_lines}. The 16:9 variants
  * are the layout's: `default` the split one (the narrower column, so a size fitted there is an upper bound for the
@@ -318,16 +336,12 @@ export function slotRows(landscape, portrait) {
       landscape: { default: body(L.why, w(/** @type {Box} */ (split.visual)) - 2 * L.card.padX, L.whyWeight, 'label', L.why.lines) },
       portrait: { default: body(P.why, w(tall.steps) - 2 * P.card.padX, P.whyWeight, 'label', P.why.lines) },
     },
-    // a terminal panel's card (16:9 `split` only: 9:16 draws no panel), mono, in the panel's own box less its
-    // padding; `_shared.js layoutPanel` fits it on the page and `_shared.js panelTexts` reports it in this slot
+    // a terminal panel's card, mono, in the panel's own box less its padding (16:9 `split`: the right 45%; 9:16 the
+    // reel beat's card in the text column, `_shared.js reelPanelBox`); `_shared.js layoutPanel` fits it on the page
+    // and `_shared.js panelTexts` reports it in this slot
     terminal: {
-      landscape: {
-        default: {
-          w: w(/** @type {Box} */ (split.visual)) - 2 * PANEL_TERM.landscape.pad, max_lines: null,
-          size: [PANEL_TERM.landscape.min, PANEL_TERM.landscape.max], role: 'body', face: 'mono',
-          weight: PANEL_TERM.landscape.weight, line_height: PANEL_TERM.landscape.lh, prefer_lines: null,
-        },
-      },
+      landscape: { default: terminalSlot('landscape', w(/** @type {Box} */ (split.visual))) },
+      portrait: { default: terminalSlot('portrait', portrait.textColumn.x1 - portrait.textColumn.x0) },
     },
   };
 }
@@ -382,8 +396,9 @@ export function stepItems(scene) {
  * Whether this template draws the scene whole in `format` (templates.py `_fit_worked_steps` scores 0 otherwise, or
  * the director picks it and the page silently draws board_generic: B2c review CG-2, the demo review's D5): at least
  * one `example_step` with text, at most one top line, at most one formula, nothing else on the board, no quiz, main
- * medium or poster, and a shown side panel only in 16:9, without a formula (the right 45% holds one visual) and of a
- * kind `_shared.js` draws (`drawsPanel`). Anything else is board_generic's, every hook handed on.
+ * medium or poster, and a shown side panel only of a kind `_shared.js` draws (`drawsPanel`) - in 16:9 without a
+ * formula (the right 45% holds one visual), in 9:16 with or without one (the panel is its own beat before the steps,
+ * owner decision 4). Anything else is board_generic's, every hook handed on.
  * @param {TimedScene} scene
  * @param {'landscape' | 'portrait'} [format]
  */
@@ -395,17 +410,28 @@ export function drawsScene(scene, format = 'landscape') {
   if (counted !== board.length) return false;
   if (scene.quiz || scene.media || scene.poster) return false;
   if (!shownPanel(scene)) return true;
-  return format === 'landscape' && !formula && drawsPanel(scene);
+  if (format !== 'landscape') return drawsPanel(scene, format);
+  return !formula && drawsPanel(scene, format);
 }
 
 /**
- * The scene's panel as this template draws it (16:9, without a formula; `_shared.js panelOf`), or null. A scene
- * `drawsScene` takes in 9:16, or one with a formula, never has one here.
+ * The scene's panel as this template draws it (`_shared.js panelOf`; 16:9 beside the steps, without a formula; 9:16
+ * as its reel beat), or null. A 16:9 scene with a formula never has one here.
  * @param {TimedScene} scene @param {'landscape' | 'portrait'} format @param {'live' | 'render'} [mode]
  */
 export function panelFor(scene, format, mode = 'live') {
-  if (format !== 'landscape' || stepItems(scene).formula) return null;
-  return panelOf(scene, mode);
+  if (format === 'landscape' && stepItems(scene).formula) return null;
+  return panelOf(scene, mode, format);
+}
+
+/**
+ * The 9:16 panel beat (`_shared.js reelWindow`) of a scene this template draws with a panel, else null (16:9, or no
+ * panel).
+ * @param {TimedScene} scene @param {'landscape' | 'portrait'} format
+ * @returns {{start: number, end: number} | null}
+ */
+export function reelBeat(scene, format) {
+  return format === 'portrait' && panelOf(scene, 'render', format) ? reelWindow(scene) : null;
 }
 
 /**
@@ -851,23 +877,27 @@ export default {
       };
     }
 
-    // --- the scene's panel, in the visual box the formula's card would have taken (16:9, formula-less scenes only:
-    // `drawsScene` / `panelFor`); `_shared.js` builds, lays out, paints and reports it
+    // --- the scene's panel: 16:9 in the visual box the formula's card would have taken (formula-less scenes only:
+    // `drawsScene` / `panelFor`); 9:16 alone on the stage as its own beat before the steps (owner decision 4),
+    // entering at the beat's start. `_shared.js` builds, lays out, paints and reports it
+    const beat = reelBeat(scene, format);
     /** @type {import('./_shared.js').PanelParts | null} */
     let panelParts = null;
     const panel = panelFor(scene, format, ctx.mode);
     if (panel) {
-      panelParts = buildPanel(ctx, panel);
+      panelParts = buildPanel(ctx, beat ? { ...panel, start: beat.start } : panel);
       root.appendChild(panelParts.el);
     }
 
     ctx.root.appendChild(root);
     const ids = items.map((s) => s.id);
+    // with a reel beat, what would enter during it enters as it ends (`_shared.js reelTimings`)
+    const timings = beat ? reelTimings(scene, beat.end) : itemTimings(scene);
     /** @type {Map<string, number>} */
-    const enter = new Map(itemTimings(scene).map((it) => [it.id, it.enter]));
+    const enter = new Map(timings.map((it) => [it.id, it.enter]));
     /** @type {Map<string, number | null>} */
-    const fill = new Map(itemTimings(scene).map((it) => [it.id, it.fill]));
-    const order = itemTimings(scene).filter((it) => ids.includes(it.id)).map((it) => it.id);
+    const fill = new Map(timings.map((it) => [it.id, it.fill]));
+    const order = timings.filter((it) => ids.includes(it.id)).map((it) => it.id);
     const states = statesOn(scene, ids);
     for (const s of steps) {
       const at = enter.get(s.item.id) || 0;
@@ -878,7 +908,10 @@ export default {
       s.track = states ? stateTrack(at, next, doneAt) : [];
     }
     return {
-      variant, root, head, steps, card, panel: panelParts, ids, enter, order, states, stepScrim,
+      variant, root, head, steps, card, panel: panelParts, ids, enter, order, states, stepScrim, beat,
+      // the formula's card enters with the scene, or - after a reel beat - at its item's entrance as the beat
+      // held it back (`_shared.js reelEntrances`: the beat's end, staggered), with the content
+      formulaAt: beat && formula ? (enter.get(formula.id) ?? beat.end) : FORMULA_DELAY,
       allCompact: false, stepsTop: 0, largeSize: L.step.max, compactSize: L.row ? L.row.max : L.step.max,
       stepMin: L.step.min, rowMin: L.row ? L.row.min : L.step.min, whyMin: L.why.min,
     };
@@ -899,7 +932,7 @@ export default {
     const v = ctx.view;
     const { format, zones } = ctx;
     const L = LAYOUT[format];
-    const b = boxes(format, v.variant, zones, !!v.card || !!v.panel);
+    const b = boxes(format, v.variant, zones, !!v.card || (!!v.panel && !v.beat));
 
     // --- the top line: its own element's size (nothing paints it), fitted in place
     let top = b.steps.y0;
@@ -988,8 +1021,10 @@ export default {
       }
       c.laidOut = true;
     }
-    // --- the panel, in the same visual box, from the steps' top (16:9 only; list_build's panel box)
-    if (v.panel && b.visual) layoutPanel(ctx, v.panel, { ...b.visual, y0: top });
+    // --- the panel: 16:9 in the same visual box, from the steps' top (list_build's panel box); 9:16 alone on the
+    // reel's stage (`_shared.js reelPanelBox`), which moves nothing of the step layout
+    if (v.panel && v.beat) layoutPanel(ctx, v.panel, reelPanelBox(v.panel.panel, zones));
+    else if (v.panel && b.visual) layoutPanel(ctx, v.panel, { ...b.visual, y0: top });
     v.stepsTop = top;
 
     // --- the steps
@@ -1183,7 +1218,7 @@ export default {
     // --- the formula's card: its entrance, and each symbol's entity colour (R-30)
     if (v.card) {
       const c = v.card;
-      c.alpha = enterAt(ctx, t, FORMULA_DELAY, FORMULA_FADE);
+      c.alpha = enterAt(ctx, t, v.formulaAt, FORMULA_FADE);
       paintRise(ctx, c.box, c.alpha, RISE);
       p.style(c.box, 'visibility', c.alpha > 0 ? 'visible' : 'hidden');
       if (!c.targets.size && c.tints.length) c.targets = tintTargets(c.texEl, c.tints);
@@ -1192,8 +1227,10 @@ export default {
       }
     }
 
-    // --- the scene's panel: its entrance, its medium and a terminal's output lines (`_shared.js paintPanel`)
-    if (v.panel) paintPanel(ctx, v.panel, t, state);
+    // --- the scene's panel: its entrance, its medium and a terminal's output lines (`_shared.js paintPanel`); in a
+    // reel beat it leaves as the beat ends and shows every output line
+    if (v.panel && v.beat) paintPanel(ctx, v.panel, t, state, { until: v.beat.end, allLines: true });
+    else if (v.panel) paintPanel(ctx, v.panel, t, state);
   },
 
   /**
@@ -1296,8 +1333,9 @@ export default {
 
   /**
    * Static: the box a medium of `slot` is sized for. The only medium this template shows is its panel's, in slot
-   * `panel`: its whole visual box from the top of the title zone (the largest it is ever shown in, so the picture
-   * only ever downscales, §P; preflight's fixes cannot enlarge it, list_build's reasoning). A scene it hands to
+   * `panel`: 16:9 its whole visual box from the top of the title zone, 9:16 the reel beat's box
+   * (`_shared.js reelPanelBox`) - the largest it is ever shown in, so the picture only ever downscales, §P;
+   * preflight's fixes cannot enlarge it, list_build's reasoning. A scene it hands to
    * board_generic gets board_generic's box, so `mediaPlan` and `ctx.media` agree.
    * @param {TimedScene} scene
    * @param {Zones} zones
@@ -1310,7 +1348,9 @@ export default {
     if (!drawsScene(scene, zones.format)) {
       return typeof boardGeneric.mediaBox === 'function' ? boardGeneric.mediaBox(scene, zones, mode, slot, fixes) : null;
     }
-    if (!panelFor(scene, zones.format, mode)) return null;
+    const panel = panelFor(scene, zones.format, mode);
+    if (!panel) return null;
+    if (zones.format === 'portrait') return panelMediaBox(scene, reelPanelBox(panel, zones), slot);
     const b = boxes(zones.format, variantOf(scene, zones.format), zones, true);
     return b.visual ? panelMediaBox(scene, b.visual, slot) : null;
   },

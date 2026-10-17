@@ -191,6 +191,14 @@ def _store_engine(harness: Api, *, engine: int | None, stale: bool = False) -> t
     return pid, vid, doc
 
 
+def _unserved(look: dict[str, Any]) -> dict[str, Any]:
+    """A served look without the URL serving adds to Aadhi's clip (``timeline.resolve_urls``)."""
+    presenter = look.get("presenter")
+    if not isinstance(presenter, dict) or "url" not in presenter:
+        return look
+    return {**look, "presenter": {k: v for k, v in presenter.items() if k != "url"}}
+
+
 def _marked(served: dict[str, Any]) -> bool:
     if served.get("presentation") is None:
         return served["meta"].get("marker") == MARKER_SEED
@@ -209,14 +217,16 @@ def test_an_older_look_engine_is_served_rebuilt(app_env) -> None:
         pid, vid, stored = _store_engine(harness, engine=1)
         c = harness.login("alice")
         served = c.get(f"/api/versions/{vid}/timeline").json()
-        assert served["presentation"]["engine_version"] == ENGINE_VERSION == 4 and not _marked(served)
+        assert served["presentation"]["engine_version"] == ENGINE_VERSION == 5 and not _marked(served)
         assert all(tuple(s["look"]["tokens"]) == themes.SCENE_TOKEN_KEYS for s in served["scenes"])
         with harness.db() as db:
             row = db.get(ProjectVersion, vid)
             assert row.timeline == stored  # served rebuilt, never written back
             job = build_timeline(row.get_screenplay(), row.get_manifest(), settings=harness.settings,
                                  version_id=vid, revision=row.revision).model_dump(mode="json")
-        assert [s["look"] for s in served["scenes"]] == [s["look"] for s in job["scenes"]]
+        # served == built, but for what serving fills in: the presenter clip's URL (resolve_urls, plan §1.2)
+        assert [_unserved(s["look"]) for s in served["scenes"]] == [s["look"] for s in job["scenes"]]
+        assert served["scenes"][0]["look"]["template"] == "aadhi_intro" and served["scenes"][0]["look"]["presenter"]["url"]
         assert served["presentation"] == job["presentation"]
         share = c.post(f"/api/projects/{pid}/shares", json={"expires_in_days": 7}).json()["token"]
         watch = harness.client(browser=False).get(f"/api/public/watch/{share}").json()["timeline"]
@@ -226,7 +236,7 @@ def test_an_older_look_engine_is_served_rebuilt(app_env) -> None:
             assert other["presentation"]["engine_version"] == ENGINE_VERSION and not _marked(other)
 
 
-@pytest.mark.parametrize(("engine", "stale"), [(4, False), (5, False), (1, True), (2, True), (3, True),
+@pytest.mark.parametrize(("engine", "stale"), [(5, False), (6, False), (1, True), (2, True), (3, True),
                                                (None, False)])
 def test_other_builds_are_served_as_stored(app_env, engine: int | None, stale: bool) -> None:
     """Served exactly as stored: a current-generation build; one of a newer generation (the stage refuses it with
@@ -247,13 +257,13 @@ def test_the_etag_changes_with_the_look_engine(app_env, monkeypatch: pytest.Monk
     from aadhi.api import timelines
 
     with running(app_env, dynamic=True) as harness:
-        _, vid, _ = _store_engine(harness, engine=4)
+        _, vid, _ = _store_engine(harness, engine=5)
         c = harness.login("alice")
         first = c.get(f"/api/versions/{vid}/timeline")
         etag = first.headers["etag"]
         assert _marked(first.json())
         assert c.get(f"/api/versions/{vid}/timeline", headers={"If-None-Match": etag}).status_code == 304
-        monkeypatch.setattr(timelines, "ENGINE_VERSION", 5)
+        monkeypatch.setattr(timelines, "ENGINE_VERSION", 6)
         after = c.get(f"/api/versions/{vid}/timeline", headers={"If-None-Match": etag})
         assert after.status_code == 200 and after.headers["etag"] != etag
-        assert not _marked(after.json()), "the stored generation 4 is now older: rebuilt"
+        assert not _marked(after.json()), "the stored generation 5 is now older: rebuilt"

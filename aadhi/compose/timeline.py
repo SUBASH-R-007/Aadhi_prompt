@@ -5,7 +5,8 @@ carry asset keys (plus the matching storage keys in ``Timeline.meta["asset_stora
 every ``url`` is left ``None`` — ``resolve_urls`` fills them at serve time.
 
 Time base (see ``aadhi.schemas.timeline``): scenes are contiguous; inside a scene narration starts
-at ``audio_offset`` (``SCENE_LEAD_SECONDS``) and every beat/word/caption/quiz/panel time is scene
+at ``audio_offset`` (``SCENE_LEAD_SECONDS``, plus the reel lead of a Dynamic 9:16 panel-beat scene,
+``dynamic/reels.py``) and every beat/word/caption/quiz/panel time is scene
 relative. A scene lasts ``lead + narration + SCENE_TAIL_SECONDS`` (+ ``QUIZ_REVEAL_HOLD_SECONDS``
 for quizzes); silent chapter cards last ``SILENT_SCENE_SECONDS``.
 
@@ -404,6 +405,7 @@ class _Ctx:
     fallbacks: list[dict[str, str]] = field(default_factory=list)
     sync: SyncOptions | None = None  # word-anchored cues (aadhi.compose.sync); None = off
     caption_width: int | None = None  # caption line length; None = the classic default (captions.MAX_LINE_CHARS)
+    dynamic: bool = False  # a Dynamic build: QuizTiming carries the options' misconception ids (a classic one never)
 
     def note_storage(self, asset_key: str | None, storage_key: str | None) -> None:
         if asset_key and storage_key:
@@ -530,10 +532,10 @@ def _ai_video_fallback_board(scene: AIVideoScene) -> list[BoardItem]:
 
 
 def _timed_beats(plan: _AudioPlan, reveal_override: dict[str, str],
-                 caption_width: int | None = None) -> list[TimedBeat]:
+                 caption_width: int | None = None, lead: float = SCENE_LEAD_SECONDS) -> list[TimedBeat]:
     """``caption_width`` is set for Dynamic 9:16 only: its phrase captions (R-32) are grouped so no chunk flashes by
-    (``presentation.portrait_caption_cues``); every other timeline keeps ``split_caption`` exactly."""
-    lead = SCENE_LEAD_SECONDS
+    (``presentation.portrait_caption_cues``); every other timeline keeps ``split_caption`` exactly. ``lead``: when the
+    narration starts (``audio_offset``; :data:`SCENE_LEAD_SECONDS` except a 9:16 panel-beat scene's, step 5)."""
     out: list[TimedBeat] = []
     for idx, bp in enumerate(plan.beats):
         beat = bp.beat
@@ -573,7 +575,7 @@ def _timed_beats(plan: _AudioPlan, reveal_override: dict[str, str],
 
 
 def _build_scene(scene: Any, index: int, start: float, plan: _AudioPlan, sm: SceneMedia | None,
-                 ctx: _Ctx) -> TimedScene:
+                 ctx: _Ctx, lead: float = SCENE_LEAD_SECONDS) -> TimedScene:
     stype: str = scene.type
     board: list[BoardItem] = list(scene.board) if isinstance(scene, BoardScene) else []
     reveal_override: dict[str, str] = {}
@@ -589,8 +591,7 @@ def _build_scene(scene: Any, index: int, start: float, plan: _AudioPlan, sm: Sce
         fullscreen = False
         ctx.fallbacks.append({"scene_id": scene.id, "reason": "ai_video_without_media"})
 
-    beats = _timed_beats(plan, reveal_override, ctx.caption_width)
-    lead = SCENE_LEAD_SECONDS
+    beats = _timed_beats(plan, reveal_override, ctx.caption_width, lead)
     if not beats:
         duration = SILENT_SCENE_SECONDS
     else:
@@ -618,6 +619,8 @@ def _build_scene(scene: Any, index: int, start: float, plan: _AudioPlan, sm: Sce
             countdown_start=cd_start,
             countdown_seconds=cd_seconds,
             reveal_start=_r(reveal),
+            option_misconception_ids=(list(scene.option_misconception_ids)
+                                      if ctx.dynamic and any(scene.option_misconception_ids) else []),
         )
 
     side_panel: ResolvedSidePanel | None = None
@@ -641,7 +644,7 @@ def _build_scene(scene: Any, index: int, start: float, plan: _AudioPlan, sm: Sce
         chapter_label=scene.chapter_label if isinstance(scene, ChapterCardScene) else None,
         start=_r(start),
         duration=_r(duration + hold),
-        audio_offset=SCENE_LEAD_SECONDS,
+        audio_offset=_r(lead),
         layout=Layout(mascot_position=scene.mascot_position, show_side_panel=scene.side_panel is not None,
                       fullscreen_media=fullscreen),
         audio_asset_key=audio.asset_key if audio is not None else None,
@@ -714,6 +717,25 @@ def build_chapters(screenplay: Screenplay, scenes: Sequence[TimedScene]) -> list
 # ---------------------------------------------------------------------------
 
 
+def _hold_end_screen(scenes: list[TimedScene], plans: Sequence[Any], t: float) -> float:
+    """§2.5 / R-11: an outro planned with end-screen space (``outro_next``, variant ``end_screen``) is exactly
+    ``Duration.end_screen`` (15 s) long, never a length between its 10 s maximum and that: a shorter one is held at its
+    end (``hold_seconds``, as a teacher's ``min_seconds`` is: nothing new appears). A longer one keeps its length (its
+    whole length has the clean right half, so its last 15 s do; R-11's lint owns the length). The outro is the last
+    scene, so no later scene moves. Returns the lecture's new end."""
+    from .dynamic.templates import TEMPLATES  # lazy: a classic build imports no Dynamic module
+
+    if not scenes or not plans or plans[-1].template != "outro_next" or plans[-1].variant != "end_screen":
+        return t
+    want = TEMPLATES["outro_next"].duration["landscape"].end_screen
+    last = scenes[-1]
+    if want is None or last.duration >= want:
+        return t
+    last.hold_seconds = _r(last.hold_seconds + want - last.duration)
+    last.duration = _r(want)
+    return _r(last.start + last.duration)
+
+
 def _assemble(
     screenplay: Screenplay,
     manifest: AssetManifest | None,
@@ -724,20 +746,38 @@ def _assemble(
     include_intro: bool,
     branding: Branding | None,
     preview: bool,
+    next_title: str | None = None,
 ) -> Timeline:
     # Dynamic video (design §6.7): only a screenplay with a presentation, and only while DYNAMIC_ENABLED is on. It has
     # no classic intro, a reel's phrase captions are shorter (R-32), and it is 30 fps whatever RENDER_FPS says
     # (DYNAMIC_FPS), so its word-anchored cues snap to that frame grid. Classic timelines take none of these paths.
     dynamic = screenplay.presentation is not None and dynamic_enabled(settings)
     ctx = _Ctx(figures={f.id: f for f in screenplay.figures},
-               sync=SyncOptions.from_settings(settings, fps=DYNAMIC_FPS if dynamic else None))
+               sync=SyncOptions.from_settings(settings, fps=DYNAMIC_FPS if dynamic else None), dynamic=dynamic)
     if dynamic and screenplay.presentation is not None and screenplay.presentation.format == "portrait":
         ctx.caption_width = PORTRAIT_CAPTION_LINE_CHARS
     intro = build_intro(screenplay) if include_intro and not dynamic else None
     t = intro.duration if intro else 0.0
     scenes: list[TimedScene] = []
+    # Dynamic: Aadhi opens every video (owner decision 2 of 2026-10-16; design §3.3) and the 16:9 retrieval recap
+    # (§3.4: on by default in 16:9, off in 9:16) - scenes synthesised by dynamic/presenter.py (plan_appearances) unless
+    # the screenplay brings its own presenter scene there that his template draws; DYNAMIC_AADHI_INTRO=false
+    # (white-label / test deployments only) turns both off. The classic intro option (include_intro) does not apply:
+    # §3.4 says the Dynamic intro cannot be turned off. A classic timeline takes no part of this.
+    presenter_on = bool(getattr(settings, "dynamic_aadhi_intro", True))
+    appearances: Any = None
+    if dynamic:
+        from .dynamic import presenter as dyn_presenter  # lazy: a classic build imports no Dynamic module
+
+        appearances = dyn_presenter.plan_appearances(screenplay, enabled=presenter_on)
+        if appearances is not None and appearances.intro:
+            scenes.append(dyn_presenter.intro_scene(screenplay, appearances, index=0, start=0.0))
+            t = _r(scenes[-1].duration)
     shown = [s for s in screenplay.scenes if not s.hidden]  # a hidden scene is in neither renderer
-    for index, scene in enumerate(shown):
+    for scene in shown:
+        if appearances is not None and appearances.recap_before == scene.id:
+            scenes.append(dyn_presenter.recap_scene(screenplay, appearances, index=len(scenes), start=t))
+            t = _r(scenes[-1].start + scenes[-1].duration)
         audio = manifest.audio.get(scene.id) if manifest else None
         sm = manifest.media.get(scene.id) if manifest else None
         plan: _AudioPlan | None = None
@@ -754,7 +794,14 @@ def _assemble(
             if scene_beats(scene) and not preview:
                 ctx.fallbacks.append({"scene_id": scene.id,
                                       "reason": "audio_mismatch" if audio is not None else "no_audio"})
-        timed = _build_scene(scene, index, t, plan, sm, ctx)
+        lead = SCENE_LEAD_SECONDS
+        if dynamic and screenplay.presentation is not None and screenplay.presentation.format == "portrait":
+            # owner decision 4: a 9:16 scene whose side panel is its own beat before the content starts its narration
+            # late enough that its first narrated item still enters on its word (R-17; dynamic/reels.py)
+            from .dynamic.reels import reel_lead_for  # lazy: a classic build imports no Dynamic module
+
+            lead = _r(lead + reel_lead_for(scene, plan.beats, fmt="portrait", scene_lead=SCENE_LEAD_SECONDS))
+        timed = _build_scene(scene, len(scenes), t, plan, sm, ctx, lead)
         if not settings.mascot_cues:  # the cue bubble beside Aadhi is switched off (player and MP4)
             timed.layout.mascot_cues = False
         scenes.append(timed)
@@ -779,13 +826,16 @@ def _assemble(
     # One chapter list for the chapters a viewer sees (and board_generic's kicker) and the looks' chapter boundaries
     # (accent, tone reset, crossfade; presentation.chapter_indices).
     chapters = build_chapters(screenplay, scenes)
+    if appearances is not None:  # the synthesised intro opens the first chapter (dynamic/presenter.py)
+        chapters = dyn_presenter.fold_opening_chapter(chapters, scenes, appearances)
     presentation: TimelinePresentation | None = None
     if dynamic and screenplay.presentation is not None:
         from .dynamic.direct import plan as direct_plan  # lazy: a classic build imports no Dynamic module
 
-        plans = direct_plan(screenplay, scenes, screenplay.presentation.format, chapters)
-        for timed, look, scene_plan in zip(scenes, resolve_looks(screenplay, scenes, chapters, plans), plans,
-                                           strict=True):
+        plans = direct_plan(screenplay, scenes, screenplay.presentation.format, chapters, presenter=presenter_on)
+        t = _hold_end_screen(scenes, plans, t)
+        looks = resolve_looks(screenplay, scenes, chapters, plans, next_title=next_title)
+        for timed, look, scene_plan in zip(scenes, looks, plans, strict=True):
             timed.look = look
             timed.events = list(scene_plan.events)
         presentation = timeline_presentation(screenplay.presentation, scenes, _r(t))
@@ -821,14 +871,17 @@ def build_timeline(
     revision: int | None = None,
     include_intro: bool = True,
     branding: Branding | None = None,
+    next_title: str | None = None,
 ) -> Timeline:
     """Build the timed lecture from the screenplay and the asset stage's manifest (pure).
 
     Scenes without matching narration fall back to estimated timings (``estimated=True`` beats,
     ``Timeline.estimated``); missing media degrade to board scenes (see the module docstring).
+    ``next_title``: a Dynamic lecture's next step (the next part's title in a series), shown by its outro
+    (``refs.next``); ignored by a classic build.
     """
     return _assemble(screenplay, manifest, settings=settings, version_id=version_id, revision=revision,
-                     include_intro=include_intro, branding=branding, preview=False)
+                     include_intro=include_intro, branding=branding, preview=False, next_title=next_title)
 
 
 def preview_timeline(
@@ -893,6 +946,13 @@ def resolve_urls(timeline: Timeline, store: AssetStore, *, signed: bool = False)
     tl.branding.mascot_clips = {pos: current_clip_url(url) for pos, url in tl.branding.mascot_clips.items()}
     if tl.intro is not None and tl.intro.logo_video_url:
         tl.intro.logo_video_url = current_branding_url(tl.intro.logo_video_url)
+    # Aadhi in a Dynamic scene (look.presenter.clip_key: a branding file name, B2 plan §1.2 "url at serve"): the clip's
+    # URL for the live player (render mode draws the worker's extracted frames instead); a retired clip serves its
+    # replacement. Only a scene with a presenter has one, so no classic timeline changes.
+    for s in tl.scenes:
+        p = s.look.presenter if s.look is not None else None
+        if isinstance(p, dict) and isinstance(p.get("clip_key"), str) and p["clip_key"]:
+            s.look.presenter = {**p, "url": current_clip_url(branding_url(p["clip_key"]))}  # type: ignore[union-attr]
     keys = timeline_asset_keys(tl)
     want_sounds = tl.branding.tick_url is None or tl.branding.ding_url is None
     if want_sounds:

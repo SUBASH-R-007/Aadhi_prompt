@@ -265,9 +265,10 @@ test('fixesOf: preflight\'s fixes channel first, B1\'s legacy fields second (§7
 
 test('the look-engine generation: an integer >= 1, else B1\'s 1 (as the API reads it); above the stage\'s: refused', () => {
   const tl = (/** @type {any} */ v) => ({ presentation: { style: 'dynamic', engine_version: v } });
-  assert.equal(ENGINE_VERSION, 4);
+  assert.equal(ENGINE_VERSION, 5);
   assert.deepEqual([1, 2, 3, 7].map((v) => engineVersion(tl(v))), [1, 2, 3, 7]);
   assert.equal(engineProblem(tl(4)), null);
+  assert.equal(engineProblem(tl(5)), null);
   for (const v of [undefined, null, 0, -2, 2.5, '3', true, Number.NaN]) assert.equal(engineVersion(tl(v)), 1, String(v));
   assert.equal(engineVersion({}), 1);
   assert.equal(engineVersion(null), 1);
@@ -275,5 +276,5 @@ test('the look-engine generation: an integer >= 1, else B1\'s 1 (as the API read
   assert.equal(engineProblem(tl(2)), null);
   assert.equal(engineProblem(tl(undefined)), null);
   assert.equal(engineProblem(tl(3)), null);
-  assert.match(String(engineProblem(tl(5))), /look engine 5; this page draws up to 4/);
+  assert.match(String(engineProblem(tl(6))), /look engine 6; this page draws up to 5/);
 });

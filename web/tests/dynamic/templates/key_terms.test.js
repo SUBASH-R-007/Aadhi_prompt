@@ -5,6 +5,7 @@
 // in both formats (a card per beat, the icon's stroke draw, term then meaning 80 ms apart, the personality's entrance
 // and scale, reduced motion, the cues the stage draws from the template's geometry, preflight's text entries and
 // remedies, the board_generic fallback) and the fit, on a fake text layout (jsdom has none).
+import { installChartEnv } from './_chartenv.js';
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -28,7 +29,10 @@ import keyTerms, {
 import boardGeneric from '../../../js/dynamic/templates/board_generic.js';
 import { contractProblems, orderProblems, recordingTex, renderStage } from './_harness.js';
 
-before(() => installDom());
+before(() => {
+  installDom();
+  installChartEnv();
+});
 after(() => uninstallDom());
 
 const FIXTURES = ['key_terms.landscape.json', 'key_terms.landscape.tamil.json', 'key_terms.portrait.json',
@@ -127,7 +131,7 @@ test('termItems: the first heading with text is the heading; every other item wi
   assert.deepEqual(termItems(/** @type {any} */ ({ board: [] })), { heading: null, terms: [] });
 });
 
-test('drawsScene: a scene medium, a 9:16 panel, an undrawn panel kind or too many terms beside one is board_generic\'s (CG-2)', () => {
+test('drawsScene: a scene medium, an undrawn panel kind or too many terms beside a 16:9 one is board_generic\'s (CG-2)', () => {
   const plain = /** @type {any} */ ({ board: [] });
   const two = /** @type {any} */ ({ board: [
     { id: 'a', kind: 'definition', term: 'One', text: 'first' }, { id: 'b', kind: 'definition', term: 'Two', text: 'second' },
@@ -137,12 +141,14 @@ test('drawsScene: a scene medium, a 9:16 panel, an undrawn panel kind or too man
   assert.equal(drawsScene(plain, 'landscape'), true);
   assert.equal(drawsScene(plain, 'portrait'), true);
   assert.equal(drawsScene({ ...plain, media: { kind: 'image', url: '/x.png' } }, 'landscape'), false);
-  // 16:9 draws the panel kinds _shared.js draws, beside at most PANEL_TERMS_MAX terms; 9:16 draws none
+  // 16:9 draws the panel kinds _shared.js draws, beside at most PANEL_TERMS_MAX terms; 9:16 draws the same kinds as
+  // their own beat before the terms (owner decision 4; reels.test.js)
   for (const kind of PANEL_KINDS) {
     const panel = PANEL_TITLED_KINDS.includes(kind) ? { kind, title: 'A plot' } : { kind, title: 'P', terminal: { command: 'ls' } };
     assert.equal(drawsScene(panelled(two, panel), 'landscape'), true, kind);
-    assert.equal(drawsScene(panelled(two, panel), 'portrait'), false, `${kind} in 9:16`);
+    assert.equal(drawsScene(panelled(two, panel), 'portrait'), true, `${kind} in 9:16`);
   }
+  for (const kind of ['skill_tree', 'quiz']) assert.equal(drawsScene(panelled(two, { kind }), 'portrait'), false, `${kind} in 9:16`);
   // a kind nobody here draws, and a chart / graph / model panel without the title that is all this slice can draw
   for (const kind of ['skill_tree', 'quiz']) assert.equal(drawsScene(panelled(two, { kind }), 'landscape'), false, kind);
   for (const kind of PANEL_TITLED_KINDS) assert.equal(drawsScene(panelled(two, { kind }), 'landscape'), false, `${kind} with no title`);
@@ -150,6 +156,8 @@ test('drawsScene: a scene medium, a 9:16 panel, an undrawn panel kind or too man
   const three = { board: [...two.board, { id: 'c', kind: 'definition', term: 'Three', text: 'third' }] };
   assert.equal(PANEL_TERMS_MAX, 2);
   assert.equal(drawsScene(panelled(/** @type {any} */ (three), { kind: 'image' }), 'landscape'), false);
+  assert.equal(drawsScene(panelled(/** @type {any} */ (three), { kind: 'image' }), 'portrait'), true,
+    'a reel beat comes before the rows, so any number of terms may follow it');
   assert.equal(drawsScene(/** @type {any} */ (three), 'landscape'), true, 'without a panel every count is drawn');
   // a hidden panel is not drawn at all, so it never sends the scene away
   assert.equal(drawsScene({ ...panelled(three, { kind: 'skill_tree' }), layout: { show_side_panel: false } }, 'portrait'), true);
@@ -286,12 +294,16 @@ test('slotRows: the slot table templates.py mirrors (the narrowest card\'s width
   assert.equal(rows.meaning.landscape.default.max_lines, null, 'the meaning is fitted by the card\'s height');
   assert.equal(rows.heading.portrait.default.prefer_lines, 1);
   assert.deepEqual(Object.keys(rows).sort(), ['heading', 'meaning', 'term', 'terminal']);
-  // the terminal card of a panel: 16:9 only (9:16 draws no panel), mono, in the panel's box less its padding
+  // the terminal card of a panel, mono, in the panel's box less its padding: 16:9 the right 45%, 9:16 the reel
+  // beat's card in the text column (owner decision 4)
   const term = /** @type {any} */ (rows).terminal;
-  assert.deepEqual(Object.keys(term), ['landscape']);
+  assert.deepEqual(Object.keys(term), ['landscape', 'portrait']);
   assert.equal(term.landscape.default.face, 'mono');
   assert.equal(term.landscape.default.w, (1824 - 1058) - 2 * PANEL_TERM.landscape.pad);
   assert.deepEqual(term.landscape.default.size, [PANEL_TERM.landscape.min, PANEL_TERM.landscape.max]);
+  assert.equal(term.portrait.default.w, (780 - 192) - 2 * PANEL_TERM.portrait.pad);
+  assert.deepEqual(term.portrait.default.size, [PANEL_TERM.portrait.min, PANEL_TERM.portrait.max]);
+  assert.equal(term.portrait.default.weight, PANEL_TERM.portrait.weight);
   for (const slot of Object.keys(rows)) {
     for (const fmt of Object.keys(/** @type {any} */ (rows)[slot])) {
       assert.deepEqual(Object.keys(/** @type {any} */ (rows)[slot][fmt]), ['default'], `${slot} ${fmt}: no look variant`);
@@ -318,6 +330,9 @@ test('the catalogue\'s key_terms slots are slotRows exactly once the template is
   for (const slot of Object.keys(want)) {
     if (pending.includes(slot)) continue;
     for (const fmt of Object.keys(want[slot])) {
+      // the reel slice (owner decision 4) added `terminal`'s 9:16 row: until the integrator applies its templates.py
+      // change and regenerates the catalogue, that one row may be pending (the same handshake as above)
+      if (slot === 'terminal' && fmt === 'portrait' && !cat[slot][fmt]) continue;
       for (const variant of Object.keys(want[slot][fmt])) {
         const got = cat[slot][fmt][variant];
         const w = want[slot][fmt][variant];
@@ -331,8 +346,10 @@ test('the catalogue\'s key_terms slots are slotRows exactly once the template is
   // cue. The side-panel slice adds the panel's own forms (`panel`, `panel:row`) and its `output` kind with the
   // integrator's templates.py change; until then the B2c forms stand alone.
   const forms = /** @type {any} */ (spec.consumes.forms);
-  assert.deepEqual({ reveal: forms.reveal, draw: forms.draw, cue_term: forms.cue_term },
-    { reveal: ['item'], draw: ['item'], cue_term: ['item', 'item:term'] });
+  // the reel slice adds `panel` to the reveal forms (the panel beat's event, reels.py `reel_events`) with the
+  // integrator's templates.py change; until then `item` alone
+  assert.ok(['item', 'item,panel'].includes(String(forms.reveal)), `reveal forms ${forms.reveal}`);
+  assert.deepEqual({ draw: forms.draw, cue_term: forms.cue_term }, { draw: ['item'], cue_term: ['item', 'item:term'] });
   for (const kind of Object.keys(forms)) {
     assert.ok(['reveal', 'draw', 'cue_term', 'look_here', 'output'].includes(kind), `unexpected kind ${kind}`);
   }
@@ -355,9 +372,9 @@ test('mediaBox: none without a panel; the panel\'s whole box for slot `panel` (1
   // a terminal or a title card asks for no medium at all
   const terminal = { ...scene, side_panel: { panel: { kind: 'terminal', terminal: { command: 'ls' } }, media: null, show_at: 0 } };
   assert.equal(keyTerms.mediaBox?.(/** @type {any} */ (terminal), ZONES.landscape, 'render', 'panel', fixes), null);
-  // 9:16 hands the scene to board_generic, whose box it must then report (so mediaPlan and ctx.media agree)
-  assert.deepEqual(keyTerms.mediaBox?.(scene, ZONES.portrait, 'render', 'panel', fixes),
-    boardGeneric.mediaBox?.(scene, ZONES.portrait, 'render', 'panel', fixes));
+  // 9:16 shows the panel as its own beat, contained in the `tall` region (owner decision 4)
+  assert.deepEqual(keyTerms.mediaBox?.(scene, ZONES.portrait, 'render', 'panel', fixes), { w: 960, h: 700 });
+  assert.equal(keyTerms.mediaBox?.(scene, ZONES.portrait, 'render', 'main', fixes), null, 'only the panel slot');
 });
 
 test('16:9 panel: the cards share the left 55%, the panel takes the right 45% from the cards\' top down', async () => {
@@ -444,9 +461,9 @@ test('16:9 panel with nothing to show: its title on the card surface, reported b
   const keep = new Set(scene.board.map((/** @type {any} */ b) => b.id));
   scene.events = (scene.events || []).filter((/** @type {any} */ e) => keep.has(String(e.target || '').split(':')[0]));
   for (const beat of scene.beats || []) beat.reveal = (beat.reveal || []).filter((/** @type {any} */ id) => keep.has(id));
-  // a graph panel: the Dynamic engine draws no plot anywhere yet (function_plot is unimplemented), so its authored
-  // title stands in for it, exactly as board_generic does for a medium it cannot show
-  scene.side_panel = { panel: { kind: 'graph', title: 'I = V / R (a straight line)', graph: { functions: [{ expr: 'x/2' }] } }, media: null, show_at: 0 };
+  // a model panel: the Dynamic engine draws no model yet (model_spin is unimplemented), so its authored title stands
+  // in for it, exactly as board_generic does for a medium it cannot show (a chart or graph is a real plot now)
+  scene.side_panel = { panel: { kind: 'model_3d', title: 'I = V / R (a straight line)', model_3d: { primitives: [{ shape: 'sphere' }] } }, media: null, show_at: 0 };
   scene.layout = { ...(scene.layout || {}), show_side_panel: true };
   const run = spyStage(tl);
   await run.seekTo(0, 2);
@@ -455,7 +472,7 @@ test('16:9 panel with nothing to show: its title on the card surface, reported b
   assert.equal(ctx.view.panel.label.textContent, 'I = V / R (a straight line)');
   const entry = keyTerms.texts?.(ctx)?.find((e) => e.el === ctx.view.panel.label);
   assert.ok(entry && entry.critical === false && entry.size === PANEL_LABEL_PX.landscape);
-  assert.equal(panelFor(scene, 'portrait'), null, '9:16 draws no panel');
+  assert.deepEqual(panelFor(scene, 'portrait'), panelFor(scene, 'landscape'), '9:16 draws the same panel, as its own beat');
   run.done();
 });
 

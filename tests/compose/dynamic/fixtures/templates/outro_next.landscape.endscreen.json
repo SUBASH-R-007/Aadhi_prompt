@@ -1,0 +1,237 @@
+{
+ "board_language": "ta-IN",
+ "branding": {
+  "bgm_url": null,
+  "bgm_volume": 0.06,
+  "ding_url": null,
+  "mascot_clips": {},
+  "mascot_rig_url": null,
+  "static_background_url": null,
+  "tick_url": null
+ },
+ "captions": [
+  {
+   "end": 5.7,
+   "start": 0.5,
+   "text": "மின்னழுத்தம் தள்ளுகிறது, மின்னோட்டம் பாய்கிறது, மின்தடை எதிர்க்கிறது."
+  },
+  {
+   "end": 13.7,
+   "start": 6.0,
+   "text": "அடுத்த பகுதியில் தொடர் மற்றும் இணைச் சுற்றுகள்."
+  }
+ ],
+ "chapters": [
+  {
+   "start": 0.0,
+   "title": "நாம் கற்றது"
+  }
+ ],
+ "concept_map": [],
+ "estimated": false,
+ "fps": 30,
+ "height": 1080,
+ "intro": null,
+ "language": "ta-IN",
+ "learning_objectives": [],
+ "meta": {
+  "session_number": "Session 3",
+  "session_title": "Ohm's law",
+  "subject_name": "Basic Electrical Engineering",
+  "unit_name": "Unit 2: DC Circuits"
+ },
+ "presentation": {
+  "caption_style": "clean_pill",
+  "captions_burn": true,
+  "content": {
+   "entity:0": "#0267C7",
+   "entity:1": "#80369E",
+   "entity:2": "#870C62",
+   "focus": "#141822",
+   "ink": "#141822",
+   "ink2": "#484D58",
+   "mark": "#F2D935",
+   "ok": "#016F50",
+   "warn": "#9F4503"
+  },
+  "content_alt": {
+   "entity:0": "#0FE3FE",
+   "entity:1": "#C4A4FE",
+   "entity:2": "#FEACE3",
+   "focus": "#F2D935",
+   "ink": "#F3F5F9",
+   "ink2": "#B9BEC7",
+   "mark": "#F2D935",
+   "ok": "#5DD8AA",
+   "warn": "#F8A87F"
+  },
+  "cue_term_style": "marker",
+  "engine_version": 5,
+  "family": "paper_ink",
+  "fonts": {
+   "body": "inter",
+   "display": "poppins",
+   "indic": "anek",
+   "mono": "jetbrains_mono"
+  },
+  "format": "landscape",
+  "generated_seconds": 15.0,
+  "mode": "light",
+  "motion": "standard",
+  "motion_scale": 1.15,
+  "personality": "soft",
+  "safe_zone": "universal",
+  "sfx": false,
+  "style": "dynamic",
+  "text_entrance": "fade_rise"
+ },
+ "scenes": [
+  {
+   "audio_asset_key": null,
+   "audio_duration": 13.2,
+   "audio_offset": 0.5,
+   "audio_url": null,
+   "beats": [
+    {
+     "beat_id": "on-ta-end-b1",
+     "board_item_id": "on-ta-i1",
+     "captions": [
+      {
+       "end": 5.7,
+       "start": 0.5,
+       "text": "மின்னழுத்தம் தள்ளுகிறது, மின்னோட்டம் பாய்கிறது, மின்தடை எதிர்க்கிறது."
+      }
+     ],
+     "end": 6.0,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 0,
+     "narration": "மின்னழுத்தம் தள்ளுகிறது, மின்னோட்டம் பாய்கிறது, மின்தடை எதிர்க்கிறது.",
+     "phase": "main",
+     "speech_end": 5.7,
+     "start": 0.5,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "on-ta-end-b2",
+     "board_item_id": null,
+     "captions": [
+      {
+       "end": 13.7,
+       "start": 6.0,
+       "text": "அடுத்த பகுதியில் தொடர் மற்றும் இணைச் சுற்றுகள்."
+      }
+     ],
+     "end": 14.0,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 1,
+     "narration": "அடுத்த பகுதியில் தொடர் மற்றும் இணைச் சுற்றுகள்.",
+     "phase": "main",
+     "speech_end": 13.7,
+     "start": 6.0,
+     "visual_cue": null,
+     "words": []
+    }
+   ],
+   "board": [
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "on-ta-i1",
+     "justification": null,
+     "kind": "takeaway",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "மின்னழுத்தம் தள்ளுகிறது, மின்னோட்டம் பாய்கிறது, மின்தடை எதிர்க்கிறது.",
+     "variables": []
+    }
+   ],
+   "chapter_id": null,
+   "chapter_label": null,
+   "concept_id": null,
+   "duration": 15.0,
+   "events": [
+    {
+     "anchored": true,
+     "dur": null,
+     "kind": "reveal",
+     "sfx": null,
+     "t": 0.38,
+     "target": "on-ta-i1",
+     "words": ""
+    }
+   ],
+   "figures": {},
+   "index": 0,
+   "layout": {
+    "fullscreen_media": false,
+    "mascot_position": "left",
+    "show_side_panel": true
+   },
+   "look": {
+    "background": {
+     "frozen_at": null,
+     "params": {
+      "tone": "bg"
+     },
+     "preset": "mesh_drift",
+     "seed": 8201
+    },
+    "hold_reason": null,
+    "presenter": null,
+    "refs": {
+     "next": {
+      "title": "பகுதி 2: தொடர் மற்றும் இணைச் சுற்றுகள்"
+     }
+    },
+    "template": "outro_next",
+    "text_fit": {},
+    "tokens": {
+     "bg": "#FDF2DD",
+     "bg-alt": "#F3E8D3",
+     "bg-tint": "#FFEAEF",
+     "block.base": "#BE3D70",
+     "block.highlight": "#C7537D",
+     "block.ink": "#FFFFFF",
+     "block.ink2": "#F6D9E1",
+     "scrim": "#FDF2DDC7",
+     "struct.accent": "#BE3D70",
+     "surface": "#FFFDFA"
+    },
+    "transition_in": {
+     "kind": "cut",
+     "seconds": 0.0
+    },
+    "variant": "end_screen"
+   },
+   "media": null,
+   "objective_ids": [],
+   "p5_code": null,
+   "poster": null,
+   "quiz": null,
+   "scene_id": "on-ta-end",
+   "side_panel": null,
+   "start": 0.0,
+   "subtitle": null,
+   "title": "நாம் கற்றது",
+   "type": "summary"
+  }
+ ],
+ "schema_version": 3,
+ "screenplay_revision": null,
+ "total_duration": 15.0,
+ "transition_seconds": 0.4,
+ "version_id": null,
+ "width": 1920
+}

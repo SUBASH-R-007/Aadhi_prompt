@@ -1,0 +1,469 @@
+{
+ "board_language": "en-IN",
+ "branding": {
+  "bgm_url": null,
+  "bgm_volume": 0.06,
+  "ding_url": null,
+  "mascot_clips": {},
+  "mascot_rig_url": null,
+  "static_background_url": null,
+  "tick_url": null
+ },
+ "captions": [
+  {
+   "end": 1.4,
+   "start": 0.5,
+   "text": "First, what pushes."
+  },
+  {
+   "end": 2.7,
+   "start": 1.8,
+   "text": "Then what flows."
+  },
+  {
+   "end": 5.6,
+   "start": 3.1,
+   "text": "And careful here. The same current comes home."
+  },
+  {
+   "end": 9.1,
+   "start": 7.3,
+   "text": "A bigger resistor, a brighter bulb?"
+  }
+ ],
+ "chapters": [
+  {
+   "start": 0.0,
+   "title": "VOLTAGE AND CURRENT"
+  },
+  {
+   "start": 6.8,
+   "title": "Stress myth"
+  }
+ ],
+ "concept_map": [],
+ "estimated": false,
+ "fps": 30,
+ "height": 1080,
+ "intro": null,
+ "language": "en-IN",
+ "learning_objectives": [],
+ "meta": {
+  "session_number": "Session 3",
+  "session_title": "Circuits",
+  "subject_name": "Basic Electrical Engineering",
+  "unit_name": "Unit 2: DC Circuits"
+ },
+ "presentation": {
+  "caption_style": "clean_pill",
+  "captions_burn": true,
+  "content": {
+   "entity:0": "#0FE3FE",
+   "entity:1": "#C4A4FE",
+   "entity:2": "#FEACE3",
+   "focus": "#F2D935",
+   "ink": "#F3F5F9",
+   "ink2": "#B9BEC7",
+   "mark": "#F2D935",
+   "ok": "#5DD8AA",
+   "warn": "#F8A87F"
+  },
+  "content_alt": {
+   "entity:0": "#0267C7",
+   "entity:1": "#80369E",
+   "entity:2": "#870C62",
+   "focus": "#141822",
+   "ink": "#141822",
+   "ink2": "#484D58",
+   "mark": "#F2D935",
+   "ok": "#016F50",
+   "warn": "#9F4503"
+  },
+  "cue_term_style": "marker",
+  "engine_version": 5,
+  "family": "deep_teal",
+  "fonts": {
+   "body": "inter",
+   "display": "outfit",
+   "indic": "noto_sans",
+   "mono": "jetbrains_mono"
+  },
+  "format": "landscape",
+  "generated_seconds": 10.3,
+  "mode": "dark",
+  "motion": "standard",
+  "motion_scale": 0.85,
+  "personality": "crisp",
+  "safe_zone": "universal",
+  "sfx": false,
+  "style": "dynamic",
+  "text_entrance": "baseline_reveal"
+ },
+ "scenes": [
+  {
+   "audio_asset_key": null,
+   "audio_duration": 5.5,
+   "audio_offset": 0.5,
+   "audio_url": null,
+   "beats": [
+    {
+     "beat_id": "mf-l-showcase-0",
+     "board_item_id": "d1",
+     "captions": [
+      {
+       "end": 1.4,
+       "start": 0.5,
+       "text": "First, what pushes."
+      }
+     ],
+     "end": 1.8,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 0,
+     "narration": "First, what pushes.",
+     "phase": "main",
+     "speech_end": 1.4,
+     "start": 0.5,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "mf-l-showcase-1",
+     "board_item_id": "d2",
+     "captions": [
+      {
+       "end": 2.7,
+       "start": 1.8,
+       "text": "Then what flows."
+      }
+     ],
+     "end": 3.1,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 1,
+     "narration": "Then what flows.",
+     "phase": "main",
+     "speech_end": 2.7,
+     "start": 1.8,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "mf-l-showcase-2",
+     "board_item_id": "m1",
+     "captions": [
+      {
+       "end": 5.6,
+       "start": 3.1,
+       "text": "And careful here. The same current comes home."
+      }
+     ],
+     "end": 6.0,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 2,
+     "narration": "And careful here. The same current comes home.",
+     "phase": "main",
+     "speech_end": 5.6,
+     "start": 3.1,
+     "visual_cue": null,
+     "words": []
+    }
+   ],
+   "board": [
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "d1",
+     "justification": null,
+     "kind": "definition",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": "Voltage (V)",
+     "text": "The electrical [[pressure]] that pushes charge through a circuit, measured in volts.",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "d2",
+     "justification": null,
+     "kind": "definition",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": "Current (I)",
+     "text": "The rate of flow of charge, measured in amperes.",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "m1",
+     "justification": "The SAME current returns to the source, because [[charge is conserved]]. It is ENERGY that gets delivered.",
+     "kind": "misconception",
+     "language": null,
+     "latex": null,
+     "misconception_id": "mc-m1",
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "Students often think current gets \"used up\" as it flows around a circuit",
+     "variables": []
+    }
+   ],
+   "chapter_id": null,
+   "chapter_label": null,
+   "concept_id": null,
+   "duration": 6.8,
+   "events": [
+    {
+     "anchored": true,
+     "dur": 1.2,
+     "kind": "cue_term",
+     "sfx": null,
+     "t": 1.0,
+     "target": "d1",
+     "words": ""
+    },
+    {
+     "anchored": true,
+     "dur": 1.2,
+     "kind": "look_here",
+     "sfx": null,
+     "t": 2.6,
+     "target": "panel",
+     "words": ""
+    },
+    {
+     "anchored": true,
+     "dur": 1.0,
+     "kind": "cue_term",
+     "sfx": null,
+     "t": 5.7,
+     "target": "m1:term:0",
+     "words": ""
+    }
+   ],
+   "figures": {},
+   "index": 0,
+   "layout": {
+    "fullscreen_media": false,
+    "mascot_position": "left",
+    "show_side_panel": true
+   },
+   "look": {
+    "background": {
+     "frozen_at": null,
+     "params": {
+      "tone": "bg"
+     },
+     "preset": "mesh_drift",
+     "seed": 9100
+    },
+    "hold_reason": null,
+    "presenter": null,
+    "template": "myth_fact",
+    "text_fit": {},
+    "tokens": {
+     "bg": "#001B1C",
+     "bg-alt": "#002527",
+     "bg-tint": "#251118",
+     "block.base": "#7B64A8",
+     "block.highlight": "#A970B6",
+     "block.ink": "#FFFFFF",
+     "block.ink2": "#F1EFF7",
+     "scrim": "#001B1CC7",
+     "struct.accent": "#FF89B0",
+     "surface": "#0E3133"
+    },
+    "transition_in": {
+     "kind": "cut",
+     "seconds": 0.0
+    },
+    "variant": null
+   },
+   "media": null,
+   "objective_ids": [],
+   "p5_code": null,
+   "poster": null,
+   "quiz": null,
+   "scene_id": "mf-l-showcase",
+   "side_panel": {
+    "media": {
+     "asset_key": "img-fixture",
+     "attribution": null,
+     "duration": null,
+     "end_behavior": "loop",
+     "fit": "contain",
+     "height": 900,
+     "ken_burns": null,
+     "kind": "image",
+     "link_url": null,
+     "mime": null,
+     "render_in_mp4": true,
+     "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABkAAAAOECAIAAAB2L2r1AAAc70lEQVR42u3dPW6UVxuA4dvWkMILcEkVWS5csAAXKIVJYSHkJVjUqVywBAoqaoslIIRcQIMovACXCKXKIlwkTZoEpUCOf/DMed+5rioSST7PeY6U+e553vHG9t5BAAAAADCqTUcAAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAACAgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAICABQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAgIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVgAAAAAkIAFAAAAQAIWAAAAACRgAQAAAJCABQAAAAAJWAAAAACQgAUAAABAAhYAAAAAJGABAAAAkIAFAAAAAAlYAAAAAJCABQAAAEACFgAAAADck4UjAJbv/fnHK/706f4TR2TQGDQGjUFj1gDfbGzvHTgFYIT3Sd45GTQGjUFj0Jg1QAIWMJW3St42GTQGjUFj0Jg1QAIWMP5bJW+bDBqDxqAxaMwaIF/iDkzi3dKP/Vdh0Bg0Bo1Bm7VZA9nAAri/9zc++jNoDBqDxqAxayAbWAAjfzrnoz+DxqAxaAwaswYSsAAGf0PjPZNBY9AYNAaNWQMJWACDv5XxnsmgMWgMGoPGrIEELAAAAABIwALycV8+9DNogzZogzZoDBqzBkjAAub59sV7JoPGoDFoDBqzBhKwAAAAACABC8jHffnQz6AN2qAN2qAxaMwaIAELAAAAgAQsIB/35UM/gzZogzZogzZogzZoswZIwAIAAAAgAQsAAAAAErCA7Ktna92gDdoJG7RBY9CYNUACFgAAAAAJWAAAAACQgAUAAABAAhYAAAAAjGBje+/AKbC2jk/PHMIdPdt9MMhP8u7LX8Zh0Bg0Bo1Bm7VZz9ub54cOgWxgAQAAAEACFgAAAAAkYAEAAACQgAUAAAAACVjAyAb5qk7fGGrQGDQGjUGbtR8DSMACAAAAgAQsAAAAAEjAAprXurh9dYPGoDFoDNqszRpIwAIAAACABCwgH/rl4z6DNmiDxqAxaMwaIAELAAAAgAQsIB/65eM+gzZogzZogzZog8asARKwgDV+z+TdkkFj0Bg0Bo1ZAwlYAAAAAJCABeRDv3zcZ9AGbdAYNAaNWQMkYAHzec/k3ZJBY9AYNAaNWQMJWADDvqHxbsmgMWgMGoPGrIF1s7G9d+AUWFvHp2cO4V49233grZJBG7RBG7RBY9CYNT/Km+eHDoFsYAE06qdz3i0ZNAaNQWPQmDWQDSzIBhaN+NGft0oGjUFj0Bg0Zk02sEjAggQsRnzb5K2SQWPQGDQGjVmTgAW1cATgvx/LO65//+L9+ccr/ran+0+clUFj0Bg0Bo1Z5xN0IBtY8CP++yFgAQAA/g8I5EvcAQAAAEjAAgAAAIAELAAAAABIwAIAAAAgAQsAAAAAErAAAAAAQMACAAAAIAELAAAAABKwAAAAAEjAAgAAAIAELAAAAABIwAIAAAAgAQsAAAAAErAAAAAASMACAAAAgAQsAAAAAEjAAgAAACABCwAAAAASsAAAAABIwAIAAACABCwAAAAASMACAAAAIAELAAAAABKwAAAAAEjAAgAAAIAELAAAAABIwAIAAAAgAQsAAAAAErAAAAAASMACAAAAgAQsAAAAAEjAAgAAACABCwAAAAASsAAAAABIwAIAAACABCwAAAAASMACAAAAIAELAAAAABKwAAAAAEjAAgAAAIAELAAAAABIwAIAAAAgAQsAAAAAErAAAAAASMACAAAAgAQsAAAAAEjAAgAAACABCwAAAAASsAAAAABAwAIAAAAgAQsAAAAAErAAAAAASMACAAAAgAQsAAAAAEjAAgAAACABCwAAAAASsAAAAABIwAIAAACABCwAAAAASMACAAAAIAELAAAAABKwAAAAAEjAAgAAAIAELAAAAABIwAIAAAAgAQsAAAAAErAAAAAASMACAAAAgAQsAAAAAEjAAgAAACABCwAAAAASsAAAAABIwAIAAACABCwAAAAASMACAAAAIAELAAAAABKwAAAAAEjAAgAAAIAELAAAAABIwAIAAAAgAQsAAAAAErAAAAAASMACAAAAgAQsAAAAAEjAAgAAACABCwAAAAASsAAAAABIwAIAAACABCwAAAAASMACAAAAIAELAAAAABKwAAAAAEDAAgAAACABCwAAAAASsAAAAABIwAIAAACABCwAAAAASMACAAAAIAELAAAAABKwAAAAAEjAAgAAAIAELAAAAABIwAIAAAAgAQsAAAAAErAAAAAASMACAAAAgAQsAAAAAEjAAgAAACABCwAAAAASsAAAAABIwAIAAACABCwAAAAASMACAAAAIAELAAAAABKwAAAAAEjAAgAAAIAELAAAAABIwAIAAAAgAQsAAAAAErAAAAAASMACAAAAgAQsAAAAAEjAAgAAACABCwAAAAASsAAAAABIwAIAAACABCwAAAAASMACAAAAIAELAAAA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FgAAAAAkYAEAAACQgAUAAHm6DScMQAIWAAAAACRgAQCQFSGcLQAJWAAAAACQgAUAAFkUcqoAJGABAAAAQAIWAABkXch5AkACFgAAAAAJWAAAkKUhJwkACVgAAAAAJGABAEBWh3CGACRgAQBA+ovTA4AELAAAAAASsAAAIGtEzg0AErAAACAtxokBkIAFAAApMjgrABKwAAAAACABCwAAsljklABIwAIAgNQZ5wMACVgAAJBG42QASMACAICUGmcCAAlYAACQXuM0ACABCwAAUm2cAwAJWAAAkHbjBAAgAQsAAFJwvHYAErAAACAdx6sGgJXb2N47cAoAAPBdF5/fJl0BQDawAAAgZcdrBIAELAAASN9JvQIgjxACAEAeJ0y6AoBsYAEAQIqP1wJANrAAAIBmtYolXQGQgAUAAMlYSVcAkIAFAADJWElXACRgAQAATThjSVcAJGABAAANmbGkKwASsAAAgMYrWboVAAlYAABA45Us3QqABCwAAKDBYpZoBUACFgAA0DBJS64CIAELAAAAAMa06QgAAAAASMACAAAAgAQsAAAAABKwAAAAACABCwAAAAASsAAAAABIwAIAAACABCwAAAAAErAAAAAAIAELAAAAABKwAAAAAEjAAgAAAIAELAAAAAASsAAAAAAgAQsAAAAAErAAAAAASMACAAAAgAQsAAAAABKwAAAAACABCwAAAAASsAAAAABIwAIAAACABCwAAAAAErAAAAAAIAELAAAAABKwAAAAAEjAAgAAAIAELAAAAAASsAAAAAAgAQsAAAAAErAAAAAASMACAAAAgAQsAAAAABKwAAAAACABCwAAAAASsAAAAABIwAIAAACABCwAAAAAErAAAAAAIAELAAAAABKwAAAAAEjAAgAAAIAELAAAAAAQsAAAAABIwAIAAACABCwAAAAAErAAAAAAIAELAAAAABKwAAAAAEjAAgAAAIAELAAAAAASsAAAAAAgAQsAAAAAErAAAAAASMACAAAAgAQsAAAAABKwAAAAACABCwAAAAASsAAAAABIwAIAAACABCwAAAAAErAAAAAAIAELAAAAABKwAAAAAEjAAgAAAIAELAAAAAASsAAAAAAgAQsAAAAAErAAAAAASMACAAAAgAQsAAAAABKwAAAAACABCwAAAAASsAAAAABIwAIAAACABCwAAAAAErAAAAAAIAELAAAAABKwAAAAAEjAAgAAAIAELAAAAAASsAAAAAAgAQsAAAAAErAAAAAASMACAAAAgAQsAAAAABCwAAAAAEjAAgAAAIAELAAAAAASsAAAAAAgAQsAAAAAErAAAAAASMACAAAAgAQsAAAAABKwAAAAACABCwAAAAASsAAAAABIwAIAAACABCwAAAAAErAAAAAAIAELAAAAABKwAAAAAEjAAgAAAIAELAAAAAASsAAAAAAgAQsAAAAAErAAAAAASMACAAAAgAQsAAAAABKwAAAAACABCwAAAAASsAAAAABIwAIAAACABCwAAAAAErAAAAAAYCR/A4nAGsBJwRV5AAAAAElFTkSuQmCC",
+     "width": 1600
+    },
+    "panel": {
+     "chart": null,
+     "figure_id": null,
+     "gif_query": null,
+     "graph": null,
+     "image_prompt": "A water pump pushing water round a loop of pipe",
+     "kind": "image",
+     "manim": null,
+     "model_3d": null,
+     "override_asset_key": null,
+     "quiz": null,
+     "rationale": "Shows the push and the flow.",
+     "show_from_beat_id": null,
+     "terminal": null,
+     "title": "A pump station pushing water"
+    },
+    "show_at": 0.0
+   },
+   "start": 0.0,
+   "subtitle": null,
+   "title": "VOLTAGE AND CURRENT",
+   "type": "content"
+  },
+  {
+   "audio_asset_key": null,
+   "audio_duration": 2.2,
+   "audio_offset": 0.5,
+   "audio_url": null,
+   "beats": [
+    {
+     "beat_id": "mf-l-stress-0",
+     "board_item_id": "m2",
+     "captions": [
+      {
+       "end": 2.3,
+       "start": 0.5,
+       "text": "A bigger resistor, a brighter bulb?"
+      }
+     ],
+     "end": 2.7,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 0,
+     "narration": "A bigger resistor, a brighter bulb?",
+     "phase": "main",
+     "speech_end": 2.3,
+     "start": 0.5,
+     "visual_cue": null,
+     "words": []
+    }
+   ],
+   "board": [
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "m2",
+     "justification": "Pneumonoultramicroscopicsilicovolcanoconiosis aside: at fixed $V$, $I = V/R$ falls, so the bulb dims",
+     "kind": "misconception",
+     "language": null,
+     "latex": null,
+     "misconception_id": "mc-m2",
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "A bigger $R$ always makes the bulb BRIGHTER",
+     "variables": []
+    }
+   ],
+   "chapter_id": null,
+   "chapter_label": null,
+   "concept_id": null,
+   "duration": 3.5,
+   "events": [
+    {
+     "anchored": true,
+     "dur": null,
+     "kind": "draw",
+     "sfx": null,
+     "t": 1.3,
+     "target": "m2",
+     "words": ""
+    }
+   ],
+   "figures": {},
+   "index": 1,
+   "layout": {
+    "fullscreen_media": false,
+    "mascot_position": "left",
+    "show_side_panel": true
+   },
+   "look": {
+    "background": {
+     "frozen_at": null,
+     "params": {
+      "tone": "bg"
+     },
+     "preset": "mesh_drift",
+     "seed": 9101
+    },
+    "hold_reason": null,
+    "presenter": null,
+    "template": "myth_fact",
+    "text_fit": {},
+    "tokens": {
+     "bg": "#001B1C",
+     "bg-alt": "#002527",
+     "bg-tint": "#221505",
+     "block.base": "#6C7B23",
+     "block.highlight": "#998A0A",
+     "block.ink": "#14161C",
+     "block.ink2": "#162E3B",
+     "scrim": "#001B1CC7",
+     "struct.accent": "#F49F1E",
+     "surface": "#0E3133"
+    },
+    "transition_in": {
+     "kind": "crossfade",
+     "seconds": 0.45
+    },
+    "variant": null
+   },
+   "media": null,
+   "objective_ids": [],
+   "p5_code": null,
+   "poster": null,
+   "quiz": null,
+   "scene_id": "mf-l-stress",
+   "side_panel": null,
+   "start": 6.8,
+   "subtitle": null,
+   "title": "Stress myth",
+   "type": "content"
+  }
+ ],
+ "schema_version": 3,
+ "screenplay_revision": null,
+ "total_duration": 10.3,
+ "transition_seconds": 0.4,
+ "version_id": null,
+ "width": 1920
+}

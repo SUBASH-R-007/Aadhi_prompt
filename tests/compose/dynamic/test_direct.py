@@ -41,8 +41,16 @@ def _plan(scenes, *, fmt="landscape", chaps=None, durations=None, **over):  # ty
     return direct.plan(sp, timeds, fmt, chaps)
 
 
+# A board scene no template claims: what follows the scene under test in `_one`, so that scene is never the lecture's
+# last (§4.4's positional "Last scene -> outro_next" row would claim a closing heading or takeaway there).
+_TAIL = board_scene("tail", [item("tail-h", "heading"), item("tail-p", "paragraph"), item("tail-q", "paragraph")])
+
+
 def _one(scene, **kw):  # type: ignore[no-untyped-def]
-    return _plan([scene], **kw)[0]
+    """The plan of ``scene`` in a lecture that goes on after it."""
+    if kw.get("durations"):
+        kw["durations"] = [*kw["durations"], 20.0]
+    return _plan([scene, _TAIL], **kw)[0]
 
 
 # --- what may be chosen ---------------------------------------------------------------------------------------------
@@ -52,13 +60,15 @@ def _one(scene, **kw):  # type: ignore[no-untyped-def]
 def test_only_implemented_r1_templates_of_the_format_are_candidates(fmt) -> None:  # type: ignore[no-untyped-def]
     ids = direct.candidates(fmt)
     assert set(ids) == {t for t, s in tp.TEMPLATES.items() if s.implemented and s.release == "R1" and fmt in s.formats}
-    # B1's, B2c's three pilots, the demo phase's six and step 4's four
-    assert set(ids) == {"animation_stage", "board_generic", "chapter_bumper", "check", "definition_card",
-                        "formula_focus", "full_bleed_media", "hook_question", "key_terms", "list_build",
-                        "media_split", "predict", "recap_retrieval", "worked_steps"}
+    # B1's, B2c's three pilots, the demo phase's six, step 4's four and step 5's seven
+    assert set(ids) == {"aadhi_intro", "aadhi_recap", "animation_stage", "board_generic", "chapter_bumper",
+                        "chart_build", "check", "code_walkthrough", "definition_card", "formula_focus",
+                        "full_bleed_media", "hook_question", "key_terms", "kinetic_statement", "list_build",
+                        "media_split", "myth_fact", "outro_next", "predict", "recap_retrieval", "worked_steps"}
     for tid in ids:
         assert direct.candidate(tid, fmt) is tp.TEMPLATES[tid]
-    assert direct.candidate("kinetic_statement", fmt) is None  # R1, not built yet
+    assert direct.candidate("interactive_poster", fmt) is None  # R1, not built yet
+    assert direct.candidate("thumbnail", fmt) is None  # R1, not built yet
     assert direct.candidate("versus", fmt) is None  # built later (W2)
     assert direct.candidate("nope", fmt) is None
 
@@ -66,7 +76,11 @@ def test_only_implemented_r1_templates_of_the_format_are_candidates(fmt) -> None
 def test_a_template_becomes_available_the_moment_implemented_flips(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     """The gate is ``TemplateSpec.implemented``: nothing here names a template, so a template arrives with its JS."""
     scene = board_scene("s1", [item("t", "takeaway")])
-    assert _one(scene).template == "board_generic"  # kinetic_statement is not built yet
+    unbuilt = {**tp.TEMPLATES,
+               "kinetic_statement": dataclasses.replace(tp.TEMPLATES["kinetic_statement"], implemented=False)}
+    monkeypatch.setattr(tp, "TEMPLATES", unbuilt)
+    monkeypatch.setattr(direct, "TEMPLATES", unbuilt)
+    assert _one(scene).template == "board_generic"  # its template not built: the fallback
     built = {**tp.TEMPLATES,
              "kinetic_statement": dataclasses.replace(tp.TEMPLATES["kinetic_statement"], implemented=True)}
     monkeypatch.setattr(tp, "TEMPLATES", built)
@@ -80,8 +94,11 @@ def test_board_generic_is_only_ever_the_fallback(fmt) -> None:  # type: ignore[n
     a scene a built template claims never does."""
     plain = _one(board_scene("s1", [item("h", "heading"), item("p", "paragraph"), item("q", "paragraph")]), fmt=fmt)
     assert plain.template == "board_generic" and plain.fallback and plain.semantic_class == "fallback"
-    statement = _one(board_scene("s2", [item("t", "takeaway")]), fmt=fmt)  # kinetic_statement is not built yet
-    assert statement.template == "board_generic" and statement.fallback
+    statement = _one(board_scene("s2", [item("t", "takeaway")]), fmt=fmt)  # step 5: kinetic_statement claims it
+    assert statement.template == "kinetic_statement" and not statement.fallback
+    # past the words the page sets (templates.KINETIC_STATEMENT_WORDS), a statement is board_generic's whole
+    long = _one(board_scene("s3", [item("t", "takeaway", text=" ".join(["word"] * 19))]), fmt=fmt)
+    assert long.template == "board_generic" and long.fallback
     unbuilt = {**tp.TEMPLATES,
                "chapter_bumper": dataclasses.replace(tp.TEMPLATES["chapter_bumper"], implemented=False)}
     with pytest.MonkeyPatch.context() as mp:  # a scene whose forced template is not built falls back
@@ -94,7 +111,8 @@ def test_board_generic_is_only_ever_the_fallback(fmt) -> None:  # type: ignore[n
 
 def test_board_generic_keeps_its_variant_empty() -> None:
     """B1's look: ``ResolvedLook.variant`` stays None for board_generic, so nothing existing changes."""
-    assert _one(board_scene("s1", [item("h", "heading")])).variant is None
+    plan = _one(board_scene("s1", [item("h", "heading"), item("p", "paragraph"), item("q", "paragraph")]))
+    assert plan.template == "board_generic" and plan.variant is None
 
 
 # --- the signal rows of the built templates -------------------------------------------------------------------------
@@ -134,7 +152,7 @@ def test_the_first_row_with_a_candidate_wins_which_keeps_r28() -> None:
     scene = board_scene("s1", [item("t", "takeaway")], panel="figure")  # statement row, then media row
     rows = [r.id for r in tp.signals(scene)]
     assert rows == ["statement", "media"]
-    assert _one(scene).template == "media_split"  # kinetic_statement is not built, media_split is
+    assert _one(scene).template == "media_split"  # kinetic_statement draws no panel (typography only, R-28)
 
 
 # --- forced rows and locks ------------------------------------------------------------------------------------------
@@ -389,6 +407,9 @@ def test_the_variant_rules_read_the_scene_and_the_presentation() -> None:
                                      "beats": [{"id": "b0", "narration": "Which one?"}],
                                      "reveal_beats": [{"id": "r0", "narration": "The first one."}]})
     assert direct.variant_for("check", "landscape", pres, chapter=0, scene=quiz) == "true_false"
+    four = quiz.model_copy(update={"options": ["a", "b", "c", "d"]})
+    assert direct.variant_for("check", "portrait", pres, chapter=0, scene=four) == "true_false"  # owner decision 4
+    assert direct.variant_for("check", "landscape", pres, chapter=0, scene=four) == "mcq"
     # definition_card: exactly what definition_card.js `variantOf` draws (review D7) - a picture in 16:9 only, an
     # icon only when the resolved look has one for the definition item, else `centred` (its DEFAULT_VARIANT). The
     # resolver writes no `look.icons` yet, so a plain card is stored as `centred`, not as a `card_icon_right` the

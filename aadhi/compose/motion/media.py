@@ -48,6 +48,9 @@ class MediaRequest:
     frames: tuple[int, ...]
     size: tuple[int, int]
     source: str = ""  # the asset key (or branding clip) the frames come from; "" = ``key``
+    # 'aadhi' only: the source rect [x, y, w, h] cropped before scaling to ``size`` (B2 plan §1.12; the page's key
+    # names it, presenter.js presenterKey); None: the whole clip, scaled to cover ``size`` as before
+    crop: tuple[int, int, int, int] | None = None
 
     @property
     def asset(self) -> str:
@@ -102,18 +105,37 @@ def parse_media_plan(raw: Any, *, stage: tuple[int, int]) -> list[MediaRequest]:
             raise MediaPlanError(f"mediaPlan entry {key[:40]}: size must be [w, h] > 0")
         w = max(2, min(int(math.ceil(size[0])), int(stage[0])))
         h = max(2, min(int(math.ceil(size[1])), int(stage[1])))
+        crop = _crop(entry, key, str(kind))
         if not indices:
             continue
         prev = merged.get(key)
         if prev is not None:
-            if abs(prev.src_fps - float(fps)) > 1e-6 or prev.asset != source:
-                raise MediaPlanError(f"mediaPlan lists {key[:40]} twice with another source or frame rate")
+            if abs(prev.src_fps - float(fps)) > 1e-6 or prev.asset != source or prev.crop != crop:
+                raise MediaPlanError(f"mediaPlan lists {key[:40]} twice with another source, crop or frame rate")
             merged[key] = MediaRequest(key, prev.kind, prev.src_fps, tuple(sorted({*prev.frames, *indices})),
-                                       (max(prev.size[0], w), max(prev.size[1], h)), prev.source)
+                                       (max(prev.size[0], w), max(prev.size[1], h)), prev.source, prev.crop)
         else:
             merged[key] = MediaRequest(key, str(kind), float(fps), tuple(sorted(set(indices))), (w, h),
-                                       "" if source == key else source)
+                                       "" if source == key else source, crop)
     return [merged[k] for k in sorted(merged)]
+
+
+def _crop(entry: Mapping[str, Any], key: str, kind: str) -> tuple[int, int, int, int] | None:
+    """A plan entry's ``crop`` (the presenter's, plan §1.12): four whole numbers, x and y >= 0, w and h >= 2, on an
+    'aadhi' entry only; None when the entry has none."""
+    raw = entry.get("crop")
+    if raw is None:
+        return None
+    if kind != "aadhi":
+        raise MediaPlanError(f"mediaPlan entry {key[:40]}: only a presenter entry may carry a crop")
+    if (not isinstance(raw, (list, tuple)) or len(raw) != 4
+            or not all(isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) and v == int(v)
+                       for v in raw)):
+        raise MediaPlanError(f"mediaPlan entry {key[:40]}: crop must be [x, y, w, h] in whole px")
+    x, y, w, h = (int(v) for v in raw)
+    if x < 0 or y < 0 or w < 2 or h < 2:
+        raise MediaPlanError(f"mediaPlan entry {key[:40]}: crop must lie at x, y >= 0 with w, h >= 2")
+    return x, y, w, h
 
 
 def file_rate(src_fps: float, real_fps: float | None) -> float:

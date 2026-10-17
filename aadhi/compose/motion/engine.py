@@ -37,6 +37,7 @@ import hashlib
 import logging
 import os
 import shutil
+import subprocess
 import sys
 import time
 from collections.abc import Callable, Mapping, Sequence
@@ -69,7 +70,7 @@ from ..qa import packet_pts
 from ..screenshot import media_origins_for, render_origin
 from ..sounds import ding_wav, tick_wav
 from ..video import DING_VOLUME, TICK_VOLUME  # the classic mix (§7.11: reused until B3's mix)
-from ..workspace import stat_digest
+from ..workspace import stat_digest, work_root
 from .cache import ChunkCache
 from .chunks import (
     CHUNK_MAX_FRAMES,
@@ -567,6 +568,21 @@ async def _extract_media(plan: list[MediaRequest], files: _Files, directory: Pat
         if src is None:
             raise MotionError(f"the stage asked for frames of an unknown media {req.asset[:48]!r}",
                               code="media_missing")
+        if req.crop is not None:
+            # the presenter's crop (plan §1.12, §2 "Aadhi"): every frame of it at this size is extracted once into the
+            # presenter cache (RENDER_WORK_DIR/derivatives/aadhi/...) and served from there to every chunk and render
+            from ..dynamic.presenter import ensure_frames
+
+            try:
+                cached, count = await asyncio.to_thread(ensure_frames, work_root(settings), src, crop=req.crop,
+                                                        size=req.size, ffmpeg=settings.ffmpeg_path)
+            except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as exc:
+                raise MotionError(f"the presenter clip {req.asset[:48]!r} could not be extracted: "
+                                  f"{type(exc).__name__}", code="media_unreadable") from exc
+            native = {int(n): min(int(n), count - 1) for n in req.frames}  # an 8.000 s clip: never past its end
+            entries, _ = await asyncio.to_thread(frame_files, req, cached, native=native)
+            out.update(entries)
+            continue
         if req.asset not in rates:
             try:
                 rates[req.asset] = (await probe(src, settings=settings)).fps

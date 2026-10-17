@@ -10,9 +10,9 @@
  * and at most one `heading` (templates.py `_shape`'s `extra`). Nothing a timeline names is dropped: every item that is
  * not the heading is a term card, with its `term` and its meaning; in 16:9 at most PANEL_TERMS_MAX terms may stand
  * beside the scene's **side panel** (`_shared.js panelOf`: the picture, animation, terminal session or authored title
- * that illustrates the terms), and a scene with a scene medium, with a panel in 9:16 (the reel's column holds the
- * rows alone, list_build's rule), with a panel of a kind `_shared.js` does not draw, or with more terms than fit
- * beside one (`drawsScene`) is handed to board_generic whole, every hook passed on (list_build's and formula_focus's
+ * that illustrates the terms; in 9:16 drawn as its own beat before the terms), and a scene with a scene medium, with a
+ * panel of a kind `_shared.js` does not draw, or with more terms than fit beside one in 16:9 (`drawsScene`) is
+ * handed to board_generic whole, every hook passed on (list_build's and formula_focus's
  * convention). `_fit_key_terms` refuses exactly the same scenes, so the director never sends one here for the page to
  * draw as board_generic (B2c review CG-2, the demo review's D5).
  *
@@ -24,6 +24,11 @@
  * the left 55% (x 96-1034) instead and the panel takes the right 45%: at PANEL_TERMS_MAX terms a card is then 457 px
  * wide, still wider than the narrowest card the slot sizes were fitted against (414 px), so the stored sizes stay
  * upper bounds (list_build's rule).
+ *
+ * 9:16 with a side panel (owner decision 4, 2026-10-16): the panel is its own short full-stage beat BEFORE the
+ * terms, never above them (`_shared.js reelWindow`: from the scene's start until the first narrated term, 2-4 s), then
+ * leaves, and the heading and the rows enter as below - so the rows keep the whole column and R-29's floor. Any number
+ * of terms (2-4) may follow a reel panel; PANEL_TERMS_MAX is the 16:9 side-by-side limit only.
  *
  * 9:16 (§4.3 "stacked rows in the text column"): rows, not cards - the text column (x 192-780, the part of the stage
  * both critical boxes hold, R-59) is 588 px wide, which a card's padding and a 96 px icon would spend on chrome rather
@@ -72,8 +77,8 @@ import { itemTimings } from '../state.js';
 import boardGeneric from './board_generic.js';
 import {
   PANEL_TERM, RADIUS, buildPanel, drawsPanel, enterAt, fitLines, group, layoutPanel, paintPanel, paintRise,
-  paintTextEntrance, panelFocusRect, panelMediaBox, panelOf, panelTexts, region, revealMask, richWords, scrimmedBg,
-  seconds, shownPanel, slotRange, storedIcon,
+  paintTextEntrance, panelFocusRect, panelMediaBox, panelOf, panelTexts, reelEntrances, reelPanelBox, reelWindow,
+  region, revealMask, richWords, scrimmedBg, seconds, shownPanel, slotRange, storedIcon,
 } from './_shared.js';
 
 /** @typedef {import('./types.js').TemplateContext} TemplateContext */
@@ -252,6 +257,19 @@ export function cardWidth(n, box) {
 }
 
 /**
+ * A side panel's terminal card slot in a panel box `width` px wide (`_shared.js PANEL_TERM`; templates.py
+ * `_panel_terminal_slot`).
+ * @param {'landscape' | 'portrait'} fmt @param {number} width
+ */
+function terminalSlot(fmt, width) {
+  const T = PANEL_TERM[fmt];
+  return {
+    w: width - 2 * T.pad, max_lines: null, size: [T.min, T.max], role: 'body', face: 'mono', weight: T.weight,
+    line_height: T.lh, prefer_lines: null,
+  };
+}
+
+/**
  * The text slots of this template (templates.py SlotSpec, what textfit.py fits; plan §1.6, §1.11):
  * slot -> format -> variant -> {w, max_lines, size, role, face, weight, line_height, prefer_lines}. key_terms has no
  * look variants, so every slot has only `default`. The 16:9 term and meaning widths are the NARROWEST card's (four
@@ -296,16 +314,12 @@ export function slotRows(landscape, portrait) {
       landscape: { default: meaning(L.meaning, landText, L.meaningWeight) },
       portrait: { default: meaning(P.meaning, portText, P.meaningWeight) },
     },
-    // a terminal panel's card (16:9 only: 9:16 draws no panel), mono, in the panel's box less its padding;
-    // `_shared.js layoutPanel` fits it on the page and `_shared.js panelTexts` reports it in this slot
+    // a terminal panel's card, mono, in the panel's box less its padding (16:9 the right 45%; 9:16 the reel beat's
+    // card in the text column, `_shared.js reelPanelBox`); `_shared.js layoutPanel` fits it on the page and
+    // `_shared.js panelTexts` reports it in this slot
     terminal: {
-      landscape: {
-        default: {
-          w: panelBand.x1 - panelBand.x0 - 2 * PANEL_TERM.landscape.pad, max_lines: null,
-          size: [PANEL_TERM.landscape.min, PANEL_TERM.landscape.max], role: 'body', face: 'mono',
-          weight: PANEL_TERM.landscape.weight, line_height: PANEL_TERM.landscape.lh, prefer_lines: null,
-        },
-      },
+      landscape: { default: terminalSlot('landscape', panelBand.x1 - panelBand.x0) },
+      portrait: { default: terminalSlot('portrait', portrait.textColumn.x1 - portrait.textColumn.x0) },
     },
   };
 }
@@ -347,25 +361,37 @@ export function termItems(scene) {
 }
 
 /**
- * Whether this template draws the scene whole in `format`: it draws no scene medium, and a shown side panel only in
- * 16:9, of a kind `_shared.js` draws (`drawsPanel`) and beside at most PANEL_TERMS_MAX terms. Anything else is
- * board_generic's, and `_fit_key_terms` scores such a scene 0, so direct.py never sends it here (B2c review CG-2).
+ * Whether this template draws the scene whole in `format`: it draws no scene medium, and a shown side panel only of a
+ * kind `_shared.js` draws (`drawsPanel`) - in 16:9 beside at most PANEL_TERMS_MAX terms, in 9:16 as its own beat
+ * before any number of terms (owner decision 4). Anything else is board_generic's, and `_fit_key_terms` scores such a
+ * scene 0, so direct.py never sends it here (B2c review CG-2).
  * @param {TimedScene} scene
  * @param {'landscape' | 'portrait'} [format]
  */
 export function drawsScene(scene, format = 'landscape') {
   if (scene.media) return false;
   if (!shownPanel(scene)) return true;
-  return format === 'landscape' && drawsPanel(scene) && termItems(scene).terms.length <= PANEL_TERMS_MAX;
+  if (format !== 'landscape') return drawsPanel(scene, format);
+  return drawsPanel(scene, format) && termItems(scene).terms.length <= PANEL_TERMS_MAX;
 }
 
 /**
- * The scene's panel as this template draws it (16:9 only; `_shared.js panelOf`), or null. A scene `drawsScene` takes
- * in 9:16 never has one here.
+ * The scene's panel as this template draws it (`_shared.js panelOf`; 16:9 beside the cards, 9:16 as its reel beat),
+ * or null.
  * @param {TimedScene} scene @param {'landscape' | 'portrait'} format @param {'live' | 'render'} [mode]
  */
 export function panelFor(scene, format, mode = 'live') {
-  return format === 'landscape' ? panelOf(scene, mode) : null;
+  return panelOf(scene, mode, format);
+}
+
+/**
+ * The 9:16 panel beat (`_shared.js reelWindow`) of a scene this template draws with a panel, else null (16:9, or no
+ * panel).
+ * @param {TimedScene} scene @param {'landscape' | 'portrait'} format
+ * @returns {{start: number, end: number} | null}
+ */
+export function reelBeat(scene, format) {
+  return format === 'portrait' && panelOf(scene, 'render', format) ? reelWindow(scene) : null;
 }
 
 /**
@@ -646,22 +672,30 @@ export default {
       };
     });
 
-    // the scene's panel beside the cards (16:9 only; `_shared.js` builds, lays out, paints and reports it)
+    // the scene's panel: 16:9 beside the cards; 9:16 its own beat before them, entering at the beat's start (owner
+    // decision 4; `_shared.js` builds, lays out, paints and reports it)
+    const beat = reelBeat(scene, format);
     /** @type {import('./_shared.js').PanelParts | null} */
     let panelParts = null;
     const panel = panelFor(scene, format, ctx.mode);
     if (panel) {
-      panelParts = buildPanel(ctx, panel);
+      panelParts = buildPanel(ctx, beat ? { ...panel, start: beat.start } : panel);
       root.appendChild(panelParts.el);
     }
 
     ctx.root.appendChild(root);
     const ids = cards.map((c) => c.item.id);
+    // with a reel beat, what would enter during it enters as it ends (`_shared.js reelEntrances`)
     /** @type {Map<string, number>} */
-    const enter = new Map(itemTimings(scene).map((timing) => [timing.id, timing.enter]));
+    const enter = beat ? reelEntrances(scene, beat.end)
+      : new Map(itemTimings(scene).map((timing) => [timing.id, timing.enter]));
     return {
-      root, head, cards, panel: panelParts, ids, enter, surface, rowScrim,
-      draw: new Map(cards.map((c) => [c.item.id, drawAt(scene, c.item.id, enter.get(c.item.id) || 0)])),
+      root, head, cards, panel: panelParts, ids, enter, surface, rowScrim, beat,
+      // an icon never draws before its card is there (a `draw` event inside a reel beat waits for the card)
+      draw: new Map(cards.map((c) => {
+        const at = enter.get(c.item.id) || 0;
+        return [c.item.id, beat ? Math.max(at, drawAt(scene, c.item.id, at)) : drawAt(scene, c.item.id, at)];
+      })),
       width: 0, cardsTop: 0, sizes: { term: L.term.max, meaning: L.meaning.max },
     };
   },
@@ -698,8 +732,9 @@ export default {
       const bottom = hd.el.offsetTop + hd.el.offsetHeight;
       top = Math.round(Math.max(bottom, b.heading.y0 + range.min * hd.lh) + L.headingGap);
     }
-    // the panel, from the cards' top down (16:9 only; list_build's panel box)
-    if (v.panel && b.visual) layoutPanel(ctx, v.panel, { ...b.visual, y0: top });
+    // the panel, from the cards' top down (16:9; list_build's panel box), or alone on the reel's stage (9:16)
+    if (v.panel && v.beat) layoutPanel(ctx, v.panel, reelPanelBox(v.panel.panel, zones));
+    else if (v.panel && b.visual) layoutPanel(ctx, v.panel, { ...b.visual, y0: top });
     v.cardsTop = top;
     const avail = b.bottom - top;
     const cards = v.cards;
@@ -774,8 +809,10 @@ export default {
     }
     const v = ctx.view;
     const p = ctx.paint;
-    // the scene's panel: its entrance, its medium and a terminal's output lines (`_shared.js paintPanel`)
-    if (v.panel) paintPanel(ctx, v.panel, t, state);
+    // the scene's panel: its entrance, its medium and a terminal's output lines (`_shared.js paintPanel`); in a reel
+    // beat it leaves as the beat ends and shows every output line
+    if (v.panel && v.beat) paintPanel(ctx, v.panel, t, state, { until: v.beat.end, allLines: true });
+    else if (v.panel) paintPanel(ctx, v.panel, t, state);
 
     if (v.head) {
       const e = enterAt(ctx, t, v.enter.get(v.head.item.id) || 0, HEADING_ENTER);
@@ -878,9 +915,10 @@ export default {
   },
 
   /**
-   * Static: the only medium this template shows is its panel's, in slot `panel` (16:9): the panel's whole box from
-   * the top of the title zone, the largest it is ever shown in, so the picture only ever downscales (§P). A scene it
-   * hands to board_generic gets board_generic's box, so `mediaPlan` and `ctx.media` agree.
+   * Static: the only medium this template shows is its panel's, in slot `panel`: 16:9 the panel's whole box from the
+   * top of the title zone, 9:16 the reel beat's box (`_shared.js reelPanelBox`) - the largest each is ever shown in,
+   * so the picture only ever downscales (§P). A scene it hands to board_generic gets board_generic's box, so
+   * `mediaPlan` and `ctx.media` agree.
    * @param {TimedScene} scene
    * @param {Zones} zones
    * @param {'live' | 'render'} mode
@@ -892,7 +930,9 @@ export default {
     if (!drawsScene(scene, zones.format)) {
       return typeof boardGeneric.mediaBox === 'function' ? boardGeneric.mediaBox(scene, zones, mode, slot, fixes) : null;
     }
-    if (!panelFor(scene, zones.format, mode)) return null;
+    const panel = panelFor(scene, zones.format, mode);
+    if (!panel) return null;
+    if (zones.format === 'portrait') return panelMediaBox(scene, reelPanelBox(panel, zones), slot);
     const b = boxes(zones.format, zones, true);
     return b.visual ? panelMediaBox(scene, b.visual, slot) : null;
   },

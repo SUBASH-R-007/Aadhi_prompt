@@ -1,0 +1,398 @@
+{
+ "board_language": "en-IN",
+ "branding": {
+  "bgm_url": null,
+  "bgm_volume": 0.06,
+  "ding_url": null,
+  "mascot_clips": {},
+  "mascot_rig_url": null,
+  "static_background_url": null,
+  "tick_url": null
+ },
+ "captions": [
+  {
+   "end": 3.62,
+   "start": 2.32,
+   "text": "Placeholder narration 1."
+  },
+  {
+   "end": 5.22,
+   "start": 3.92,
+   "text": "Placeholder narration 2."
+  },
+  {
+   "end": 6.82,
+   "start": 5.52,
+   "text": "Placeholder narration 3."
+  }
+ ],
+ "chapters": [
+  {
+   "start": 0.0,
+   "title": "Reel"
+  }
+ ],
+ "concept_map": [],
+ "estimated": false,
+ "fps": 30,
+ "height": 1920,
+ "intro": null,
+ "language": "en-IN",
+ "learning_objectives": [],
+ "meta": {
+  "session_number": "Session 3",
+  "session_title": "Circuits",
+  "subject_name": "Basic Electrical Engineering",
+  "unit_name": "Unit 2: DC Circuits"
+ },
+ "presentation": {
+  "caption_style": "clean_pill",
+  "captions_burn": true,
+  "content": {
+   "entity:0": "#0267C7",
+   "entity:1": "#80369E",
+   "entity:2": "#870C62",
+   "focus": "#141822",
+   "ink": "#141822",
+   "ink2": "#484D58",
+   "mark": "#F2D935",
+   "ok": "#016F50",
+   "warn": "#9F4503"
+  },
+  "content_alt": {
+   "entity:0": "#0FE3FE",
+   "entity:1": "#C4A4FE",
+   "entity:2": "#FEACE3",
+   "focus": "#F2D935",
+   "ink": "#F3F5F9",
+   "ink2": "#B9BEC7",
+   "mark": "#F2D935",
+   "ok": "#5DD8AA",
+   "warn": "#F8A87F"
+  },
+  "cue_term_style": "underline",
+  "engine_version": 5,
+  "family": "paper_ink",
+  "fonts": {
+   "body": "inter",
+   "display": "outfit",
+   "indic": "noto_sans",
+   "mono": "jetbrains_mono"
+  },
+  "format": "portrait",
+  "generated_seconds": 7.92,
+  "mode": "light",
+  "motion": "standard",
+  "motion_scale": 0.85,
+  "personality": "crisp",
+  "safe_zone": "universal",
+  "sfx": false,
+  "style": "dynamic",
+  "text_entrance": "baseline_reveal"
+ },
+ "scenes": [
+  {
+   "audio_asset_key": null,
+   "audio_duration": 4.8,
+   "audio_offset": 2.32,
+   "audio_url": null,
+   "beats": [
+    {
+     "beat_id": "ws-r-term-0",
+     "board_item_id": "s1",
+     "captions": [
+      {
+       "end": 3.62,
+       "start": 2.32,
+       "text": "Placeholder narration 1."
+      }
+     ],
+     "end": 3.92,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 0,
+     "narration": "Placeholder narration 1.",
+     "phase": "main",
+     "speech_end": 3.62,
+     "start": 2.32,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "ws-r-term-1",
+     "board_item_id": "s2",
+     "captions": [
+      {
+       "end": 5.22,
+       "start": 3.92,
+       "text": "Placeholder narration 2."
+      }
+     ],
+     "end": 5.52,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 1,
+     "narration": "Placeholder narration 2.",
+     "phase": "main",
+     "speech_end": 5.22,
+     "start": 3.92,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "ws-r-term-2",
+     "board_item_id": "s3",
+     "captions": [
+      {
+       "end": 6.82,
+       "start": 5.52,
+       "text": "Placeholder narration 3."
+      }
+     ],
+     "end": 7.12,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 2,
+     "narration": "Placeholder narration 3.",
+     "phase": "main",
+     "speech_end": 6.82,
+     "start": 5.52,
+     "visual_cue": null,
+     "words": []
+    }
+   ],
+   "board": [
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "h1",
+     "justification": null,
+     "kind": "heading",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "A fan on 230 V",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "f1",
+     "justification": null,
+     "kind": "formula",
+     "language": null,
+     "latex": "I = \\frac{V}{R}",
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "s1",
+     "justification": "Ohm's law",
+     "kind": "example_step",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "$I = 230 / 115$",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "s2",
+     "justification": null,
+     "kind": "example_step",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "$I = 2\\ \\mathrm{A}$",
+     "variables": []
+    },
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "s3",
+     "justification": null,
+     "kind": "example_step",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "Check the units",
+     "variables": []
+    }
+   ],
+   "chapter_id": null,
+   "chapter_label": null,
+   "concept_id": null,
+   "duration": 7.92,
+   "events": [
+    {
+     "anchored": false,
+     "dur": 2.0,
+     "kind": "reveal",
+     "sfx": null,
+     "t": 0.2,
+     "target": "panel",
+     "words": ""
+    },
+    {
+     "anchored": false,
+     "dur": null,
+     "kind": "reveal",
+     "sfx": null,
+     "t": 2.2,
+     "target": "h1",
+     "words": ""
+    },
+    {
+     "anchored": true,
+     "dur": null,
+     "kind": "reveal",
+     "sfx": null,
+     "t": 2.2,
+     "target": "s1",
+     "words": ""
+    },
+    {
+     "anchored": false,
+     "dur": null,
+     "kind": "reveal",
+     "sfx": null,
+     "t": 2.29,
+     "target": "f1",
+     "words": ""
+    },
+    {
+     "anchored": true,
+     "dur": null,
+     "kind": "reveal",
+     "sfx": null,
+     "t": 3.8,
+     "target": "s2",
+     "words": ""
+    },
+    {
+     "anchored": true,
+     "dur": null,
+     "kind": "reveal",
+     "sfx": null,
+     "t": 5.4,
+     "target": "s3",
+     "words": ""
+    }
+   ],
+   "figures": {},
+   "index": 0,
+   "layout": {
+    "fullscreen_media": false,
+    "mascot_position": "left",
+    "show_side_panel": true
+   },
+   "look": {
+    "background": {
+     "frozen_at": 0.0,
+     "params": {
+      "tone": "bg"
+     },
+     "preset": "mesh_drift",
+     "seed": 9000
+    },
+    "hold_reason": null,
+    "presenter": null,
+    "template": "worked_steps",
+    "text_fit": {},
+    "tokens": {
+     "bg": "#FDF2DD",
+     "bg-alt": "#F3E8D3",
+     "bg-tint": "#FFEAEF",
+     "block.base": "#BE3D70",
+     "block.highlight": "#C7537D",
+     "block.ink": "#FFFFFF",
+     "block.ink2": "#F6D9E1",
+     "scrim": "#FDF2DDC7",
+     "struct.accent": "#BE3D70",
+     "surface": "#FFFDFA"
+    },
+    "transition_in": {
+     "kind": "cut",
+     "seconds": 0.0
+    },
+    "variant": null
+   },
+   "media": null,
+   "objective_ids": [],
+   "p5_code": null,
+   "poster": null,
+   "quiz": null,
+   "scene_id": "ws-r-term",
+   "side_panel": {
+    "media": null,
+    "panel": {
+     "chart": null,
+     "figure_id": null,
+     "gif_query": null,
+     "graph": null,
+     "image_prompt": null,
+     "kind": "terminal",
+     "manim": null,
+     "model_3d": null,
+     "override_asset_key": null,
+     "quiz": null,
+     "rationale": "",
+     "show_from_beat_id": null,
+     "terminal": {
+      "command": "python ohm.py 230 115",
+      "output": "I = 2.0 A\nok"
+     },
+     "title": "Python check"
+    },
+    "show_at": 0.0
+   },
+   "start": 0.0,
+   "subtitle": null,
+   "title": "Reel",
+   "type": "content"
+  }
+ ],
+ "schema_version": 3,
+ "screenplay_revision": null,
+ "total_duration": 7.92,
+ "transition_seconds": 0.4,
+ "version_id": null,
+ "width": 1080
+}

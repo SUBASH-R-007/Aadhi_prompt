@@ -25,6 +25,9 @@
  *   one question its Python `fit` must mirror), `buildPanel` / `layoutPanel` / `paintPanel` and the geometry and
  *   reporting hooks `panelFocusRect` / `panelTexts` / `panelMediaBox` - the three forms board_generic and media_split
  *   already draw (a medium, a terminal card, the panel's title on the card surface) and nothing else.
+ * - The reel panel beat (owner decision 4, 2026-10-16): `reelWindow` / `reelEntrances` / `reelTimings` /
+ *   `reelPanelBox` - in 9:16 a scene's side panel takes the whole stage alone, as its own short beat BEFORE the
+ *   content, never above it; `paintPanel`'s `until` / `allLines` options paint it.
  * - Formula tints (§4.7 entity colours, §P (g)): `tintTex` wraps each symbol of a formula in a `\color` placeholder,
  *   `tintTargets` finds the placeholder's SVG groups after MathJax, `paintTint` colours them per frame.
  * Everything a template paints per frame goes through `ctx.paint` (the frame key); build- and layout-time placement
@@ -41,8 +44,9 @@ import { icon } from '../../player/icons.js';
 import { planScene } from '../../player/schedule.js';
 import { GRID, LAYOUT_TOKENS, REGIONS, TYPE_FLOORS, fixesOf, fx, parseTarget, templateSlots } from '../core.js';
 import { shownIn } from '../media.js';
-import { itemStateStyle } from '../state.js';
+import { itemStateStyle, itemTimings } from '../state.js';
 import { PUSH_SCALE_MAX } from '../cues.js';
+import { buildChart, chartFocusRect, chartPlan, chartTexts, layoutChart, paintChart } from './_charts.js';
 
 /** @typedef {import('./types.js').TemplateContext} TemplateContext */
 /** @typedef {import('../core.js').Box} Box */
@@ -684,18 +688,22 @@ export const PANEL_TERM = Object.freeze({
 });
 /** The slot a terminal card's text is reported in (media_split's name, so preflight's remedies read the same). */
 export const PANEL_TERM_SLOT = 'terminal';
+/** A chart card's padding per format (the plot and its labels sit this far inside the card). */
+export const PANEL_CHART_PAD = Object.freeze({ landscape: 32, portrait: 24 });
 
 /**
  * What `panelOf` describes: the panel as this helper draws it.
  * @typedef {object} PanelPlan
  * @property {string} kind            the stored `SidePanel.kind`
- * @property {'media' | 'terminal' | 'label'} draw   which of the three forms above
+ * @property {'media' | 'terminal' | 'label' | 'chart'} draw   which of the forms above (`chart`: a real plot, the
+ *                                    chart engine's narrow layout, `_charts.js`)
  * @property {MediaRef | null} ref    its medium, kept even when this mode cannot show it (the panel is laid out at
  *                                    its aspect either way, so the live player and the MP4 share one layout)
  * @property {boolean} shown          `media.shownIn`: this mode can show `ref`
  * @property {string} title           the panel's title, else the scene's (never empty)
  * @property {number} start           scene-relative second the panel appears (`ResolvedSidePanel.show_at`)
  * @property {{command: string, lines: string[]} | null} terminal
+ * @property {import('./_charts.js').ChartPlan | null} [chart]   a `chart` form's plan
  */
 
 /**
@@ -711,12 +719,14 @@ export function shownPanel(scene) {
 
 /**
  * The scene's panel as this helper draws it (see the section header), or null when it has none the helper draws -
- * which is also what makes the scene board_generic's (`drawsPanel`). Pure.
+ * which is also what makes the scene board_generic's (`drawsPanel`). Pure. `format`: the scene's (a chart's layout
+ * depends on it: in 9:16 a panel stands alone in the reel beat's text column, in 16:9 in its template's side box).
  * @param {TimedScene} scene
  * @param {'live' | 'render'} [mode]
+ * @param {'landscape' | 'portrait'} [format]
  * @returns {PanelPlan | null}
  */
-export function panelOf(scene, mode = 'live') {
+export function panelOf(scene, mode = 'live', format = 'landscape') {
   const sp = shownPanel(scene);
   if (!sp) return null;
   const kind = String(sp.panel.kind || '');
@@ -736,7 +746,15 @@ export function panelOf(scene, mode = 'live') {
     const shown = !!ref && shownIn(ref, mode === 'render' ? 'render' : 'live');
     return { kind, draw: shown ? 'media' : 'label', ref, shown, title, start, terminal: null };
   }
-  // a stored spec the Dynamic engine draws nowhere yet: its authored title, and only when it has one
+  // a chart or a graph the chart engine draws as a real plot (owner decision 1, 2026-10-16): its `panel` layout in a
+  // 16:9 side box, its `portrait` one in the 9:16 reel beat's column (templates.py `_draws_panel` asks
+  // charts.draws_chart with the same layout)
+  if (kind === 'chart' || kind === 'graph') {
+    const chart = chartPlan(sp.panel, format === 'portrait' ? 'portrait' : 'panel');
+    if (chart) return { kind, draw: 'chart', ref: null, shown: true, title: own, start, terminal: null, chart };
+  }
+  // a stored spec the Dynamic engine does not draw (a model, a chart past the engine's limits): its authored title,
+  // and only when it has one
   if (PANEL_TITLED_KINDS.includes(kind) && own) {
     return { kind, draw: 'label', ref: null, shown: false, title: own, start, terminal: null };
   }
@@ -746,11 +764,12 @@ export function panelOf(scene, mode = 'live') {
 /**
  * Whether a template that uses this helper can draw the scene's panel: it has none shown, or one `panelOf` draws.
  * A template's `drawsScene` asks this, and its Python `fit` must refuse exactly the same scenes (CG-2). Pure, and
- * independent of the mode (a GIF is claimed in both: the MP4 shows its title card).
+ * independent of the mode (a GIF is claimed in both: the MP4 shows its title card), not of the format (a chart's).
  * @param {TimedScene} scene
+ * @param {'landscape' | 'portrait'} [format]
  */
-export function drawsPanel(scene) {
-  return !shownPanel(scene) || panelOf(scene, 'render') !== null;
+export function drawsPanel(scene, format = 'landscape') {
+  return !shownPanel(scene) || panelOf(scene, 'render', format) !== null;
 }
 
 /**
@@ -765,6 +784,8 @@ export function drawsPanel(scene) {
  * @property {{pre: HTMLElement, cmd: HTMLElement, lines: HTMLElement[], size: number, min: number,
  *   overflow: number} | null} term
  * @property {number} start
+ * @property {import('./_charts.js').ChartParts | null} [chart]   a `chart` form's plot (its own group over the stage,
+ *                                  painted with the frame's entrance)
  * @property {Box | null} box        the frame's box as laid out
  * @property {number} alpha          its entrance now (read by `panelTexts` / `panelFocusRect` after `update`)
  */
@@ -792,6 +813,8 @@ export function buildPanel(ctx, panel) {
   let label = null;
   /** @type {PanelParts['term']} */
   let term = null;
+  /** @type {import('./_charts.js').ChartParts | null} */
+  let chart = null;
   if (panel.draw === 'media' && panel.ref) {
     // sized by the template's own mediaBox for slot 'panel' (the box mediaPlan extracts a clip at)
     view = ctx.media(panel.ref, { slot: 'panel', start: panel.start, alt: panel.title });
@@ -814,6 +837,13 @@ export function buildPanel(ctx, panel) {
     frame.style.padding = `${T.pad}px`;
     frame.appendChild(pre);
     term = { pre, cmd, lines, size: T.max, min: T.min, overflow: 0 };
+  } else if (panel.draw === 'chart' && panel.chart) {
+    // the card; the plot over it (its own group, stage coordinates), built once the card is in, its title on top
+    frame.style.background = surface;
+    chart = buildChart(ctx, panel.chart, {
+      ink: ctx.roles.color('ink'), ink2: ctx.roles.color('ink2'), bg: surface, title: panel.title,
+      start: (panel.start > 0 ? panel.start : PANEL_DELAY) + PANEL_ENTER,
+    });
   } else if (!view || view.missing) {
     // nothing this mode can show (a GIF in the MP4, an unsafe URL), or a kind drawn nowhere yet: the panel's title
     // on the card surface, never an empty box (board_generic's, media_split's and list_build's convention)
@@ -829,9 +859,9 @@ export function buildPanel(ctx, panel) {
     });
     frame.appendChild(label);
   }
-  const el = group('dyn-panel', frame);
+  const el = group('dyn-panel', frame, chart ? chart.el : null);
   Object.assign(el.style, { position: 'absolute', left: '0px', top: '0px', right: '0px', bottom: '0px' });
-  return { panel, el, frame, view, label, term, start: panel.start, box: null, alpha: 0 };
+  return { panel, el, frame, view, label, term, chart, start: panel.start, box: null, alpha: 0 };
 }
 
 /**
@@ -868,11 +898,14 @@ export function layoutPanel(ctx, parts, box) {
     parts.term.overflow = Math.max(0, contentH - avail, wide > 2 ? wide : 0);
     const hh = Math.min(box.y1 - box.y0, contentH + 2 * T.pad);
     r = { x: Math.round(box.x0), y: Math.round(box.y0 + ((box.y1 - box.y0) - hh) / 2), w, h: Math.round(hh) };
+  } else if (parts.chart) {
+    r = { x: Math.round(box.x0), y: Math.round(box.y0), w: Math.round(box.x1 - box.x0), h: Math.round(box.y1 - box.y0) };
   } else {
     r = containRect(mediaAspect(parts.panel.ref), box);
   }
   Object.assign(parts.frame.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px` });
   parts.box = { x0: r.x, y0: r.y, x1: r.x + r.w, y1: r.y + r.h };
+  if (parts.chart) layoutChart(ctx, parts.chart, insetBox(parts.box, PANEL_CHART_PAD[ctx.format]));
   return parts.box;
 }
 
@@ -882,21 +915,48 @@ export function layoutPanel(ctx, parts, box) {
  * earlier seek) and a terminal's output lines as the schedule reveals them (`SceneState.terminalLines`, a pure
  * function of (timeline, t)). A clip only ever fades: it is never scaled nor moved (B2c, test_template_clips.py).
  * Every property is written on every frame with a value (never ''), so a frame never depends on paint order.
+ *
+ * `opts` (the reel panel beat only; without it nothing changes): `until` - the beat's end: the panel fades out over
+ * REEL_BEAT_EXIT (the personality's scale) ending there, without moving, and stays hidden after it; `allLines` - a
+ * terminal card shows every output line (its one appearance: a line revealed later would never be seen).
  * @param {TemplateContext} ctx
  * @param {PanelParts} parts
  * @param {number} t
  * @param {import('../../shared/types.js').SceneState} [state]
+ * @param {{until?: number, allLines?: boolean}} [opts]
  */
-export function paintPanel(ctx, parts, t, state) {
+export function paintPanel(ctx, parts, t, state, opts) {
   const p = ctx.paint;
   const e = enterAt(ctx, t, parts.start > 0 ? parts.start : PANEL_DELAY, PANEL_ENTER);
-  parts.alpha = e;
   const clip = !!parts.panel.ref && parts.panel.ref.kind === 'video';
-  paintRise(ctx, parts.frame, e, clip ? 0 : PANEL_RISE);
-  p.style(parts.frame, 'visibility', e > 0 ? 'visible' : 'hidden');
+  if (opts && typeof opts.until === 'number') {
+    const exit = seconds(ctx, REEL_BEAT_EXIT);
+    const gone = ease('ease.exit', progress(t, opts.until - exit, exit));
+    // below a thousandth the panel has left (float noise at the beat's end must not keep it 'visible')
+    const a = e * (1 - gone) > 0.001 ? e * (1 - gone) : 0;
+    parts.alpha = a;
+    const dy = clip || ctx.reducedMotion || e >= 1 ? 0 : Math.round((1 - e) * PANEL_RISE);
+    p.style(parts.frame, 'opacity', fx(a));
+    p.style(parts.frame, 'transform', dy ? `translate(0, ${dy}px)` : 'none');
+    p.style(parts.frame, 'visibility', a > 0 ? 'visible' : 'hidden');
+  } else {
+    parts.alpha = e;
+    paintRise(ctx, parts.frame, e, clip ? 0 : PANEL_RISE);
+    p.style(parts.frame, 'visibility', e > 0 ? 'visible' : 'hidden');
+  }
   if (parts.view) paintMedia(ctx, parts.view, t);
+  if (parts.chart) {
+    // the plot moves and fades with its card (its group is not a dim group: the panel's is)
+    const a = parts.alpha;
+    const dy = ctx.reducedMotion || e >= 1 ? 0 : Math.round((1 - e) * PANEL_RISE);
+    p.style(parts.chart.el, 'opacity', fx(a));
+    p.style(parts.chart.el, 'transform', dy ? `translate(0, ${dy}px)` : 'none');
+    p.style(parts.chart.el, 'visibility', a > 0 ? 'visible' : 'hidden');
+    paintChart(ctx, parts.chart, t);
+  }
   if (parts.term) {
-    const lines = state && state.terminalLines ? state.terminalLines.length : parts.term.lines.length;
+    const all = !!(opts && opts.allLines);
+    const lines = !all && state && state.terminalLines ? state.terminalLines.length : parts.term.lines.length;
     parts.term.lines.forEach((line, i) => p.style(line, 'visibility', i < lines ? 'visible' : 'hidden'));
   }
 }
@@ -921,6 +981,8 @@ export function panelFocusRect(ctx, parts, target) {
   let radius = RADIUS.media;
   if (parsed.form === 'panel') {
     el = parts.alpha > 0.01 ? parts.frame : null;
+  } else if ((parsed.form === 'panel:bar' || parsed.form === 'panel:point') && parts.chart) {
+    return parts.alpha > 0.99 ? chartFocusRect(ctx, parts.chart, target) : null;
   } else if (parsed.form === 'panel:row') {
     const i = typeof parsed.index === 'number' ? parsed.index : -1;
     el = parts.term && parts.alpha > 0.01 ? parts.term.lines[i] || null : null;
@@ -961,6 +1023,9 @@ export function panelTexts(ctx, parts) {
       weight: T.weight, text: [`$ ${command}`, ...lines].join('\n'),
     });
   }
+  if (parts.chart) {
+    for (const e of chartTexts(ctx, parts.chart)) out.push({ ...e, alpha: (e.alpha === undefined ? 1 : e.alpha) * parts.alpha });
+  }
   if (parts.label) {
     out.push({
       el: parts.label, role: 'label', critical: false, ink: ctx.roles.color('ink2'), bg: surface,
@@ -968,6 +1033,128 @@ export function panelTexts(ctx, parts) {
     });
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The reel panel beat (owner decision 4, 2026-10-16; aadhi/compose/dynamic/reels.py mirrors every number and rule)
+//
+// In 16:9 `worked_steps` and `key_terms` draw a scene's side panel beside the steps or terms. In 9:16 a panel ABOVE
+// the stack pushed the rows under R-29's floor, so the reel drew none (the scene fell back to board_generic). The
+// owner's decision: a reel side panel is its own short full-stage beat BEFORE the content, never above it.
+//
+// - The panel enters with the scene (PANEL_DELAY, as a 16:9 panel shown from the start) and holds the stage alone
+//   until the beat's END, leaving over REEL_BEAT_EXIT so it is gone as the content starts to enter.
+// - END (`reelWindow`): the Python-planned beat when the scene carries one (a `reveal` event on `panel`: `t` its
+//   start, `dur` its length - Python decides WHEN, reels.py `reel_events`), else the first ANCHORED entrance (an item
+//   a beat or a reveal event reveals: R-17 keeps it on its word), never before PANEL_DELAY + REEL_BEAT_MIN; never
+//   after PANEL_DELAY + REEL_BEAT_MAX while an item no narration anchors is waiting (it would otherwise wait for the
+//   anchored one); and never so late that the content keeps less than REEL_BEAT_MIN of the scene. Every board item
+//   counts (the two templates draw every item of a scene they take).
+// - Content that would have entered during the beat enters as it ends, REEL_STAGGER apart in entrance order
+//   (`reelEntrances`). With compose/timeline.py's reel lead (reels.py `reel_lead`) no anchored item is ever held
+//   back; without it (a timeline built before the lead) the first anchored items wait at most REEL_BEAT_MIN.
+// - The panel shows everything it has in its one appearance: a medium playing from the beat's start, a terminal
+//   card with ALL its output lines (it never returns, so a line the narration reveals later would be dropped), or
+//   the panel's title card. `reelPanelBox`: a medium or a title card contained in the `tall` region (x 60-1020,
+//   y 340-1040, above the caption band), a terminal card in the text column both critical bands hold (R-59).
+// - HOOK (chart_build): a chart / graph panel is drawn by whatever form `panelOf` gives it. Today that is its
+//   authored title (`PANEL_TITLED_KINDS`); when the chart module lands it adds its draw form to `panelOf` /
+//   `buildPanel` / `layoutPanel` / `paintPanel` / `panelTexts` / `panelMediaBox`, and the reel beat - which only
+//   calls those, with `reelPanelBox` as the box - draws the plot full-stage with no change of its own.
+// Every value here is a B2 proposal pending the owner's review.
+// ---------------------------------------------------------------------------------------------
+
+/** The panel holds the stage at least this long (a picture needs about two seconds; R-15's 9:16 gaps 2.5-4 s). */
+export const REEL_BEAT_MIN = 2.0;
+/** ... and at most this long while an item no narration anchors is waiting (R-15's 9:16 "max static 6 s"). */
+export const REEL_BEAT_MAX = 4.0;
+/** It leaves over this long, ending as the content enters (§4.8: an exit 30 % shorter than PANEL_ENTER). */
+export const REEL_BEAT_EXIT = 0.35;
+/** Content the beat held back enters as it ends, this far apart (state.js INITIAL_STAGGER). */
+export const REEL_STAGGER = 0.09;
+/** Two times closer than this are the same instant (the timeline's millisecond rounding). */
+const REEL_EPS = 1e-6;
+
+/**
+ * The Python-planned beat: the earliest `reveal` event on `panel` with a positive `dur`, or null.
+ * @param {TimedScene} scene
+ * @returns {{start: number, end: number} | null}
+ */
+export function reelBeatEvent(scene) {
+  /** @type {{start: number, end: number} | null} */
+  let out = null;
+  for (const e of scene.events || []) {
+    if (!e || e.kind !== 'reveal' || e.target !== 'panel') continue;
+    if (typeof e.t !== 'number' || !Number.isFinite(e.t)) continue;
+    if (typeof e.dur !== 'number' || !Number.isFinite(e.dur) || !(e.dur > 0)) continue;
+    const start = Math.max(0, e.t);
+    if (!out || start < out.start) out = { start, end: start + e.dur };
+  }
+  return out;
+}
+
+/**
+ * The reel panel beat of a scene, `{start, end}` in scene seconds (see the section header; reels.py `reel_window`).
+ * Pure.
+ * @param {TimedScene} scene
+ * @returns {{start: number, end: number}}
+ */
+export function reelWindow(scene) {
+  const planned = reelBeatEvent(scene);
+  if (planned) return planned;
+  const start = PANEL_DELAY;
+  const timings = itemTimings(scene);
+  const anchored = timings.filter((it) => !it.initial).map((it) => it.enter);
+  const waiting = timings.some((it) => it.initial);
+  let end = anchored.length ? Math.max(start + REEL_BEAT_MIN, Math.min(...anchored)) : start + REEL_BEAT_MAX;
+  if (waiting) end = Math.min(end, start + REEL_BEAT_MAX);
+  const duration = Math.max(0, Number(scene.duration) || 0);
+  end = Math.min(end, Math.max(start, duration - REEL_BEAT_MIN));
+  return { start, end: Math.max(start, end) };
+}
+
+/**
+ * Every board item's entrance with the beat (reels.py `reel_entrances`): one that would enter before `end` enters at
+ * `end`, the k-th of them in entrance order `k * REEL_STAGGER` later; the rest keep their `itemTimings` entrance.
+ * Pure.
+ * @param {TimedScene} scene @param {number} end
+ * @returns {Map<string, number>}
+ */
+export function reelEntrances(scene, end) {
+  /** @type {Map<string, number>} */
+  const out = new Map();
+  let k = 0;
+  for (const it of itemTimings(scene)) {
+    if (it.enter < end - REEL_EPS) out.set(it.id, end + REEL_STAGGER * k++);
+    else out.set(it.id, it.enter);
+  }
+  return out;
+}
+
+/**
+ * `itemTimings` with the beat's entrances (`reelEntrances`), in entrance order again (ties keep board order): for a
+ * template that walks its items in the order they enter.
+ * @param {TimedScene} scene @param {number} end
+ * @returns {import('../state.js').ItemTiming[]}
+ */
+export function reelTimings(scene, end) {
+  const at = reelEntrances(scene, end);
+  return itemTimings(scene).map((it) => ({ ...it, enter: /** @type {number} */ (at.get(it.id)) }))
+    .sort((a, b) => a.enter - b.enter || a.order - b.order);
+}
+
+/**
+ * Where the panel stands during its reel beat (9:16 zones): a terminal card in the text column (x 192-780: its text
+ * is critical, R-59) from the title zone's top to the column's bottom; a medium or a title card in the `tall` region.
+ * @param {PanelPlan | null} panel @param {import('../core.js').Zones} zones
+ * @returns {Box}
+ */
+export function reelPanelBox(panel, zones) {
+  if (panel && (panel.draw === 'terminal' || panel.draw === 'chart')) {
+    const col = zones.textColumn;
+    return { x0: col.x0, y0: zones.title.y0, x1: col.x1, y1: col.y1 };
+  }
+  return region({ format: 'portrait' }, 'tall');
 }
 
 /**

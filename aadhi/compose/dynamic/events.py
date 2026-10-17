@@ -19,6 +19,10 @@ events the scene's template draws:
 * ``look_here`` for the pointing cues - a side-panel ``focus`` pulse, an authored highlight (``emphasis``) - and a
   **walk** through the content during a hold, so a hold always has a cue moving (R-16).
 * ``output`` when the narration says what a terminal printed (the ``output`` sync cue).
+* ``draw`` on a chart's bar or point (``panel:bar:<s>:<i>`` / ``panel:point:<s>:<i>``, or a graph's marked point) on the
+  first narrated mention of its category or label, 120 ms before the word (R-17), so the mark is revealed on its beat
+  (§4.3 ``chart_build``); a later mention is a ``look_here`` candidate on it (§4.3 "the named bar takes
+  cue.lookHere"). ``charts.mark_targets`` names the marks.
 
 Every cue (``cue_term`` and ``look_here``) passes R-26's budget - at most :data:`MAX_CONCURRENT_CUES` on screen, at
 most one new cue per :data:`CUE_MIN_GAP` seconds, and never the same target twice within :data:`CUE_REPEAT_GAP` -
@@ -46,6 +50,7 @@ from ...pipeline.richlite import tokenize as rich_spans
 from ...schemas.screenplay import BoardItem
 from ...schemas.timeline import TimedScene, VisualEvent
 from ..sync import MAX_PHRASE_TOKENS, Stream, stem, tokens, word_stream
+from .charts import mark_targets
 
 # R-17: "reveals start 120 ms before word onset" (web/js/dynamic/state.js REVEAL_LEAD, board_generic's rule).
 REVEAL_LEAD: Final = 0.12
@@ -305,17 +310,54 @@ def _look_cues(scene: TimedScene, accepts: Accepts) -> list[VisualEvent]:
     return out
 
 
+def _chart_marks(scene: TimedScene, accepts: Accepts) -> tuple[list[VisualEvent], list[_Cue]]:
+    """A ``draw`` on each chart mark the narration names, at its first mention once the panel is shown (120 ms early,
+    R-17, never before the panel), and a ``look_here`` candidate on the mark's first target at every later mention
+    (R-26's budget applies to those, as to every cue). A label of one-letter words alone cannot be heard
+    (``compose.sync``'s refusal). Only the kinds and forms the template consumes are written."""
+    sp = scene.side_panel
+    if sp is None or not scene.layout.show_side_panel:
+        return [], []
+    stream = word_stream(scene.beats)
+    show = max(0.0, float(sp.show_at))
+    draws: list[VisualEvent] = []
+    looks: list[_Cue] = []
+    for label, targets in mark_targets(sp.panel):
+        phrase = tokens(label)[:MAX_PHRASE_TOKENS]
+        if not phrase or not any(len(t) >= 2 for t in phrase):
+            continue
+        heard = [(at, spoken) for at, spoken in phrase_times(stream, phrase) if at >= show]
+        if not heard:
+            continue
+        first, spoken = heard[0]
+        for target in targets:
+            if accepts("draw", target):
+                draws.append(VisualEvent(t=max(show, round(first - REVEAL_LEAD, 3)), kind="draw", target=target,
+                                         anchored=True, words=spoken))
+        if accepts("look_here", targets[0]):
+            looks += [_Cue(VisualEvent(t=round(at, 3), kind="look_here", target=targets[0], anchored=True, words=w))
+                      for at, w in heard[1:]]
+    return draws, looks
+
+
 def walk_targets(scene: TimedScene, accepts: Accepts) -> list[str]:
     """What an R-16 hold walk points at, in order: a formula's symbols when the template resolves them (the §4.3
-    formula_focus walk), else every board item the template resolves - and the panel last, when it has one."""
+    formula_focus walk), a code item's non-blank lines when the template resolves ``item:line`` (code_walkthrough
+    reads through the program line by line; the indices are the page's ``codeLines``, whose tab expansion keeps the
+    line count), else every board item the template resolves - and the panel last, when it has one."""
     out: list[str] = []
     for item in scene.board:
         if not _targetable(item.id):
             continue
         symbols = [f"{item.id}:var:{v.symbol_latex}" for v in item.variables]
         resolved = [s for s in symbols if accepts("look_here", s)]
+        lines = ([f"{item.id}:line:{n}" for n, text in enumerate((item.code or "").splitlines()) if text.strip()]
+                 if str(getattr(item.kind, "value", item.kind)) == "code" else [])
+        lines = [t for t in lines if accepts("look_here", t)]
         if resolved:
             out += resolved
+        elif lines:
+            out += lines
         elif accepts("look_here", item.id):
             out.append(item.id)
     if scene.side_panel is not None and accepts("look_here", "panel"):
@@ -413,8 +455,10 @@ def scene_events(scene: TimedScene, *, accepts: Accepts, hold_reason: str | None
         return []
     budget = terms if terms is not None else TermBudget()
     var_events = _vars(scene, accepts)
-    plain = [*_reveals(scene, accepts), *var_events, *_draws(scene, var_events, accepts), *_outputs(scene, accepts)]
-    word_cues = [*_term_cues(scene, accepts), *(_Cue(e) for e in _look_cues(scene, accepts))]
+    chart_draws, chart_looks = _chart_marks(scene, accepts)
+    plain = [*_reveals(scene, accepts), *var_events, *_draws(scene, var_events, accepts), *_outputs(scene, accepts),
+             *chart_draws]
+    word_cues = [*_term_cues(scene, accepts), *(_Cue(e) for e in _look_cues(scene, accepts)), *chart_looks]
     visible = [c for c in word_cues if c.event.t + CUE_MIN_VISIBLE <= duration]
     walk = [_Cue(e) for e in _hold_walk(scene, accepts, hold_reason)]
     cues = _budgeted(visible, walk, budget)

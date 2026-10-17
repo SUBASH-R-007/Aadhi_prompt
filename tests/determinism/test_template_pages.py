@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 
 from aadhi.compose.dynamic.preflight import run_preflight
-from aadhi.compose.dynamic.stage_page import open_stage
+from aadhi.compose.dynamic.stage_page import open_stage, placeholder_frames
 from aadhi.schemas.timeline import Timeline
 from tests.compose.dynamic.template_fixtures import fixture_name, fixture_paths, load_fixture
 
@@ -27,8 +27,10 @@ pytestmark = [pytest.mark.slow, pytest.mark.container]
 TOKEN = "template.page"
 PATHS = fixture_paths()
 # every implemented template with fixtures (B2c's three pilots, the demo phase's six and step 4's four)
-PILOTS = ("animation_stage", "chapter_bumper", "check", "definition_card", "formula_focus", "full_bleed_media",
-          "hook_question", "key_terms", "list_build", "media_split", "predict", "recap_retrieval", "worked_steps")
+PILOTS = ("aadhi_intro", "aadhi_recap", "animation_stage", "chapter_bumper", "chart_build", "check",
+          "code_walkthrough", "definition_card", "formula_focus", "full_bleed_media", "hook_question", "key_terms",
+          "kinetic_statement", "list_build", "media_split", "myth_fact", "outro_next", "predict", "recap_retrieval",
+          "worked_steps")
 
 
 def test_every_pilot_has_fixtures_in_both_formats() -> None:
@@ -56,7 +58,7 @@ async def test_fixture_converts_no_tex_after_ready_and_raises_no_page_error(real
     served = load_fixture(path)
     tl = Timeline.model_validate(served)
     async with open_stage(real_app.settings, size=(tl.width, tl.height), token=TOKEN, base_url=real_app.base,
-                          served_timeline=served) as page:
+                          served_timeline=served, frames=placeholder_frames) as page:
         info = await page.info()
         assert await page.page.evaluate("() => window.aadhiStage.texConversions()") == 0, "converted before ready"
         for sc in info.scenes:

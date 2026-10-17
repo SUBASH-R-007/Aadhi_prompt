@@ -1,0 +1,470 @@
+{
+  "board_language": "en-IN",
+  "branding": {
+    "bgm_url": "/branding/bgm.mp3",
+    "bgm_volume": 0.06,
+    "ding_url": null,
+    "mascot_clips": {
+      "center": "/branding/aadhi_center_clean.mp4",
+      "hidden": "/branding/no_aadhi_clean.mp4",
+      "left": "/branding/aadhi_left_clean.mp4",
+      "popup_bottom_left": "/branding/aadhi_popup_clean.mp4",
+      "popup_bottom_right": "/branding/aadhi_popup_clean.mp4",
+      "right": "/branding/aadhi_right_clean.mp4"
+    },
+    "mascot_rig_url": null,
+    "static_background_url": "/branding/static_background.png",
+    "tick_url": null
+  },
+  "captions": [
+    {
+      "end": 1.9,
+      "start": 0.5,
+      "text": "Why does a\nbulb glow?"
+    },
+    {
+      "end": 4.7,
+      "start": 3.7,
+      "text": "By the end,\nyou will"
+    },
+    {
+      "end": 6.25,
+      "start": 4.85,
+      "text": "predict its\ncurrent."
+    }
+  ],
+  "chapters": [
+    {
+      "start": 0.0,
+      "title": "Ohm's Law"
+    }
+  ],
+  "concept_map": [
+    {
+      "depends_on": [],
+      "id": "basics",
+      "kind": "core",
+      "summary": "",
+      "title": "Charge and Current"
+    },
+    {
+      "depends_on": [
+        "basics"
+      ],
+      "id": "ohm",
+      "kind": "core",
+      "summary": "",
+      "title": "Ohm's Law"
+    }
+  ],
+  "estimated": false,
+  "fps": 30,
+  "height": 1920,
+  "intro": null,
+  "language": "en-IN",
+  "learning_objectives": [],
+  "meta": {
+    "asset_storage_keys": {
+      "scene_audio-ks-hook": "assets/scene_audio/scene_audio-ks-hook/x.mp3",
+      "scene_audio-ks-promise": "assets/scene_audio/scene_audio-ks-promise/x.mp3"
+    },
+    "session_number": "Session 3",
+    "session_title": "Ohm's Law",
+    "subject_name": "Basic Electrical Engineering",
+    "unit_name": "Unit 2: DC Circuits"
+  },
+  "presentation": {
+    "caption_style": "clean_pill",
+    "captions_burn": true,
+    "content": {
+      "entity:0": "#0FE3FE",
+      "entity:1": "#C4A4FE",
+      "entity:2": "#FEACE3",
+      "focus": "#F2D935",
+      "ink": "#F3F5F9",
+      "ink2": "#B9BEC7",
+      "mark": "#F2D935",
+      "ok": "#5DD8AA",
+      "warn": "#F8A87F"
+    },
+    "content_alt": {
+      "entity:0": "#0267C7",
+      "entity:1": "#80369E",
+      "entity:2": "#870C62",
+      "focus": "#141822",
+      "ink": "#141822",
+      "ink2": "#484D58",
+      "mark": "#F2D935",
+      "ok": "#016F50",
+      "warn": "#9F4503"
+    },
+    "cue_term_style": "marker",
+    "engine_version": 5,
+    "entity_colors": {
+      "I": 1,
+      "R": 2,
+      "V": 0
+    },
+    "family": "midnight_indigo",
+    "fonts": {
+      "body": "inter",
+      "display": "outfit",
+      "indic": "noto_sans",
+      "mono": "jetbrains_mono"
+    },
+    "format": "portrait",
+    "generated_seconds": 7.05,
+    "mode": "dark",
+    "motion": "calm",
+    "motion_scale": 1.15,
+    "personality": "soft",
+    "safe_zone": "universal",
+    "sfx": false,
+    "style": "dynamic",
+    "text_entrance": "fade_rise"
+  },
+  "scenes": [
+    {
+      "audio_asset_key": "scene_audio-ks-hook",
+      "audio_duration": 1.9,
+      "audio_offset": 0.5,
+      "audio_url": null,
+      "beats": [
+        {
+          "beat_id": "ks-hook-b1",
+          "board_item_id": "q",
+          "captions": [
+            {
+              "end": 1.9,
+              "start": 0.5,
+              "text": "Why does a\nbulb glow?"
+            }
+          ],
+          "end": 2.4,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 0,
+          "narration": "Why does a bulb glow?",
+          "phase": "main",
+          "speech_end": 1.5,
+          "start": 0.5,
+          "visual_cue": null,
+          "words": [
+            {
+              "end": 0.7,
+              "start": 0.5,
+              "text": "Why"
+            },
+            {
+              "end": 0.9,
+              "start": 0.7,
+              "text": "does"
+            },
+            {
+              "end": 1.1,
+              "start": 0.9,
+              "text": "a"
+            },
+            {
+              "end": 1.3,
+              "start": 1.1,
+              "text": "bulb"
+            },
+            {
+              "end": 1.5,
+              "start": 1.3,
+              "text": "glow?"
+            }
+          ]
+        }
+      ],
+      "board": [
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "q",
+          "justification": null,
+          "kind": "question",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "Why does a [[bulb]] glow?",
+          "variables": []
+        }
+      ],
+      "chapter_id": null,
+      "chapter_label": null,
+      "concept_id": "ohm",
+      "duration": 3.2,
+      "events": [
+        {
+          "anchored": true,
+          "dur": null,
+          "kind": "reveal",
+          "sfx": null,
+          "t": 0.38,
+          "target": "q",
+          "words": ""
+        },
+        {
+          "anchored": true,
+          "dur": null,
+          "kind": "cue_term",
+          "sfx": null,
+          "t": 1.1,
+          "target": "q",
+          "words": "bulb"
+        }
+      ],
+      "figures": {},
+      "index": 0,
+      "layout": {
+        "fullscreen_media": false,
+        "mascot_position": "left",
+        "show_side_panel": false
+      },
+      "look": {
+        "background": {
+          "frozen_at": null,
+          "params": {
+            "tone": "bg"
+          },
+          "preset": "mesh_drift",
+          "seed": 1588029178
+        },
+        "hold_reason": null,
+        "presenter": null,
+        "template": "hook_question",
+        "text_fit": {},
+        "tokens": {
+          "bg": "#10132C",
+          "bg-alt": "#181D37",
+          "bg-tint": "#26120C",
+          "block.base": "#A15778",
+          "block.highlight": "#C46979",
+          "block.ink": "#FFFFFF",
+          "block.ink2": "#F6EDF1",
+          "scrim": "#10132CC7",
+          "struct.accent": "#FF936D",
+          "surface": "#252A3F"
+        },
+        "transition_in": {
+          "kind": "cut",
+          "seconds": 0.0
+        },
+        "variant": "question"
+      },
+      "media": null,
+      "objective_ids": [],
+      "p5_code": null,
+      "poster": null,
+      "quiz": null,
+      "scene_id": "ks-hook",
+      "side_panel": null,
+      "start": 0.0,
+      "subtitle": null,
+      "title": "Why bulbs glow",
+      "type": "content"
+    },
+    {
+      "audio_asset_key": "scene_audio-ks-promise",
+      "audio_duration": 2.55,
+      "audio_offset": 0.5,
+      "audio_url": null,
+      "beats": [
+        {
+          "beat_id": "ks-promise-b1",
+          "board_item_id": "t",
+          "captions": [
+            {
+              "end": 1.5,
+              "start": 0.5,
+              "text": "By the end,\nyou will"
+            }
+          ],
+          "end": 1.5,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 0,
+          "narration": "By the end, you will",
+          "phase": "main",
+          "speech_end": 1.5,
+          "start": 0.5,
+          "visual_cue": null,
+          "words": [
+            {
+              "end": 0.7,
+              "start": 0.5,
+              "text": "By"
+            },
+            {
+              "end": 0.9,
+              "start": 0.7,
+              "text": "the"
+            },
+            {
+              "end": 1.1,
+              "start": 0.9,
+              "text": "end,"
+            },
+            {
+              "end": 1.3,
+              "start": 1.1,
+              "text": "you"
+            },
+            {
+              "end": 1.5,
+              "start": 1.3,
+              "text": "will"
+            }
+          ]
+        },
+        {
+          "beat_id": "ks-promise-b2",
+          "board_item_id": null,
+          "captions": [
+            {
+              "end": 3.05,
+              "start": 1.65,
+              "text": "predict its\ncurrent."
+            }
+          ],
+          "end": 3.05,
+          "estimated": false,
+          "fill_item_id": null,
+          "highlight_item_ids": [],
+          "index": 1,
+          "narration": "predict its current.",
+          "phase": "main",
+          "speech_end": 2.65,
+          "start": 1.65,
+          "visual_cue": null,
+          "words": [
+            {
+              "end": 1.983,
+              "start": 1.65,
+              "text": "predict"
+            },
+            {
+              "end": 2.317,
+              "start": 1.983,
+              "text": "its"
+            },
+            {
+              "end": 2.65,
+              "start": 2.317,
+              "text": "current."
+            }
+          ]
+        }
+      ],
+      "board": [
+        {
+          "blank": false,
+          "caption": null,
+          "code": null,
+          "figure_id": null,
+          "headers": null,
+          "id": "t",
+          "justification": null,
+          "kind": "takeaway",
+          "language": null,
+          "latex": null,
+          "misconception_id": null,
+          "rows": null,
+          "source_refs": [],
+          "term": null,
+          "text": "By the end, you will [[predict]] its current.",
+          "variables": []
+        }
+      ],
+      "chapter_id": null,
+      "chapter_label": null,
+      "concept_id": "ohm",
+      "duration": 3.85,
+      "events": [
+        {
+          "anchored": true,
+          "dur": null,
+          "kind": "reveal",
+          "sfx": null,
+          "t": 0.38,
+          "target": "t",
+          "words": ""
+        },
+        {
+          "anchored": true,
+          "dur": null,
+          "kind": "cue_term",
+          "sfx": null,
+          "t": 1.65,
+          "target": "t",
+          "words": "predict"
+        }
+      ],
+      "figures": {},
+      "index": 1,
+      "layout": {
+        "fullscreen_media": false,
+        "mascot_position": "left",
+        "show_side_panel": false
+      },
+      "look": {
+        "background": {
+          "frozen_at": null,
+          "params": {
+            "tone": "bg-alt"
+          },
+          "preset": "mesh_drift",
+          "seed": 960524203
+        },
+        "hold_reason": null,
+        "presenter": null,
+        "template": "kinetic_statement",
+        "text_fit": {},
+        "tokens": {
+          "bg": "#10132C",
+          "bg-alt": "#181D37",
+          "bg-tint": "#26120C",
+          "block.base": "#A15778",
+          "block.highlight": "#C46979",
+          "block.ink": "#FFFFFF",
+          "block.ink2": "#F6EDF1",
+          "scrim": "#10132CC7",
+          "struct.accent": "#FF936D",
+          "surface": "#252A3F"
+        },
+        "transition_in": {
+          "kind": "cut",
+          "seconds": 0.0
+        },
+        "variant": null
+      },
+      "media": null,
+      "objective_ids": [],
+      "p5_code": null,
+      "poster": null,
+      "quiz": null,
+      "scene_id": "ks-promise",
+      "side_panel": null,
+      "start": 3.2,
+      "subtitle": null,
+      "title": "The promise",
+      "type": "content"
+    }
+  ],
+  "schema_version": 3,
+  "screenplay_revision": null,
+  "total_duration": 7.05,
+  "transition_seconds": 0.4,
+  "version_id": null,
+  "width": 1080
+}

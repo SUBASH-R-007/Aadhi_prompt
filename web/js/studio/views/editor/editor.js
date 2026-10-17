@@ -60,6 +60,7 @@ import { localProblems, issuesFromValidationError, issuesByScene } from '../../l
 import { saveDraft, loadDraft, clearDraft, loadPref, savePref } from '../../lib/draftStore.js';
 import { isActive } from '../../lib/jobStages.js';
 import { dynamicRender } from '../../lib/renderOptions.js';
+import { appearanceName, sceneNumberOf } from '../../lib/sceneName.js';
 import { defaultManimTemplate, templatesOf } from '../../lib/manimTemplates.js';
 import { debounce, deepEqual, formatRelative, isEditableTarget, uid } from '../../util.js';
 import { href } from '../../router.js';
@@ -1503,10 +1504,11 @@ export async function mount(container, { app, params, query, signal }) {
   /** "Scene 3 (Title): message" for a render preflight item. @param {any} it */
   function preflightLine(it) {
     // Scenes are numbered as in the scene list (hidden scenes counted): the live draft first (unsaved moves), then
-    // the server's `scene_number`, then the timeline position of older servers.
+    // the server's `scene_number`, then the timeline position of older servers; Aadhi's synthesised intro or recap,
+    // which is not in the scene list, by its name (lib/sceneName.js), never by its timeline position.
     const i = it && it.scene_id ? E.sceneIndex(draft, it.scene_id) : -1;
-    const num = i >= 0 ? i + 1 : Number.isInteger(it && it.scene_number) ? it.scene_number : Number.isInteger(it && it.scene_index) ? it.scene_index + 1 : null;
-    const where = num ? `Scene ${num}` : 'A scene';
+    const num = i >= 0 ? i + 1 : sceneNumberOf(it);
+    const where = num ? `Scene ${num}` : appearanceName(it) || 'A scene';
     return `${where}${it && it.title ? ` (${it.title})` : ''}: ${(it && (it.message || it.reason)) || ''}`;
   }
 

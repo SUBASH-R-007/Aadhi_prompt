@@ -1,0 +1,360 @@
+{
+ "board_language": "en-IN",
+ "branding": {
+  "bgm_url": null,
+  "bgm_volume": 0.06,
+  "ding_url": null,
+  "mascot_clips": {},
+  "mascot_rig_url": null,
+  "static_background_url": null,
+  "tick_url": null
+ },
+ "captions": [
+  {
+   "end": 1.3,
+   "start": 0.5,
+   "text": "Next up, series circuits."
+  },
+  {
+   "end": 3.3,
+   "start": 1.6,
+   "text": "So: can a thin wire really stop a current?"
+  },
+  {
+   "end": 6.3,
+   "start": 4.5,
+   "text": "Watch again: can a wire stop current?"
+  }
+ ],
+ "chapters": [
+  {
+   "start": 0.0,
+   "title": "That's a wrap"
+  },
+  {
+   "start": 4.0,
+   "title": "on-p-loop"
+  }
+ ],
+ "concept_map": [],
+ "estimated": false,
+ "fps": 30,
+ "height": 1920,
+ "intro": null,
+ "language": "en-IN",
+ "learning_objectives": [],
+ "meta": {
+  "session_number": "Session 3",
+  "session_title": "Ohm's law",
+  "subject_name": "Basic Electrical Engineering",
+  "unit_name": "Unit 2: DC Circuits"
+ },
+ "presentation": {
+  "caption_style": "bold_outline",
+  "captions_burn": true,
+  "content": {
+   "entity:0": "#0FE3FE",
+   "entity:1": "#C4A4FE",
+   "entity:2": "#FEACE3",
+   "focus": "#F2D935",
+   "ink": "#F3F5F9",
+   "ink2": "#B9BEC7",
+   "mark": "#F2D935",
+   "ok": "#5DD8AA",
+   "warn": "#F8A87F"
+  },
+  "content_alt": {
+   "entity:0": "#0267C7",
+   "entity:1": "#80369E",
+   "entity:2": "#870C62",
+   "focus": "#141822",
+   "ink": "#141822",
+   "ink2": "#484D58",
+   "mark": "#F2D935",
+   "ok": "#016F50",
+   "warn": "#9F4503"
+  },
+  "cue_term_style": "marker",
+  "engine_version": 5,
+  "family": "midnight_indigo",
+  "fonts": {
+   "body": "inter",
+   "display": "poppins",
+   "indic": "anek",
+   "mono": "jetbrains_mono"
+  },
+  "format": "portrait",
+  "generated_seconds": 7.0,
+  "mode": "dark",
+  "motion": "standard",
+  "motion_scale": 1.15,
+  "personality": "soft",
+  "safe_zone": "universal",
+  "sfx": false,
+  "style": "dynamic",
+  "text_entrance": "fade_rise"
+ },
+ "scenes": [
+  {
+   "audio_asset_key": null,
+   "audio_duration": 2.8,
+   "audio_offset": 0.5,
+   "audio_url": null,
+   "beats": [
+    {
+     "beat_id": "on-p-cta-b1",
+     "board_item_id": null,
+     "captions": [
+      {
+       "end": 1.3,
+       "start": 0.5,
+       "text": "Next up, series circuits."
+      }
+     ],
+     "end": 1.6,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 0,
+     "narration": "Next up, series circuits.",
+     "phase": "main",
+     "speech_end": 1.3,
+     "start": 0.5,
+     "visual_cue": null,
+     "words": []
+    },
+    {
+     "beat_id": "on-p-cta-b2",
+     "board_item_id": "on-p-i1",
+     "captions": [
+      {
+       "end": 3.3,
+       "start": 1.6,
+       "text": "So: can a thin wire really stop a current?"
+      }
+     ],
+     "end": 3.6,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 1,
+     "narration": "So: can a thin wire really stop a current?",
+     "phase": "main",
+     "speech_end": 3.3,
+     "start": 1.6,
+     "visual_cue": null,
+     "words": []
+    }
+   ],
+   "board": [
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "on-p-i1",
+     "justification": null,
+     "kind": "paragraph",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "So: can a thin wire really stop a current?",
+     "variables": []
+    }
+   ],
+   "chapter_id": null,
+   "chapter_label": null,
+   "concept_id": null,
+   "duration": 4.0,
+   "events": [
+    {
+     "anchored": true,
+     "dur": null,
+     "kind": "reveal",
+     "sfx": null,
+     "t": 1.48,
+     "target": "on-p-i1",
+     "words": ""
+    }
+   ],
+   "figures": {},
+   "index": 0,
+   "layout": {
+    "fullscreen_media": false,
+    "mascot_position": "left",
+    "show_side_panel": true
+   },
+   "look": {
+    "background": {
+     "frozen_at": null,
+     "params": {
+      "tone": "bg"
+     },
+     "preset": "mesh_drift",
+     "seed": 8301
+    },
+    "hold_reason": null,
+    "presenter": null,
+    "refs": {
+     "next": {
+      "title": "Part 2: Series circuits"
+     }
+    },
+    "template": "outro_next",
+    "text_fit": {},
+    "tokens": {
+     "bg": "#10132C",
+     "bg-alt": "#181D37",
+     "bg-tint": "#26120C",
+     "block.base": "#A15778",
+     "block.highlight": "#C46979",
+     "block.ink": "#FFFFFF",
+     "block.ink2": "#F6EDF1",
+     "scrim": "#10132CC7",
+     "struct.accent": "#FF936D",
+     "surface": "#252A3F"
+    },
+    "transition_in": {
+     "kind": "cut",
+     "seconds": 0.0
+    },
+    "variant": null
+   },
+   "media": null,
+   "objective_ids": [],
+   "p5_code": null,
+   "poster": null,
+   "quiz": null,
+   "scene_id": "on-p-cta",
+   "side_panel": null,
+   "start": 0.0,
+   "subtitle": null,
+   "title": "That's a wrap",
+   "type": "summary"
+  },
+  {
+   "audio_asset_key": null,
+   "audio_duration": 1.8,
+   "audio_offset": 0.5,
+   "audio_url": null,
+   "beats": [
+    {
+     "beat_id": "on-p-loop-b1",
+     "board_item_id": "on-p-i2",
+     "captions": [
+      {
+       "end": 2.3,
+       "start": 0.5,
+       "text": "Watch again: can a wire stop current?"
+      }
+     ],
+     "end": 2.6,
+     "estimated": false,
+     "fill_item_id": null,
+     "highlight_item_ids": [],
+     "index": 0,
+     "narration": "Watch again: can a wire stop current?",
+     "phase": "main",
+     "speech_end": 2.3,
+     "start": 0.5,
+     "visual_cue": null,
+     "words": []
+    }
+   ],
+   "board": [
+    {
+     "blank": false,
+     "caption": null,
+     "code": null,
+     "figure_id": null,
+     "headers": null,
+     "id": "on-p-i2",
+     "justification": null,
+     "kind": "takeaway",
+     "language": null,
+     "latex": null,
+     "misconception_id": null,
+     "rows": null,
+     "source_refs": [],
+     "term": null,
+     "text": "Watch again: can a wire stop current?",
+     "variables": []
+    }
+   ],
+   "chapter_id": null,
+   "chapter_label": null,
+   "concept_id": null,
+   "duration": 3.0,
+   "events": [
+    {
+     "anchored": true,
+     "dur": null,
+     "kind": "reveal",
+     "sfx": null,
+     "t": 0.38,
+     "target": "on-p-i2",
+     "words": ""
+    }
+   ],
+   "figures": {},
+   "index": 1,
+   "layout": {
+    "fullscreen_media": false,
+    "mascot_position": "left",
+    "show_side_panel": true
+   },
+   "look": {
+    "background": {
+     "frozen_at": null,
+     "params": {
+      "tone": "bg"
+     },
+     "preset": "mesh_drift",
+     "seed": 8302
+    },
+    "hold_reason": null,
+    "presenter": null,
+    "template": "outro_next",
+    "text_fit": {},
+    "tokens": {
+     "bg": "#10132C",
+     "bg-alt": "#181D37",
+     "bg-tint": "#191A06",
+     "block.base": "#00886C",
+     "block.highlight": "#489F5F",
+     "block.ink": "#14161C",
+     "block.ink2": "#1C2D3D",
+     "scrim": "#10132CC7",
+     "struct.accent": "#BBBC22",
+     "surface": "#252A3F"
+    },
+    "transition_in": {
+     "kind": "crossfade",
+     "seconds": 0.45
+    },
+    "variant": null
+   },
+   "media": null,
+   "objective_ids": [],
+   "p5_code": null,
+   "poster": null,
+   "quiz": null,
+   "scene_id": "on-p-loop",
+   "side_panel": null,
+   "start": 4.0,
+   "subtitle": null,
+   "title": "",
+   "type": "summary"
+  }
+ ],
+ "schema_version": 3,
+ "screenplay_revision": null,
+ "total_duration": 7.0,
+ "transition_seconds": 0.4,
+ "version_id": null,
+ "width": 1080
+}

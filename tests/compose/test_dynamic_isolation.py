@@ -148,7 +148,9 @@ def test_a_forty_scene_dynamic_preview_builds_within_budget() -> None:
     manifest = make_manifest(sp)
     settings = Settings(_env_file=None, dynamic_enabled=True)
     tl = preview_timeline(sp, manifest, settings=settings)  # warm-up: imports and the first build
-    assert tl.presentation is not None and len(tl.scenes) == SCENES and len(tl.chapters) == 5
+    # Aadhi's synthesised intro opens it (step 5: every Dynamic video opens with Aadhi), inside the first chapter
+    assert tl.presentation is not None and len(tl.scenes) == SCENES + 1 and len(tl.chapters) == 5
+    assert tl.scenes[0].look is not None and tl.scenes[0].look.template == "aadhi_intro"
     for build in (preview_timeline, build_timeline):
         cpu: list[float] = []
         wall: list[float] = []

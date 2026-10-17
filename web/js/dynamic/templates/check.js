@@ -18,16 +18,28 @@
  *
  * Kinds (§4.3: `mcq` <= 4 options and 16:9 only, `free_recall`, `true_false`, `apply`; a reel takes free recall or
  * true / false only, R-06) are read from the **data**, never from the stored variant: `kindOf` gives `free_recall`
- * without options, `true_false` with two and `mcq` with more, which is `direct.variant_for`'s own rule. `apply` is a
+ * without options, `true_false` with two and `mcq` with more, which is `direct.variant_for`'s own rule; what a
+ * format DRAWS is `drawnKind` (a reel's reduced mcq is drawn as two options). `apply` is a
  * one-step problem with no options, so it is laid out exactly as `free_recall` (direct.py never stores it, and the
  * slot table has one `default` variant per format, so a stored variant can never disagree with the box the page lays
  * text out in - the drift review D7 found with `definition_card`).
  *
- * More options than the format takes (`MAX_OPTIONS`, templates.py `CHECK_MAX_OPTIONS`: 4 in 16:9, 2 in 9:16) is not
- * laid out small, hidden or dropped: the scene goes to `board_generic` **whole** (`drawsScene`), whose quiz stack
- * compacts and collapses cards, with every hook handed on. That is plan §1.4's invariant 2 (never drop content) and
- * the CG-2 parity rule (`_fit_check` must score 0 what this refuses), and it is what a 9:16 build of a 4-option
- * lesson quiz does - a reel's own quiz has two options by R-06.
+ * More options than 16:9 takes (`MAX_OPTIONS.landscape`, templates.py `CHECK_MAX_OPTIONS`: 4; the schema allows 5)
+ * is not laid out small, hidden or dropped: the scene goes to `board_generic` **whole** (`drawsScene`), whose quiz
+ * stack compacts and collapses cards, with every hook handed on. That is plan §1.4's invariant 2 (never drop content)
+ * and the CG-2 parity rule (`_fit_check` must score 0 what this refuses).
+ *
+ * **A reel quiz is a two-option check** (owner decision 4, 2026-10-16; R-06 gives a reel a single answer, §4.3 `mcq`
+ * is 16:9 only): a 9:16 quiz with more than `MAX_OPTIONS.portrait` (2) options draws exactly two tiles - the correct
+ * answer and the **strongest distractor** (`strongestDistractor`), in the order the canonicaliser shuffled them, so
+ * the answer is not always first (`shownOptions`). The strongest distractor, deterministically from the data the
+ * screenplay has: (1) the first wrong option tagged with a misconception (`QuizTiming.option_misconception_ids`,
+ * read when the timeline carries it), else (2) the first wrong option with a written rationale (a non-empty
+ * `feedback_wrong`), else (3) the first wrong option - "first" in stored order (aadhi/compose/dynamic/reels.py
+ * `strongest_distractor` mirrors it). This is the owner's deliberate reduction, the one place a check leaves options
+ * out; a two-option reel check is drawn like a `true_false` one (no letters, text centred), and a tile keeps its
+ * stored index, so an `option:<i>` event or look_here still names the option it was written for (an event on an
+ * option the reel leaves out names nothing on the page and is skipped). The 16:9 `mcq` is unchanged.
  *
  * `feedback_wrong` (per-option feedback) is the live player's, as in B1: neither this template nor `board_generic`
  * draws it in an MP4, and §4.3 gives the reveal the explanation line only.
@@ -181,7 +193,8 @@ export const SIZE_STEP = 4;
 
 /**
  * The most options a format's check draws (templates.py `CHECK_MAX_OPTIONS`; §4.3: `mcq` is <= 4 options and 16:9
- * only, and 9:16 takes two). More than this is `board_generic`'s whole scene, never a tile squeezed past R-29.
+ * only, and 9:16 takes two). More than this in 16:9 is `board_generic`'s whole scene, never a tile squeezed past
+ * R-29; more in 9:16 is reduced to the correct answer and the strongest distractor (owner decision 4, `shownOptions`).
  */
 export const MAX_OPTIONS = Object.freeze({ landscape: 4, portrait: 2 });
 
@@ -435,22 +448,72 @@ export function kindOf(scene) {
 }
 
 /**
- * The look variant `direct.variant_for` stores for this scene in `fmt` (`kindOf`, or `free_recall` when the format
- * has no `mcq`): the page draws what the data says, so this is for the tests that pin the two together.
+ * The strongest distractor of a quiz scene (owner decision 4; see the module header): the index of (1) the first
+ * wrong option tagged with a misconception (`quiz.option_misconception_ids`, when the timeline carries it), else (2)
+ * the first wrong option with a non-empty `feedback_wrong`, else (3) the first wrong option; -1 without a wrong option
+ * (or without a quiz). Indices are the quiz's own (`checkItems(scene).options`). Pure; reels.py
+ * `strongest_distractor` mirrors it.
+ * @param {TimedScene} scene
+ */
+export function strongestDistractor(scene) {
+  const q = quizOf(scene);
+  if (!q) return -1;
+  const { options, correct } = checkItems(scene);
+  const wrong = options.map((_, i) => i).filter((i) => i !== correct);
+  if (!wrong.length) return -1;
+  /** @param {unknown} v */
+  const said = (v) => typeof v === 'string' && v.trim() !== '';
+  const ids = /** @type {any} */ (q).option_misconception_ids;
+  const tagged = Array.isArray(ids) ? wrong.find((i) => said(ids[i])) : undefined;
+  if (tagged !== undefined) return tagged;
+  const feedback = Array.isArray(q.feedback_wrong) ? q.feedback_wrong : [];
+  const reasoned = wrong.find((i) => said(feedback[i]));
+  return reasoned !== undefined ? reasoned : wrong[0];
+}
+
+/**
+ * The options the check draws in `format`, each with its stored index `i` (what `option:<i>` names) and its text, in
+ * stored order: every option, except a 9:16 quiz with more than `MAX_OPTIONS.portrait`, which draws the correct
+ * answer and the strongest distractor (owner decision 4). Pure.
+ * @param {TimedScene} scene @param {'landscape' | 'portrait'} format
+ * @returns {{i: number, text: string}[]}
+ */
+export function shownOptions(scene, format) {
+  const { options, correct } = checkItems(scene);
+  const all = options.map((text, i) => ({ i, text }));
+  if (format !== 'portrait' || all.length <= MAX_OPTIONS.portrait) return all;
+  const other = strongestDistractor(scene);
+  return all.filter((o) => o.i === correct || o.i === other);
+}
+
+/**
+ * The kind a format DRAWS (`kindOf` over `shownOptions`): a reel's reduced mcq is a two-option check, drawn like
+ * `true_false`. The same as `kindOf` in 16:9.
+ * @param {TimedScene} scene @param {'landscape' | 'portrait'} format
+ * @returns {'free_recall' | 'true_false' | 'mcq'}
+ */
+export function drawnKind(scene, format) {
+  const n = shownOptions(scene, format).length;
+  return n === 0 ? 'free_recall' : n === 2 ? 'true_false' : 'mcq';
+}
+
+/**
+ * The look variant `direct.variant_for` stores for this scene in `fmt` (`drawnKind`: a reel's reduced mcq is its
+ * two-option `true_false`): the page draws what the data says, so this is for the tests that pin the two together.
  * @param {TimedScene} scene @param {'landscape' | 'portrait'} fmt
  */
 export function variantOf(scene, fmt) {
-  const kind = kindOf(scene);
-  return kind === 'mcq' && fmt !== 'landscape' ? 'free_recall' : kind;
+  return drawnKind(scene, fmt);
 }
 
-/** Whether a tile shows its letter (§4.3: `mcq`'s "<= 4 options"; a True / False pair needs no A / B).
- * @param {TimedScene} scene */
-export const showsLetters = (scene) => kindOf(scene) === 'mcq';
+/** Whether a tile shows its letter (§4.3: `mcq`'s "<= 4 options"; a True / False pair, or a reel's two options, needs
+ * no A / B). @param {TimedScene} scene @param {'landscape' | 'portrait'} [format] */
+export const showsLetters = (scene, format = 'landscape') => drawnKind(scene, format) === 'mcq';
 
 /**
  * Whether this template draws the scene whole in `format` (templates.py `_fit_check` must score 0 otherwise - the
- * CG-2 parity rule): a quiz scene with a question, 2 to `MAX_OPTIONS[format]` options and a correct index among them,
+ * CG-2 parity rule): a quiz scene with a question, at least 2 options - at most `MAX_OPTIONS.landscape` in 16:9, any
+ * number in 9:16 (more than two are reduced, owner decision 4: `shownOptions`) - and a correct index among them,
  * or a board scene with exactly one `question` item with text (§4.3's free recall / apply, whose answer is its
  * `justification`) and at most one `heading`; in both forms nothing else to show - no scene medium, no poster and no
  * shown side panel, which §4.3 gives a check none of and `mediaBox` therefore plans no box for (review D5: a picture
@@ -476,8 +539,8 @@ export function drawsScene(scene, format) {
     // a quiz scene carries no board item (its question is the quiz's); one that does would lose it here
     if (questions > 0) return false;
     const { question, options, correct } = checkItems(scene);
-    return !!question && options.length >= 2 && options.length <= MAX_OPTIONS[format]
-      && correct >= 0 && correct < options.length;
+    const cap = format === 'portrait' ? Infinity : MAX_OPTIONS[format];
+    return !!question && options.length >= 2 && options.length <= cap && correct >= 0 && correct < options.length;
   }
   return questions === 1 && !!checkItems(scene).question;
 }
@@ -536,7 +599,8 @@ export function anyEvent(scene, kind) {
  * The scene's timetable for this template (pure; scene-relative seconds):
  * - `enter`: when the question enters (a quiz starts with the scene; a board form at its item's entrance);
  * - `label`: when the label enters (a heading item's own entrance, else the question's);
- * - `options`: each option's entrance (§4.3's 100 ms stagger after the question, or its own `reveal` event);
+ * - `options`: each SHOWN option's entrance, aligned with `shownOptions` (§4.3's 100 ms stagger after the question,
+ *   by drawn position, or its own `reveal` event on `option:<stored index>`);
  * - `ring`: the think ring's start and length, or null when there is nothing to think about. A `countdown` event
  *   first, then a quiz's own clock (`countdown_start`, `countdown_seconds`), else §1.4's think time from the words on
  *   screen; always cut off at the reveal, so the ring's time is over exactly when the answer appears (R-07);
@@ -549,7 +613,9 @@ export function anyEvent(scene, kind) {
  *   revealAt: number | null, explainAt: number | null}}
  */
 export function timetable(scene, format) {
-  const { label, item, question, options, explanation } = checkItems(scene);
+  const { label, item, question, explanation } = checkItems(scene);
+  const shown = shownOptions(scene, format);
+  const options = shown.map((o) => o.text);
   const quiz = quizOf(scene);
   const duration = Math.max(0, Number(scene.duration) || 0);
   const timings = itemTimings(scene);
@@ -557,9 +623,9 @@ export function timetable(scene, format) {
   const enter = timing ? timing.enter : 0;
   const head = label && label.item ? timings.find((x) => x.id === /** @type {any} */ (label.item).id) : null;
   // §4.3's 100 ms stagger, unless the plan gave an option a `reveal` event of its own
-  const optionAt = options.map((_, i) => {
-    const ev = eventAt(scene, 'reveal', `option:${i}`);
-    return ev ? Math.max(enter, ev.t) : enter + OPTION_DELAY + OPTION_STAGGER * i;
+  const optionAt = shown.map((o, k) => {
+    const ev = eventAt(scene, 'reveal', `option:${o.i}`);
+    return ev ? Math.max(enter, ev.t) : enter + OPTION_DELAY + OPTION_STAGGER * k;
   });
 
   /** @type {number | null} */
@@ -605,14 +671,15 @@ export function timetable(scene, format) {
 }
 
 /**
- * Every TeX string the template renders for the scene (the static `tex` hook; render.js converts them before
- * `ready`): the `$...$` spans of the label, the question, every option and the explanation, inline (`richWords`
- * mounts each with display off), in the order they are built.
- * @param {TimedScene} scene
+ * Every TeX string the template renders for the scene in `format` (the static `tex` hook; render.js converts them
+ * before `ready`): the `$...$` spans of the label, the question, every option drawn (`shownOptions`) and the
+ * explanation, inline (`richWords` mounts each with display off), in the order they are built.
+ * @param {TimedScene} scene @param {'landscape' | 'portrait'} [format]
  * @returns {{tex: string, display: boolean}[]}
  */
-export function texOf(scene) {
-  const { label, question, options, explanation } = checkItems(scene);
+export function texOf(scene, format = 'landscape') {
+  const { label, question, explanation } = checkItems(scene);
+  const options = shownOptions(scene, format).map((o) => o.text);
   /** @type {{tex: string, display: boolean}[]} */
   const out = [];
   /** @param {string | null | undefined} text */
@@ -653,7 +720,7 @@ export default {
     const plan = timetable(scene, format);
     const fixes = fixesOf(ctx.look);
     const baseline = !!ctx.motion && ctx.motion.entrance === 'baseline_reveal';
-    const letters = showsLetters(scene);
+    const letters = showsLetters(scene, format);
     const surface = ctx.roles.color('surface');
     const ink = ctx.roles.color('ink');
     const ink2 = ctx.roles.color('ink2');
@@ -739,8 +806,10 @@ export default {
       ring = { box, holder, arc, num, length: 2 * Math.PI * r, alpha: 0, text: '' };
     }
 
-    // one tile per option, on `surface`: the letter (mcq), the text, and the `done` state's ok check and ok border
-    const options = data.options.map((text, i) => {
+    // one tile per option drawn (`shownOptions`: a reel's mcq is its correct answer and strongest distractor), on
+    // `surface`: the letter (mcq), the text, and the `done` state's ok check and ok border. `i` is the stored index
+    // (what `option:<i>` names), `k` the drawn position
+    const options = shownOptions(scene, format).map(({ i, text }, k) => {
       const lh = lineHeight('body', text);
       const body = h('div', {
         class: 'dyn-ck-o', dir: 'auto',
@@ -771,8 +840,8 @@ export default {
       holder.style.position = 'absolute';
       root.appendChild(holder);
       return {
-        i, text, card, body, letter, parts, holder, words, tex, lh,
-        correct: i === data.correct, enter: plan.options[i] || 0,
+        i, k, text, card, body, letter, parts, holder, words, tex, lh,
+        correct: i === data.correct, enter: plan.options[k] || 0,
         size: L.option.max, min: L.option.min, overflow: 0, alpha: 0,
       };
     });
@@ -789,7 +858,7 @@ export default {
     ctx.root.appendChild(root);
     return {
       root, head, question, ring, options, explain, plan, letters, surface, ink, ink2,
-      kind: kindOf(scene), item: data.item, label: data.label,
+      kind: drawnKind(scene, format), item: data.item, label: data.label,
     };
   },
 
@@ -1123,15 +1192,15 @@ export default {
   },
 
   /**
-   * Static: every TeX string the template renders for the scene (`texOf`; the same in both formats, but what it draws
-   * is not: a scene with more options than the format takes is board_generic's).
+   * Static: every TeX string the template renders for the scene (`texOf` over the options the format draws; a
+   * scene with more options than 16:9 takes is board_generic's).
    * @param {TimedScene} scene
    * @param {import('../../shared/types.js').ResolvedLook | null} look
    * @param {'landscape' | 'portrait'} fmt
    */
   tex(scene, look, fmt) {
     if (!drawsScene(scene, fmt)) return typeof boardGeneric.tex === 'function' ? boardGeneric.tex(scene, look, fmt) : [];
-    return texOf(scene);
+    return texOf(scene, fmt);
   },
 
   /**
