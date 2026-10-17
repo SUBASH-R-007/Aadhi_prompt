@@ -136,6 +136,14 @@ to the lead; the evidence is in the review records of the last three phases):
 
 ## Owner decisions
 
+**2026-10-17, after step 5:**
+- **Crossfade determinism:** accept `will-change: opacity` on the scene layer (the integrator's measured fix for the
+  translucent caption pill blending differently by seek history; it changes 7,314 frames over 67 fixtures, the two
+  B1-shaped timelines unchanged), provided a pixel diff shows the changes are compositing-level only and the
+  1x/3x/reverse gate passes on every fixture.
+- **Reel text room:** keep the reel slots at legible sizes; the lesson planner (B4) writes a shorter reel-specific
+  version of long quiz and step text. Until then such reel scenes keep falling back to `board_generic`.
+
 **2026-10-16, the five waiting decisions (settled; carried out in STEP 5):**
 1. **Charts:** build `chart_build` with the vendored Chart.js (marks and gridlines in canvas, every label as page
    text, bars/points revealed on their beats). Graph/chart panels inside other templates draw real plots too.
