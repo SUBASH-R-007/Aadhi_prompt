@@ -28,6 +28,19 @@ in §D and goes into the design's B3 as-built notes when the step lands.
 end of B3-0, **O17** semantics before B3a, **O-B9** before B3b's inheritance and before L2. Everything else has a
 default that applies if unanswered (§5).
 
+## Owner answers (2026-10-17)
+
+- **O1 accent policy: (b).** OpenAI stays primary; an OpenAI voice with an owner-approved Indian-English style
+  instruction counts as local for R-39 (one male and one female variant, approved by ear from the spike samples).
+  If the owner does not approve the samples, fall back to (a) or (c) by asking again.
+- **O17 stored voices: FREEZE.** A built lecture keeps the voice it was made with, including one built keyless on
+  Edge; moving it to OpenAI is an explicit teacher re-voice. (Lands with or after the tts-openai branch.)
+- **O-B9 stored B2-era Dynamic lectures: unchanged until the teacher acts.** Legacy voicing and the B1 mix; on
+  Regenerate keep the narrator speaker and select music fresh (the placeholder "off" was never a teacher's choice).
+- **O0 paid spike: the owner runs it.** The lead prepares a self-contained spike script that reads `OPENAI_API_KEY`
+  from the owner's environment; the owner runs it once and the lead analyses the samples. No key enters a session.
+- Every other decision takes the plan's stated default until the owner says otherwise.
+
 ## 0. Starting state (what the plan depends on)
 
 ### 0.1 `tts-openai` as observed 2026-10-17
