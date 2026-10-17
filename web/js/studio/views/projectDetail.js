@@ -15,6 +15,9 @@
  * render into "open the editor" first. Each render says whether it matches the current script
  * (`matches_current`: "Up to date" / "Out of date"); a failed one says why and can be tried again.
  * Render and job numbers, revisions and raw job stages are technical details shown only with `?debug`.
+ * "Voice…" (each version's actions) says which voice the built lecture keeps (GET /api/versions/{id} `voice`, owner
+ * decision O17: editing or rebuilding never changes it) and is the teacher's explicit re-voice
+ * (POST /api/versions/{id}/voice), with what narrating every scene again costs in the chosen voice.
  */
 
 import { h, clear } from '../../shared/dom.js';
@@ -400,6 +403,7 @@ export function mount(container, { app, params, query }) {
         [
           { label: 'Duplicate', icon: 'copy', onClick: () => void duplicate(v), disabled: !EDITABLE_STATUSES.has(v.status) },
           { label: 'Translate…', icon: 'globe', onClick: () => void translate(v), disabled: !EDITABLE_STATUSES.has(v.status) },
+          { label: 'Voice…', icon: 'voice', onClick: () => void changeVoice(v), disabled: !EDITABLE_STATUSES.has(v.status) },
           { label: 'Set as current', icon: 'check', onClick: () => void setCurrent(v), disabled: isCurrent },
           { label: 'Show renders', icon: 'film', onClick: () => showRenders(v.id) },
           { label: 'How Aadhi read the source', icon: 'file', onClick: () => app.navigate(href('sourceReport', { id: p.id, vid: v.id })) },
@@ -555,6 +559,116 @@ export function mount(container, { app, params, query }) {
     if (!res || !res.job) return;
     await load();
     void jobModal(`Translating to ${lang.value}`, res.job, { onFinished: () => void load() });
+  }
+
+  /**
+   * The lecture's voice (owner decision O17): a built lecture keeps the voice it was made with whenever it is edited or
+   * rebuilt, so this dialog says which one that is and is the one way to change it (a re-voice: every scene is
+   * narrated again in the chosen voice, paid with a paid voice provider; `voice.revoice_usd` says about how much).
+   * @param {any} v
+   */
+  async function changeVoice(v) {
+    let meta;
+    let version;
+    try {
+      [meta, version] = await Promise.all([app.meta(), get(`/api/versions/${v.id}`)]);
+    } catch (err) {
+      app.reportError(err, 'Could not read the lecture.');
+      return;
+    }
+    const kept = version && version.voice ? version.voice : null;
+    const options = (version && version.generation_meta && version.generation_meta.options) || data.options || {};
+    const tts = (meta && meta.tts) || { providers: [] };
+    const providers = Array.isArray(tts.providers) ? tts.providers : [];
+    const labelOf = (/** @type {string} */ id) => {
+      const info = providers.find((/** @type {any} */ p) => p.id === id);
+      return info ? info.label : id;
+    };
+    const voiceName = (/** @type {string} */ pid, /** @type {string} */ id) => {
+      const info = providers.find((/** @type {any} */ p) => p.id === pid);
+      const found = info && Array.isArray(info.voices) ? info.voices.find((/** @type {any} */ x) => x.id === id) : null;
+      return found ? found.label : id;
+    };
+    const configured = (/** @type {string} */ id) => providers.some((/** @type {any} */ p) => p.id === id && p.configured !== false);
+    const defaultInfo = providers.find((/** @type {any} */ p) => p.id === tts.default_provider);
+    const start = kept ? (configured(kept.provider) ? kept.provider : '') : String(options.tts_provider || '');
+    const provider = select({
+      options: [
+        { value: '', label: `Server default${defaultInfo ? ` (${defaultInfo.label})` : ''}` },
+        ...providers.map((/** @type {any} */ p) => ({ value: p.id, label: p.configured ? p.label : `${p.label} (not configured)`, disabled: !p.configured })),
+      ],
+      value: start,
+    });
+    const voice = select({ options: [{ value: '', label: 'Default voice for the language' }] });
+    const cost = h('p', { class: 'muted small', dataset: { voiceCost: '' } });
+    const fillVoices = () => {
+      const current = voice.value || (kept ? kept.voice : String(options.tts_voice || ''));
+      const target = narratingVoiceProvider(meta, provider.value);
+      clear(voice);
+      voice.appendChild(h('option', { value: '' }, 'Default voice for the language'));
+      const listed = voicesFor(meta, target, v.language);
+      for (const vo of listed) {
+        voice.appendChild(h('option', { value: vo.id }, `${vo.label} (${vo.language})`));
+      }
+      // The kept voice is always offered with its provider (a TTS_VOICE or another language's voice may be missing
+      // from the list), so the dialog opens on the voice the lecture has rather than on a paid change.
+      if (kept && target === kept.provider && !listed.some((vo) => vo.id === kept.voice)) {
+        voice.appendChild(h('option', { value: kept.voice }, voiceName(kept.provider, kept.voice)));
+      }
+      voice.value = [...voice.options].some((o) => o.value === current) ? current : '';
+    };
+    /** The voice a re-voice with these choices narrates with: "Default voice for the language" is the provider's
+     * voice for the lecture (`voice.default_voices`, as the build picks it). */
+    const effectiveVoice = (/** @type {string} */ target) =>
+      voice.value || (kept && kept.default_voices ? String(kept.default_voices[target] || '') : '');
+    const describe = () => {
+      const target = narratingVoiceProvider(meta, provider.value);
+      if (!kept) {
+        cost.textContent = `The lecture is not narrated yet: its build narrates it with ${labelOf(target)}.`;
+        return;
+      }
+      if (target === kept.provider && effectiveVoice(target) === kept.voice) {
+        cost.textContent = 'This is the voice the lecture has: nothing is narrated again.';
+        return;
+      }
+      const usd = kept.revoice_usd ? kept.revoice_usd[target] : undefined;
+      const price = usd === 0 ? 'free' : usd === undefined ? 'billed by the voice provider' : `about ${formatUsd(usd)} for ${kept.characters} characters of narration`;
+      cost.textContent = `Every scene is narrated again with ${labelOf(target)} (${price}). The timing of the scenes can change slightly, so watch the lecture again before you make its video.`;
+    };
+    provider.addEventListener('change', () => {
+      fillVoices();
+      describe();
+    });
+    voice.addEventListener('change', describe);
+    fillVoices();
+    describe();
+    const current = kept
+      ? h('p', { dataset: { voiceKept: '' } }, 'This lecture is narrated with ', h('strong', {}, `${kept.provider_label || labelOf(kept.provider)}, ${voiceName(kept.provider, kept.voice)}`), '. It keeps this voice when you edit or rebuild it; choosing another voice here narrates it again.')
+      : h('p', { dataset: { voiceKept: '' } }, 'This lecture is not narrated yet.');
+    const modal = openModal({
+      title: `Voice of v${v.number}`,
+      body: h('div', {}, current, formGrid(field('Voice provider', provider), field('Voice', voice)), cost),
+      actions: [
+        { label: 'Cancel', kind: 'outline', value: null },
+        {
+          label: 'Change voice',
+          kind: 'gold',
+          onClick: async () => {
+            /** @type {Record<string, any>} */
+            const body = { tts_provider: provider.value || null, tts_voice: voice.value || null };
+            return post(`/api/versions/${v.id}/voice`, body);
+          },
+        },
+      ],
+    });
+    const res = await modal.result;
+    if (!res || !res.job) return;
+    await load();
+    void jobModal('Changing the voice', res.job, {
+      description: 'Every scene is narrated again in the new voice. You can close this dialog; the build carries on.',
+      onSuccess: () => app.toast('The lecture has its new voice.', { kind: 'success' }),
+      onFinished: () => void load(),
+    });
   }
 
   // --- renders --------------------------------------------------------------------------

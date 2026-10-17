@@ -14,6 +14,7 @@ refused (``aadhi.schemas.features``).
 
 from __future__ import annotations
 
+from collections.abc import Collection, Mapping
 from typing import Any, ClassVar, Literal
 
 from pydantic import Field, SerializerFunctionWrapHandler, field_validator, model_serializer, model_validator
@@ -71,6 +72,12 @@ class SceneAudio(StrictModel):
     # v3: integrated loudness of the narration file, and the per-speaker gains baked into it (dB, §5.4).
     lufs: float | None = Field(default=None, exclude_if=lambda v: v is None)
     speaker_gains: dict[str, float] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    # ``"<provider>:<voice>"`` of the built lecture's own voice when the free Edge voice narrated this scene in its
+    # place (owner decision O17: the kept voice had no API key for that build, or its model was not served): read by
+    # ``built_voice``, so a stand-in never becomes the voice the lecture keeps. None (left out of the JSON: classic
+    # manifests are unchanged) for a scene narrated in the lecture's own voice. Not a v3 field: it changes no
+    # rendering, and a reader that predates it ignores it (``StrictModel`` ignores unknown keys).
+    stand_in_for: str | None = Field(default=None, max_length=200, exclude_if=lambda v: v is None)
 
 
 class MediaInfo(StrictModel):
@@ -155,3 +162,73 @@ class AssetManifest(StrictModel):
         if isinstance(data, dict) and "schema_version" in data:
             data["schema_version"] = marked_version(self, self.schema_version)
         return data
+
+
+# The only voice a build ever narrates with in place of the lecture's own: the free Edge voice, used when the
+# lecture's voice provider has no API key or its voice model is no longer served (aadhi.pipeline.assets).
+STAND_IN_TTS_PROVIDER = "edge"
+
+
+def stand_in_mark(provider: str, voice: str) -> str:
+    """``SceneAudio.stand_in_for`` of a scene the Edge stand-in narrated in place of ``provider``'s ``voice``."""
+    return f"{provider}:{voice}"
+
+
+def _stood_in_for(mark: object) -> tuple[str, str] | None:
+    """``(provider, voice)`` a ``SceneAudio.stand_in_for`` names, else None (absent or unreadable)."""
+    if not isinstance(mark, str):
+        return None
+    provider, sep, voice = mark.partition(":")
+    return (provider, voice) if sep and provider and voice else None
+
+
+def built_voice(manifest: AssetManifest | Mapping[str, Any] | None, language: str | None = None,
+                skip: Collection[str] = ()) -> tuple[str, str] | None:
+    """``(provider, voice)`` the built lecture was narrated with, read from its stored manifest (owner decision O17,
+    2026-10-17: a built lecture keeps the voice it was made with on every later rebuild or edit; only the teacher's
+    explicit re-voice moves it to another one). None when nothing is narrated yet (a new lecture).
+
+    The scene narrations (``SceneAudio.provider`` / ``voice``, those with a narration file) are the source of truth:
+    they say what was really built, whatever the options asked for. A scene the Edge voice narrated in place of a
+    built lecture's own voice (its provider had no key for that build, or its voice model was not served) carries
+    that voice in ``SceneAudio.stand_in_for`` and counts as it: a stand-in never becomes the kept voice, even when it
+    ended up narrating every scene (a key missing while a ``TTS_RATE`` change narrated everything again, a misspelt
+    ``*_TTS_MODEL``). ``language``: only narrations in the lecture's language count. ``skip``: scene ids left out
+    (hidden scenes, which a build never narrates again). When the narrations disagree, a voice of another provider
+    wins over the free Edge voice, which a build only ever uses as a stand-in next to the lecture's own voice
+    (``STAND_IN_TTS_PROVIDER``; this also reads manifests written before ``stand_in_for`` existed); then the voice of
+    the most scenes, ties to the earliest scene. A lecture narrated only in Edge without a ``stand_in_for`` (built
+    keyless, on the old Edge default, or a first build whose voice model was not served) was made with Edge and
+    keeps it.
+
+    Takes the manifest model or its stored JSON (the API reads the column without validating it)."""
+    if manifest is None:
+        return None
+    audio = manifest.audio if isinstance(manifest, AssetManifest) else (
+        manifest.get("audio") if isinstance(manifest, Mapping) else None)
+    if not isinstance(audio, Mapping):
+        return None
+    counts: dict[tuple[str, str], int] = {}  # in scene order: the manifest's audio follows the screenplay
+    for scene_id, entry in audio.items():
+        if scene_id in skip:
+            continue
+        if isinstance(entry, SceneAudio):
+            values: Mapping[str, Any] = {"asset_key": entry.asset_key, "provider": entry.provider,
+                                         "voice": entry.voice, "language": entry.language,
+                                         "stand_in_for": entry.stand_in_for}
+        elif isinstance(entry, Mapping):
+            values = {**entry, "language": entry.get("language", SceneAudio.model_fields["language"].default)}
+        else:
+            continue
+        provider, voice = _stood_in_for(values.get("stand_in_for")) or (values.get("provider"), values.get("voice"))
+        if not values.get("asset_key") or not isinstance(provider, str) or not isinstance(voice, str) \
+                or not provider or not voice:
+            continue  # no narration (a scene without beats, or one whose narration failed)
+        if language is not None and values.get("language") != language:
+            continue
+        counts[(provider, voice)] = counts.get((provider, voice), 0) + 1
+    own = {k: n for k, n in counts.items() if k[0] != STAND_IN_TTS_PROVIDER} or counts
+    if not own:
+        return None
+    most = max(own.values())
+    return next(k for k, n in own.items() if n == most)

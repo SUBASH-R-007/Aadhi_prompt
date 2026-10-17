@@ -43,6 +43,14 @@ V2_FIELDS: dict[str, set[str]] = {
     for name, fields in json.loads((FIXTURE.parent / "v2_model_fields.json").read_text("utf-8")).items()
 }
 
+# Fields added to a v2 model after B0 that are not v3 features: classic bookkeeping a build writes only in a rare case,
+# left out of the JSON at their default (so classic documents serialise exactly as before) and ignored by an older
+# reader (``StrictModel`` ignores unknown keys), so they need no reader-version marker.
+CLASSIC_ADDITIONS: dict[str, set[str]] = {
+    # O17: the voice the Edge stand-in narrated a scene in place of (aadhi.schemas.manifest.built_voice)
+    "SceneAudio": {"stand_in_for"},
+}
+
 # Models that exist only inside v3 fields (never in a classic document).
 V3_ONLY_MODELS = {
     "FigurePin", "WordRange", "ClipRange", "Overlay", "VoiceCalibration", "VoiceCast", "MusicChoice", "HookRef",
@@ -78,8 +86,23 @@ def test_every_new_field_is_a_declared_v3_field() -> None:
         assert cls.__name__ in V2_FIELDS, f"{cls.__name__} is new: list it in V3_ONLY_MODELS or the baseline"
         base = V2_FIELDS[cls.__name__]
         assert base <= set(cls.model_fields), f"{cls.__name__} lost v2 fields {sorted(base - set(cls.model_fields))}"
-        new = set(cls.model_fields) - base
+        new = set(cls.model_fields) - base - CLASSIC_ADDITIONS.get(cls.__name__, set())
         assert new <= set(cls.V3_FIELDS), f"{cls.__name__}: undeclared new fields {sorted(new - set(cls.V3_FIELDS))}"
+
+
+def test_every_classic_addition_is_left_out_of_the_json_at_its_default_and_is_not_v3() -> None:
+    models = {cls.__name__: cls for cls in _models()}
+    for name, fields in CLASSIC_ADDITIONS.items():
+        cls = models[name]
+        for field in fields:
+            assert field not in V2_FIELDS[name] and field not in cls.V3_FIELDS, (name, field)
+            info = cls.model_fields[field]
+            assert info.exclude_if is not None and info.exclude_if(info.get_default(call_default_factory=True)), (
+                f"{name}.{field} is serialised at its default")
+    audio = SceneAudio(scene_id="s", stand_in_for="openai:nova")
+    assert audio.model_dump(mode="json")["stand_in_for"] == "openai:nova"
+    assert "stand_in_for" not in SceneAudio(scene_id="s").model_dump(mode="json")
+    assert AssetManifest(audio={"s": audio}).model_dump(mode="json")["schema_version"] == 2  # not a v3 document
 
 
 def test_every_v3_field_is_left_out_of_the_json_at_its_default() -> None:

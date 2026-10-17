@@ -34,6 +34,7 @@ def test_other_users_objects_are_not_found(api):
         ("PUT", f"/api/versions/{vid}/screenplay", {"screenplay": screenplay_dict(), "revision": 1}),
         ("POST", f"/api/versions/{vid}/lint", {"screenplay": screenplay_dict()}),
         ("POST", f"/api/versions/{vid}/build", {}),
+        ("POST", f"/api/versions/{vid}/voice", {}),
         ("POST", f"/api/versions/{vid}/scenes/s1/regenerate", {}),
         ("POST", f"/api/versions/{vid}/plan", {"plan": {}}),
         ("POST", f"/api/versions/{vid}/approve-plan", None),

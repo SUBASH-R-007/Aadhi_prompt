@@ -123,7 +123,7 @@ remove your key and retry.
 | Key | Powers |
 |---|---|
 | Google Gemini | the Gemini AI engine, Gemini voices, generated images and AI video |
-| OpenAI | the OpenAI AI engine and OpenAI voices (the default voice; without an OpenAI key lectures are narrated by the free Edge voice, with a warning) |
+| OpenAI | the OpenAI AI engine and OpenAI voices (the default voice of new lectures; without an OpenAI key they are narrated by the free Edge voice, with a warning; a built lecture keeps the voice it was made with until the teacher changes it: Voice, in the version's actions) |
 | Anthropic Claude | the Claude AI engine |
 
 ElevenLabs, GIPHY and storage keys stay in `.env`.

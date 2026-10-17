@@ -4,7 +4,7 @@ source review (corrections + approval), duplicate (with its Visual Review sign-o
 from __future__ import annotations
 
 import copy
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter
 from pydantic import ConfigDict, Field
@@ -14,11 +14,12 @@ from ... import review
 from ...db import compare_and_set
 from ...jobs.queue import complete_review, job_summary
 from ...models import Job, Project, ProjectVersion
-from ...pipeline.base import SUPPORTED_LANGUAGES, LecturePlan
+from ...pipeline.base import REVOICE_KEY, SUPPORTED_LANGUAGES, LecturePlan
 from ...schemas.screenplay import PLANNABLE_SCENE_TYPES, Screenplay
 from ..deps import RATE_LIMITED, AppSettings, CurrentUser, DbSession, Store, load_version
 from ..errors import ApiException, not_found
 from ..generation import (
+    build_options,
     charge_generation_rate,
     commit_and_notify,
     create_version,
@@ -83,8 +84,9 @@ def build_version(
         if set(scene_ids) <= hidden_scene_ids(version.screenplay):  # the build skips hidden scenes: nothing to make
             raise ApiException(409, "action_unavailable",
                                "These scenes are skipped in the video. Show them again in the editor to build them.")
-    opts = version_options(version, db.get(Project, version.project_id))
-    ensure_budget(db, user, settings, keys=request_keys(db, user, settings), options=opts)
+    keys = request_keys(db, user, settings)
+    opts = build_options(version, db.get(Project, version.project_id), keys=keys)  # the voice it keeps (O17)
+    ensure_budget(db, user, settings, keys=keys, options=opts)
     job = enqueue_job(
         db,
         "build_assets",
@@ -92,6 +94,62 @@ def build_version(
         project_id=version.project_id,
         version_id=version.id,
         payload={"scene_ids": scene_ids, "base_revision": version.revision},
+    )
+    commit_and_notify(db, settings)
+    return {"job": job_summary(job)}
+
+
+class VoiceBody(StorableBody):
+    """The teacher's explicit re-voice: the voice provider (null = the server default) and voice (null = the
+    provider's voice for the lecture's language)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    tts_provider: Literal["edge", "gemini", "openai", "elevenlabs", "fake"] | None = None
+    tts_voice: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_\-]{1,64}$")
+
+
+@router.post("/{vid}/voice", status_code=202)
+def revoice_version(vid: int, body: VoiceBody, user: CurrentUser, db: DbSession, settings: AppSettings) -> dict[str, Any]:
+    """Re-voice a lecture: build it with this voice (``build_assets`` with ``REVOICE_KEY`` in its payload). A built
+    lecture otherwise keeps the voice it was made with on every build and edit (owner decision O17), so this is the
+    one way to move it to another voice; every narrated scene whose voice differs is narrated again (paid with a
+    paid provider), and once the build succeeds the lecture keeps the new voice (its manifest) and the version's own
+    options, when it has some, name it.
+
+    422 at ``body.tts_provider`` when the provider has no key for the requester, at ``body.tts_voice`` when the voice
+    is not one of the provider's that will narrate (the chosen one, else the server default's when "Server default").
+    The budget pre-check counts the new voice; 409 ``job_in_progress`` while another job changes the version."""
+    from ...providers.factory import TTS_LABELS, narrating_tts_provider, tts_configured
+    from ...providers.tts.voices import voice_fits
+
+    version = load_version(db, user, vid)
+    _require_screenplay(version)
+    keys = request_keys(db, user, settings)
+    if body.tts_provider is not None and not tts_configured(body.tts_provider, keys.settings):
+        label = TTS_LABELS.get(body.tts_provider, body.tts_provider)
+        raise ApiException(
+            422, "validation",
+            [{"loc": ["body", "tts_provider"], "msg": f"The voice provider '{label}' is not configured on this server.",
+              "type": "provider_not_configured"}],
+        )
+    narrating = narrating_tts_provider(body.tts_provider, keys.settings)
+    if body.tts_voice is not None and not voice_fits(narrating, body.tts_voice):
+        raise ApiException(
+            422, "validation",
+            [{"loc": ["body", "tts_voice"], "msg": f"'{body.tts_voice}' is not a voice of "
+              f"{TTS_LABELS.get(narrating, narrating)}.", "type": "value_error"}],
+        )
+    request = {"tts_provider": body.tts_provider, "tts_voice": body.tts_voice}
+    project = db.get(Project, version.project_id)
+    ensure_budget(db, user, settings, keys=keys, options=build_options(version, project, request, keys=keys))
+    job = enqueue_job(
+        db,
+        "build_assets",
+        user=user,
+        project_id=version.project_id,
+        version_id=version.id,
+        payload={"scene_ids": None, "base_revision": version.revision, REVOICE_KEY: request},
     )
     commit_and_notify(db, settings)
     return {"job": job_summary(job)}
@@ -127,7 +185,8 @@ def regenerate_scene(
     project = db.get(Project, version.project_id)
     keys = request_keys(db, user, settings)
     ensure_version_engine(version, project, settings, keys)
-    ensure_budget(db, user, settings, keys=keys, options=version_options(version, project))
+    # the voice it keeps (O17)
+    ensure_budget(db, user, settings, keys=keys, options=build_options(version, project, keys=keys))
     # Enqueue before spending a generation token: a 409 (build running) must not use up the quota.
     job = enqueue_job(
         db,

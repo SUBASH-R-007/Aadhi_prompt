@@ -17,7 +17,7 @@ from ...schemas.manifest import AssetManifest
 from ...schemas.screenplay import Screenplay
 from ..deps import RATE_LIMITED, AppSettings, CurrentUser, DbSession, Store, load_version
 from ..errors import ApiException, not_found
-from ..generation import active_mutating_job
+from ..generation import active_mutating_job, kept_voice
 from ..screenplay_service import (
     authorize_asset_keys,
     hidden_scene_ids,
@@ -118,8 +118,9 @@ def _plan_dict(version: ProjectVersion) -> dict[str, Any] | None:
 
 
 @router.get("/{vid}")
-def get_version(vid: int, user: CurrentUser, db: DbSession) -> dict[str, Any]:
-    """VersionSummary + screenplay, issues, stale scenes, generation meta and (in review) the plan.
+def get_version(vid: int, user: CurrentUser, db: DbSession, settings: AppSettings) -> dict[str, Any]:
+    """VersionSummary + screenplay, issues, stale scenes, generation meta, (in review) the plan and ``voice``: the
+    voice the built lecture keeps (``generation.kept_voice``, owner decision O17; null before it is narrated).
 
     Stored documents are served through ``json_safe``: a version saved before NaN/Infinity and lone
     surrogates were refused still loads (those values as ``null`` / U+FFFD) instead of failing with a 500.
@@ -140,6 +141,7 @@ def get_version(vid: int, user: CurrentUser, db: DbSession) -> dict[str, Any]:
         "stale_scenes": stale_scenes(screenplay, safe_manifest(version)),
         "generation_meta": json_safe(meta),
         "plan": json_safe(_plan_dict(version)),
+        "voice": kept_voice(version, settings),
     }
 
 

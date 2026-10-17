@@ -101,7 +101,8 @@ class GenerationOptions(StrictModel):
     # serialised options when off, so stored options and checkpoint digests are unchanged.
     prefer_library_visuals: bool = Field(default=False, exclude_if=lambda v: v is False)
     review_plan: bool = False  # pause after planning for teacher approval
-    # Voice
+    # Voice. They choose the voice of a NEW lecture (and of an explicit re-voice, ``REVOICE_KEY``): a built lecture
+    # keeps the voice it was made with (``schemas.manifest.built_voice``, owner decision O17).
     tts_provider: Literal["edge", "gemini", "openai", "elevenlabs", "fake"] | None = None
     tts_voice: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_\-]{1,64}$")
     tts_rate: str | None = Field(default=None, pattern=r"^[+-]\d{1,2}%$")
@@ -112,6 +113,25 @@ class GenerationOptions(StrictModel):
     llm_model_script: str | None = Field(default=None, max_length=80)
 
     _chk_lang = field_validator("language", "board_language")(_lang)
+
+
+# ``build_assets`` job payload key of the teacher's explicit re-voice (``POST /api/versions/{id}/voice``):
+# ``{"tts_provider": ..., "tts_voice": ...}``. The job builds with these voice options (``revoiced``) instead of the
+# lecture's kept voice, and stores them in the version's own options (when it has some) when it succeeds.
+REVOICE_KEY = "voice"
+
+
+def revoice_request(payload: object) -> dict[str, str | None] | None:
+    """The re-voice a job ``payload`` asks for (``REVOICE_KEY``), else None (an ordinary build)."""
+    raw = payload.get(REVOICE_KEY) if isinstance(payload, dict) else None
+    if not isinstance(raw, dict):
+        return None
+    return {"tts_provider": raw.get("tts_provider") or None, "tts_voice": raw.get("tts_voice") or None}
+
+
+def revoiced(options: GenerationOptions, request: dict[str, str | None]) -> GenerationOptions:
+    """``options`` with the re-voice's provider and voice (validated: ValidationError on a bad request)."""
+    return GenerationOptions.model_validate({**options.model_dump(mode="json"), **request})
 
 
 class SourceChunk(StrictModel):

@@ -381,12 +381,13 @@ worker: render_video  tool check → timeline (rebuilt for include_intro) → pr
 * Errors are redacted (`Settings.redact`), carry status + provider only.
 * TTS: `openai` (the default `TTS_PROVIDER`, OpenAI TTS: the primary voice), `edge` (free; word boundaries; the
   keyless fallback), `elevenlabs` (`/with-timestamps`), `gemini`, `fake` (deterministic WAV with exact word timings).
-  A job narrates with OpenAI when it has an OpenAI key (the job owner's personal key, else the server's
+  A new lecture narrates with OpenAI when the job has an OpenAI key (the job owner's personal key, else the server's
   `OPENAI_API_KEY` or Studio key); without one it narrates with the free Edge voice for the lecture's language and
   one lecture-level `assets.tts_fallback` warning (never a failed job; the budget pre-check bills the voice the build
   narrates with, so it counts no OpenAI cost then), and the Dynamic narrator is cast the same way
   (`authoring.narration_choice`). A lecture's explicit choice of another configured provider wins.
-  `factory.narrating_tts_provider` states the rule. A saved voice is used only by the provider it belongs to
+  `factory.narrating_tts_provider` states the rule; a built lecture keeps the voice it was made with until the teacher
+  re-voices it (O17, `assets.build_assets` below). A saved voice is used only by the provider it belongs to
   (`voices.voice_fits`); otherwise the narrating provider's default for the language narrates, with a lecture-level
   info note `assets.tts_voice_replaced`. Voices per language in `tts/voices.py` (OpenAI's per language:
   `OPENAI_DEFAULTS`; Edge keeps its own per-language voices). Speech text =
@@ -479,15 +480,22 @@ worker: render_video  tool check → timeline (rebuilt for include_intro) → pr
   review's `SourceOverrides` (`effective_brief`, `without_chunks`).
 * `assets.build_assets(...) -> AssetManifest` — incremental by per-scene content hash; graceful
   degradation (simulation → content fallback board, ai_video → Ken-Burns still) reported as issues.
-  The voice provider is the lecture's choice, else `TTS_PROVIDER` (OpenAI TTS by default), else, when neither has
-  an API key for the job, the free Edge voice with one lecture-level `assets.tts_fallback` warning ("OpenAI TTS ...
-  has no API key; the free Edge voice ... was used instead"); the job does not fail.
+  The voice provider of a new lecture (no narration yet) is the lecture's choice, else `TTS_PROVIDER` (OpenAI TTS by
+  default), else, when neither has an API key for the job, the free Edge voice with one lecture-level
+  `assets.tts_fallback` warning ("OpenAI TTS ... has no API key; the free Edge voice ... was used instead"); the job
+  does not fail. A built lecture keeps the voice it was made with on every later build and edit (owner decision O17:
+  `schemas.manifest.built_voice` of the previous manifest; an Edge-built lecture stays on Edge when an OpenAI key
+  appears); only the teacher's explicit re-voice (`POST /api/versions/{id}/voice`, `build_assets` with `revoice`)
+  moves it, and the budget pre-check counts the kept voice (`api.generation.build_options`).
   A voice model the provider no longer serves (`ModelUnavailable`: a retired `GEMINI_TTS_MODEL`, or
   `OPENAI_TTS_MODEL` once OpenAI retires its speech models) never leaves the lecture silent: the build switches once
   to the free Edge voice for the lecture's language (`fallback_voice_config`) with one lecture-level
   `assets.tts_fallback` warning and a job-log warning, the scene that met the error is narrated again wholly in Edge,
-  and its clips are keyed like an Edge lecture's; the next build tries the lecture's voice again. Without Edge on the
-  server the scene fails as before (`assets.tts_failed`).
+  and its clips are keyed like an Edge lecture's. In a built lecture each scene Edge narrates in place of the kept
+  voice (this fallback, or a kept provider without a key) records that voice (`SceneAudio.stand_in_for`), so the next
+  build tries it again even when Edge narrated every scene; only a NEW lecture whose first build the fallback narrated
+  wholly was made with Edge and keeps it (O17).
+  Without Edge on the server the scene fails as before (`assets.tts_failed`).
   A `hidden` scene is never built, even when a rebuild names it (no provider is called); media built before
   it was hidden is kept and it is never listed stale, so the build still counts as complete; it becomes
   stale again when shown, if it changed. Hidden AI video scenes keep their place in the lecture's AI video

@@ -27,8 +27,24 @@ after OpenAI's 2027-01-06 speech-model retirement; design §10.3 H0) never leave
 switches to the free Edge voice for the lecture's language (``fallback_voice_config``) with a lecture-level
 ``assets.tts_fallback`` warning, and the scene that met the error is narrated again in it. Every scene has one
 voice and every clip is keyed by the voice that spoke it (an Edge lecture's keys), so nothing is stored under the
-failed voice's keys or paid for twice. The next build tries the lecture's voice again: the scenes the fallback
-narrated are rebuilt, and their Edge clips come from the cache.
+failed voice's keys or paid for twice.
+
+Kept voice (owner decision O17, 2026-10-17): the rules above choose the voice of a NEW lecture (no previous
+manifest) and of the teacher's explicit re-voice (``revoice=True``: ``POST /api/versions/{id}/voice``). A lecture
+that has been built keeps the voice it was made with on every later build, scene rebuild or edit: the previous
+manifest's scene narrations say which (``manifest.built_voice``: provider and voice; a voice of another provider wins
+over Edge, which a build only uses as a stand-in next to it), whatever the options or ``TTS_PROVIDER`` say now. So a
+lecture built on Edge (keyless, or under the old Edge default) stays on Edge after an OpenAI key appears, unchanged
+scenes are reused (no TTS call, no timing drift) and a changed scene is narrated in the kept voice; an info note
+(``assets.voice_kept``) says when the options would now choose another provider. A kept provider without a key for
+the job narrates nothing new: the unchanged scenes keep it and new narration uses the Edge stand-in (one
+``assets.tts_fallback`` warning); the next build with the key narrates those scenes in the lecture's voice again.
+Likewise a scene the retired-model fallback narrated in a built lecture is tried in the lecture's voice again on the
+next build (its Edge clips come from the cache). Every scene the Edge voice narrates in place of a built lecture's
+voice records that voice (``SceneAudio.stand_in_for``), so the stand-in never becomes the kept voice, even when it
+narrated every scene (a key missing while a ``TTS_RATE`` change narrated everything again, a misspelt
+``*_TTS_MODEL`` that changed every clip key). Only a NEW lecture (or a re-voice) whose build the retired-model
+fallback narrated wholly was made with Edge and keeps it until the teacher re-voices it.
 
 Media paid with a personal API key is produced in its own in-flight de-duplication scope
 (``AssetStore.get_or_create(inflight_scope=...)``), so one user's provider outcome (e.g. a rejected
@@ -124,7 +140,7 @@ from ..providers.operations import (
     OperationStore,
 )
 from ..providers.tts.voices import is_known_voice, voice_fits
-from ..schemas.manifest import AssetManifest, MediaInfo, SceneAudio, SceneMedia
+from ..schemas.manifest import AssetManifest, MediaInfo, SceneAudio, SceneMedia, built_voice, stand_in_mark
 from ..schemas.screenplay import (
     AIVideoScene,
     BoardItemKind,
@@ -400,7 +416,7 @@ def _keys_of(audio: SceneAudio | None, media: SceneMedia | None) -> list[str]:
 
 class _Builder:
     def __init__(self, ctx: Any, sp: Screenplay, options: GenerationOptions, previous: AssetManifest | None,
-                 scene_ids: list[str] | None, progress: tuple[float, float] | None) -> None:
+                 scene_ids: list[str] | None, progress: tuple[float, float] | None, revoice: bool = False) -> None:
         self.ctx = ctx
         self.settings = ctx.settings
         self.sp = sp
@@ -411,7 +427,17 @@ class _Builder:
         self.language = sp.language
         self.board_language = sp.board_language or sp.language
         self.issues: list[Issue] = []
+        # O17: the voice the built lecture was made with (None: a new lecture, or the teacher's explicit re-voice)
+        self.revoice = revoice
+        self.frozen = None if revoice else built_voice(previous, self.language,
+                                                       skip={s.id for s in sp.scenes if s.hidden})
+        self._stand_in_issue: Issue | None = None  # the kept voice has no key: reported when a scene needs narration
+        self._kept: VoiceConfig | None = None  # set by ``_kept_voice``
         self.tts, self.voice = self._tts_provider()
+        # The lecture's own voice: what a reused scene must have been narrated with (``_reusable``). It differs from
+        # ``self.voice`` only while a stand-in narrates (the kept voice has no key now; a retired model switches
+        # ``self.voice`` later, ``_model_fallback``).
+        self.lecture_voice: VoiceConfig = self._kept or self.voice
         self.tts_sem = asyncio.Semaphore(max(1, int(self.settings.tts_max_parallel)))
         self.video_scene_ids = self._video_allowance()
         self.retry_scene_ids: set[str] = set()  # scenes with transient media failures (no hash stored)
@@ -430,7 +456,77 @@ class _Builder:
         self._owner_started: bool | None = None  # the job's user owns the lecture (libraries are personal)
 
     def _tts_provider(self) -> tuple[Any, VoiceConfig]:
-        """The build's voice provider and voice (``factory.narrating_tts_provider`` decides the same way).
+        """The build's voice provider and voice.
+
+        A built lecture keeps the voice it was made with (owner decision O17; ``_kept_voice``). Otherwise (a new
+        lecture, or the teacher's explicit re-voice) ``_chosen_voice`` picks it from the options and the keys."""
+        if self.frozen is not None:
+            return self._kept_voice(*self.frozen)
+        return self._chosen_voice()
+
+    def _kept_voice(self, provider: str, voice: str) -> tuple[Any, VoiceConfig]:
+        """The voice a built lecture was made with (``manifest.built_voice`` of the previous manifest): its provider
+        and voice, whatever the options or ``TTS_PROVIDER`` say now, so a rebuild or an edit pays for no new voice,
+        reuses every unchanged scene (no timing drift, design E-31) and narrates a changed scene like the others; a
+        lecture built on Edge (keyless, or under the old Edge default) stays on Edge after an OpenAI key appears. Rate
+        and model come from the options and settings as before (a change of them still narrates again: the clip keys
+        hold them). When the options would choose another provider now, an ``assets.voice_kept`` info note says how
+        to change the voice (the teacher's explicit re-voice).
+
+        When the kept provider has no API key for this job any more (an owner's personal key removed), the unchanged
+        scenes are still reused in it, and only the scenes that need new narration are narrated with the free Edge
+        stand-in (``fallback_voice_config``, with ONE ``assets.tts_fallback`` warning when that happens): the lecture
+        keeps its voice, and the next build with the key narrates those scenes in it again (their manifest entries
+        name the lecture's voice in ``SceneAudio.stand_in_for``, ``_stand_in_mark``, which ``built_voice`` counts as
+        that voice, even when the stand-in narrated every scene)."""
+        rate = self.options.tts_rate or self.settings.tts_rate or "+0%"
+        kept = VoiceConfig(provider=provider, voice=voice, rate=rate, model=_tts_model(self.settings, provider),
+                           language=self.language)
+        self._kept = kept
+        try:
+            tts = integrations.get_tts(provider, self.settings)
+        except ProviderNotConfigured:
+            if provider == FALLBACK_TTS_PROVIDER:  # Edge itself is not configured: nothing to stand in
+                raise
+            tts = integrations.get_tts(FALLBACK_TTS_PROVIDER, self.settings)
+            stand_in = fallback_voice_config(self.settings, self.language, tts, rate)
+            from ..providers.factory import TTS_LABELS
+
+            label = TTS_LABELS.get(provider, provider)
+            self._stand_in_issue = Issue(
+                code="assets.tts_fallback", severity="warning", source="assets", fixable=False,
+                message=f"This lecture's voice, {label} voice '{voice}', has no API key for this build: the scenes "
+                        f"that needed new narration were narrated with the free Edge voice '{stand_in.voice}' "
+                        f"instead, and the other scenes keep the lecture's voice.{_key_hint(self.settings, provider)}")
+            return tts, stand_in
+        self._note_kept_voice(kept)
+        return tts, kept
+
+    def _note_kept_voice(self, kept: VoiceConfig) -> None:
+        """An ``assets.voice_kept`` info note when the provider the options would choose now (``_chosen_voice``'s
+        order: the lecture's provider, else ``TTS_PROVIDER``, each when configured, else Edge) is another one."""
+        now = FALLBACK_TTS_PROVIDER
+        for name in (self.options.tts_provider, None):
+            try:
+                tts = integrations.get_tts(name, self.settings)
+            except ProviderNotConfigured:
+                continue
+            now = getattr(tts, "name", None) or name or self.settings.tts_provider
+            break
+        if now == kept.provider:
+            return
+        from ..providers.factory import TTS_LABELS
+
+        label, other = TTS_LABELS.get(kept.provider, kept.provider), TTS_LABELS.get(now, now)
+        self.issues.append(Issue(
+            code="assets.voice_kept", severity="info", source="assets", fixable=False,
+            message=f"This lecture keeps the voice it was made with, {label} voice '{kept.voice}': editing or "
+                    f"rebuilding it never narrates it again in another voice. To narrate it with {other}, change its "
+                    f"voice (Voice, in the version's actions); every scene is then narrated again."))
+
+    def _chosen_voice(self) -> tuple[Any, VoiceConfig]:
+        """The voice of a new lecture or of an explicit re-voice (``factory.narrating_tts_provider`` decides the same
+        way).
 
         The lecture's provider (``GenerationOptions.tts_provider``), else the server's ``TTS_PROVIDER`` (OpenAI TTS by
         default), else the free Edge voice: a provider is skipped when it is not configured for this job (no API key:
@@ -446,6 +542,11 @@ class _Builder:
         try:
             tts = integrations.get_tts(requested, self.settings)
         except ProviderNotConfigured as exc:
+            if self.revoice and requested:
+                # the teacher's explicit re-voice to ``requested`` never steps down to another provider: the lecture
+                # would then keep a voice nobody chose (O17; step-5 voices audit R-1). The job fails, the lecture
+                # keeps its voice, and the teacher can re-voice again once the provider has a key.
+                raise
             unavailable = exc
         else:
             voice = voice_config(self.settings, self.options, self.language, tts)
@@ -478,7 +579,9 @@ class _Builder:
         self.issues.append(Issue(
             code="assets.tts_fallback", severity="warning", source="assets", fixable=False,
             message=f"{lead} (the server's voice provider '{default}') has no API key; the free Edge voice "
-                    f"'{voice.voice}' was used instead.{_key_hint(self.settings, default)}"))
+                    f"'{voice.voice}' was used instead.{_key_hint(self.settings, default)} The lecture keeps the "
+                    f"Edge voice when it is edited or rebuilt; once the key is there, change its voice (Voice, in "
+                    f"the version's actions) to narrate it with {label}."))
         return tts, voice
 
     def _narrate_with(self, tts: Any) -> None:
@@ -651,8 +754,28 @@ class _Builder:
         return compute_key("tts", {"text": text, "voice": v.voice, "provider": v.provider, "rate": v.rate,
                                    "model": v.model, "language": v.language})
 
+    def _stand_in_mark(self, v: VoiceConfig) -> str | None:
+        """``SceneAudio.stand_in_for`` of a scene narrated in ``v``: the built lecture's own voice when ``v`` stands in
+        for it (the kept voice has no key for this build, ``_kept_voice``, or its model is not served,
+        ``_model_fallback``), else None. A new lecture or a re-voice has no voice to stand in for: what its build
+        narrates is the voice it is made with."""
+        kept = self._kept
+        if kept is None or (v.provider, v.voice) == (kept.provider, kept.voice):
+            return None
+        return stand_in_mark(kept.provider, kept.voice)
+
+    def _in_lecture_voice(self, audio: SceneAudio) -> SceneAudio:
+        """A carried narration as it stands now: one in the lecture's own voice stands in for nothing (a scene the
+        stand-in narrated for an earlier voice, kept by a re-voice to that same Edge voice), so ``built_voice`` never
+        counts it as the earlier voice."""
+        lecture = self.lecture_voice
+        if audio.stand_in_for is None or (audio.provider, audio.voice) != (lecture.provider, lecture.voice):
+            return audio
+        return audio.model_copy(update={"stand_in_for": None})
+
     def _reusable(self, scene: Any, h: str) -> bool:
-        """True when the previous manifest's assets for ``scene`` match its content and voice settings."""
+        """True when the previous manifest's assets for ``scene`` match its content and the lecture's voice settings
+        (``lecture_voice``: the kept voice of a built lecture, or the chosen one)."""
         prev = self.previous
         if prev is None or prev.scene_hashes.get(scene.id) != h or scene.id not in prev.media:
             return False
@@ -661,7 +784,8 @@ class _Builder:
         if beats:
             if audio is None or audio.asset_key is None:
                 return False
-            if (audio.provider, audio.voice, audio.language) != (self.voice.provider, self.voice.voice, self.language):
+            lecture = self.lecture_voice  # the kept voice (O17), never a stand-in narrating this build's new scenes
+            if (audio.provider, audio.voice, audio.language) != (lecture.provider, lecture.voice, self.language):
                 return False
             if [b.beat_id for b in audio.beats] != [b.id for b in beats]:
                 return False
@@ -670,7 +794,7 @@ class _Builder:
                 return False
             # the clip keys also cover rate and model (e.g. a TTS_RATE change): never mix speaking rates
             stored = [b.clip_asset_key for b in audio.beats]
-            if all(stored) and stored != [self.clip_key(t) for t in texts]:
+            if all(stored) and stored != [self.clip_key(t, lecture) for t in texts]:
                 return False
         return True
 
@@ -682,7 +806,8 @@ class _Builder:
         lecture silent). The build switches once, with a lecture-level ``assets.tts_fallback`` warning and a job-log
         warning; a scene narrated before keeps its voice (one voice per scene). None when the failed voice is Edge's
         own or Edge is not configured on this server (``ProviderNotConfigured``): the scene then fails as any other
-        narration failure (``assets.tts_failed``, no ``assets.tts_fallback`` warning)."""
+        narration failure (``assets.tts_failed``, no ``assets.tts_fallback`` warning). In a built lecture the scenes
+        Edge narrates name the lecture's voice (``_stand_in_mark``), so the next build tries that voice again."""
         if self.voice is not failed:  # another scene switched the build already
             return self.tts, self.voice
         if failed.provider == FALLBACK_TTS_PROVIDER:
@@ -729,6 +854,9 @@ class _Builder:
         (``ModelUnavailable``) the build switches to the Edge voice (``_model_fallback``) and the whole scene is
         narrated again in it: every scene has one voice, and every clip is keyed by the voice that spoke it."""
         tts, voice = self.tts, self.voice
+        if self._stand_in_issue is not None and scene.all_beats():  # the first scene the Edge stand-in narrates
+            self.issues.append(self._stand_in_issue)
+            self._stand_in_issue = None
         try:
             return await self._narrate(scene, tts, voice)
         except ModelUnavailable as exc:
@@ -739,7 +867,8 @@ class _Builder:
 
     async def _narrate(self, scene: Any, tts: Any, v: VoiceConfig) -> SceneAudio:
         beats = scene.all_beats()
-        base = SceneAudio(scene_id=scene.id, provider=v.provider, voice=v.voice, language=self.language)
+        base = SceneAudio(scene_id=scene.id, provider=v.provider, voice=v.voice, language=self.language,
+                          stand_in_for=self._stand_in_mark(v) if beats else None)
         if not beats:
             return base
         texts = [self.speech(b) for b in beats]
@@ -1727,7 +1856,7 @@ class _Builder:
                     to_build.append(next(x for x in sp.scenes if x.id == sid))
             for sid in reused:
                 if sid in prev.audio:
-                    audio[sid] = prev.audio[sid]
+                    audio[sid] = self._in_lecture_voice(prev.audio[sid])
                 media[sid] = prev.media[sid]
                 hashes[sid] = prev.scene_hashes.get(sid, "")
                 if hashes[sid] != current[sid]:
@@ -1738,11 +1867,19 @@ class _Builder:
             # the scene again needs no rebuild when it is unchanged; assets that are gone are dropped, not rebuilt.
             keys = [k for sid in kept_hidden for k in _keys_of(prev.audio.get(sid), prev.media.get(sid))]
             found = await asyncio.to_thread(self.ctx.assets.get_many, keys) if keys else {}
+            lecture = self.lecture_voice
             for sid in kept_hidden:
                 if any(k not in found for k in _keys_of(prev.audio.get(sid), prev.media.get(sid))):
                     continue
+                old = prev.audio.get(sid)
+                if old is not None and old.asset_key and (old.provider, old.voice) != (lecture.provider, lecture.voice):
+                    # Narrated in another voice (the lecture was re-voiced while the scene was hidden): its narration
+                    # is dropped, so it never decides the kept voice (``built_voice``) and is narrated in the
+                    # lecture's voice when shown again (no hash: listed stale then).
+                    media[sid] = prev.media[sid]
+                    continue
                 if sid in prev.audio:
-                    audio[sid] = prev.audio[sid]
+                    audio[sid] = self._in_lecture_voice(prev.audio[sid])
                 media[sid] = prev.media[sid]
                 if prev.scene_hashes.get(sid):
                     hashes[sid] = prev.scene_hashes[sid]
@@ -1860,9 +1997,14 @@ async def build_assets_detailed(
     previous: AssetManifest | None = None,
     scene_ids: list[str] | None = None,
     progress: tuple[float, float] | None = None,
+    revoice: bool = False,
 ) -> AssetBuildResult:
-    """Build (or reuse) every scene's assets; returns the manifest plus issues and stats."""
-    return await _Builder(ctx, screenplay, options, previous, scene_ids, progress).run()
+    """Build (or reuse) every scene's assets; returns the manifest plus issues and stats.
+
+    A lecture with a ``previous`` manifest keeps the voice it was made with (``manifest.built_voice``, owner decision
+    O17); ``revoice=True`` is the teacher's explicit re-voice: the voice is chosen from ``options`` (and the keys) as
+    for a new lecture, so every narrated scene whose voice differs is narrated again."""
+    return await _Builder(ctx, screenplay, options, previous, scene_ids, progress, revoice).run()
 
 
 async def build_assets(

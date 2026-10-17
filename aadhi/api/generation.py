@@ -12,6 +12,8 @@
   is skipped only when the AI engine AND every paid voice / image / video provider the job may use
   (the lecture's choice, ``IMAGE_PROVIDER`` / ``VIDEO_PROVIDER`` and their configured backups) run on
   the requester's personal keys (that spend is not budgeted). Free providers never count.
+  For a build of a version that has been built, the voice counted is the one the lecture keeps (``build_options``,
+  owner decision O17): a lecture made with the free Edge voice stays free to rebuild and edit.
 * Version allocation through the atomic ``Project.next_version_number`` counter.
 """
 
@@ -28,17 +30,24 @@ from ..credentials import ResolvedKeys, personal_keys_enabled, resolve_keys
 from ..db import atomic_add
 from ..jobs.queue import enqueue
 from ..models import ACTIVE_JOB_STATUSES, VERSION_MUTATING_KINDS, Job, Project, ProjectVersion, User
-from ..pipeline.base import GenerationOptions
+from ..pipeline.base import GenerationOptions, revoiced
+from ..providers.base import Usage
 from ..providers.factory import (
+    KEYLESS_TTS_PROVIDER,
     LLM_ENGINE_LABELS,
     MEDIA_LABELS,
+    TTS_LABELS,
+    TTS_PROVIDERS,
     engine_for_model,
     llm_configured,
     media_chain,
     media_unavailable_reason,
+    tts_configured,
 )
 from ..schemas.jsonsafe import json_safe
+from ..schemas.manifest import built_voice
 from ..security.ratelimit import check_rate_limit
+from ..usage.pricing import estimate_cost
 from ..usage.service import check_budget
 from .errors import ApiException
 from .storable import ensure_storable
@@ -190,6 +199,98 @@ def version_options(version: ProjectVersion, project: Project | None) -> Generat
             except ValidationError:
                 continue
     return GenerationOptions()
+
+
+def build_options(
+    version: ProjectVersion,
+    project: Project | None,
+    revoice: dict[str, str | None] | None = None,
+    *,
+    keys: ResolvedKeys | None = None,
+) -> GenerationOptions:
+    """The options a build of an existing version narrates with, for its budget pre-check: ``version_options`` with
+    the voice the asset build will use (``aadhi.pipeline.assets._Builder._tts_provider``).
+
+    A version that has been built keeps the voice it was made with (owner decision O17; ``built_voice`` of its stored
+    manifest, its hidden scenes left out as the build leaves them out), so a lecture made with the free Edge voice
+    is free to rebuild or edit even when OpenAI TTS has a key now. When the kept provider has no key for the job
+    (``keys``: the requester's, as the job will run; the owner removed a personal key), the build narrates what needs
+    narration with the free Edge stand-in, never with ``TTS_PROVIDER`` (``_Builder._kept_voice``), so the voice counted
+    is Edge's. ``revoice`` (the teacher's explicit re-voice, a ``build_assets`` payload's ``REVOICE_KEY``) names the
+    voice instead. A version without narration yet: its options.
+    """
+    from ..pipeline.validate import hidden_ids
+
+    options = version_options(version, project)
+    if revoice is not None:
+        try:
+            return revoiced(options, revoice)
+        except ValidationError:
+            return options
+    kept = built_voice(version.asset_manifest, version.language, skip=hidden_ids(version.screenplay))
+    if kept is None:
+        return options
+    provider, voice = kept
+    if keys is not None and not tts_configured(provider, keys.settings):
+        return options.model_copy(update={"tts_provider": KEYLESS_TTS_PROVIDER, "tts_voice": None})
+    # Not validated: the stored voice may be any provider's id; the pre-check reads the provider only.
+    return options.model_copy(update={"tts_provider": provider, "tts_voice": voice})
+
+
+def _tts_model(settings: Settings, provider: str) -> str:
+    """The model a voice provider speaks with: its price row (as ``aadhi.pipeline.assets._tts_model``)."""
+    return {"elevenlabs": settings.elevenlabs_model, "openai": settings.openai_tts_model,
+            "gemini": settings.gemini_tts_model}.get(provider, "")
+
+
+def kept_voice(version: ProjectVersion, settings: Settings) -> dict[str, Any] | None:
+    """The voice a built version keeps (owner decision O17), for the Studio's voice dialog; None before it is
+    narrated. ``provider`` / ``voice`` as the stored manifest says it was built (``built_voice``, hidden scenes left
+    out), ``provider_label``, ``characters``: the narrated text of the scenes in the video (what a re-voice narrates
+    again), ``revoice_usd``: about what narrating them again costs with each voice provider (list prices of
+    ``aadhi.usage.pricing``, the server's voice models; 0 for the free Edge voice), and ``default_voices``: the voice
+    each provider narrates the lecture with when the re-voice names none ("Default voice for the language"), so the
+    dialog can tell a re-voice that changes nothing from one that narrates every scene again."""
+    from ..pipeline.validate import hidden_ids
+
+    hidden = hidden_ids(version.screenplay)
+    kept = built_voice(version.asset_manifest, version.language, skip=hidden)
+    if kept is None:
+        return None
+    audio = (version.asset_manifest or {}).get("audio") if isinstance(version.asset_manifest, dict) else None
+    characters = 0
+    for scene_id, entry in (audio or {}).items():
+        if scene_id in hidden or not isinstance(entry, dict) or not entry.get("asset_key"):
+            continue
+        for beat in entry.get("beats") or []:
+            text = beat.get("spoken_text") if isinstance(beat, dict) else None
+            characters += len(text) if isinstance(text, str) else 0
+    provider, voice = kept
+    costs = {
+        name: round(estimate_cost(Usage(provider=name, model=_tts_model(settings, name), operation="tts",
+                                        characters=characters), settings), 4)
+        for name in TTS_PROVIDERS if name != "fake"
+    }
+    defaults = {name: _default_voice(settings, name, version.language) for name in TTS_PROVIDERS}
+    return {"provider": provider, "provider_label": TTS_LABELS.get(provider, provider), "voice": voice,
+            "characters": characters, "revoice_usd": costs,
+            "default_voices": {name: v for name, v in defaults.items() if v}}
+
+
+def _default_voice(settings: Settings, provider: str, language: str | None) -> str:
+    """The voice ``provider`` narrates a lecture in ``language`` with when the lecture names none, as the asset build
+    picks it (``aadhi.pipeline.assets.voice_config``): ``TTS_VOICE`` for ``DEFAULT_LANGUAGE`` when it is one of the
+    provider's voices, else the provider's default for the language ("" when there is none)."""
+    from ..providers.tts.voices import default_voice, voice_fits
+
+    language = language or settings.default_language
+    server = settings.tts_voice if language == settings.default_language else ""
+    if server and voice_fits(provider, server):
+        return server
+    try:
+        return default_voice(provider, language)
+    except (KeyError, ValueError):
+        return ""
 
 
 def version_engine(version: ProjectVersion, project: Project | None, settings: Settings) -> str:

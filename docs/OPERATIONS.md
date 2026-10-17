@@ -445,7 +445,7 @@ noted; `aadhi.usage.pricing` holds them (section 4.6).
 | Setting | Default | Why, and the alternatives |
 |---|---|---|
 | `LLM_MODEL_PLAN`, `_SCRIPT`, `_CRITIC`, `_FAST` | `gemini-3.8-flash` | Stable (GA) and Google's recommendation for new projects; Gemini 2.5 models are served only to keys that used them before. $0.75 / $3.75, doubling to $1.50 / $7.50 on 2027-01-01. Planning uses it as well: `gemini-3.1-pro-preview` ($2 / $12) is still a preview, so it is an opt-in (`LLM_MODEL_PLAN=gemini-3.1-pro-preview`). `gemini-3.5-flash-lite` ($0.30 / $2.50) is a cheaper fast tier. |
-| `GEMINI_TTS_MODEL` | `gemini-3.8-flash-tts` | The 2.5 preview TTS models shut down on 2026-11-17. About $0.014 per minute of speech (double from 2027-01-01); `gemini-3.8-flash-lite-tts` costs two thirds of that. A retired or misspelt model (HTTP 404 / 410) no longer silences lectures: the adapter raises `ModelUnavailable` after that one request (not retried, nothing billed), and builds narrate with the free Edge voice for the lecture's language with an `assets.tts_fallback` warning until the setting is fixed; a rebuild then restores the chosen voice. Without Edge on the server the scenes fail with `assets.tts_failed`. |
+| `GEMINI_TTS_MODEL` | `gemini-3.8-flash-tts` | The 2.5 preview TTS models shut down on 2026-11-17. About $0.014 per minute of speech (double from 2027-01-01); `gemini-3.8-flash-lite-tts` costs two thirds of that. A retired or misspelt model (HTTP 404 / 410) no longer silences lectures: the adapter raises `ModelUnavailable` after that one request (not retried, nothing billed), and builds narrate with the free Edge voice for the lecture's language with an `assets.tts_fallback` warning until the setting is fixed. A built Gemini lecture keeps its voice (section 3.4): every scene Edge narrated in its place is narrated in Gemini again by the next build after the fix (its cached Gemini clips are reused), even when the outage put every scene on Edge (a misspelt model changes every clip key, so every scene is tried); only a NEW lecture whose first build Edge narrated wholly was made with Edge, and it keeps Edge until the teacher re-voices it. Without Edge on the server the scenes fail with `assets.tts_failed`. |
 | `OPENAI_TTS_MODEL` | `gpt-4o-mini-tts` | The model of the default voice provider (`TTS_PROVIDER=openai`, section 3.4). **Every model `/v1/audio/speech` accepts is scheduled to retire on 2027-01-06**: `tts-1`, `tts-1-hd` and the dated `gpt-4o-mini-tts-2025-*` snapshots by name, and the undated `gpt-4o-mini-tts` alias defaults to `gpt-4o-mini-tts-2025-12-15`, which is itself on that list. OpenAI names `gpt-realtime-2.1-mini` as the replacement, but it supports only `v1/realtime` (not `audio/speech`, Chat Completions or Responses). Before 2027-01-06, move deployments and lectures that use OpenAI voices to `TTS_PROVIDER=gemini` or `edge`, or build a Realtime-API TTS adapter. After the retirement OpenAI answers `/v1/audio/speech` with HTTP 404 `model_not_found` (or 410); the adapter raises `ModelUnavailable` after that one request (not retried, nothing billed), and the asset build narrates with the free Edge voice for the lecture's language and adds one lecture-level `assets.tts_fallback` warning, as for a retired `GEMINI_TTS_MODEL`. OpenAI gives the same 404 when the API key has no access to the model, and the Edge fallback with its warning applies there too. Without Edge on the server the scenes still fail with `assets.tts_failed`. The advice to move stands: Edge is only a fallback, and each build first makes one unbilled 404 request per beat already in flight before it switches. $0.60 text + $12 audio per 1M tokens (about $0.015 per minute). |
 | `IMAGE_MODEL` | `gemini-nano-banana-2.1` | Stable (released 2026-10-06), recommended for new projects and listed as the successor of `gemini-3.1-flash-image`, at half its price ($0.034 per 1K image against $0.067). It always thinks (default level `medium`, it cannot be turned off): the prompt ($1.50) and the thinking tokens ($7.50 per 1M) are billed on top of the image and are counted in budgets. `gemini-3.1-flash-lite-image` is the low-latency option at the same price per image; `gemini-2.5-flash-image` is limited-access (shutdown from 2027-03-15) and Imagen was shut down on 2026-08-17. |
 | `VEO_MODEL` | `veo-3.1-fast-generate-preview` | Veo 2 and 3.0 were shut down on 2026-06-30. Veo 3.1 Fast costs $0.10 per second at 720p ($0.80 per 8-second clip); `veo-3.1-generate-preview` is $0.40/s and `veo-3.1-lite-generate-preview` $0.05/s (Lite takes no reference images). **All Veo 3.1 models are previews with an earliest shutdown of 2026-10-22**; Google names `gemini-omni-1.1-flash` as the replacement, supported as the `omni` video provider (next row, section 3.2): a chain with `veo` switches to it automatically once Veo is no longer served (not after a Veo timeout or rate limit). |
@@ -488,17 +488,19 @@ change. A build of only some scenes (Visual Review `retry` / `new_version`, or `
 made from it, then mixes narration from the old and new models until its next full build. If that
 matters, pin `GEMINI_TTS_MODEL` / `OPENAI_TTS_MODEL` to the previous value until a lecture has been fully
 rebuilt (possible only until that model shuts down: see the table above). Edge narration, and the
-generated pictures and clips of unchanged scenes, are reused.
+generated pictures and clips of unchanged scenes, are reused. The voice provider and the voice themselves never
+change on a build: a built lecture keeps them (section 3.4, "Built lectures keep their voice").
 
 ### 3.4 Voices (TTS)
 
 **OpenAI TTS is the primary voice** (owner decision, 2026-10-17): `TTS_PROVIDER` defaults to `openai`
 (`OPENAI_TTS_MODEL`, `gpt-4o-mini-tts`, about $0.015 per minute of speech). The other providers stay selectable,
-server-wide with `TTS_PROVIDER` or per lecture in the Studio's Voice section: `edge` (free, word timings),
+server-wide with `TTS_PROVIDER` or per new lecture in the Studio's Voice section (a built lecture: the version's
+**Voice…** action, below): `edge` (free, word timings),
 `gemini`, `elevenlabs` and, offline, `fake`.
 
-Which voice narrates a job (`aadhi.pipeline.assets._Builder._tts_provider`; `factory.narrating_tts_provider` states
-the same rule):
+Which voice narrates a NEW lecture, one with no narration yet (`aadhi.pipeline.assets._Builder._chosen_voice`;
+`factory.narrating_tts_provider` states the same rule), and the teacher's explicit re-voice (below):
 
 1. A provider the lecture chose explicitly, when it is configured, always wins.
 2. Otherwise the server's provider, OpenAI TTS, when the job has an OpenAI key: the starter's personal key, else the
@@ -524,24 +526,71 @@ Pallavi for ta-IN, ...). A saved voice, `TTS_VOICE` or a lecture's, is used only
 for the language) and still applies to Edge, including the keyless fallback and the 2027 retirement fallback below.
 Design §5.1 notes that an OpenAI voice must be disclosed to listeners as AI-generated.
 
-Upgrading a server that ran on the old default (`TTS_PROVIDER` unset meant Edge): set `TTS_PROVIDER=edge` to keep
-Edge. Otherwise, with an OpenAI key, lectures that never chose a voice provider are narrated by OpenAI from their next
-build: a full build re-voices every scene (at TTS cost), a partial build only the scenes it builds (section 3.3,
-"Narration"). Many such lectures carry an Edge voice saved on "Server default" (the Studio listed Edge voices there
-while Edge was the default, and does again for a user without an OpenAI key). OpenAI cannot speak an Edge voice, so
-it narrates them with its own voice for the language (`nova`) and the lecture gets an info note,
-`assets.tts_voice_replaced`: "The lecture's voice '...' is not a voice of OpenAI TTS, which narrates it; ...". The
-same happens the moment a user saves a personal OpenAI key. To keep the Edge voice, choose Edge as the lecture's
-voice provider. Without a key nothing changes for them but the warning: the Edge voice they had (their own, else an
-Edge `TTS_VOICE`, else Edge's voice for the language) narrates, with the same cached clips.
+**Built lectures keep their voice** (owner decision O17, 2026-10-17). A lecture that has been built keeps the voice
+it was made with on every later build, scene rebuild, scene regeneration, Visual Review rebuild and edit, whatever its
+options or `TTS_PROVIDER` say now. That includes a lecture built keyless on Edge and every lecture built before this
+change under the old default (`TTS_PROVIDER` unset meant Edge): adding an OpenAI key, the owner's or the server's,
+re-voices none of them. So there is no surprise TTS cost, no timing drift on edits (unchanged scenes are reused as
+they are, an edited scene is narrated in the lecture's voice) and the cached clips are reused.
+
+- *Where the kept voice is read from:* the version's stored asset manifest, which records what was really built
+  (`SceneAudio.provider` / `voice` of each narrated scene; `aadhi.schemas.manifest.built_voice`). A scene the free
+  Edge voice narrated in place of a built lecture's voice (its key was missing for that build, or its model was not
+  served) also records that voice (`SceneAudio.stand_in_for`, e.g. `"openai:nova"`, left out of every other scene)
+  and counts as it: a stand-in never becomes the lecture's voice, even when it ended up narrating every scene (a key
+  missing while a `TTS_RATE` change narrated everything again; a misspelt `*_TTS_MODEL`). Hidden scenes and
+  narrations in another language do not count. When the scenes disagree, a voice of another provider wins over Edge
+  (manifests written before `stand_in_for` existed); then the voice of the most scenes. A lecture narrated only in
+  Edge with no `stand_in_for` (built keyless, under the old Edge default, or a first build whose model was not served)
+  was made with Edge and keeps it. The options (`generation_meta.options.tts_provider` / `tts_voice`) choose the
+  voice of a new lecture only.
+- *Rate and model* are not part of the kept voice: a `TTS_RATE` or `*_TTS_MODEL` change narrates again as before
+  (section 3.3, "Narration").
+- *The kept provider has no key any more* (an owner removed a personal OpenAI key): unchanged scenes keep their
+  narration; scenes that need new narration are narrated with the free Edge stand-in and the lecture gets one
+  `assets.tts_fallback` warning ("This lecture's voice, OpenAI TTS voice 'nova', has no API key for this build: ...").
+  The next build with the key narrates those scenes in the lecture's voice again, however many there were.
+- *Info note.* When the options would choose another provider now (an Edge lecture on a server with an OpenAI key),
+  each build adds an info note, `assets.voice_kept`: "This lecture keeps the voice it was made with, Microsoft Edge
+  (free) voice '...': editing or rebuilding it never narrates it again in another voice. To narrate it with OpenAI
+  TTS, change its voice ...". The keyless warning of a new lecture says the same.
+- *Budget check.* The up-front budget check of a build of a built version (`POST .../build`, scene regeneration,
+  Visual Review, job retry) counts the kept voice (`aadhi.api.generation.build_options`): a lecture made with the free
+  Edge voice stays free to rebuild and edit while OpenAI TTS has a key. A kept provider without a key for the
+  requester counts as the free Edge stand-in the build will use, never as `TTS_PROVIDER`.
+- *Translation and "Regenerate"* make a new version: a new lecture, voiced by the rules above.
+
+**Re-voicing a lecture** is the teacher's explicit action: the version's **Voice…** action in the Studio (project
+page, Versions, Actions) shows the voice the lecture keeps (`GET /api/versions/{id}`, `voice`) and lets the teacher
+choose a provider and voice, with about what narrating every scene again costs (`voice.revoice_usd`, list prices;
+a choice that comes down to the voice the lecture has, "Server default" and "Default voice for the language"
+included, `voice.default_voices`, is shown as changing nothing). It calls `POST /api/versions/{id}/voice` (`{tts_provider, tts_voice}`: refused with 422 when the provider has no key
+for the teacher or the voice is not one of the narrating provider's; budget-checked with the new voice), which
+enqueues a full `build_assets` job carrying the voice (`payload.voice`): every narrated scene whose voice differs is
+narrated again (paid with a paid provider; Edge clips cached from before cost nothing), and when the build succeeds
+the lecture keeps the new voice from then on, and the version's options name it when the version has options of its
+own (a version whose options come from the project's settings keeps none: the project's current choices are not
+copied into it; `generation_meta.last_build.revoice` records the re-voice). A scene hidden at the time keeps no
+narration in the old voice: it is narrated in the new one when it is shown again.
+
+Upgrading a server that ran on the old default: nothing is re-voiced (above). New lectures are narrated by OpenAI
+when the job has an OpenAI key; set `TTS_PROVIDER=edge` to keep Edge for new lectures too. A NEW lecture saved on
+"Server default" with an Edge voice (the Studio lists Edge voices there for a user without an OpenAI key) and then
+built with an OpenAI key is narrated by OpenAI with its own voice for the language (`nova`; OpenAI cannot speak an
+Edge voice) with an info note, `assets.tts_voice_replaced`: "The lecture's voice '...' is not a voice of OpenAI TTS,
+which narrates it; ...". To keep the Edge voice, choose Edge as the lecture's voice provider.
 
 **The 2027-01-06 retirement.** Every model `/v1/audio/speech` accepts (`tts-1`, `tts-1-hd`, the
 `gpt-4o-mini-tts` snapshots and the undated alias) is scheduled to shut down on 2027-01-06 (section 3.3,
 `OPENAI_TTS_MODEL`). OpenAI then answers HTTP 404 `model_not_found` (or 410): the adapter raises `ModelUnavailable`
 after that one request (not retried, nothing billed), and every build narrates with the free Edge voice with one
 `assets.tts_fallback` warning naming the model. Lectures are never left silent, but every build then makes one
-unbilled 404 request per beat already in flight before it switches, and all narration is Edge's. Before that date,
-set `TTS_PROVIDER` to another provider (`gemini`, or `edge`) or build a Realtime-API TTS adapter.
+unbilled 404 request per beat already in flight before it switches, and all new narration is Edge's. An OpenAI
+lecture keeps its voice (above): its unchanged scenes keep the OpenAI narration, and an edited scene is narrated by
+Edge and tried in OpenAI again on each build (also when every scene had to be narrated again, so Edge narrated them
+all: they record the OpenAI voice they stood in for). A lecture first built after the retirement is narrated wholly
+by Edge and keeps Edge until the teacher re-voices it. Before that date, set `TTS_PROVIDER` to another provider (`gemini`,
+or `edge`) or build a Realtime-API TTS adapter, and re-voice the OpenAI lectures that should move.
 
 ## 4. Production deployment (Docker Compose)
 

@@ -40,6 +40,7 @@ from ...storage.base import is_public_key
 from ..deps import RATE_LIMITED, AppSettings, CurrentUser, DbSession, Store, load_version
 from ..errors import ApiException, not_found
 from ..generation import (
+    build_options,
     charge_generation_rate,
     commit_and_notify,
     enqueue_job,
@@ -210,7 +211,8 @@ def visual_action(
                                "Building this scene again cannot change its visual: choose or upload one instead.")
     edited = _edited_scene(db, body, scene, project, user.id, ctx) if body.action != "retry" else None
     if paid:
-        ensure_budget(db, user, settings, keys=request_keys(db, user, settings), options=version_options(version, project))
+        keys = request_keys(db, user, settings)
+        ensure_budget(db, user, settings, keys=keys, options=build_options(version, project, keys=keys))
     now = dt.datetime.now(dt.timezone.utc)
     revision = version.revision
     if edited is not None:

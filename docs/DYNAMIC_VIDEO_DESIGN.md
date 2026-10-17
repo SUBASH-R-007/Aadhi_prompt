@@ -1314,6 +1314,32 @@ with Edge through the H0 `ModelUnavailable` fallback (§10.3) until `TTS_PROVIDE
 exists (docs/OPERATIONS.md §3.4). OpenAI has no native word timings: each beat is one clip and its words are
 spread over it by word length (`pipeline/audio.py` `estimate_words`) until the per-sentence path below exists.
 
+**As built (owner decision O17, 2026-10-17): a built lecture keeps the voice it was made with.** The rule above picks
+the voice of a NEW lecture only. Every later build, scene rebuild, scene regeneration, Visual Review rebuild or edit of
+a built lecture narrates with the voice its stored manifest says it was built with
+(`aadhi/schemas/manifest.py` `built_voice`: the narrated scenes' `SceneAudio.provider` / `voice`, hidden scenes and
+other languages left out; a scene the Edge voice narrated in place of the kept voice, a stand-in, counts as the voice
+it records in `SceneAudio.stand_in_for`, so a stand-in never becomes the kept voice even when it narrated every scene;
+a voice of another provider wins over Edge, then the voice of the most scenes), whatever the options or
+`TTS_PROVIDER` say now, including a lecture built
+keyless on Edge and one built under the old Edge default. So there is no surprise paid re-synthesis, no timing drift
+on edits (E-31: unchanged scenes are reused as they are, a changed scene is narrated in the kept voice) and the cached
+clips are reused (`_Builder._kept_voice`, `_reusable` against `lecture_voice`). Moving a lecture to another voice is
+the teacher's explicit re-voice: the Studio's **Voice…** action (it shows the kept voice and about what narrating every
+scene again costs, `GET /api/versions/{id}` `voice`) calls `POST /api/versions/{id}/voice`, a `build_assets` job with
+`payload.voice` that builds with `revoice=True` and stores the voice in the version's options (when the version has
+options of its own). When the kept provider has no key for a job, unchanged scenes keep it and only scenes needing
+narration are narrated by the Edge stand-in (one `assets.tts_fallback` warning); an `assets.voice_kept` info note says
+when the options would choose another provider now. The budget pre-check of such builds counts the kept voice, or the
+free stand-in when the kept provider has no key for the requester (`api/generation.py` `build_options`). Classic
+output does not change: the kept voice is the voice the stored narration already has, and `stand_in_for` is written
+only for a stand-in scene (left out of the JSON otherwise; not a v3 field). B3-voiced lectures follow the same rule
+(B3 plan §1.6). **B3 hand-off:** a re-voice changes the narration and the version's options only; a Dynamic
+lecture's `presentation.voices.narrator` (cast once at generation, `authoring.narration_choice`) still names the voice
+it had before. Nothing synthesises from it today, but B3's casting (plan §1.6c) compares against the narrator persona:
+B3 must read the kept voice from the manifest (`built_voice`) or update the narrator in the re-voice's CAS (a revision
+bump).
+
 **Word timings without native support.** Synthesise **per sentence**: sentence boundaries are exact and words inside a sentence are placed by characters (today's `estimate_words`); captions tolerate 80–120 ms [AU §2.4]. Such beats are marked `words_exact = false` (§8.2), which limits splicing. Forced alignment with `faster-whisper` (MIT) is optional.
 
 ### 5.2 Voice persona registry
@@ -2667,7 +2693,7 @@ B4 ─► B9 measurement and tuning                (continuous)
 - **Acceptance.** Tests pass on both branches with recorded fixtures; the owner runs a real-key smoke test on the deployed instance; deployed well before 17 Nov.
 - **Estimate.** 0.5–1 day. The adapter's style and pause-tag improvements wait for B3.
 - **Status (2026-10-11).** Done on `overhaul/v2`: the `gemini-3.8-flash-tts` default, the pricing row, the `google-genai>=2.26` floor and the Edge fallback with a warning. **Open on `main`**, the deployed branch, which still calls `gemini-2.5-flash-preview-tts` (`server.py:758`) and stops narrating when it shuts down on 17 Nov 2026: the `main` hotfix is the owner's decision.
-- **As built (v2).** `ModelUnavailable` (`aadhi/providers/base.py`, a `ProviderUnavailable`) is raised by both speech adapters for HTTP 404 / 410 on a request naming the configured model: `GeminiTTS` (`GEMINI_TTS_MODEL` shut down, renamed or misspelt) and `OpenAITTS` (`OPENAI_TTS_MODEL` retired, renamed or misspelt, or a model the API key has no access to, which OpenAI answers with the same 404 `model_not_found`). It comes after that one request, never retried, with nothing generated or billed. On it, `aadhi/pipeline/assets.py` switches the build once to the free Edge voice for the lecture's language (`fallback_voice_config`: `TTS_VOICE` when it is an Edge voice (`voices.voice_fits`) and the lecture speaks `DEFAULT_LANGUAGE`, else Edge's default voice for the language; same rate) and adds one lecture-level `assets.tts_fallback` warning ("The voice model '<model>' of the voice provider '<provider>' is not available (it was retired or renamed, or the API key has no access to it); the free Edge voice '<voice>' was used instead.") and a job-log warning that names the model and the switch first. The scene that met the error is narrated again wholly in Edge (every scene has one voice), and the fallback clips are keyed exactly like an Edge lecture's (`_Builder.clip_key(text, voice)`), so nothing is stored under the failed voice's keys. The next build tries the lecture's voice again: the scenes the fallback narrated are rebuilt and their Edge clips come from the cache. Without Edge on the server (`ProviderNotConfigured`) the scenes still fail with `assets.tts_failed`.
+- **As built (v2).** `ModelUnavailable` (`aadhi/providers/base.py`, a `ProviderUnavailable`) is raised by both speech adapters for HTTP 404 / 410 on a request naming the configured model: `GeminiTTS` (`GEMINI_TTS_MODEL` shut down, renamed or misspelt) and `OpenAITTS` (`OPENAI_TTS_MODEL` retired, renamed or misspelt, or a model the API key has no access to, which OpenAI answers with the same 404 `model_not_found`). It comes after that one request, never retried, with nothing generated or billed. On it, `aadhi/pipeline/assets.py` switches the build once to the free Edge voice for the lecture's language (`fallback_voice_config`: `TTS_VOICE` when it is an Edge voice (`voices.voice_fits`) and the lecture speaks `DEFAULT_LANGUAGE`, else Edge's default voice for the language; same rate) and adds one lecture-level `assets.tts_fallback` warning ("The voice model '<model>' of the voice provider '<provider>' is not available (it was retired or renamed, or the API key has no access to it); the free Edge voice '<voice>' was used instead.") and a job-log warning that names the model and the switch first. The scene that met the error is narrated again wholly in Edge (every scene has one voice), and the fallback clips are keyed exactly like an Edge lecture's (`_Builder.clip_key(text, voice)`), so nothing is stored under the failed voice's keys. Since O17 (2026-10-17, a built lecture keeps its voice, §5.1 as-built) the next build tries the lecture's voice again for the scenes the fallback narrated next to scenes in the lecture's voice (their Edge clips come from the cache), while a lecture the fallback narrated wholly was made with Edge and keeps it until the teacher re-voices it. Without Edge on the server (`ProviderNotConfigured`) the scenes still fail with `assets.tts_failed`.
 
 #### B0. Foundations and safety (no visible change)
 

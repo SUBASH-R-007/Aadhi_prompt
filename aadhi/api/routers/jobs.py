@@ -18,15 +18,17 @@ from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session
 
 from ...config import Settings
+from ...credentials import ResolvedKeys
 from ...jobs import events as job_events
 from ...jobs import queue as job_queue
 from ...jobs.events import list_events, stream_job
 from ...jobs.queue import job_summary, request_cancel, retry_job
 from ...models import ACTIVE_JOB_STATUSES, JOB_STATUSES, Job, Project, ProjectVersion, Render, User
-from ...pipeline.base import GenerationOptions
+from ...pipeline.base import GenerationOptions, revoice_request
 from ..deps import RATE_LIMITED, AppSettings, CurrentUser, DbSession, is_admin, load_project, valid_id
 from ..errors import ApiException, not_found
 from ..generation import (
+    build_options,
     charge_generation_rate,
     commit_and_notify,
     ensure_budget,
@@ -80,9 +82,11 @@ def load_job(db: Session, user: User, job_id: int) -> Job:
     raise not_found("Job")
 
 
-def _job_options(db: Session, job: Job) -> GenerationOptions:
+def _job_options(db: Session, job: Job, keys: ResolvedKeys | None = None) -> GenerationOptions:
     """Options a retry of ``job`` runs with: its payload options, else its version's (for a translation
-    its SOURCE version's, as ``orchestrator._translate`` uses), else the defaults."""
+    its SOURCE version's, as ``orchestrator._translate`` uses), else the defaults. A job on a built version
+    narrates with the voice the version keeps (``build_options``, O17; ``keys``: the requester's, with which the
+    retry runs), or with the re-voice its payload carries."""
     payload = job.payload or {}
     raw = payload.get("options")
     if isinstance(raw, dict) and raw:
@@ -95,9 +99,12 @@ def _job_options(db: Session, job: Job) -> GenerationOptions:
     if job.kind == "translate" and isinstance(source_id, int) and not isinstance(source_id, bool):
         version_id = source_id
     version = db.get(ProjectVersion, version_id) if version_id is not None else None
-    if version is not None:
-        return version_options(version, db.get(Project, version.project_id))
-    return GenerationOptions()
+    if version is None:
+        return GenerationOptions()
+    project = db.get(Project, version.project_id)
+    if job.kind == "translate":  # a new lecture: the source's options choose its voice
+        return version_options(version, project)
+    return build_options(version, project, revoice_request(payload), keys=keys)
 
 
 def _statuses(raw: str | None) -> list[str]:
@@ -210,7 +217,7 @@ def retry(job_id: int, user: CurrentUser, db: DbSession, settings: AppSettings) 
     if job.kind in GENERATION_KINDS or job.kind in BUILD_KINDS:
         # Checked before retry_job: a refused retry neither claims the old job nor touches the version.
         keys = request_keys(db, user, settings)
-        opts = _job_options(db, job)
+        opts = _job_options(db, job, keys)
         engine = opts.llm_provider or settings.llm_provider
         if job.kind in GENERATION_KINDS:
             ensure_engine_available(engine, settings, keys)  # the new job runs on the requester's keys

@@ -306,6 +306,21 @@ companion.render_markdown(screenplay: Screenplay) -> str
 companion.render_html(screenplay: Screenplay) -> str          # self-contained, escaped, uses /web/vendor/mathjax via renderTex-free static TeX (KaTeX-less: TeX shown in <code>) or MathJax script from /web/vendor
 assets.scene_hash(scene) -> str                                # content hash used for staleness
 assets.build_assets(ctx, screenplay, options, *, previous: AssetManifest | None = None, scene_ids: list[str] | None = None) -> AssetManifest
+assets.build_assets_detailed(ctx, screenplay, options, *, previous=None, scene_ids=None, progress=None,
+                             revoice: bool = False) -> AssetBuildResult(manifest, issues, built, reused, asset_keys)
+#   KEPT VOICE (owner decision O17): with a previous manifest that has narration, the build narrates with the voice
+#   the lecture was made with, schemas.manifest.built_voice(previous, sp.language, skip=hidden scene ids), whatever
+#   options.tts_provider / tts_voice or TTS_PROVIDER say (rate and model still from options / settings); _reusable
+#   compares a stored scene's narration with that kept voice, so nothing is re-voiced and a changed scene is narrated
+#   in it. Lecture-level info note assets.voice_kept when the options would choose another provider now. A kept
+#   provider without a key for the job: unchanged scenes keep it, scenes needing narration are narrated with the Edge
+#   stand-in (fallback_voice_config) and ONE assets.tts_fallback warning is added when the first one is narrated.
+#   Every scene narrated in place of the kept voice (that stand-in, or the retired-model fallback in a built lecture)
+#   carries SceneAudio.stand_in_for = "<provider>:<voice>" of the kept voice (_Builder._stand_in_mark); a carried scene
+#   in the lecture's own voice drops it (_in_lecture_voice). A new lecture or a re-voice marks nothing.
+#   A hidden scene whose narration is in another voice than the kept / chosen one keeps its media but loses that
+#   narration and its hash (narrated in the lecture's voice when shown again). revoice=True (the teacher's explicit
+#   re-voice, job payload base.REVOICE_KEY): no kept voice, the voice is chosen as for a new lecture (below).
 #   image / video: provider chain (IMAGE_PROVIDER + IMAGE_FALLBACK_PROVIDERS, options.image_provider first), earlier
 #   results reused when generation is off on the server (assets.cached_media_used)
 #   SidePanel.variant / AIVideoScene.variant > 0 add "variant" to the image / clip key (also an AI video's still);
@@ -320,7 +335,8 @@ assets.voice_config(settings, options, language, tts) -> VoiceConfig(provider, v
 #   each of the first two only when it is a voice of the narrating provider (tts.voices.voice_fits): an Edge voice
 #   (saved on "Server default" while Edge was the default, or TTS_VOICE) is never sent to OpenAI, the default
 #   TTS_PROVIDER, and an OpenAI voice never to Edge
-#   _Builder._tts_provider() -> (tts, VoiceConfig): options.tts_provider, else TTS_PROVIDER ("openai" by default), else
+#   _Builder._tts_provider() -> (tts, VoiceConfig): the kept voice (_kept_voice, above), else _chosen_voice (a new
+#   lecture or a re-voice): options.tts_provider, else TTS_PROVIDER ("openai" by default), else
 #   Edge when neither is configured for the job (no API key: the owner's personal key or the server's), with ONE
 #   lecture-level warning assets.tts_fallback; the Edge voice is voice_config's (an Edge TTS_VOICE still applies). A
 #   lecture voice of another provider than the one narrating is replaced by that provider's default, with a
@@ -755,6 +771,24 @@ health.provider_health() -> cooldowns per (provider, key scope) ; operations.PAY
 #   | completed | failed | abandoned | lost | ambiguous; JobCheckpoint.submitted / usage_recorded / sending / not_sent
 #   VeoVideo.reports_sending = True; ResumableVideoProvider.resume(..., checkpoint=None) notes its charge
 factory.available_tts_providers(settings) -> list[dict]       # [{id,label,configured,word_timings,voices}]
+schemas.manifest.built_voice(manifest | stored JSON | None, language=None, skip=()) -> (provider, voice) | None
+#   the voice a built lecture keeps (O17): over the narrated scenes (SceneAudio with asset_key), in `language`, not in
+#   `skip`, each counted as its SceneAudio.stand_in_for voice when it has one (a stand-in never becomes the kept voice,
+#   even when it narrated every scene); a voice of another provider wins over Edge (STAND_IN_TTS_PROVIDER, manifests
+#   from before stand_in_for), then the voice of the most scenes, ties to the earliest; a lecture narrated only in
+#   Edge without stand_in_for keeps Edge; None = not narrated. schemas.manifest.stand_in_mark(provider, voice) -> str
+#   SceneAudio.stand_in_for: str | None (left out at None; not a v3 field, tests/schemas CLASSIC_ADDITIONS)
+pipeline.base.REVOICE_KEY = "voice" ; revoice_request(payload) -> {"tts_provider", "tts_voice"} | None ;
+#   revoiced(options, request) -> GenerationOptions (validated). A build_assets job whose payload carries it builds
+#   with revoice=True and, on success, writes the voice into generation_meta["options"] when the version has options
+#   of its own (never the project's copied in; last_build.revoice records it either way)
+api.generation.build_options(version, project, revoice=None, *, keys: ResolvedKeys | None = None) -> GenerationOptions
+#   version_options with the voice the build narrates with (the kept voice of a built version, "edge" when the kept
+#   provider has no key in `keys`: the build's free stand-in, never TTS_PROVIDER; or the re-voice): the budget
+#   pre-check of POST .../build, scene regeneration, Visual Review and job retries. api.generation.kept_voice(version,
+#   settings) -> {"provider", "provider_label", "voice", "characters", "revoice_usd": {provider: usd},
+#   "default_voices": {provider: voice}} | None   # GET /api/versions/{vid} "voice"; default_voices: each provider's
+#   voice for the lecture when a re-voice names none (TTS_VOICE for DEFAULT_LANGUAGE when it fits, else its default)
 factory.narrating_tts_provider(requested, settings) -> str     # the provider that narrates: requested when configured,
 #   else TTS_PROVIDER (default "openai") when configured, else KEYLESS_TTS_PROVIDER = "edge"; settings = the job's
 #   effective settings (credentials.resolve_keys). GET /api/meta tts.default_provider = TTS_PROVIDER; the Studio's

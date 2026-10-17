@@ -210,6 +210,156 @@ test('translate offers the voices of the version\'s own voice provider, not the 
   assert.deepEqual(unconfigured.voices, ['nova']);
 });
 
+/** GET /api/versions/9 of v1, built on the free Edge voice (owner decision O17: it keeps that voice). */
+const EDGE_BUILT = {
+  ...V9,
+  generation_meta: { options: { tts_provider: null } },
+  voice: { provider: 'edge', provider_label: 'Microsoft Edge (free)', voice: 'en-IN-NeerjaNeural', characters: 1234, revoice_usd: { edge: 0, openai: 0.0197, gemini: 0.0179, elevenlabs: 0.0987 } },
+};
+
+test('voice: the dialog shows the voice a built lecture keeps, what a re-voice costs, and posts the re-voice', async () => {
+  fresh();
+  let posted = null;
+  mockFetch({
+    'GET /api/projects/5': detail(),
+    'GET /api/projects/5/shares': { items: [] },
+    'GET /api/versions/9/renders': { items: [] },
+    'GET /api/versions/9': EDGE_BUILT,
+    'POST /api/versions/9/voice': ({ init }) => {
+      posted = JSON.parse(init.body);
+      return { status: 202, body: { job: { id: 77, kind: 'build_assets', status: 'queued', stage: null, progress: 0, message: '', created_at: V9.created_at } } };
+    },
+  });
+  const { container, handle } = await mountPage(fakeApp({ meta: async () => openaiDefaultMeta() }));
+  await menuPick(container.querySelector('tbody tr'), 'Actions', 'Voice');
+  await waitFor(() => document.querySelector('.modal [data-voice-kept]'));
+  const modal = document.querySelector('.modal');
+  const kept = modal.querySelector('[data-voice-kept]').textContent;
+  assert.match(kept, /narrated with Microsoft Edge \(free\), Neerja/);
+  assert.match(kept, /keeps this voice when you edit or rebuild it/);
+  const cost = () => modal.querySelector('[data-voice-cost]').textContent;
+  const provider = modalSelectWith('openai');
+  const voice = modalSelectWith('en-IN-NeerjaNeural');
+  assert.equal(provider.value, 'edge');
+  assert.equal(voice.value, 'en-IN-NeerjaNeural');
+  assert.match(cost(), /nothing is narrated again/);
+  // OpenAI TTS: its voices, and every scene is narrated again at its price
+  provider.value = 'openai';
+  provider.dispatchEvent(new window.Event('change'));
+  const voiceChoices = [...document.querySelectorAll('.modal select')].filter((x) => x !== provider);
+  assert.equal(voiceChoices.length, 1);
+  assert.deepEqual([...voiceChoices[0].options].map((o) => o.value).filter(Boolean), ['nova']);
+  assert.match(cost(), /Every scene is narrated again with OpenAI TTS \(about \$0\.02 for 1234 characters of narration\)/);
+  // "Server default" is OpenAI with a key here: the same price
+  provider.value = '';
+  provider.dispatchEvent(new window.Event('change'));
+  assert.match(cost(), /OpenAI TTS \(about \$0\.02 /);
+  provider.value = 'openai';
+  provider.dispatchEvent(new window.Event('change'));
+  const voiceSel = modalSelectWith('nova');
+  voiceSel.value = 'nova';
+  voiceSel.dispatchEvent(new window.Event('change'));
+  clickModal('Change voice');
+  await waitFor(() => posted);
+  assert.deepEqual(posted, { tts_provider: 'openai', tts_voice: 'nova' });
+  await waitFor(() => [...document.querySelectorAll('.modal-title')].some((t) => /Changing the voice/.test(t.textContent)));
+  closeAllModals();
+  handle.destroy();
+});
+
+test('voice: another Edge voice is free, and a lecture not narrated yet says which provider will narrate it', async () => {
+  fresh();
+  const responses = [EDGE_BUILT, { ...V9, generation_meta: { options: { tts_provider: null } }, voice: null }];
+  mockFetch({
+    'GET /api/projects/5': detail(),
+    'GET /api/projects/5/shares': { items: [] },
+    'GET /api/versions/9/renders': { items: [] },
+    'GET /api/versions/9': () => responses.shift(),
+  });
+  const { container, handle } = await mountPage(fakeApp({ meta: async () => openaiDefaultMeta() }));
+  await menuPick(container.querySelector('tbody tr'), 'Actions', 'Voice');
+  await waitFor(() => document.querySelector('.modal [data-voice-cost]'));
+  const voice = modalSelectWith('en-IN-NeerjaNeural');
+  voice.value = 'en-US-AriaNeural';
+  voice.dispatchEvent(new window.Event('change'));
+  assert.match(document.querySelector('.modal [data-voice-cost]').textContent, /narrated again with Microsoft Edge \(free\) \(free\)/);
+  closeAllModals();
+  await menuPick(container.querySelector('tbody tr'), 'Actions', 'Voice');
+  await waitFor(() => document.querySelector('.modal [data-voice-cost]'));
+  assert.match(document.querySelector('.modal [data-voice-kept]').textContent, /not narrated yet/);
+  assert.match(document.querySelector('.modal [data-voice-cost]').textContent, /its build narrates it with OpenAI TTS/);
+  closeAllModals();
+  handle.destroy();
+});
+
+/** GET /api/versions/9 of v1, built with OpenAI's nova (its default voice for the language). */
+const OPENAI_BUILT = {
+  ...V9,
+  generation_meta: { options: { tts_provider: null } },
+  voice: {
+    provider: 'openai', provider_label: 'OpenAI TTS', voice: 'nova', characters: 1234,
+    revoice_usd: { edge: 0, openai: 0.0197, gemini: 0.0179, elevenlabs: 0.0987 },
+    default_voices: { openai: 'nova', edge: 'en-IN-NeerjaNeural', gemini: 'Kore' },
+  },
+};
+
+test('voice: the kept voice reached through "Server default" and "Default voice" is no change, never a paid estimate', async () => {
+  fresh();
+  mockFetch({
+    'GET /api/projects/5': detail(),
+    'GET /api/projects/5/shares': { items: [] },
+    'GET /api/versions/9/renders': { items: [] },
+    'GET /api/versions/9': OPENAI_BUILT,
+  });
+  const { container, handle } = await mountPage(fakeApp({ meta: async () => openaiDefaultMeta() }));
+  await menuPick(container.querySelector('tbody tr'), 'Actions', 'Voice');
+  await waitFor(() => document.querySelector('.modal [data-voice-cost]'));
+  const cost = () => document.querySelector('.modal [data-voice-cost]').textContent;
+  const provider = modalSelectWith('openai');
+  const voice = modalSelectWith('nova');
+  assert.equal(provider.value, 'openai');
+  assert.equal(voice.value, 'nova');
+  assert.match(cost(), /nothing is narrated again/);
+  // OpenAI with "Default voice for the language": nova, the voice it has
+  voice.value = '';
+  voice.dispatchEvent(new window.Event('change'));
+  assert.match(cost(), /nothing is narrated again/);
+  // "Server default" (OpenAI with a key here) with "Default voice": still nova, still nothing narrated again
+  provider.value = '';
+  provider.dispatchEvent(new window.Event('change'));
+  const voiceNow = modalSelectWith('nova');
+  voiceNow.value = '';
+  voiceNow.dispatchEvent(new window.Event('change'));
+  assert.match(cost(), /nothing is narrated again/);
+  assert.doesNotMatch(cost(), /about \$/);
+  // Edge's default voice is a real change (free)
+  provider.value = 'edge';
+  provider.dispatchEvent(new window.Event('change'));
+  assert.match(cost(), /narrated again with Microsoft Edge \(free\) \(free\)/);
+  closeAllModals();
+  handle.destroy();
+});
+
+test('voice: a kept voice missing from the provider list is still offered, so the dialog opens on no change', async () => {
+  fresh();
+  const ryan = { ...EDGE_BUILT, voice: { ...EDGE_BUILT.voice, voice: 'en-GB-RyanNeural', default_voices: { edge: 'en-IN-NeerjaNeural' } } };
+  mockFetch({
+    'GET /api/projects/5': detail(),
+    'GET /api/projects/5/shares': { items: [] },
+    'GET /api/versions/9/renders': { items: [] },
+    'GET /api/versions/9': ryan,
+  });
+  const { container, handle } = await mountPage(fakeApp({ meta: async () => openaiDefaultMeta() }));
+  await menuPick(container.querySelector('tbody tr'), 'Actions', 'Voice');
+  await waitFor(() => document.querySelector('.modal [data-voice-cost]'));
+  const voice = modalSelectWith('en-GB-RyanNeural');
+  assert.ok(voice, 'the kept voice is offered');
+  assert.equal(voice.value, 'en-GB-RyanNeural');
+  assert.match(document.querySelector('.modal [data-voice-cost]').textContent, /nothing is narrated again/);
+  closeAllModals();
+  handle.destroy();
+});
+
 /** The regenerate modal's control for a GenerationOptions field, found by one of its option values. */
 function modalSelectWith(value) {
   return [...document.querySelectorAll('.modal select')].find((s) => [...s.options].some((o) => o.value === value)) || null;

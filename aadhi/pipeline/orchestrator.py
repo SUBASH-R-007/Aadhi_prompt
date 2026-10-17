@@ -14,6 +14,12 @@
   version stays ``timeline_stale`` (no render) until a full build.
 * A retried job whose earlier attempt already saved the screenplay (``generation_meta['written_by']``
   names this job) resumes at the asset stage instead of stopping as a conflict.
+* Narration voice (owner decision O17): a version that has a manifest keeps the voice it was made with on every
+  build, scene regeneration and resumed build (``assets.build_assets_detailed`` reads it from the previous manifest);
+  only ``generate_lecture`` and ``translate`` (new lectures) choose one from the options. A ``build_assets`` job whose
+  payload carries the teacher's re-voice (``base.REVOICE_KEY``) builds with that provider and voice instead and, when
+  it succeeds, stores them in ``generation_meta['options']`` when the version has options of its own (never the
+  project's options copied in: ``last_build.revoice`` records the re-voice either way).
 * Every LLM call uses the lecture's AI engine (``GenerationOptions.llm_provider``, else ``LLM_PROVIDER``):
   regeneration, resumed and continued jobs read it from the version's stored options, and a
   translation uses its source version's engine.
@@ -77,7 +83,16 @@ from ..schemas.screenplay import PLANNABLE_SCENE_TYPES, CompanionSheet, LexiconE
 from ..storage.assets import GenerationGuard, generation_guard
 from . import dbops, integrations, plan_state, source_review
 from .assets import build_assets_detailed
-from .base import PIPELINE_PROGRESS, ConceptBrief, GenerationOptions, IngestResult, Issue, LecturePlan
+from .base import (
+    PIPELINE_PROGRESS,
+    ConceptBrief,
+    GenerationOptions,
+    IngestResult,
+    Issue,
+    LecturePlan,
+    revoice_request,
+    revoiced,
+)
 from .brief import BriefUnavailable, brief_model, build_brief
 from .checkpoint import SceneCheckpoints, StageCheckpoints, stage_digest
 from .companion import build_sheet
@@ -205,6 +220,18 @@ def _require_version(ctx: Any) -> int:
     if ctx.version_id is None:
         raise FatalJobError("this job has no version", code="bad_request")
     return int(ctx.version_id)
+
+
+def _own_options(meta: dict[str, Any]) -> GenerationOptions | None:
+    """The options stored with the version itself (``generation_meta['options']``), None when it has none (or they
+    no longer validate): ``version_options`` then takes the project's."""
+    raw = meta.get("options")
+    if not raw:
+        return None
+    try:
+        return GenerationOptions.model_validate(raw)
+    except ValidationError:
+        return None
 
 
 def version_options(meta: dict[str, Any], project: dbops.ProjectSnapshot | None) -> GenerationOptions:
@@ -1123,7 +1150,16 @@ async def _build(ctx: Any, vid: int, snap: dbops.VersionSnapshot) -> dict[str, A
     if sp is None:
         raise FatalJobError("this version has no screenplay to build", code="bad_request")
     project = await _db(ctx, dbops.load_project, snap.project_id)
-    options = options_for(sp, version_options(snap.generation_meta, project))
+    stored = version_options(snap.generation_meta, project)
+    # The teacher's explicit re-voice (POST /versions/{id}/voice): built with the new voice instead of the kept one
+    # (O17), and stored in the version's options once the build succeeds.
+    revoice = revoice_request(payload)
+    if revoice is not None:
+        try:
+            stored = revoiced(stored, revoice)
+        except ValidationError as exc:
+            raise FatalJobError("the requested voice is not valid", code="bad_request") from exc
+    options = options_for(sp, stored)
     scene_ids = payload.get("scene_ids")
     if scene_ids is not None:
         known = {s.id for s in sp.scenes}
@@ -1132,9 +1168,9 @@ async def _build(ctx: Any, vid: int, snap: dbops.VersionSnapshot) -> dict[str, A
         raise Conflict("revision changed before start")
     clock = StageClock()
     clock.start("assets")
-    ctx.progress("assets", 0.02, "Building assets")
+    ctx.progress("assets", 0.02, "Narrating the lecture in its new voice" if revoice is not None else "Building assets")
     build = await _build_assets_guarded(ctx, vid, base, sp, options, previous=snap.get_manifest(),
-                                        scene_ids=scene_ids, progress=(0.02, 0.92))
+                                        scene_ids=scene_ids, progress=(0.02, 0.92), revoice=revoice is not None)
     clock.start("timeline")
     ctx.progress("timeline", 0.93, "Building the timeline")
     timeline, tl_issues = await _timeline(ctx, sp, build.manifest, vid, base)
@@ -1146,6 +1182,13 @@ async def _build(ctx: Any, vid: int, snap: dbops.VersionSnapshot) -> dict[str, A
     meta.pop("error", None)
     meta["last_build"] = {"at": _now(), "built": build.built, "reused": len(build.reused),
                           "stage_seconds": clock.durations, "cost_usd": _cost(ctx)}
+    if revoice is not None:
+        if _own_options(snap.generation_meta) is not None:  # the version's options name the voice it now has
+            meta["options"] = stored.model_dump(mode="json")
+        # A version without options of its own (they came from the project's settings) gets none: storing ``stored``
+        # would freeze the project's current engine, images and other choices into it too. The voice it keeps is in
+        # its manifest either way (``built_voice``).
+        meta["last_build"]["revoice"] = revoice
     # A scene-scoped build that reused changed scenes as they were is not a build of this revision.
     final = _final_values(build.manifest, timeline, base, issues, meta, complete=not build.manifest.stale_scenes,
                           hidden=hidden_ids(sp))

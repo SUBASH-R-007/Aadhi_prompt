@@ -154,10 +154,14 @@ def test_scene_ids_limit_and_stale_marking(env):
     assert stale_scene_ids(edited, res.manifest) == ["intro"]
 
 
-def test_voice_change_rebuilds(env):
+def test_a_voice_change_in_the_options_keeps_the_built_voice_and_a_revoice_rebuilds(env):
+    """O17: options changed after the build do not re-voice a built lecture; the teacher's explicit re-voice does."""
     first = build(env).manifest
+    n = len(env["providers"].tts.texts)
     env["opts"] = env["opts"].model_copy(update={"tts_voice": "other-voice"})
-    res = build(env, previous=first)
+    kept = build(env, previous=first)
+    assert not kept.built and kept.manifest.audio == first.audio and len(env["providers"].tts.texts) == n
+    res = build(env, previous=first, revoice=True)
     beats_scenes = [s.id for s in env["sp"].scenes if s.all_beats()]
     assert sorted(res.built) == sorted(beats_scenes)
     assert res.manifest.audio["intro"].voice == "other-voice"
@@ -346,15 +350,25 @@ def test_a_retired_tts_model_narrates_with_edge_and_warns(env, monkeypatch):
     assert not [i for i in chosen.issues if i.code == "assets.tts_fallback"]
 
 
-def test_the_next_build_tries_the_chosen_voice_again_and_reuses_the_edge_clips(env, monkeypatch):
+def test_a_lecture_the_fallback_narrated_wholly_keeps_edge_until_the_teacher_revoices_it(env, monkeypatch):
+    """O17: made with Edge (its model was retired at the first build), the lecture keeps Edge: the next build calls
+    no voice at all. The teacher's re-voice tries the chosen voice again (unbilled), and its Edge clips come from
+    the cache."""
     retired = RetiredTTS()
     edge = retired_voice(env, monkeypatch, retired)["edge"]
     first = build(env).manifest
+    assert stand_ins(first, env) == {None}  # a new lecture's fallback is the voice it is made with, not a stand-in
     n_edge, n_retired = len(edge.texts), len(retired.texts)
     again = build(env, previous=first)
-    assert len(retired.texts) > n_retired and len(edge.texts) == n_edge  # tried again (unbilled), Edge from the cache
+    assert len(retired.texts) == n_retired and len(edge.texts) == n_edge and not again.built
     assert again.manifest.audio == first.audio
-    assert len([i for i in again.issues if i.code == "assets.tts_fallback"]) == 1  # still visible
+    assert not [i for i in again.issues if i.code == "assets.tts_fallback"]
+    note = [i for i in again.issues if i.code == "assets.voice_kept"]
+    assert len(note) == 1 and "'en-IN-NeerjaNeural'" in note[0].message and "Google Gemini TTS" in note[0].message
+    revoiced = build(env, previous=first, revoice=True)
+    assert len(retired.texts) > n_retired and len(edge.texts) == n_edge  # tried again (unbilled), Edge from the cache
+    assert revoiced.manifest.audio == first.audio
+    assert len([i for i in revoiced.issues if i.code == "assets.tts_fallback"]) == 1  # still visible
 
 
 def test_a_scene_is_narrated_in_one_voice_when_the_model_retires_mid_lecture(env, monkeypatch):
@@ -378,6 +392,12 @@ def test_a_scene_is_narrated_in_one_voice_when_the_model_retires_mid_lecture(env
     assert clip_keys(res.manifest, "intro")[0] != clip_keys(first, "intro")[0]
     assert res.manifest.audio["quiz"] == first.audio["quiz"]  # unchanged scenes keep their narration
     assert len([i for i in res.issues if i.code == "assets.tts_fallback"]) == 1
+    # the lecture's voice is still Gemini's (Edge only stood in for one scene): the next build tries it there again,
+    # unbilled, and the Edge clips come from the cache
+    n_edge, n_retired = len(edge.texts), len(providers["gemini"].texts)
+    again = build(env, sp=edited, previous=res.manifest)
+    assert again.built == ["intro"] and len(providers["gemini"].texts) > n_retired and len(edge.texts) == n_edge
+    assert again.manifest.audio == res.manifest.audio
 
 
 def test_the_edge_voice_follows_the_servers_edge_voice_and_the_lectures_language(env):
@@ -636,6 +656,282 @@ def test_an_edge_tts_voice_is_not_sent_to_openai(env):
     assert voice_config(own, opts, "en-IN", openai).voice == "onyx"  # an OpenAI TTS_VOICE is used
     edge = SimpleNamespace(name="edge", default_voice=lambda language: "unused")
     assert voice_config(settings, opts, "en-IN", edge).voice == "en-IN-PrabhatNeural"  # still Edge's own
+
+
+# --- O17 (owner, 2026-10-17): a built lecture keeps the voice it was made with ------------------------------------
+
+
+OPENAI_KEY = SecretStr("sk-test-owner-or-server")
+
+
+def voiced_ids(env: dict[str, Any]) -> list[str]:
+    return [s.id for s in env["sp"].scenes if s.all_beats()]
+
+
+def calls(voices: dict[str, Any]) -> dict[str, int]:
+    return {name: len(tts.texts) for name, tts in voices.items() if tts.texts}
+
+
+def edited_intro(env: dict[str, Any]) -> Screenplay:
+    data = env["sp"].model_dump(mode="json")
+    data["scenes"][0]["beats"][1]["narration"] = "It has exactly three terminals."
+    return Screenplay.model_validate(data)
+
+
+@pytest.mark.parametrize("built_on", ["old Edge default", "keyless", "keyless, OpenAI chosen"])
+def test_a_lecture_built_on_edge_keeps_edge_when_an_openai_key_appears(env, monkeypatch, built_on):
+    """(a) Built on Edge (the old default, or keyless under the new one, even with OpenAI chosen): rebuilt with an
+    OpenAI key, it makes NO voice call and keeps Edge; an info note says how to change the voice."""
+    if built_on == "old Edge default":
+        keyed_voices(env, monkeypatch, tts_provider="edge")
+    else:
+        keyed_voices(env, monkeypatch)
+    if built_on.endswith("OpenAI chosen"):
+        env["opts"] = env["opts"].model_copy(update={"tts_provider": "openai"})
+    first = build(env)
+    assert voiced_by(first, env) == {("edge", "en-IN-NeerjaNeural")}
+    voices = keyed_voices(env, monkeypatch, openai_api_key=OPENAI_KEY)  # the owner adds the key; OpenAI is default
+    again = build(env, previous=first.manifest)
+    assert calls(voices) == {}  # zero TTS calls, nothing paid
+    assert not again.built and sorted(again.reused) == sorted(first.manifest.media)
+    assert again.manifest.audio == first.manifest.audio
+    assert not tts_fallbacks(again)
+    note = [i for i in again.issues if i.code == "assets.voice_kept"]
+    assert len(note) == 1 and note[0].severity == "info" and note[0].scene_id is None
+    assert "Microsoft Edge (free) voice 'en-IN-NeerjaNeural'" in note[0].message and "OpenAI TTS" in note[0].message
+    # the same with only some scenes named, as the editor's scene rebuild sends them
+    scoped = build(env, previous=first.manifest, scene_ids=["card"])
+    assert calls(voices) == {} and scoped.manifest.audio == first.manifest.audio
+
+
+def test_an_edited_scene_of_an_edge_lecture_is_narrated_in_the_kept_edge_voice(env, monkeypatch):
+    """(b) After a script edit to one scene, only that scene is narrated, only its changed beat is synthesised, in the
+    kept voice (Edge), never with the OpenAI key; every other scene keeps its narration and timing."""
+    keyed_voices(env, monkeypatch, tts_provider="edge", tts_voice="en-IN-PrabhatNeural", default_language="en-IN")
+    first = build(env).manifest
+    assert {(first.audio[s].provider, first.audio[s].voice) for s in voiced_ids(env)} == {("edge", "en-IN-PrabhatNeural")}
+    voices = keyed_voices(env, monkeypatch, openai_api_key=OPENAI_KEY)  # the upgrade: OpenAI default, TTS_VOICE unset
+    edited = edited_intro(env)
+    res = build(env, sp=edited, previous=first)
+    assert res.built == ["intro"]
+    assert calls(voices) == {"edge": 1} and voices["edge"].texts == ["It has exactly three terminals."]
+    intro = res.manifest.audio["intro"]
+    assert (intro.provider, intro.voice) == ("edge", "en-IN-PrabhatNeural")
+    assert clip_keys(res.manifest, "intro")[0] == clip_keys(first, "intro")[0]  # the unchanged beat's clip
+    assert all(res.manifest.audio[s] == first.audio[s] for s in voiced_ids(env) if s != "intro")
+    assert not tts_fallbacks(res)
+    # the editor's scene-scoped rebuild narrates the same way (the new clip is cached by now: still no other voice)
+    scoped = build(env, sp=edited, previous=first, scene_ids=["intro"])
+    assert scoped.built == ["intro"] and calls(voices) == {"edge": 1}
+    assert scoped.manifest.audio == res.manifest.audio
+
+
+def test_the_teachers_explicit_revoice_moves_a_built_lecture_to_openai(env, monkeypatch):
+    """(c) The teacher's re-voice (``revoice=True``, ``POST /versions/{id}/voice``) narrates every scene again in the
+    chosen voice; from then on the lecture keeps that one."""
+    keyed_voices(env, monkeypatch)
+    first = build(env).manifest  # keyless: Edge
+    voices = keyed_voices(env, monkeypatch, openai_api_key=OPENAI_KEY)
+    env["opts"] = env["opts"].model_copy(update={"tts_provider": "openai", "tts_voice": "onyx"})
+    res = build(env, previous=first, revoice=True)
+    assert sorted(res.built) == sorted(voiced_ids(env))
+    assert voiced_by(res, env) == {("openai", "onyx")} and set(calls(voices)) == {"openai"}
+    assert not [i for i in res.issues if i.code in ("assets.voice_kept", "assets.tts_fallback")]
+    # "Server default" re-voices with the server's provider (OpenAI with a key) and its voice for the language
+    env["opts"] = env["opts"].model_copy(update={"tts_provider": None, "tts_voice": None})
+    default = build(env, previous=first, revoice=True)
+    assert voiced_by(default, env) == {("openai", "nova")}
+    # kept from now on: options changed to Edge do not move it, a rebuild calls nothing
+    voices = keyed_voices(env, monkeypatch, openai_api_key=OPENAI_KEY)
+    env["opts"] = env["opts"].model_copy(update={"tts_provider": "edge"})
+    again = build(env, previous=res.manifest)
+    assert calls(voices) == {} and again.manifest.audio == res.manifest.audio
+    # and re-voicing back to the free Edge voice narrates nothing new: its clips are cached
+    back = build(env, previous=res.manifest, revoice=True)
+    assert voiced_by(back, env) == {("edge", "en-IN-NeerjaNeural")} and calls(voices) == {}
+    assert back.manifest.audio == first.audio
+
+
+def test_a_revoice_to_a_provider_without_a_key_fails_and_never_steps_down(env, monkeypatch):
+    """Voices audit R-1: the re-voice endpoint checks the key when it queues the job, but the key can be gone when the
+    job runs. The teacher chose OpenAI explicitly, so the job must fail (the lecture keeps its voice) rather than
+    narrate with another provider the lecture would then keep."""
+    from aadhi.providers.base import ProviderNotConfigured
+
+    keyed_voices(env, monkeypatch)
+    first = build(env).manifest  # keyless: Edge
+    voices = keyed_voices(env, monkeypatch)  # still no OpenAI key when the re-voice job runs
+    env["opts"] = env["opts"].model_copy(update={"tts_provider": "openai", "tts_voice": "onyx"})
+    with pytest.raises(ProviderNotConfigured):
+        build(env, previous=first, revoice=True)
+    assert calls(voices) == {}, "nothing narrated in a voice nobody chose"
+    # a plain rebuild still keeps the built Edge voice
+    assert voiced_by(build(env, previous=first), env) == {("edge", "en-IN-NeerjaNeural")}
+
+
+def test_a_new_lecture_narrates_with_openai_when_a_key_exists(env, monkeypatch):
+    """(d) Nothing built yet (no previous manifest, or one without any narration): OpenAI TTS with a key, else Edge
+    with the keyless warning, which says the lecture then keeps Edge."""
+    voices = keyed_voices(env, monkeypatch, openai_api_key=OPENAI_KEY)
+    res = build(env)
+    assert voiced_by(res, env) == {("openai", "nova")} and set(calls(voices)) == {"openai"}
+    assert not [i for i in res.issues if i.code == "assets.voice_kept"]
+    unnarrated = AssetManifest.model_validate({**res.manifest.model_dump(mode="json"), "audio": {}})
+    assert voiced_by(build(env, previous=unnarrated), env) == {("openai", "nova")}
+    keyed_voices(env, monkeypatch)
+    keyless = build(env)
+    assert voiced_by(keyless, env) == {("edge", "en-IN-NeerjaNeural")}
+    message = tts_fallbacks(keyless)[0].message
+    assert "The lecture keeps the Edge voice when it is edited or rebuilt" in message and "(Voice, in" in message
+
+
+def test_a_kept_voice_without_its_key_stands_in_with_edge_only_where_narration_is_needed(env, monkeypatch):
+    """An OpenAI lecture whose key is gone (the owner removed a personal key): unchanged scenes keep OpenAI, the
+    edited scene is narrated by the Edge stand-in with one warning, and the next build with the key narrates that
+    scene in OpenAI again (the lecture's voice stays OpenAI)."""
+    keyed_voices(env, monkeypatch, openai_api_key=OPENAI_KEY)
+    first = build(env).manifest
+    voices = keyed_voices(env, monkeypatch)  # no key now
+    unchanged = build(env, previous=first)
+    assert calls(voices) == {} and unchanged.manifest.audio == first.audio
+    assert not tts_fallbacks(unchanged)  # nothing needed narration: nothing stood in
+    edited = edited_intro(env)
+    res = build(env, sp=edited, previous=first)
+    assert res.built == ["intro"] and set(calls(voices)) == {"edge"}
+    assert (res.manifest.audio["intro"].provider, res.manifest.audio["intro"].voice) == ("edge", "en-IN-NeerjaNeural")
+    assert all(res.manifest.audio[s] == first.audio[s] for s in voiced_ids(env) if s != "intro")
+    fallback = tts_fallbacks(res)
+    assert len(fallback) == 1 and fallback[0].message.startswith("This lecture's voice, OpenAI TTS voice 'nova', has no")
+    voices = keyed_voices(env, monkeypatch, openai_api_key=OPENAI_KEY)
+    back = build(env, sp=edited, previous=res.manifest)
+    assert back.built == ["intro"] and set(calls(voices)) == {"openai"}
+    assert voiced_by(back, env) == {("openai", "nova")}
+
+
+def stand_ins(manifest: AssetManifest, env: dict[str, Any]) -> set[str | None]:
+    return {manifest.audio[s].stand_in_for for s in voiced_ids(env)}
+
+
+def test_a_stand_in_that_narrated_every_scene_never_becomes_the_kept_voice(env, monkeypatch):
+    """O17-1: an OpenAI lecture whose key is gone while a TTS_RATE change narrates every scene again is narrated
+    wholly by the Edge stand-in; each scene records the voice it stood in for, so the lecture still keeps OpenAI and
+    the next build with the key narrates it in OpenAI again (never "made with Edge")."""
+    keyed_voices(env, monkeypatch, openai_api_key=OPENAI_KEY)
+    first = build(env).manifest
+    assert stand_ins(first, env) == {None}  # a lecture's own voice stands in for nothing
+    voices = keyed_voices(env, monkeypatch)  # the owner removed the key
+    env["opts"] = env["opts"].model_copy(update={"tts_rate": "+5%"})  # every clip key changes: every scene narrated
+    mid = build(env, previous=first)
+    assert sorted(mid.built) == sorted(voiced_ids(env)) and set(calls(voices)) == {"edge"}
+    assert voiced_by(mid, env) == {("edge", "en-IN-NeerjaNeural")} and stand_ins(mid.manifest, env) == {"openai:nova"}
+    assert len(tts_fallbacks(mid)) == 1
+    from aadhi.schemas.manifest import built_voice
+
+    assert built_voice(mid.manifest, "en-IN") == built_voice(mid.manifest.model_dump(mode="json"), "en-IN")         == ("openai", "nova")
+    voices = keyed_voices(env, monkeypatch, openai_api_key=OPENAI_KEY)  # the key is back
+    back = build(env, previous=mid.manifest)
+    assert voiced_by(back, env) == {("openai", "nova")} and set(calls(voices)) == {"openai"}
+    assert stand_ins(back.manifest, env) == {None}
+    assert not [i for i in back.issues if i.code in ("assets.voice_kept", "assets.tts_fallback")]
+
+
+def test_a_misspelt_voice_model_never_moves_a_built_lecture_to_edge(env, monkeypatch):
+    """O17-1: a misspelt GEMINI_TTS_MODEL changes every clip key, so every scene of a built Gemini lecture is tried,
+    refused (ModelUnavailable) and narrated by Edge. Once the setting is fixed, the next build narrates it in Gemini
+    again (its old clips come from the cache) instead of keeping Edge."""
+    from tests.pipeline.fakes import FakeTTS
+
+    working = FakeTTS(name="gemini")
+    providers = retired_voice(env, monkeypatch, working)
+    good = env["ctx"].settings.model_copy(update={"gemini_tts_model": "gemini-3.8-flash-tts"})
+    env["ctx"].settings = good
+    first = build(env).manifest
+    assert {(first.audio[s].provider, first.audio[s].voice) for s in voiced_ids(env)} == {("gemini", "Kore")}
+    providers["gemini"] = RetiredTTS()
+    env["ctx"].settings = good.model_copy(update={"gemini_tts_model": "gemini-typo"})
+    mid = build(env, previous=first)
+    assert voiced_by(mid, env) == {("edge", "en-IN-NeerjaNeural")} and stand_ins(mid.manifest, env) == {"gemini:Kore"}
+    providers["gemini"], env["ctx"].settings = working, good  # the setting is fixed
+    back = build(env, previous=mid.manifest)
+    assert voiced_by(back, env) == {("gemini", "Kore")} and stand_ins(back.manifest, env) == {None}
+    assert all(clip_keys(back.manifest, s) == clip_keys(first, s) for s in voiced_ids(env))  # the cached clips
+    assert not [i for i in back.issues if i.code in ("assets.voice_kept", "assets.tts_fallback")]
+
+
+def test_a_revoice_to_the_stand_in_voice_keeps_no_stand_in_mark(env, monkeypatch):
+    """A scene the Edge stand-in narrated for OpenAI, reused by the teacher's re-voice to that same Edge voice, is
+    in the lecture's own voice now: it stands in for nothing, so the lecture keeps Edge (not OpenAI) afterwards."""
+    keyed_voices(env, monkeypatch, openai_api_key=OPENAI_KEY)
+    first = build(env).manifest
+    keyed_voices(env, monkeypatch)
+    edited = edited_intro(env)
+    stood = build(env, sp=edited, previous=first)
+    assert stood.manifest.audio["intro"].stand_in_for == "openai:nova"
+    voices = keyed_voices(env, monkeypatch, openai_api_key=OPENAI_KEY)
+    env["opts"] = env["opts"].model_copy(update={"tts_provider": "edge"})
+    revoiced = build(env, sp=edited, previous=stood.manifest, revoice=True)
+    assert "intro" in revoiced.reused and voiced_by(revoiced, env) == {("edge", "en-IN-NeerjaNeural")}
+    assert stand_ins(revoiced.manifest, env) == {None}
+    env["opts"] = env["opts"].model_copy(update={"tts_provider": None})
+    n = calls(voices)
+    again = build(env, sp=edited, previous=revoiced.manifest)
+    assert calls(voices) == n and again.manifest.audio == revoiced.manifest.audio  # kept Edge: nothing narrated
+
+
+def test_built_voice_reads_what_the_manifest_was_narrated_with():
+    from aadhi.schemas.manifest import built_voice
+
+    def audio(provider: str, voice: str, key: str | None = "scene_audio-x", language: str = "en-IN") -> dict[str, Any]:
+        return {"scene_id": "s", "asset_key": key, "provider": provider, "voice": voice, "language": language}
+
+    def manifest(*entries: dict[str, Any]) -> dict[str, Any]:
+        return {"audio": {f"s{i}": e for i, e in enumerate(entries)}}
+
+    assert built_voice(None) is None and built_voice({}) is None and built_voice(manifest()) is None
+    edge, nova = audio("edge", "en-IN-NeerjaNeural"), audio("openai", "nova")
+    assert built_voice(manifest(edge, edge)) == ("edge", "en-IN-NeerjaNeural")
+    # Edge next to another provider's voice is a stand-in (keyless or retired-model scenes): the other one wins
+    assert built_voice(manifest(edge, edge, nova)) == ("openai", "nova")
+    # the most scenes, ties to the earliest; scenes without narration, other languages and skipped scenes never count
+    onyx = audio("openai", "onyx")
+    assert built_voice(manifest(onyx, nova, nova)) == ("openai", "nova")
+    assert built_voice(manifest(onyx, nova)) == ("openai", "onyx")
+    assert built_voice(manifest(audio("openai", "nova", key=None), edge)) == ("edge", "en-IN-NeerjaNeural")
+    assert built_voice(manifest(audio("openai", "nova", language="ta-IN"), edge), "en-IN") == ("edge", "en-IN-NeerjaNeural")
+    assert built_voice(manifest(nova, edge), skip={"s0"}) == ("edge", "en-IN-NeerjaNeural")
+    # the model and its stored JSON give the same answer (a missing language is the schema's default, en-IN)
+    raw = manifest({k: v for k, v in nova.items() if k != "language"}, edge)
+    assert built_voice(AssetManifest.model_validate(raw), "en-IN") == built_voice(raw, "en-IN") == ("openai", "nova")
+    # a scene the Edge stand-in narrated counts as the voice it stood in for, even when no other scene is left
+    stood = {**edge, "stand_in_for": "gemini:Kore"}
+    assert built_voice(manifest(stood, stood)) == ("gemini", "Kore")
+    assert built_voice(AssetManifest.model_validate(manifest(stood, edge, stood)), "en-IN") == ("gemini", "Kore")
+    # an unreadable mark is ignored (the scene counts as what narrated it)
+    assert built_voice(manifest({**edge, "stand_in_for": "gemini"}, {**edge, "stand_in_for": 3})) == (
+        "edge", "en-IN-NeerjaNeural")
+
+
+def test_a_hidden_scene_never_decides_the_kept_voice(env, monkeypatch):
+    """A scene hidden during a re-voice is not narrated (hidden scenes are never built) and its narration in the old
+    voice is dropped: the lecture's voice is the one its shown scenes were re-voiced to, and showing the scene again
+    narrates it in that voice."""
+    keyed_voices(env, monkeypatch, openai_api_key=OPENAI_KEY)
+    first = build(env).manifest  # OpenAI
+    data = env["sp"].model_dump(mode="json")
+    data["scenes"][0]["hidden"] = True
+    hidden = Screenplay.model_validate(data)
+    env["opts"] = env["opts"].model_copy(update={"tts_provider": "edge"})
+    revoiced = build(env, sp=hidden, previous=first, revoice=True)
+    assert "intro" not in revoiced.manifest.audio and "intro" not in revoiced.manifest.scene_hashes  # never decides
+    assert revoiced.manifest.media["intro"] == first.media["intro"]  # its visuals are carried as they were
+    assert {revoiced.manifest.audio[s].provider for s in voiced_ids(env) if s != "intro"} == {"edge"}
+    assert stale_scene_ids(hidden, revoiced.manifest) == [] and stale_scene_ids(env["sp"], revoiced.manifest) == ["intro"]
+    voices = keyed_voices(env, monkeypatch, openai_api_key=OPENAI_KEY)
+    again = build(env, sp=hidden, previous=revoiced.manifest)
+    assert calls(voices) == {} and again.manifest.audio == revoiced.manifest.audio
+    shown = build(env, sp=env["sp"], previous=revoiced.manifest)
+    assert shown.built == ["intro"] and set(calls(voices)) == {"edge"}
+    assert voiced_by(shown, env) == {("edge", "en-IN-NeerjaNeural")}
 
 
 def test_cached_ai_video_is_reused_without_a_budget_check(env):

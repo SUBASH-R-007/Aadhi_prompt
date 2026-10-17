@@ -178,6 +178,72 @@ def test_build_assets_after_edit_and_cas_conflict(world, monkeypatch):
     assert any("changed while this job ran" in e["message"] for e in world["ctx"].events if e["type"] == "log")
 
 
+def test_a_revoice_job_narrates_in_the_new_voice_and_stores_it_while_a_build_keeps_the_voice(world, monkeypatch):
+    """O17: an ordinary build of a built lecture keeps its voice whatever its options say; the build_assets job of the
+    teacher's re-voice (payload ``voice``, POST /versions/{id}/voice) narrates every scene in the new voice and stores
+    it in the version's options."""
+    from tests.pipeline.fakes import FakeTTS
+
+    generate(world)  # narrated by the offline voice ("fake")
+    s = world["seeded"]
+    voices = {"edge": FakeTTS(name="edge"), "fake": world["providers"].tts}
+    monkeypatch.setattr(integrations, "get_tts", lambda name, settings: voices[name or "fake"])
+    with session_scope() as db:  # options that now name Edge (as a stored lecture's might): no re-voice by themselves
+        v = db.get(ProjectVersion, s.version_id)
+        v.generation_meta = {**v.generation_meta, "options": {**v.generation_meta["options"], "tts_provider": "edge"}}
+    n_fake = len(voices["fake"].texts)
+    run(world["ctx"], orchestrator.build_assets_job, "build_assets", {"scene_ids": None, "base_revision": 2})
+    v = get_version(s.version_id)
+    manifest = AssetManifest.model_validate(v.asset_manifest)
+    assert {a.provider for a in manifest.audio.values() if a.asset_key} == {"fake"}
+    assert not voices["edge"].texts and len(voices["fake"].texts) == n_fake and not v.generation_meta["last_build"]["built"]
+    assert any(i["code"] == "assets.voice_kept" for i in v.issues)
+    revoice = {"tts_provider": "edge", "tts_voice": "en-IN-PrabhatNeural"}
+    run(world["ctx"], orchestrator.build_assets_job, "build_assets",
+        {"scene_ids": None, "base_revision": 2, "voice": revoice})
+    v = get_version(s.version_id)
+    manifest = AssetManifest.model_validate(v.asset_manifest)
+    assert {(a.provider, a.voice) for a in manifest.audio.values() if a.asset_key} == {("edge", "en-IN-PrabhatNeural")}
+    assert voices["edge"].texts and len(voices["fake"].texts) == n_fake and v.status == "ready"
+    opts = v.generation_meta["options"]
+    assert (opts["tts_provider"], opts["tts_voice"]) == ("edge", "en-IN-PrabhatNeural")
+    assert opts["target_minutes"] == OPTIONS.target_minutes  # the other options are unchanged
+    assert v.generation_meta["last_build"]["revoice"] == revoice
+    assert not any(i["code"] == "assets.voice_kept" for i in v.issues)
+    # a bad re-voice request fails the job without touching the lecture
+    with pytest.raises(FatalJobError):
+        run(world["ctx"], orchestrator.build_assets_job, "build_assets",
+            {"scene_ids": None, "base_revision": 2, "voice": {"tts_provider": "nobody"}})
+    assert get_version(s.version_id).asset_manifest == v.asset_manifest
+
+
+def test_a_revoice_of_a_version_without_options_of_its_own_stores_only_the_voice(world, monkeypatch):
+    """O17-4: a version whose options come from the project's settings (none stored with it) is re-voiced without
+    freezing the project's current options into it: it still has no options of its own, so a later change of the
+    project's AI engine or image choices still applies to it; the voice it keeps is in its manifest."""
+    from tests.pipeline.fakes import FakeTTS
+
+    generate(world)
+    s = world["seeded"]
+    voices = {"edge": FakeTTS(name="edge"), "fake": world["providers"].tts}
+    monkeypatch.setattr(integrations, "get_tts", lambda name, settings: voices[name or "fake"])
+    with session_scope() as db:
+        v = db.get(ProjectVersion, s.version_id)
+        v.generation_meta = {k: val for k, val in v.generation_meta.items() if k != "options"}
+        db.get(Project, s.project_id).settings = {**OPTIONS.model_dump(mode="json"), "target_minutes": 9}
+    revoice = {"tts_provider": "edge", "tts_voice": "en-IN-PrabhatNeural"}
+    run(world["ctx"], orchestrator.build_assets_job, "build_assets",
+        {"scene_ids": None, "base_revision": 2, "voice": revoice})
+    v = get_version(s.version_id)
+    manifest = AssetManifest.model_validate(v.asset_manifest)
+    assert {(a.provider, a.voice) for a in manifest.audio.values() if a.asset_key} == {("edge", "en-IN-PrabhatNeural")}
+    assert "options" not in v.generation_meta and v.generation_meta["last_build"]["revoice"] == revoice
+    n_edge = len(voices["edge"].texts)
+    run(world["ctx"], orchestrator.build_assets_job, "build_assets", {"scene_ids": None, "base_revision": 2})
+    assert len(voices["edge"].texts) == n_edge  # and it keeps the new voice
+    assert AssetManifest.model_validate(get_version(s.version_id).asset_manifest).audio == manifest.audio
+
+
 def test_translate_job(world):
     generate(world)
     s = world["seeded"]
