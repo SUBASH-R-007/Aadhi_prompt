@@ -14,7 +14,7 @@ import { parseTarget, templateSlots } from '../../../js/dynamic/core.js';
 import { presenterSpec, wipeProgress } from '../../../js/dynamic/presenter.js';
 import aadhiIntro, {
   CHIP, DEFAULT_VARIANT, HOOK_AT, ID, LAYOUT, PORTRAIT, RISE, SCENE_TITLE_ITEM, TITLE_AT, VARIANTS, WORD_SECONDS,
-  chipText, drawsScene,
+  chipText, drawsScene, plainRich,
   exitAt, introItems, setsAtFrame0, slotRows, texOf, variantOf,
 } from '../../../js/dynamic/templates/aadhi_intro.js';
 import { contractProblems, orderProblems, recordingTex, renderStage } from './_harness.js';
@@ -211,6 +211,33 @@ test('introItems / drawsScene: a board with no heading takes the scene\'s own ti
   assert.equal(both.question?.id, 'q');
   assert.equal(introItems(sc([{ id: 't', kind: 'heading', text: 'Board title' }])).title?.id, 't', 'a heading wins');
   assert.equal(drawsScene(sc([{ id: 'b', kind: 'bullet', text: 'x' }])), false, 'another item: board_generic');
+});
+
+test('a scene title is plain text: its rich-lite specials are escaped, never drawn as TeX or emphasis (audit A5-2)', async () => {
+  // board_generic and formula_focus draw a scene title literally; presenter.py plain_rich escapes the synthesised
+  // intro's title the same way. Unescaped, `$...$` became TeX, `*...*` italics and backticks code here only.
+  assert.equal(plainRich('Graph of  $y = x^2$ *and* `code` [1] \\ end'),
+    'Graph of \\$y = x^2\\$ \\*and\\* \\`code\\` \\[1\\] \\\\ end');
+  /** @type {any} */
+  const sc = { title: 'Speed = $d/t$: *the* `key` idea', board: [] };
+  assert.equal(introItems(sc).title?.text, 'Speed = \\$d/t\\$: \\*the\\* \\`key\\` idea');
+  const tl = load('aadhi_intro.landscape.json');
+  const s = intro(tl);
+  s.board = [];
+  s.title = 'Speed = $d/t$: *the* `key` idea';
+  const run = spyStage(tl);
+  try {
+    await run.seekTo(0, 2);
+    const ctx = run.ctx(0);
+    assert.notEqual(ctx.view.aiFallback, true, 'aadhi_intro draws it');
+    const el = ctx.view.titleRow.el;
+    assert.equal(el.querySelector('em, strong, code, mjx-container, svg'), null, 'no emphasis, code or TeX in the title');
+    assert.equal(el.textContent.replace(/\s+/g, ' ').trim(), 'Speed = $d/t$: *the* `key` idea', 'drawn literally');
+    const entry = /** @type {any} */ ((aadhiIntro.texts?.(ctx) || []).find((e) => e.slot === 'title'));
+    assert.equal(entry?.text, 'Speed = $d/t$: *the* `key` idea', 'reported as drawn');
+  } finally {
+    run.done();
+  }
 });
 
 test('the scene\'s own title is drawn and reported like a heading', async () => {

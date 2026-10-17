@@ -497,6 +497,15 @@ def test_the_recap_card_opens_the_retrieval_recap_never_a_previously_recap() -> 
     early = _recap_dict("s-early", retrieval=True)
     a = pr.plan_appearances(_lecture(early, "facts", CARD))
     assert a is not None and a.recap_before is None
+    # step-5 audit A5-1: a single-chapter lecture has NO chapter card to guard with (the generator adds cards for
+    # chapters 2+ only), so the card must still never come before anything is taught
+    a = pr.plan_appearances(_lecture(early, "facts"))
+    assert a is not None and a.recap_before is None, "a 'previously' recap opening a card-less lecture"
+    a = pr.plan_appearances(_lecture(early, "facts", _recap_dict("s-end", retrieval=False)))
+    assert a is not None and a.recap_before is None, "...also when the lecture ends with a list-shaped recap"
+    a = pr.plan_appearances(_lecture(early, "facts", _recap_dict("s-end", retrieval=True)))
+    assert a is not None and a.recap_before == "s-end", "the closing retrieval recap still gets it"
+    assert pr.teaches(_lecture("facts").scenes[0]) and not pr.teaches(_lecture(early).scenes[0])
     # the screenplay's own presenter recap right before it wins (nothing synthesised)
     own = {"id": "s-own", "type": "recap", "title": "Recap", "concept_id": "ohm",
            "board": [{"id": "p", "kind": "question", "text": "Ready for a quick check?"}],

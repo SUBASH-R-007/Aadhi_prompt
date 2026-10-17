@@ -204,6 +204,19 @@ export function slotRows() {
  */
 export const SCENE_TITLE_ITEM = 'scene-title';
 
+/** The rich-lite specials presenter.py `_RICH_SPECIALS` escapes (web/js/player/richtext.js reads `\x` as a literal). */
+const RICH_SPECIALS = new Set(['\\', '$', '*', '`', '[', ']']);
+
+/**
+ * `text` with its whitespace collapsed and the rich-lite specials escaped: the JS twin of presenter.py `plain_rich`,
+ * so a plain scene title renders literally (no TeX, emphasis or code from its `$`, `*` or backticks).
+ * @param {string} text @returns {string}
+ */
+export function plainRich(text) {
+  const flat = String(text || '').split(/\s+/).filter(Boolean).join(' ');
+  return [...flat].map((ch) => (RICH_SPECIALS.has(ch) ? `\\${ch}` : ch)).join('');
+}
+
 /**
  * The scene's title (its first `heading` with text, else - a board with no heading - the scene's own `title` as a
  * heading row, id SCENE_TITLE_ITEM), its hook (its first `question` with text) and every other item (`others`: none is
@@ -231,7 +244,9 @@ export function introItems(scene) {
     else others.push(item);
   }
   const own = scene && typeof scene.title === 'string' ? scene.title.trim() : '';
-  if (!title && own) title = /** @type {BoardItem} */ (/** @type {unknown} */ ({ id: SCENE_TITLE_ITEM, kind: 'heading', text: own }));
+  // a scene title is plain text (board_generic, formula_focus): escaped so the heading row's rich-lite draws it
+  // literally, as presenter.plain_rich does for the synthesised intro (step-5 audit A5-2)
+  if (!title && own) title = /** @type {BoardItem} */ (/** @type {unknown} */ ({ id: SCENE_TITLE_ITEM, kind: 'heading', text: plainRich(own) }));
   return { title, question, others };
 }
 

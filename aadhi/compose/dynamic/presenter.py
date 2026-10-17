@@ -85,7 +85,18 @@ from pathlib import Path
 from typing import Any, Final, Literal
 
 from ...pipeline.richlite import to_plain
-from ...schemas.screenplay import BoardItem, BoardItemKind, BoardScene, ChapterCardScene, Presentation, Screenplay
+from ...schemas.screenplay import (
+    AIVideoScene,
+    BoardItem,
+    BoardItemKind,
+    BoardScene,
+    ChapterCardScene,
+    ClipScene,
+    InteractiveScene,
+    Presentation,
+    Screenplay,
+    SimulationScene,
+)
 from ...schemas.timeline import Chapter, Layout, TimedScene
 from ..base import MASCOT_CLIPS
 from .zones import FORMATS, LAYOUT, Format
@@ -357,6 +368,19 @@ CHIP_SEPARATOR: Final = " · "
 _RICH_SPECIALS: Final = frozenset("\\$*`[]")  # rich-lite markup (web/js/player/richtext.js escapes; timeline.py)
 
 
+# Board-scene types that teach (a "title" or "recap" board, a chapter card and a quiz do not): the recap card must come
+# after the first of them (plan_appearances).
+TEACHING_BOARD_TYPES: Final = frozenset({"content", "example", "summary", "key_takeaway"})
+
+
+def teaches(scene: Any) -> bool:
+    """Whether ``scene`` teaches something: a content, example, summary or key-takeaway board scene, or a simulation,
+    AI video, interactive or clip scene. Titles, recaps, chapter cards and quizzes do not."""
+    if isinstance(scene, BoardScene):
+        return scene.type in TEACHING_BOARD_TYPES
+    return isinstance(scene, (SimulationScene, AIVideoScene, InteractiveScene, ClipScene))
+
+
 def plain_rich(text: str) -> str:
     """``text`` with the rich-lite specials escaped, so a session title renders literally."""
     return "".join("\\" + ch if ch in _RICH_SPECIALS else ch for ch in " ".join(str(text or "").split()))
@@ -483,7 +507,7 @@ def plan_appearances(screenplay: Screenplay, *, enabled: bool = True) -> Appeara
     ``aadhi_intro`` (one it cannot draw, or one a teacher's lock gives another template, would open the video without
     Aadhi; step-5 review R5-2). The recap goes before the lecture's retrieval recap (module docstring, "Which recap"):
     the last shown ``recap`` board scene without a presenter that the director draws with ``recap_retrieval`` and that
-    does not come before the first chapter card, when :func:`recap_enabled`, and unless the screenplay has its own
+    does not come before the first chapter card nor before the first teaching scene (:func:`teaches`), when :func:`recap_enabled`, and unless the screenplay has its own
     presenter recap scene that ``aadhi_recap`` draws (its own appearance wins; R-12 allows one recap appearance)."""
     presentation = screenplay.presentation
     if presentation is None or not enabled:
@@ -504,8 +528,12 @@ def plan_appearances(screenplay: Screenplay, *, enabled: bool = True) -> Appeara
     recap_before: str | None = None
     if recap_enabled(presentation):
         card = next((i for i, s in enumerate(shown) if isinstance(s, ChapterCardScene)), 0)
-        retrieval = [i for i, s in enumerate(shown) if i >= card and isinstance(s, BoardScene) and s.type == "recap"
-                     and not has_presenter(s) and drawn(s) == "recap_retrieval"]
+        # and never before anything is taught: a single-chapter lecture has no chapter card to guard with (the
+        # generator adds cards for chapters 2+ only), so a "previously" recap opening it would otherwise get the card
+        # (step-5 audit A5-1). No teaching scene at all: no recap card.
+        taught = next((i for i, s in enumerate(shown) if teaches(s)), len(shown))
+        retrieval = [i for i, s in enumerate(shown) if i >= card and i > taught and isinstance(s, BoardScene)
+                     and s.type == "recap" and not has_presenter(s) and drawn(s) == "recap_retrieval"]
         # the screenplay's own recap appearance, wherever it stands, is the lecture's one (R-12: Aadhi appears at the
         # start and in the recap only); one his template does not draw shows no Aadhi and does not count
         own = any(isinstance(s, BoardScene) and s.type == "recap" and has_presenter(s) and drawn(s) == "aadhi_recap"
